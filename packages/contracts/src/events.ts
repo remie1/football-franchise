@@ -9,6 +9,8 @@ import type { DraftPickKind, GameKind, GameResult, PlayoffBracket } from "./leag
 import type { StaffRole, ContractKind, InjuryBand, InjurySetting } from "./players.js";
 import type { StaffDepartureReason } from "./staff.js";
 import type { RelationshipParty, RelationshipWord } from "./relationships.js";
+import type { OfficiatingCrew } from "./officials.js";
+import type { FoulKind, FoulTiming, PenaltyEnforcement, PenaltyOutcome } from "./penalties.js";
 import type { MeetingPoint, StaffMeeting, TeamDirection } from "./meeting.js";
 import type { SidelineAdjustmentPayload, StemPayload } from "./stem.js";
 
@@ -159,6 +161,21 @@ export type CheckKind =
    */
   | "communication" | "snap_jump" | "fumble" | "penalty_check"
   /**
+   * ADR-093 F4: the officials' two rolls (§5.1), each rolled once and only when it matters
+   * (ADR-005): a snap with no foul and no near-foul rolls neither. Each is a CHECK, never a
+   * `PRESNAP_READ`, even on a foul before the snap: it names the `penalty_check` CHECK it judges by
+   * `rollRef` and states its chance as `target`, both always present, and is written after that
+   * CHECK, in the same play (ADR-059). `actors` is the one man whose foul or near-foul it judges
+   * (the `FOUL`'s player, or the wrong flag's `PENALTY.player`). `testsAttrs` is empty and there is
+   * no `opposedRoll`: officials have no ratings, and the foul's visibility, the crew's lean and the
+   * situation set the target (§5.2, §6.1, §6.4).
+   *  - `official_sees`: on a foul. Made, the foul is flagged (`FOUL.flagged`).
+   *  - `phantom_flag`: on a near-foul, a `penalty_check` that only just missed (§5.3). Made, a
+   *    wrong flag is thrown: a `PENALTY` with that `rollRef` and no `FOUL` behind it. This CHECK,
+   *    not a missing event, is what says the flag was wrong.
+   */
+  | "official_sees" | "phantom_flag"
+  /**
    * ADR-091 petition M3, the stem at the line (§5.2 to §5.4): the Mike's timing (`stem_timing`), a
    * moved lineman's shift on an on-time stem (`stem_shift`) and the quarterback's snap on movement
    * on an early one (`snap_on_movement`). Each is rolled only when it decides something (ADR-005);
@@ -256,7 +273,13 @@ export type DriveResult =
 
 export type ScoreKind = "TOUCHDOWN" | "FIELD_GOAL" | "EXTRA_POINT" | "TWO_POINT" | "SAFETY";
 export type PlacekickKind = "FIELD_GOAL" | "EXTRA_POINT";
-export type CoachDecisionKind = "FOURTH_DOWN" | "COIN_TOSS";
+/**
+ * ADR-093 F6: `PENALTY_OPTION` is the offended team's choice on a flag against the other team
+ * (§3, §4.6): accept or decline; on a free play, the play or the penalty; with the 10-second runoff,
+ * the runoff or not (§4.5). Authority COACH, as every kind here (Iron Rule 6). ADR-091's petition
+ * M5 named this decision; it is the same one.
+ */
+export type CoachDecisionKind = "FOURTH_DOWN" | "COIN_TOSS" | "PENALTY_OPTION";
 export type GameEndReason = "REGULATION" | "OVERTIME" | "TIE";
 
 /**
@@ -296,7 +319,14 @@ export type MatchEvent =
    */
   | ({ type: "PLAY_START"; payload: unknown } & MatchEventBase)
   | ({ type: "PRESNAP_READ"; payload: {
-        actor: PlayerId; kind: CheckKind; roll: RollDetail; target: number; tier: ResultTier;
+        actor: PlayerId;
+        /**
+         * ADR-093 F4: every kind but the foul roll and the officials' two, which are always CHECKs:
+         * a `penalty_check` is the CHECK a `FOUL`, a `PENALTY` and the officials' rolls name, and
+         * each officials' roll names the `penalty_check` it judges.
+         */
+        kind: Exclude<CheckKind, "penalty_check" | "official_sees" | "phantom_flag">;
+        roll: RollDetail; target: number; tier: ResultTier;
         /** The read's own band label (a free string, ADR-011): §5.1's six-band ladder for
          *  `coverage_read` and `blitz_recognition` (ADR-068 §2, ADR-073); HELD / BROKE for
          *  `leash_discipline` (ADR-072). Same reasoning as ADR-011 gave `CHECK.band`: a
@@ -316,7 +346,18 @@ export type MatchEvent =
   | ({ type: "STEM"; payload: StemPayload } & MatchEventBase)
   | ({ type: "TICK"; payload: { tick: number } } & MatchEventBase)
   | ({ type: "CHECK"; payload: (
-        | { checkKind: CheckKind; roll: RollDetail }
+        | { checkKind: Exclude<CheckKind, "official_sees" | "phantom_flag">; roll: RollDetail }
+        /**
+         * ADR-093 F4: the officials' two rolls always name the `penalty_check` they judge
+         * (`rollRef`) and state their chance (`target`), and are never opposed (`opposedRoll`).
+         */
+        | {
+            checkKind: "official_sees" | "phantom_flag";
+            roll: RollDetail;
+            opposedRoll?: never;
+            rollRef: string;
+            target: number;
+          }
         | {
             checkKind: "pass_rush_tick";
             /**
@@ -359,7 +400,8 @@ export type MatchEvent =
          * jitters around (on a touched man's late block under shape L, ADR-089 P17, his
          * `blitz_pickup` or `stunt_communication` CHECK); for a `pass_rush_tick` with no `roll`
          * (ADR-089 P3, shape S), the `pass_rush_beat` whose breaking time sets its margin; for
-         * `pass_rush_beat` (ADR-089 P2), the CHECK whose block it times.
+         * `pass_rush_beat` (ADR-089 P2), the CHECK whose block it times; for `official_sees` and
+         * `phantom_flag` (ADR-093 F4), the `penalty_check` they judge.
          *
          * Present so the deciding quantity is REPRODUCIBLE FROM THE STREAM. Without it the
          * margin that selects a band exists only in engine memory, and Iron Rule 3 is not
@@ -594,10 +636,85 @@ export type MatchEvent =
       } } & MatchEventBase)
   | ({ type: "ENV_APPLIED"; payload: { weather?: RollModifier[]; stamina?: RollModifier[]; noise?: RollModifier[] } } & MatchEventBase)
   | ({ type: "STAMINA_DELTA"; payload: { player: PlayerId; delta: number }[] } & MatchEventBase)
-  | ({ type: "PENALTY"; payload: { kind: string; player: PlayerId; accepted: boolean; yards: number } } & MatchEventBase)
+  /**
+   * ADR-093 F2: a foul a player committed, flagged or not: a game fact (§1, §2; Iron Rule 3). What
+   * the officials called is `PENALTY`; a foul nobody flagged is here and in no `PENALTY`, and a
+   * wrong flag, thrown on a near-foul, has no `FOUL` behind it (§5.3). What the coach sees of a
+   * foul is ADR-093 §7's, not this event's.
+   *
+   * `rollRef` names the `penalty_check` CHECK that made it (ADR-004, §8). `flagged`: the officials
+   * flagged it, and one `PENALTY` with this `rollRef` is written after it. `when` is its moment
+   * (`FoulTiming`), and `yardLine` where it happened, in yards from the snapping team's own goal
+   * line whichever team fouled (the scale of `DRIVE_START.startYardLine` for its offense), below 0
+   * in its own end zone and above 100 in the other team's. `player` is the man whose foul it is and
+   * `team` his team, as on `PENALTY` (a foul the NFL puts on a team and no man waits for its step).
+   * The base's `tick` is when, on a foul during the play, and is absent on a foul before the snap,
+   * at it, or after the play.
+   *
+   * Written, as `PENALTY` is, after its play's `PLAY_START` and before its `PLAY_RESULT`. A foul
+   * before the snap names the `PlayId` of the down it was committed on, a dead-ball foul that stops
+   * the snap included (the NFL's play-by-play gives that down its own row), and the replayed down is
+   * a new play with its own `PlayId`; how a stopped down's events say that no snap was made is
+   * petitioned at the step that first produces one.
+   */
+  | ({ type: "FOUL"; payload: {
+        kind: FoulKind;
+        player: PlayerId;
+        team: TeamId;
+        when: FoulTiming;
+        yardLine: number;
+        rollRef: string;
+        flagged: boolean;
+      } } & MatchEventBase)
+  /**
+   * ADR-093 F3: a flag: what the officials called, and what became of it (§2, §4). Reshaped from
+   * `{ kind, player, accepted, yards }`, which nothing ever emitted: `accepted` could not say OFFSET
+   * or SUPERSEDED, and `yards` on a declined flag would be a 0 that reads as a distance (ADR-036),
+   * so both are gone, and a reader of either fails to compile rather than reading a new meaning
+   * (ADR-010).
+   *
+   * `kind`, `player` and `team` are the foul called, the man flagged and his team. A flag the NFL
+   * puts on a team and no man (delay of game, too many men on the field, and about half of illegal
+   * formation and illegal shift flags) waits for a widening at the step that builds it, and never
+   * names a stand-in player (ADR-010). `rollRef` names the `penalty_check` CHECK of the moment
+   * flagged: the foul's own roll, or, for a wrong flag, the near-foul's (§5.3). The flag's own
+   * fields do not say which, so it reads as called (§7); what happened and what was called stay
+   * apart (§1). `freePlay`: the flag is on the defense for a live-ball foul at the snap (defensive
+   * offside, for one), so the play ran and the offense keeps its result (DECLINED) or takes the
+   * penalty (ENFORCED) (ADR-091 §8; ADR-091's petition M5 is this field).
+   *
+   * ENFORCED and DECLINED are the offended team's choice, a COACH decision (§4.6, Iron Rule 6);
+   * OFFSET and SUPERSEDED are the rulebook's (§4.4). Only an ENFORCED flag carries `enforcement`.
+   * `PLAY_RESULT` stays the play's own result: a flag's yards are its `enforcement`'s, never added
+   * to `PLAY_RESULT.yards` (ADR-010). Whether, and how much of, a play's result counts after a flag
+   * (the NFL's "No Play": a hold marked off from the previous spot, a free play's penalty taken,
+   * offsetting flags during the play) is an addition at the step that first produces one.
+   *
+   * Several flags on one play are each a `PENALTY`. Each is written after its play's `PLAY_START`
+   * and before its `PLAY_RESULT`, a flag on a foul before the snap or after the whistle included:
+   * readers close a play at its `PLAY_RESULT`, and the offended team chooses on the play's result,
+   * which the engine knows before it writes that event.
+   */
+  | ({ type: "PENALTY"; payload: {
+        kind: FoulKind;
+        player: PlayerId;
+        team: TeamId;
+        rollRef: string;
+        freePlay: boolean;
+      } & (
+        | { outcome: "ENFORCED"; enforcement: PenaltyEnforcement }
+        | { outcome: Exclude<PenaltyOutcome, "ENFORCED">; enforcement?: never }
+      ) } & MatchEventBase)
   | ({ type: "PLAY_RESULT"; payload: { yards: number; turnover: boolean; score?: number; clockRunoff: number } } & MatchEventBase)
   // ---- Game structure (ADR-014). All GAME-scoped: none of these is a play. ----
-  | ({ type: "GAME_START"; payload: { home: TeamId; away: TeamId; seed: string } } & GameEventBase)
+  /**
+   * ADR-093 F5: `crew` is the crew that worked the game, as it stood that season (§6.3): an input
+   * to the officials' rolls, as `seed` is to every roll, so the record says which crew called the
+   * game and how it leaned. Absent when the game had no crew (a calibration batch, or a season game
+   * of a league with no crews yet); its officials then call it at the league's average, every lean
+   * 50.
+   */
+  | ({ type: "GAME_START"; payload: { home: TeamId; away: TeamId; seed: string; crew?: OfficiatingCrew } } & GameEventBase)
   | ({ type: "COIN_TOSS"; payload: {
         winner: TeamId; choice: "RECEIVE" | "DEFER"; receivesFirst: TeamId; roll: RollDetail;
       } } & GameEventBase)
@@ -623,9 +740,19 @@ export type MatchEvent =
   | ({ type: "SCORE"; payload: {
         team: TeamId; kind: ScoreKind; points: number; home: number; away: number;
       } } & GameEventBase)
-  | ({ type: "COACH_DECISION"; payload: {
-        kind: CoachDecisionKind; authority: "COACH"; team: TeamId; choice: string;
-      } } & GameEventBase)
+  /**
+   * ADR-093 F6: a `PENALTY_OPTION` decision is the offended team's on one flag, and names it:
+   * `rollRef` is that flag's `PENALTY.rollRef` (a game event about a play states the link in its own
+   * payload, ADR-014 item 13). One for each flag whose outcome the offended team chose (ENFORCED or
+   * DECLINED), written before that flag's `PENALTY` and, like it, inside the play's events: after
+   * the play's `PLAY_START` and before its `PLAY_RESULT`. An OFFSET or SUPERSEDED flag has none
+   * (§4.4). `team` is the offended team, deciding; `choice` names the option taken, such as ACCEPT
+   * or DECLINE, and the options are the rulebook's (ADR-093 step 0). No other kind names a flag.
+   */
+  | ({ type: "COACH_DECISION"; payload: (
+        | { kind: Exclude<CoachDecisionKind, "PENALTY_OPTION">; rollRef?: never }
+        | { kind: "PENALTY_OPTION"; rollRef: string }
+      ) & { authority: "COACH"; team: TeamId; choice: string } } & GameEventBase)
   /**
    * The three kicking events are PLAY-scoped, not game-scoped (ADR-016). A field-goal
    * attempt is a fourth down, a punt is a play, a kickoff is a free-kick down — and once
@@ -807,6 +934,9 @@ export type FranchiseEvent =
  * ADR-089 P3: A CHECK IS NOT ALWAYS A ROLL. Under `pocket-1`'s shape S a `pass_rush_tick` carries
  * no `roll`: its band and margin are set by the `pass_rush_beat` its `rollRef` names, which
  * recorded the one die. It is counted as a CHECK and as no roll.
+ *
+ * ADR-093 F6: a `PENALTY_OPTION` COACH_DECISION, which is game-scoped, carries the `rollRef` of its
+ * flag's `penalty_check`, a roll in the play it decides on (ADR-014 item 13).
  *
  * Stated here rather than left implicit so the next author does not have to
  * re-derive whether it is allowed. An implicit generalization gets re-litigated

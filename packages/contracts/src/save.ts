@@ -1,10 +1,11 @@
 import type { CalendarStamp } from "./calendar.js";
 import type { DraftClass, DraftPick, LeagueStructure, SeasonState } from "./league.js";
-import type { PlayerId, TeamId } from "./ids.js";
+import type { GameId, OfficiatingCrewId, PlayerId, TeamId } from "./ids.js";
 import type { Team, PlayerState, StaffState, PlayerContract, PerceivedAttributes, DeadMoneyCharge } from "./players.js";
 import type { StaffContract } from "./staff.js";
 import type { FranchiseEventEnvelope } from "./events.js";
 import type { RelationshipView } from "./relationships.js";
+import type { OfficiatingCrew } from "./officials.js";
 import type { StaffMeeting } from "./meeting.js";
 
 export const SAVE_FORMAT_VERSION = 1;
@@ -58,6 +59,18 @@ export interface SaveFile {
     league: LeagueStructure;
     /** ADR-078 C7: the current season; null before a schedule exists. Replaces `standings: unknown`. */
     season: SeasonState | null;
+    /**
+     * ADR-093 F7: the league's officials (§6.2, §6.3), beside the season whose games they work.
+     * `crews`: its crews as they stand this season (a new season draws each crew's leans again from
+     * its last, §6.1). `assignments`: every game of this season given a crew so far, played or not,
+     * one entry per game, made week by week (the coaches see their crew in game week, §6.2).
+     * Optional, so saves written before it still load; absent, the league has no crews yet and its
+     * games are played without one.
+     */
+    officiating?: {
+      crews: OfficiatingCrew[];
+      assignments: { game: GameId; crew: OfficiatingCrewId }[];
+    };
     narrativeState: unknown;
     fashion: unknown;
   };
