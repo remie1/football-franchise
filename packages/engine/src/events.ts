@@ -50,7 +50,7 @@ export type TippedBallRecovery =
 export interface CheckEmission {
   /**
    * Every kind but the officials' two (ADR-093 F4), whose CHECK always names the `penalty_check` it
-   * judges and states its chance; they get an emission of their own with ADR-093 step 1's build.
+   * judges and states its chance; theirs is `OfficialsCheckEmission` below (ADR-093 step 1).
    */
   readonly checkKind: Exclude<CheckKind, "official_sees" | "phantom_flag">;
   readonly actors: readonly PlayerId[];
@@ -96,6 +96,24 @@ export type BeatTickEmission = Omit<CheckEmission, "checkKind" | "roll" | "oppos
   readonly checkKind: "pass_rush_tick";
   readonly rollRef: string;
 };
+
+/**
+ * ADR-093 F4: the officials' two rolls, `official_sees` on a foul and `phantom_flag` on a near-foul.
+ * Each is one bare d100 against the chance that the foul's visibility, the crew's lean and the
+ * situation set (`officials/officials.ts`). It is written on every foul and every near-foul, whatever
+ * its target (ADR-093 §5.1). It always names the `penalty_check` it judges (`rollRef`) and states
+ * its chance (`target`). It is never opposed or banded, and it tests no rating.
+ */
+export interface OfficialsCheckEmission {
+  readonly checkKind: "official_sees" | "phantom_flag";
+  readonly actors: readonly [PlayerId];
+  readonly roll: RollDetail;
+  readonly target: number;
+  readonly tier: ResultTier;
+  readonly margin: number;
+  readonly testsAttrs: readonly [];
+  readonly rollRef: string;
+}
 
 /** ADR-089 P4 — the approach a `RUSH_THREAT` may carry: never BLOCKED, by type. */
 export type ThreatApproach = Exclude<RushApproach, "BLOCKED">;
@@ -144,8 +162,14 @@ export interface PresnapEmission {
  * ADR-089 P3: a `BeatTickEmission` (no `roll` key at all) takes the dieless branch, keyed on the
  * key's absence, and keeps today's key order less `roll` and `opposedRoll`. Every legacy emission
  * carries `roll`, so the branch below it is today's body, untouched.
+ *
+ * ADR-093 step 1: an `OfficialsCheckEmission` takes its own branch, keyed on its two kinds, in the
+ * general branch's key order with `opposedRoll` and `band` absent. No other emission can carry those
+ * kinds (`CheckEmission` excludes them), so no existing CHECK moves a byte.
  */
-export function checkPayload(c: CheckEmission | BeatTickEmission): Extract<MatchEvent, { type: "CHECK" }>["payload"] {
+export function checkPayload(
+  c: CheckEmission | BeatTickEmission | OfficialsCheckEmission,
+): Extract<MatchEvent, { type: "CHECK" }>["payload"] {
   if (!("roll" in c)) {
     return {
       checkKind: c.checkKind,
@@ -157,6 +181,20 @@ export function checkPayload(c: CheckEmission | BeatTickEmission): Extract<Match
       ...(c.band === undefined ? {} : { band: c.band }),
       rollRef: c.rollRef,
     };
+  }
+  switch (c.checkKind) {
+    case "official_sees":
+    case "phantom_flag":
+      return {
+        checkKind: c.checkKind,
+        actors: [...c.actors],
+        roll: c.roll,
+        tier: c.tier,
+        margin: c.margin,
+        testsAttrs: [...c.testsAttrs],
+        target: c.target,
+        rollRef: c.rollRef,
+      };
   }
   return {
     checkKind: c.checkKind,
