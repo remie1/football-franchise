@@ -29,8 +29,12 @@ import type { Scenario } from "./fixtures.js";
 import type {
   ApproachTunables,
   BeatClockTunables,
+  ClimbLaneTunables,
   EngineRulesStamp,
   ForcingTunables,
+  FreeRunHoldTunables,
+  FreeRunTunables,
+  LateBlockTunables,
   RepClockTunables,
   Tunables,
 } from "../src/tunables.js";
@@ -135,9 +139,127 @@ export const S2N_TUNABLES = withForcing(
   { rule: "COUNTER_LESS_SEEN" },
 );
 
-/** The rule sets the step-1 and step-2 suites run over, `legacy` first (the same reference as the default). */
+/**
+ * ADR-089 step 3 — THE FREE-RUN BLOCK AS FILED, built by hand for the engine's tests, as the step-1
+ * and step-2 bundles are: the step-0 filing's `constants.freeRun.*` (D18, D22;
+ * `packages/calibration/reports/adr-089-step0.filed.json`, the same values as calibration's
+ * `FREE_RUN_CONSTANTS`), AM-2's `movingGetOffSeconds` 0, reading B (the design, D19), all three
+ * origins, nothing held, and the picture as ruled. Calibration's `pocket-1.s3` bundle is built by
+ * `withOverlay`; this is the engine's own stand-in.
+ */
+export const FREE_RUN_FILED: FreeRunTunables = Object.freeze({
+  fortyYards: 40,
+  fortyIntercept: 5.6,
+  fortySpeedSlope: 1.38,
+  fortySpeedScale: 99,
+  tauIntercept: 0.77,
+  tauSlope: 0.007,
+  tauMin: 0.63,
+  tauMax: 0.91,
+  pathShortenYards: 1.0,
+  edgePathFactor: 1.1,
+  loopExtraYards: 0.5,
+  getOffSeconds: 0.35,
+  movingGetOffSeconds: 0,
+  delayedSeconds: 0.5,
+  etaRoundingSeconds: 0.1,
+  creeperYardsPerSecond: 3,
+  reading: "B",
+  picture: "AS_RULED",
+});
+
+/** AM-2's references for the arms that hold an input (CHOSEN, information only). */
+export const HOLD_REFERENCES: FreeRunHoldTunables = Object.freeze({
+  spot: Object.freeze({
+    downLineman: Object.freeze({ depth: 1.0, width: 2.5 }),
+    linebacker: Object.freeze({ depth: 2.5, width: 2.5 }),
+    defensiveBack: Object.freeze({ depth: 5.0, width: 7.0 }),
+  }),
+  ratings: Object.freeze({ speed: 50, acceleration: 50 }),
+  drop: 5.0,
+});
+
+/** AM-2's late block: `t_e` 1.0 s, `w` 0.1. */
+export const LATE_BLOCK_FILED: LateBlockTunables = Object.freeze({ engageSeconds: 1.0, weakMultiplier: 0.1 });
+
+/**
+ * ADR-089 step 3: `base` with the step-3 blocks merged in, each key added only when given (never as
+ * `freeRun: undefined`). Nothing is checked here; a value outside the closed sets is for the refusal
+ * tests, cast at the call site.
+ */
+export function withStep3(
+  base: Tunables,
+  blocks: {
+    readonly freeRun?: FreeRunTunables;
+    readonly lateBlock?: LateBlockTunables;
+    readonly climbLane?: ClimbLaneTunables;
+  },
+): Tunables {
+  return {
+    ...base,
+    blitzPickup: {
+      ...base.blitzPickup,
+      ...(blocks.freeRun === undefined ? {} : { freeRun: blocks.freeRun }),
+      ...(blocks.lateBlock === undefined ? {} : { lateBlock: blocks.lateBlock }),
+    },
+    pocket: { ...base.pocket, ...(blocks.climbLane === undefined ? {} : { climbLane: blocks.climbLane }) },
+  };
+}
+
+/**
+ * The step-3 design bundle's shape on the engine's hand-built dials: S2 (step 2's design) with the
+ * free-run clock (reading B, the picture as ruled), the late block (1.0 s, 0.1) and the climb lane
+ * FRONT, stamped `pocket-1.s3` with a stand-in digest. In `RULE_SETS` as `S3`; an s3 pass play
+ * needs the snap picture on its calls (plan §2.3), which the suites bring (`callsUnder`).
+ */
+export const S3_TUNABLES = withStep3(
+  withForcing(
+    withBlocks(withStep2Horizons(DEFAULT_TUNABLES), { beatClock: BEAT_CLOCK_WITH_WINDOW, approach: APPROACH_CARD }, stamp("fnv1a:5f000030", "pocket-1.s3")),
+    { rule: "PER_RUSHER" },
+  ),
+  { freeRun: FREE_RUN_FILED, lateBlock: LATE_BLOCK_FILED, climbLane: "FRONT" },
+);
+
+/**
+ * ADR-089 step 3 on shape L: step 2's shape-L basis (L5 at step 2's horizons, must act per rusher)
+ * with the free-run block and the FRONT climb lane, stamped `pocket-1.s3`. No late block, so its
+ * touched men keep today's times (the free-run block alone on shape L; `S3L8_TUNABLES` below has
+ * the late block, which shape L runs since petition P17, E4b).
+ */
+export const S3L_TUNABLES = withStep3(
+  withForcing(
+    withBlocks(withStep2Horizons(DEFAULT_TUNABLES), { repClock: { fullExpressionSeconds: 5 }, approach: APPROACH_CARD }, stamp("fnv1a:5f000031", "pocket-1.s3")),
+    { rule: "PER_RUSHER" },
+  ),
+  { freeRun: FREE_RUN_FILED, climbLane: "FRONT" },
+);
+
+/** Step 2's shape-L basis at R 8 (L8 at step 2's horizons, must act per rusher): B5's shape, C14's base. */
+export const S2L8_TUNABLES = withForcing(
+  withBlocks(withStep2Horizons(DEFAULT_TUNABLES), { repClock: { fullExpressionSeconds: 8 }, approach: APPROACH_CARD }, stamp("fnv1a:5d000028", "pocket-1.s2")),
+  { rule: "PER_RUSHER" },
+);
+
+/**
+ * ADR-089 step 3, C14's shape (playable since petition P17, E4b): `S2L8_TUNABLES` with the free-run
+ * block, the late block and the FRONT climb lane, stamped `pocket-1.s3`. Not in `RULE_SETS`;
+ * `rollAccounting.test.ts` pairs it with `S2L8_TUNABLES` (R-4) and plays a whole game under it.
+ */
+export const S3L8_TUNABLES = withStep3(
+  withForcing(
+    withBlocks(withStep2Horizons(DEFAULT_TUNABLES), { repClock: { fullExpressionSeconds: 8 }, approach: APPROACH_CARD }, stamp("fnv1a:5f000038", "pocket-1.s3")),
+    { rule: "PER_RUSHER" },
+  ),
+  { freeRun: FREE_RUN_FILED, lateBlock: LATE_BLOCK_FILED, climbLane: "FRONT" },
+);
+
+/**
+ * The rule sets the suites run over, `legacy` first (the same reference as the default). ADR-089
+ * step 3 (P-18, critique 3 S4) adds its two: `S3` (the design's shape) and `S3L`. A pass play under
+ * either needs the snap picture on its calls (`snapFixtures.ts`'s `callsUnder`).
+ */
 export const RULE_SETS: readonly {
-  readonly name: "legacy" | "S" | "SW" | "L5" | "L8" | "SWH" | "S2" | "S2N";
+  readonly name: "legacy" | "S" | "SW" | "L5" | "L8" | "SWH" | "S2" | "S2N" | "S3" | "S3L";
   readonly tunables: Tunables;
 }[] = [
   { name: "legacy", tunables: DEFAULT_TUNABLES },
@@ -148,13 +270,19 @@ export const RULE_SETS: readonly {
   { name: "SWH", tunables: SWH_TUNABLES },
   { name: "S2", tunables: S2_TUNABLES },
   { name: "S2N", tunables: S2N_TUNABLES },
+  { name: "S3", tunables: S3_TUNABLES },
+  { name: "S3L", tunables: S3L_TUNABLES },
 ];
+
+/** ADR-089 step 3's rule sets in `RULE_SETS`: every bundle with a step-3 block. */
+export const STEP3_RULE_SET_NAMES: readonly string[] = ["S3", "S3L"];
+export const isStep3 = (name: string): boolean => STEP3_RULE_SET_NAMES.includes(name);
 
 /** The step-1 rule sets: every bundle of `RULE_SETS` that carries no `pocket.forcing` before step 2's. */
 export const STEP1_RULE_SET_NAMES: readonly string[] = ["legacy", "S", "SW", "L5", "L8"];
 
 export const isShapeS = (name: string): boolean =>
-  name === "S" || name === "SW" || name === "SWH" || name === "S2" || name === "S2N";
+  name === "S" || name === "SW" || name === "SWH" || name === "S2" || name === "S2N" || name === "S3";
 
 /**
  * A POWER 1-14 fixture (critique-1 F26): `buildStalledPocketScenario`'s smothered coverage, so the

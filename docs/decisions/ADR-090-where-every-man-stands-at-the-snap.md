@@ -286,3 +286,13 @@ Question 1 (looks are real) and question 2 (tells) are **separately priceable**:
 **What was built** is recorded in [ADR-091 §17.1](ADR-091-the-stem-called-by-the-mike.md). In this ADR's terms, beat 6 now draws every stem as it ended: on time or early, the moved linemen set in the front they stemmed to; caught, each halfway between his two gaps, standing, moving toward the new one at 3 yards a second (ADR-091 D8); called off, set where he lined up; and on an on-time stem, a man whose shift missed by 20 or more drawn caught. The ending reaches the defense's caller on `LineUpRequest.stem`, which is absent on a snap with no stem and under every `pocket-1` rule set, where nothing at the line runs and the picture stays as step 1 drew it (agreed with ADR-089's step 3, which reads the picture). The game viewer draws a caught man as it draws any man moving at the snap, an arrow to where he is a second later, and lists the new rolls in a play's dice table; it has no words for the stem itself yet.
 
 **The proof (§7), MEASURED** (`pnpm --filter @ff/calibration snap-spots -- --step 3`, about 2 minutes; [`reports/adr-090-step3.md`](../../packages/calibration/reports/adr-090-step3.md)). **Inert:** with ADR-091's and ADR-092's records stripped (their entries in ADR-089's strip list, K11), all 28 pinned folds and the real season's pinned path are unchanged, and every `pocket-1` arm's pins hold byte for byte with nothing stripped; the report re-checks v7's 100 golden games (288,693 and 304,621 events kept, 2,015 and 2,076 records taken off, both digests the same in both leagues). **The picture draws the ending** on every one of the 4,641 stem snaps of both base corpora: a mover is moving at the snap if and only if the `STEM` says he was caught, at 3 yards a second. The rest of the numbers (how often, how each stem ended, the count, the count read) are ADR-091's and ADR-092's, in ADR-091 §17.2.
+
+**Orchestrator note (2026-10-31): S3 and S4 granted.** The owner gave his typed yes to S3 and S4
+on 2026-10-31 at 14:38:53Z, in the ADR-089 thread, where S3 was brought forward from this ADR's
+step 3: "Yes, make contracts edits S3, P5 and P17, and edit S4". **S3** reached contracts at
+`38729cb`: the front `LOOK` tag and `shownRush` now say the snap picture is built from them, so a
+look sets where the man starts, while what he is assigned to do is unchanged. **S4** is the
+engine's comment edit at `c61ec9d`: `RushThreat.distanceYards`' subject condition is a snap spot,
+which closes ADR-066's open item. Both are doc text and move no game. ADR-089's step 3, which reads
+the picture under `pocket-1.s3`, plays its picture as ruled because S3 is granted. The stem's
+endings above (§16) run only under `legacy`, so the two never meet in one game.

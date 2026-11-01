@@ -11,11 +11,14 @@
  *  3. On save: the caller always, the rules only when not `legacy`, as `<name>@<digest>`, so a legacy
  *     save is byte for byte the save E1 wrote.
  *  4. `--out` carries the caller and the rules always, the overlay digest only when not `legacy`.
+ *  5. Step 3's bundle (ADR-089 step 3, plan §2.1): a `pocket-1.s3` save is written as
+ *     `pocket-1.s3@<digest>`, reads back through the real `makeSave` and `readSave`, carries on under
+ *     `pocket-1.s3` at this build's digest only, and is never carried on under another name.
  */
 import { describe, expect, it } from "vitest";
 import { buildLeague, makeSave, readSave } from "@ff/franchise";
 import type { CalendarStamp } from "@ff/contracts";
-import { EngineRulesError, POCKET_1_S1_DIGEST } from "../src/pocket/rules.js";
+import { EngineRulesError, POCKET_1_S1_DIGEST, POCKET_1_S2_DIGEST, POCKET_1_S3_DIGEST } from "../src/pocket/rules.js";
 import { savePlayedWith, seasonOutStamp, seasonRules } from "../src/season/stamp.js";
 
 const league = buildLeague("adr-089:season-stamp");
@@ -117,5 +120,39 @@ describe("--out", () => {
   it("the overlay digest only when the rules are not legacy, as two fields (not the save's one string)", () => {
     expect(seasonOutStamp("v7", "legacy", "fnv1a:00000000")).toEqual({ callerVersion: "v7", engineRules: "legacy" });
     expect(seasonOutStamp("v7", "pocket-1.s1", POCKET_1_S1_DIGEST)).toEqual({ callerVersion: "v7", engineRules: "pocket-1.s1", engineRulesDigest: POCKET_1_S1_DIGEST });
+  });
+});
+
+describe("pocket-1.s3 (ADR-089 step 3)", () => {
+  const S3_SAVE = `pocket-1.s3@${POCKET_1_S3_DIGEST}`;
+
+  it("--save writes pocket-1.s3@<digest>; it reads back and carries on under pocket-1.s3", () => {
+    expect(savePlayedWith("v7", "pocket-1.s3")).toEqual({ caller: "v7", engineRules: S3_SAVE });
+    const back = readSave(onDisk(saveWith(savePlayedWith("v7", "pocket-1.s3")))).save;
+    expect(back.playedWith).toEqual({ caller: "v7", engineRules: S3_SAVE });
+    expect(seasonRules(back)).toBe("pocket-1.s3");
+    expect(seasonRules(back, "pocket-1.s3")).toBe("pocket-1.s3");
+    expect(seasonRules(undefined, "pocket-1.s3")).toBe("pocket-1.s3");
+  });
+
+  it("loads only at this build's digest, and is never carried on under another name", () => {
+    const cases: [string, string | RegExp][] = [
+      [`pocket-1.s3@${POCKET_1_S2_DIGEST}`, `This save was played with engine rules pocket-1.s3 at overlay ${POCKET_1_S2_DIGEST}; this build's pocket-1.s3 is ${POCKET_1_S3_DIGEST}`],
+      ["pocket-1.s3", "This save was played with engine rules pocket-1.s3 and carries no overlay digest; a save of non-legacy rules is stamped <name>@<digest>"],
+    ];
+    for (const [value, message] of cases) {
+      expect(() => seasonRules(loaded(value)), value).toThrow(EngineRulesError);
+      expect(() => seasonRules(loaded(value)), value).toThrow(message);
+    }
+    expect(() => seasonRules(loaded(S3_SAVE), "pocket-1.s2")).toThrow(
+      "This save was played with engine rules pocket-1.s3; carrying it on under pocket-1.s2 is refused, not converted (ADR-089 §9). Drop --engine-rules, or name pocket-1.s3",
+    );
+    expect(() => seasonRules(loaded(`pocket-1.s2@${POCKET_1_S2_DIGEST}`), "pocket-1.s3")).toThrow(
+      "This save was played with engine rules pocket-1.s2; carrying it on under pocket-1.s3 is refused, not converted (ADR-089 §9). Drop --engine-rules, or name pocket-1.s2",
+    );
+  });
+
+  it("--out carries the name and its digest as two fields", () => {
+    expect(seasonOutStamp("v7", "pocket-1.s3", POCKET_1_S3_DIGEST)).toEqual({ callerVersion: "v7", engineRules: "pocket-1.s3", engineRulesDigest: POCKET_1_S3_DIGEST });
   });
 });

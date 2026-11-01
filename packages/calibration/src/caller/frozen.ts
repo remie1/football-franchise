@@ -204,9 +204,10 @@ import type {
   FourthDownRequest,
   OffensiveCallRequest,
   PlayCaller,
+  Tunables,
 } from "@ff/engine";
 import type { OffensiveCall, ProtectionCall, SnapPicture } from "@ff/contracts";
-import type { AnyDefensiveCard, DepthChart, PlaySituation, SnapInput } from "@ff/playbook";
+import type { AnyDefensiveCard, DepthChart, PlaySituation, PreSnapOptions, SnapInput } from "@ff/playbook";
 import {
   COMPOSED,
   COVERAGE_MASKS,
@@ -718,6 +719,31 @@ function tendencyKeyOf(request: {
  * rather than letting the two sides diverge quietly — which is the difference between a broken
  * batch and a batch of clean statistics about two teams playing different plays.
  */
+/** The head-only Mug's drawing options (ADR-090 §4.3, question 1's other answer). */
+const MUG_HEAD_ONLY: PreSnapOptions = Object.freeze({ mug: "HEAD_ONLY" });
+
+/**
+ * How the frozen pair draws the snap picture for an arm (ADR-089 step 3, plan §2.11, K5): the
+ * picture its physics reads, named by the free-run block's picture dial. `undefined`, the ruled
+ * picture (`snapPicture(input)`), for a bundle with no free-run block (legacy, `pocket-1.s1`,
+ * `pocket-1.s2`) and for `AS_RULED`; the head-only Mug (`snapPicture(input, { mug: "HEAD_ONLY" })`)
+ * for `MUG_HEAD_ONLY`, which skips beat 3 for the Mug alone. No die is read.
+ */
+export function pictureOptionsOf(tunables: Tunables): PreSnapOptions | undefined {
+  const picture = tunables.blitzPickup.freeRun?.picture;
+  switch (picture) {
+    case undefined:
+    case "AS_RULED":
+      return undefined;
+    case "MUG_HEAD_ONLY":
+      return MUG_HEAD_ONLY;
+    default: {
+      const unhandled: never = picture;
+      throw new FrozenCallerError(`the free-run block names a picture this frozen pair cannot draw: ${String(unhandled)}`);
+    }
+  }
+}
+
 function sharedSnapRng(rng: Rng, side: "offense" | "defense" | "line-up"): Rng {
   const suffix = `/${side}`;
   if (!rng.label.endsWith(suffix)) {
@@ -1094,7 +1120,15 @@ export function frozenCallerPair(spec: FrozenCallerSpec): FrozenCallerPair {
             `the callers hold have diverged.`,
         );
       }
-      return snapPicture(request.stem === undefined ? resolved.snapInput : { ...resolved.snapInput, stem: request.stem });
+      // ADR-090 step 3: the stem's ending, when the engine played one out at the line (only under
+      // `legacy`, so never beside a free-run block's picture dial).
+      const input = request.stem === undefined ? resolved.snapInput : { ...resolved.snapInput, stem: request.stem };
+      // ADR-089 step 3 (plan §2.11, K5): an arm publishes the picture its physics reads, the one
+      // its free-run block's picture dial names (`pictureOptionsOf`). AS_RULED, and every bundle
+      // with no free-run block (legacy, s1, s2), draw the ruled picture exactly as before; the
+      // Mug's head-only answer (C6) draws ADR-090 question 1's other picture.
+      const options = pictureOptionsOf(request.tunables);
+      return options === undefined ? snapPicture(input) : snapPicture(input, options);
     },
 
     /**

@@ -32,7 +32,7 @@ import type {
   RushAlignment,
   RushMove,
 } from "../types.js";
-import type { ThreatApproach } from "../events.js";
+import type { ThreatApproach, ThreatGeometry } from "../events.js";
 import type { PassRushBandLabel } from "./passRush.js";
 // Type-only, and therefore erased: `./pocket.ts` imports the FUNCTION below, so a
 // value import in this direction would be a cycle. The ladder's rung type belongs
@@ -110,19 +110,25 @@ export interface RushThreat extends ArrivalClock {
    * PROVENANCE: nobody measured this distance, and a reader who assumes
    * somebody did would be wrong, naturally and reasonably.
    *
-   * ✅ IT BECOMES A REAL DISTANCE WHEN A SNAP POSITION EXISTS. WHAT PRODUCES
-   * A SNAP POSITION IS UNDESIGNED — ADR-066's geometry was halted (owner
-   * ruling, August 2026) because it named `gap`/`side`/`dropDepthYards`/
-   * rusher depth as that source, and those describe ALIGNMENT — where a
-   * defender lines up — not snap position. That is this field's SUBJECT
-   * CONDITION: OPEN, not moved to a replacement mechanism — this value is a
-   * placeholder with the right units and the right shape, not yet the thing
-   * it is named for.
+   * ✅ IT IS A REAL DISTANCE ONLY WHEN IT IS MEASURED FROM A SNAP SPOT
+   * (ADR-090). ADR-066's geometry was halted (owner ruling, August 2026)
+   * because it named `gap`/`side`/`dropDepthYards`/rusher depth as the
+   * source of a snap position, and those describe ALIGNMENT (where a defender
+   * lines up), not where he stands when the ball is snapped. That is this
+   * field's SUBJECT CONDITION, which ADR-090's petition S4 sets (the owner's
+   * typed yes, 2026-10-31): a snap spot (ADR-090), his entry in the snap
+   * picture (`PlayCalls.snap`, published on `PLAY_START`). Where the pair is
+   * measured from one (a free runner the free-run clock timed, under
+   * `pocket-1.s3`, below) it is the thing it is named for. Every pair
+   * `threatFromWonRep` builds (a won rep under every rule set, and a beaten
+   * late block) is still the placeholder above: the right units and the
+   * right shape, measured from nothing.
    *
-   * `closingSpeed` is the SAME nominal constant on every threat today — not
-   * yet `ATTR.speed`/`ATTR.acceleration` — carried per-threat anyway because
-   * the point of landing the decomposition first is that the SHAPE does not
-   * change when a real value eventually fills it.
+   * `closingSpeed` is the SAME nominal constant on every pair
+   * `threatFromWonRep` builds, not `ATTR.speed`/`ATTR.acceleration` (the
+   * free-run clock's pair, below, reads both), carried per-threat anyway
+   * because the point of landing the decomposition first is that the SHAPE
+   * does not change when a real value fills it.
    *
    * BOTH ABSENT TOGETHER, NEVER ONE WITHOUT THE OTHER, and only ever present
    * on a `WON_REP` threat `threatFromWonRep` built: the other three origins
@@ -132,6 +138,24 @@ export interface RushThreat extends ArrivalClock {
    * only and leave these two untouched, so where present they describe the
    * ORIGINAL computation at the moment the threat was created, not a
    * running position.
+   *
+   * ADR-089 STEP 3 (`pocket-1.s3` only; plan §2.6). "Only ever present on a
+   * `WON_REP` threat" holds under `legacy`, s1 and s2. Under s3 the pair is
+   * on two more threats: a free runner the free-run clock timed
+   * (`FreeRunner.onClock`, `sim/freeRunTiming.ts`) carries that clock's whole
+   * path in yards, from his spot in ADR-090's snap picture, and the trip's
+   * average speed (`resolve/freeRun.ts`), so on him the pair is geometry, not
+   * the table above. On a calibration arm that holds an input
+   * (`freeRun.hold`) the clock runs on AM-2's reference for that input
+   * instead, as P5's text says: a held spot is his group's reference spot,
+   * not his own, and held ratings are the reference ratings, not his. A
+   * beaten late block (`resolve/lateBlock.ts`) carries the nominal pair of
+   * the won rep's travel it was built with. Every other free runner (today's
+   * set times) still has neither. The pair reaches
+   * `RUSH_THREAT` (contracts petition P5) only when
+   * `PocketRules.threatGeometry` is true (a `pocket-1.s3` bundle with the
+   * free-run block), and then on every threat of the play that carries it
+   * (`sim/passPlay.ts`'s `publishThreat`, through `threatGeometryOf`).
    */
   readonly distanceYards?: number;
   readonly closingSpeed?: number;
@@ -143,6 +167,13 @@ export interface RushThreat extends ArrivalClock {
    * "still in his block" does not compile.
    */
   readonly approach?: ThreatApproach;
+  /**
+   * ADR-089 step 3, D16 (`pocket-1.s3` only; plan §2.3): the side he comes from, his own card side,
+   * or for a looper his partner's (`resolve/approach.ts`'s `threatSideOf`). Engine-internal: no
+   * event carries it, and nothing reads a side at step 3. Absent under `legacy`, s1 and s2, and
+   * wherever the card states no side; never defaulted.
+   */
+  readonly side?: RunSide;
 }
 
 /**
@@ -607,6 +638,21 @@ export function threatFromWonRep(args: {
 export function soonerThreat(existing: RushThreat | undefined, next: RushThreat): RushThreat {
   if (existing === undefined) return next;
   return existing.etaTick <= next.etaTick ? existing : next;
+}
+
+/**
+ * ADR-089 P5: a threat's distance and closing speed as `RUSH_THREAT` carries them: both, or
+ * `undefined` when the threat has neither (a free runner on today's set time). Called only when the
+ * play's rules publish the pair (`PocketRules.threatGeometry`). A threat with one and not the other
+ * is an engine fault, thrown rather than published half.
+ */
+export function threatGeometryOf(threat: RushThreat): ThreatGeometry | undefined {
+  const { distanceYards, closingSpeed } = threat;
+  if (distanceYards === undefined && closingSpeed === undefined) return undefined;
+  if (distanceYards === undefined || closingSpeed === undefined) {
+    throw new Error(`@ff/engine: the threat of ${String(threat.rusher)} carries one of distanceYards and closingSpeed without the other`);
+  }
+  return { distanceYards, closingSpeed };
 }
 
 /** Push a threat back — what a step-up, or a recovered blocker, does to a rusher. */

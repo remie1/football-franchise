@@ -97,9 +97,10 @@ describe("ADR-089 step 0: the one-threat bench", () => {
     }
   });
 
-  it("the rebuilt call: rush = protection + 1, no stunt, the shown rush is the played one, no pool, no check-release", () => {
+  it("the rebuilt call: rush = protection + 1, no stunt, no stem, the shown rush is the played one, no pool, no check-release", () => {
     let rebuilt = 0;
     let allNamed = 0;
+    let stems = 0;
     for (const p of oneGame()) {
       const calls = p.play.calls as PlayCalls;
       const r = oneThreatCalls(calls);
@@ -115,6 +116,10 @@ describe("ADR-089 step 0: the one-threat bench", () => {
       expect(defense.rush.length).toBe(r.rushCount);
       expect(offense.protection.length).toBe(r.protectionCount);
       expect(defense.stunts).toBeUndefined();
+      // ADR-091 M2: a stem is a front look; it goes with the stunts, and the count asked against it too.
+      if (calls.defense.stem !== undefined) stems += 1;
+      expect(defense.stem).toBeUndefined();
+      expect(offense.cadence).toBeUndefined();
       expect(defense.shownRush).toBe(defense.rush);
       const scheme = offense.protectionScheme;
       if (scheme !== undefined) {
@@ -144,6 +149,26 @@ describe("ADR-089 step 0: the one-threat bench", () => {
     }
     expect(rebuilt).toBeGreaterThan(20);
     expect(allNamed).toBeGreaterThan(0);
+    // The game's frozen caller calls stems under legacy rules (ADR-090 step 3), so some captured calls wear one.
+    expect(stems).toBeGreaterThan(0);
+  });
+
+  it("a captured play that wore a stem replays on the bench at each X, exact (ADR-091 M2: the stem is dropped with the stunts)", () => {
+    const plays = oneGame().filter((p) => (p.play.calls as PlayCalls).defense.stem !== undefined && oneThreatCalls(p.play.calls as PlayCalls) !== undefined);
+    expect(plays.length).toBeGreaterThan(0);
+    for (const p of plays) {
+      for (const x of ONE_THREAT_SECONDS) {
+        const r = replayOneThreat(p, x);
+        expect(r).toBeDefined();
+        if (r === undefined) continue;
+        expect(r.facts.dropback).toBe(true);
+        expect(r.facts.exact).toBe(true);
+        expect(r.facts.poolAtSnap).toBe(0);
+        expect(r.facts.pickupChecks).toBe(0);
+        // The captured state still carries what the game loop resolved at the line, which the engine
+        // re-emits as records only (STEM after PLAY_START); nothing the bench reads comes from them.
+      }
+    }
   });
 
   it("two plays, each X: deterministic, and exactly one UNBLOCKED threat at etaTick X, his, and no other (K15)", () => {

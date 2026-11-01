@@ -8,12 +8,20 @@
  * 4.0 -> 99 (no free runner gets home), `stunt.looperArrivalSeconds` 2.0 -> 50 (no looper either).
  * `test/cleanBench.test.ts` plays the two corpora on it.
  *
+ * **Step 3's clean bench** (ADR-089 step 3, plan §2.9; §6.0) is `cleanBenchTunablesS3`: the
+ * `pocket-1.s3` bundle on the same four leaves, with the free-run clock's get-off and moving get-off
+ * and the late block's engage time all 50 s, past `clock.maxTick` 6.0 (critique 1 S4: a moving man
+ * has no get-off, so the creeper would otherwise reach the bench's quarterback at about 1.3 s), and
+ * today's 50 / 99 / 50 for any record the clock does not time. Built through `withOverlay`, never
+ * patched after; `test/cleanBench.test.ts` plays it under `FF_POCKET_BENCH=1` on the published picture.
+ *
  * **The one-threat bench** replays captured clean-bench dropbacks with `simulatePlay` (ADR-012
  * items 1 and 2: the entry point, and the types to build its input), each call rebuilt so that
  * EXACTLY ONE rusher is unblocked, at a fixed X seconds:
  *
  *  - **no stunt**, and the shown rush is the played one (no front look, so no ghost and no moved
- *    man);
+ *    man); a stem (ADR-091 M2, played under legacy rules since ADR-090 step 3) is a front look, so it
+ *    goes with the stunts, and the quarterback's count asked against it (`cadence`) with it;
  *  - **no back in protection**: the protection's pool (`protectionScheme.available`) and its
  *    check-release men are dropped, and a slide check with them, so nobody can pick a man up or be
  *    kept in; the men who were in the pool take no part in the play (the validator allows a man on
@@ -60,6 +68,7 @@ import { capturePlays, type CapturedPlay } from "../harness/playScope.js";
 import { buildFixture } from "../harness/schedule.js";
 import { goldenFixtures } from "./corpus.js";
 import type { GoldenLeague } from "./golden.js";
+import { POCKET_1_S2_FORCING, POCKET_1_S2_LEAVES, POCKET_1_S3_FREE_RUN, POCKET_1_S3_LATE_BLOCK, POCKET_1_S3_OVERLAY, POCKET_1_S3_RULES, withOverlay } from "./rules.js";
 import { readDropback, severity, worstStatus, playsOf } from "./throwClass.js";
 
 // --- the clean bench's tunables --------------------------------------------------------------------
@@ -80,6 +89,32 @@ function patch(base: Tunables, tunableId: string, currentValue: number, proposed
 /** pkB's clean bench: no blocked rusher wins, no free runner or looper gets home. */
 export function cleanBenchTunables(base: Tunables = DEFAULT_TUNABLES): Tunables {
   return CLEAN_BENCH_LEAVES.reduce((t, leaf) => patch(t, leaf.tunableId, leaf.currentValue, leaf.proposedValue, "the clean bench: nobody reaches the quarterback"), base);
+}
+
+/** Step 3's clean bench's free-run and late-block seconds (plan §2.9): past `clock.maxTick` 6.0. */
+export const CLEAN_BENCH_S3_SECONDS = 50;
+
+/**
+ * Step 3's clean bench (plan §2.9): `pocket-1.s3` built exactly as the bundle is (Half and Follows
+ * on the base, then the overlay and must act per rusher through `withOverlay`), on the clean bench's
+ * four leaves, with `freeRun.getOffSeconds`, `freeRun.movingGetOffSeconds` and
+ * `lateBlock.engageSeconds` at 50 s. Every other block and constant is the bundle's own; the result
+ * is stamped `pocket-1.s3` at a digest of its own and is never patched after.
+ */
+export function cleanBenchTunablesS3(): Tunables {
+  const base = cleanBenchTunables(POCKET_1_S2_LEAVES.reduce(applyTunablePatch, DEFAULT_TUNABLES));
+  return withOverlay(
+    base,
+    POCKET_1_S3_RULES,
+    {
+      ...POCKET_1_S3_OVERLAY,
+      blitzPickup: {
+        freeRun: { ...POCKET_1_S3_FREE_RUN, getOffSeconds: CLEAN_BENCH_S3_SECONDS, movingGetOffSeconds: CLEAN_BENCH_S3_SECONDS },
+        lateBlock: { ...POCKET_1_S3_LATE_BLOCK, engageSeconds: CLEAN_BENCH_S3_SECONDS },
+      },
+    },
+    POCKET_1_S2_FORCING,
+  );
 }
 
 export const ONE_THREAT_SECONDS = Object.freeze([1.5, 2.5, 3.5] as const);
@@ -134,8 +169,9 @@ export function oneThreatCalls(calls: PlayCalls): OneThreatCall | undefined {
   const newRush = rush.filter((r) => kept.has(String(r.rusher)) || String(r.rusher) === extraId);
 
   const scheme = calls.offense.protectionScheme;
+  const { cadence: _cadence, ...offenseRest } = calls.offense;
   const offense: OffensivePlayCall = {
-    ...calls.offense,
+    ...offenseRest,
     protection,
     ...(scheme === undefined
       ? {}
@@ -146,7 +182,7 @@ export function oneThreatCalls(calls: PlayCalls): OneThreatCall | undefined {
               : { kind: "MAN", ...(scheme.center === undefined ? {} : { center: scheme.center }) },
         }),
   };
-  const { stunts: _stunts, ...defenseRest } = calls.defense;
+  const { stunts: _stunts, stem: _stem, ...defenseRest } = calls.defense;
   const defense: DefensivePlayCall = { ...defenseRest, rush: newRush, shownRush: newRush };
   return { calls: { offense, defense }, extra: extraId, rushCount: newRush.length, protectionCount: protection.length };
 }
