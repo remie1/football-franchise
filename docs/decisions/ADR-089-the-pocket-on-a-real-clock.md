@@ -3178,3 +3178,381 @@ Shown to the owner at 2026-10-31T04:01:51Z, not asked.
 Shown to the owner at 2026-10-31T18:34:30Z, not asked.
 
 **Orchestrator note (2026-10-31): G.11's "Before C14 runs" was already true when AM-5 landed here.** G.11 was written on the filing branch, whose base (`b8cff79`) did not yet hold E4b, so its "Before C14 runs" paragraph describes that base. On `claude/pocket-fix` AM-5 was picked after E4b (`b581e27`), which lifted P17 (its doc text reached contracts at `c340520`) with the pair label already in place: the engine's late block (`engine/src/resolve/lateBlock.ts`, `resolveLateTickL`) forks the toucher's die as `<toucherId>:late:<rusherId>`, and calibration's late-tick check (`calibration/src/pocket/s1Stream.ts`) asks that the opposed roll's label end in `/<toucherId>:late:<rusherId>`. So shape L plays here, C14 with it, and the paragraph's last sentence ("Both take the pair label when E4b lifts P17, before C14 plays") had come true before G.11 was appended; its present-tense lines ("is refused in play", "still forks", "still asks") read as of the filing branch. Shape L was refused in play until E4b, so no game has drawn the bare `<toucherId>:late` toucher die. This note changes no rule: AM-5's entry (`fnv1a:fd8a8dcd`), `AMENDMENTS_DIGEST` and `STEP3_AMENDMENTS_DIGEST` (`fnv1a:517bb9fe`) and step 2's view (`fnv1a:d5f9de6d`) are as filed, and nothing played moves.
+
+## Appendix H: the step-3 record
+
+*Appended at step 3's record (step-3 plan §9, commit 20), after Appendix G, its amendment records G.8 to G.11 and the Orchestrator note after G.11. Lines 1 to 3,180 of this file are unchanged (line 3,180 is that note), and lines 1 to 2,018 are still pinned by `C0_DIGEST`, so every `adrLine` in the step-0 filing still points at the C0 bytes; `pocketBands.test.ts` allows Appendix F, then G, then this one heading after Appendix E, in that order, each once, and no other. The step's numbers are `packages/calibration/reports/adr-089-step3.md` (the report) and `.json` (the measures), committed in `d8247c9`; this appendix is their human-read record, and every figure below is copied from one of the two unless it names another source. The build's working reports (`build-a1.md`, `build-ea.md`, `build-eb.md`, `build-ka.md`, `build-kb.md`, `build-kc.md`, `build-kd.md`, `build-v.md`, `build-integrate.md`, `proofs.md`, the four reviews and `build-fix.md`, copied to `/mnt/project-files/arms/pocket-fix/step3/build-record/`; and `contracts/apply.md`, `contracts/proofs.md`, `integrate/integrate.md`, `integrate/merge.md`, `integrate/proofs.md`, `measure/pins.md` and `measure/measure.md`, in the Orchestrator's step-3 working folder; the planning files are in `/mnt/project-files/arms/pocket-fix/step3/planning/`) are named where they are the source. Nothing here moves a band, re-files a clause or changes a filed number: the step-0 filing is append-only and `FILED_DIGEST` is still `fnv1a:9a1c90e9`, and the amendments file is as AM-5 left it (`AMENDMENTS_DIGEST` and `STEP3_AMENDMENTS_DIGEST` `fnv1a:517bb9fe`; step 2's view `fnv1a:d5f9de6d`). AM-2 to AM-5 are G.8 to G.11's and are not restated. Branch `claude/pocket-fix`, built from `93c2762` (ADR-090 step 1's head), with main merged in at `b8cff79` (main `01b541b`) and `22b3940` (main `73325df`); record written at `d8247c9`. H.7, the owner's answers, is appended when they are given.*
+
+### H.1 What landed, and the additions beyond §6.3
+
+All of it sits behind the switch. A bundle plays step 3's rules only when its tunables carry a `pocket-1` stamp and at least one of step 3's three blocks (`step3BlocksOf`, `engine/src/sim/freeRunTiming.ts:76`): the free-run block (`blitzPickup.freeRun`), the late block (`blitzPickup.lateBlock`), or a climb lane rule other than `INTERIOR` (`pocket.climbLane`). `DEFAULT_TUNABLES` carries none of them (census `fnv1a:365da48d`, digest `fnv1a:395a9ae2`, unchanged), and no `pocket-1.s1` or `pocket-1.s2` bundle does, so the default game plays `legacy` with the base's bytes and `pocket-1.s1` and `pocket-1.s2` replay byte for byte (H.4). The rules bundle is `pocket-1.s3`: step 2's design bundle (B3) with step 3's three blocks (`calibration/src/pocket/rules.ts`, `POCKET_1_S3_OVERLAY`). Its design digest, `POCKET_1_S3_DIGEST`, is `fnv1a:c4462712`, and a save is stamped `pocket-1.s3@fnv1a:c4462712`. It did not move through the contracts lift or either merge (`contracts/apply.md`, `integrate/integrate.md`).
+
+- **The free-run clock** (`engine/src/resolve/freeRun.ts`, `freeRunClock`; E2): D18 and D22 as a pure function of a man's spot, ratings, the offense call's drop and his start, on the step-0 filing's fifteen `constants.freeRun.*` (filed, never fitted) and AM-2's `movingGetOffSeconds` (0), rounded to the tenth. Calibration's `freeRun.ts` holds the same function, and one literal table pins the two (R-6).
+- **Free runners timed from the snap picture** (`engine/src/sim/freeRunTiming.ts`, `timeFreeRunners`; E3). Under reading B (D19) every man nobody touched (UNBLOCKED, PICKUP_LOST banded BLOWN_UP, STUNT_LOOPER banded LOOPER_FREE, and AM-2's untouched exchange) runs on the clock from his own entry in `PLAY_START.payload.snap`, with the hand-off fix (a carried record timed for its carrier) and the looper's side read from the two men's published spots. Before any die, the engine refuses an s3 pass play whose calls carry no picture, a played rusher with no entry, or a moving entry other than the creeper's (`assertSnapPictureFor`).
+- **The late, weak block** (`engine/src/resolve/lateBlock.ts`; E4, and E4b for shape L): a man somebody got a hand on (RAN_THROUGH, LATE_EXCHANGE) is blocked from `t_e` = 1.0 s with `w` = 0.1 (AM-2's CHOSEN values, `POCKET_1_S3_LATE_BLOCK`), on shape S by one late beat and on shape L by rolled ticks on AM-5's pair label.
+- **The climb lane** (E5): under `pocket-1.s3` any FRONT threat closes it (`POCKET_1_S3_CLIMB_LANE`, `"FRONT"`); legacy, s1 and s2 keep the interior rule.
+- **Threat geometry** (E6, then E6b): under `pocket-1.s3` a RUSH_THREAT publishes `distanceYards` and `closingSpeed` (petition P5), a beaten late threat the engine's nominal pair (G.9 item 6); `renderPlay` gains the late-beat and beaten-late-threat lines, and `docs/design/match-engine.md` three marked `pocket-1.s3` blocks.
+- **The Mug's other picture** (`playbook/src/snapSpots.ts`, the head-only Mug, `92e2001`, byte for byte main's `f615cfb`) and the frozen caller's picture option (K5), which C6 plays.
+- **Calibration:**
+  - the bundle, its digest and stamps (K1), the arm ids (K2a) and the arms C1 to C16 with the s3 stream readers (K2b);
+  - part 1 on the published picture, the touched men's check, the monotone check, the mirror on the picture, the s3 clean bench and the roll-ref invariant (`pocket/part1.ts`, K3);
+  - `pocket -- --step 3` with its report, its measures and the miss rule's classes and options (`pocket/step3.ts`, K4);
+  - `POCKET_1_S3_PINS` with the snap-picture fold (`pocket/s3Pins.ts`, `pocketS3Pins.test.ts`, `e35327c`).
+- **The viewer** (`apps/game/src/playDetail.ts`, `64dd047`): the late block and free runners render. The optional display of P5's pair (plan §8, stream V) was not built (`build-v.md` §5; no later commit adds it).
+
+**The contracts edits, as granted** (the owner's typed yes at 2026-10-31T14:38:53Z, "Yes, make contracts edits S3, P5 and P17, and edit S4", G.9 item 1; the contracts-guardian's verdict APPLY on each, with no blocker and no NEEDS_OWNER, `contracts/apply.md`):
+
+- **S3** (`38729cb`, `contracts/src/playcalls.ts`, doc text for the LOOK tag and `shownRush`): "a front look sets where the man starts" (ADR-090's petition). Calibration's `S3_IN_CONTRACTS` flips in the same commit, so the design picture is the one ADR-090 publishes under its rulings, the Mug worn (`AS_RULED`), and C6 reads the head-only picture.
+- **P5** (`218a737`, `contracts/src/events.ts`): RUSH_THREAT's `distanceYards` and `closingSpeed`. Lifted by E6b (`58a374b`, "RUSH_THREAT publishes distanceYards and closingSpeed"), which publishes them under `pocket-1.s3` only.
+- **P17** (`c340520`, `contracts/src/events.ts`, doc text): the late block's rolled tick on shape L, with AM-5's pair label. Lifted by E4b (`b581e27`, "the late block plays on shape L; C14 plays").
+- **S4** (`c61ec9d`, `engine/src/resolve/rushThreat.ts`, doc text, ADR-090's petition): "the subject condition is a snap spot".
+
+Each of the four is doc text or an optional field that only `pocket-1.s3` writes, and P-16 and P-17 (H.4) find every legacy, s1 and s2 picture and key set equal to the base's. ADR-066 and ADR-090 carry appended Orchestrator notes on the grants (`814cbb1`).
+
+**The guard under AM-3** (G.9): C1 against B3, C2 against B6 and C11 against B3, graded by AM-1's rule; the cumulative line (C1 against A0, C2 against A14) and the accepted state (C1 against A1, C2 against A11) reported and never graded before step 10; every other arm's reading against its base printed beside, unguarded. AM-4 (sight, G.10) is filed for step 7 and changes nothing at step 3; AM-5 (G.11) names shape L's toucher die.
+
+**The arms.** Every C arm but C13 is stamped `pocket-1.s3` with its own overlay digest; every arm is played on both seed sets (flat 496 and gen 272 games an arm-set; caller v7), set 1 graded.
+
+| arm | what | overlay | base under AM-3 | role |
+|---|---|---|---|---|
+| C1 | B3 with the free-run clock (reading B: real spot, ratings and drop), the late block on S and the FRONT climb lane: `pocket-1.s3` itself | `c4462712` | B3 | design; the s3 clauses read it; guard graded |
+| C2 | C1 on B6 (B3 with the stand-in hold) | `113441e6` | B6 | pricing arm, never a design value; guard graded |
+| C3 | the snap spot alone (ratings and drop at AM-2's references; no late block; the interior lane) | `872d3e1c` | B3 | information |
+| C4 | Speed and Acceleration alone | `22305c84` | B3 | information |
+| C5 | the drop alone | `1d05d747` | B3 | information |
+| C6 | as C1 on the Mug's head-only picture | `666bdc50` | B3 | information |
+| C7 | UNBLOCKED alone on the clock | `f1a1c6be` | B3 | information |
+| C8 | BLOWN_UP alone | `fd25b531` | B3 | information |
+| C9 | LOOPER_FREE and the untouched exchange alone | `f8117e51` | B3 | information |
+| C10 | the late block alone (untouched men on today's times) | `2b32f412` | B3 | information |
+| C11 | reading (c): every free runner on the clock, touched men +0.5 s, no late block | `a8d97913` | B3 | guard graded; priced for option C |
+| C12 | reading (a): UNBLOCKED alone on the clock, the late block also for BLOWN_UP and LOOPER_FREE (G.9 item 4) | `1415c66d` | B3 | information, never offered |
+| C13 | revision 1's uniform delay (the LATE patch on B3), a `pocket-1.s2` bundle | `f0df4c3f` | B3 | contrast only, never offered |
+| C14 | the L basis: as C1 on B5, the late block on shape L | `fb5b8611` | B5 | information |
+| C15 | C1 with the pickup and exchange band edges 30 points easier (the readers' supply-cut stand-in) | `d2e66f55` | B3 | information; priced for option A |
+| C16 | the climb lane alone | `180156aa` | B3 | information |
+
+The re-played bases are A0 and A14 on the legacy clock (the cumulative line), A1 (`69a7cc48`) and A11 (`3cfc4af8`) (the accepted state), and B3 (`03754f60`), B6 (`88bca450`) and B5 (`20c724a7`); all fourteen arm-sets equal step 2's records on the stamp-free projection (`q3.replay`, H.3).
+
+**The commits** (`git log --oneline --first-parent 93c2762..d8247c9`, 55): AM-2 and G.7 item 3 `1be33ed`; the ADR-030, ADR-031 and ADR-066 notes `8b4b2fd`; E1 `0eec033`, E2 `313038c`, E3 `e73cda4`, E4 `e799a01`, E5 `65eb547`, E6 `054f7df`; the head-only Mug `92e2001`; K1 `da6b780`, K2a `3315563`, K2b `2235f66`, K5 `7f7840a`, K3 `65cf76b`, K4 `cf65a13`; the viewer `64dd047`; fifteen review-fix commits, `d325c96` to `e476369`; main `01b541b` merged in `b8cff79`; the contracts lift `38729cb` (S3), `218a737` (P5), `c340520` (P17), `c61ec9d` (S4), `58a374b` (E6b) and `b581e27` (E4b); seven check fixes, `76976a5` to `21bd646`; main `73325df` merged in `22b3940`; AM-3 `1df7e3d`, AM-4 `eecf61c` and AM-5 `bca1838`; the ADR-066 and ADR-090 notes `814cbb1`; the harness opening the amendments file at its step-3 view `a28f867` (filing review M-3); the one-threat bench fix `1cda5d7`; G.11's note `0fe4079`; the pins `e35327c`; the reports `d8247c9`.
+
+**The main merges** (`integrate/integrate.md`, `integrate/merge.md`). `b8cff79` brought in ADR-090 step 1 (as `cfb4ac1`, tree identical to `93c2762`), ADR-085 step 8, ADR-086 D7 and ADR-087's growth records. `22b3940` brought in ADR-090 step 3 with ADR-091 S-a and ADR-092 (the stem and the count, which play under `legacy` only), ADR-084, ADR-085 steps 9 and 10, ADR-081 and the style guide, with four conflicts, each resolved keeping both sides (`engine/src/sim/pocketRules.ts`, `calibration/src/caller/frozen.ts`, and `playbook/src/snapSpots.ts` with its test, where main's files were taken whole because `92e2001` is byte for byte main's `f615cfb`). After it, the gated one-threat bench (P-11) failed on a stem; the same command failed the same way on main at `73325df`, and `1cda5d7` makes the bench drop a stem with the stunts when it rebuilds a call (`integrate/proofs.md`). The replay check after the merge: A0, A14, A1, A11, B3, B6 and B5 on both sets equal step 2's records.
+
+**The additions beyond §6.3** (plan §2, the reviews and the filings), each behind the switch or outside play: AM-2 to AM-5 and the amendments machinery they need (each step's view of the file, `STEP3_AMENDMENTS_DIGEST`, `rule.amends`); part 1 on the published picture, the touched men's check and the monotone check in place of the two filed part-1 clauses (AM-2); the s3 clean bench (P-6s3); `s3.mirror` and `s3.lateBlock`; the step-3 census (late blocks by band and by m, carried records, untouched exchanges); the alone arms' arrival gaps with a paired SE (FID-F-3, MEAS-N8); the unblocked rows on the clock under each arm's own reading, printed beside the filed D19 rows (MEAS-S4); the miss classes per missed row (MEAS-S5); the literal count against the filed Wait table (FID-F-2, MEAS-S3); the declared composition print (AM-3); the S3 refusal and the `S3_IN_CONTRACTS`, `P5_IN_CONTRACTS` and `P17_IN_CONTRACTS` gates, the last tied between engine and calibration by a test (FID-F-1, CT-F6); the picture options of K5 and stream P; `POCKET_1_S3_PINS` with an empty strip (the picture held in the fold); proofs P-16 (the snap picture), P-17 (payload key sets) and P-18 (isolation spies); R-4's pairing on shape L; and `1cda5d7`.
+
+**The pins after merge** (`s3Pins.ts`'s own rule): `POCKET_1_S3_PINS` hold the folds of the golden 50 games a league, and of the first 10, for C1 to C16, measured at `0fe4079` (H.4), with `POCKET_1_S3_DIGEST`. After merge they and the digest are never re-recorded under `pocket-1.s3`: a change that moves a game, or stands a man elsewhere at the snap, under that name must give the changed rules a new name with its own pins. Before merge only, a review-round fix may re-record them in a named commit, and the PR then says that no `pocket-1.s3` save made before it is carried on.
+
+**The review.** Four lenses, all on `64dd047`; `build-fix.md` lists every finding.
+
+| review | blocking | should fix | nits |
+|---|---|---|---|
+| no play change (NPC) | none | none | N1 to N3 |
+| fidelity (FID) | none | F-1, F-2 | F-3 to F-9 |
+| code and tests (CT) | none | F1, F2, F3 | F4 to F7 |
+| measurement (MEAS) | none | S1 to S6 | N1 to N8 |
+
+- **Fixed, 29 findings (three of them in part) in 15 commits, `d325c96` to `e476369`:** CT-F1 and FID-F-6 (`d325c96`); CT-F2 (`cbeb717`); CT-F3 and CT-F4 (`57bad2d`); CT-F5 (`343e422`); CT-F6, NPC-N2 and FID-F-9 in part (`22b8c88`); FID-F-1, MEAS-S6 in part and NPC-N3 (`bb34050`); FID-F-2 and MEAS-S3 (`9a0d910`); FID-F-3 and MEAS-N8 (`6ae144a`); FID-F-7 (`acc76f4`); MEAS-S1 and MEAS-N2 (`a18b8dc`); MEAS-S2 (`4826606`); MEAS-S4 and MEAS-N1, printed beside (`63388a2`); MEAS-S5 (`6753c19`); MEAS-N3, N4, N5 and N7 (`1fe168e`); NPC-N1 and FID-F-5 (`e476369`). Each fix that changed code carries a test that failed before it and passes after it.
+- **Declined in the build, 4:** CT-F7 (shape L's toucher die), which became AM-5 (G.11); FID-F-4, kept as a tripwire test in `bb34050`; FID-F-8 (reading (a)'s looper), answered by G.9 item 4; MEAS-N6 (the filing order), answered by G.9 item 8.
+- **The six blockers** went to the Orchestrator, whose rulings are G.9's items 1 to 8.
+
+**Each departure from the plan that the build reports list:**
+
+| report | departures |
+|---|---|
+| `build-a1.md` | the amendments file's whole digest after AM-2 is `fnv1a:92c7bcf4`, not the predicted `fnv1a:d2e616d4` (the check had digested an earlier AM-2 text); AM-2's dials pinned to the literals 1.0 and 0.1 until K1; G.8's heading as the task named it; `preflightStep2`'s pin now the step-2 view's; two commits, not one |
+| `build-ea.md` §3 | `origins` refused under readings C and A; the free-run block carries all fifteen filed constants; `etaRoundingSeconds` only 0.1; `hold` carries the reference values; `pocketRulesUnder` exported for tests; `climbLane` is `"INTERIOR" \| "FRONT"`; `freeRunClock` also throws on a moving non-creeper; `closingSpeed` 0 on a path of no yards; `freeRunSecondsFor` and `freeRunRatingsOf` factored out; the invariant test on each row's shortest spot |
+| `build-eb.md` §6 | the P5 gate refused until E6b; `threatSideOf`'s signature; `FreeRunner` gains `touchMargin` and `side`; reading A puts a looper with no blocker on the clock (G.9 item 4); reading C's `closingSpeed` over the unrounded delayed seconds (G.9 item 6); the picture entry checked for every played rusher before any die, and required under any step-3 block; a held spot still needs the man's entry; shape L keeps ticking after a win; the beaten late threat carries the nominal pair; R-4's C14 pairing deferred to P17; `renderPlay`'s beaten-late-threat line |
+| `build-ka.md` | AM-2's equality test sits in `engineRules.test.ts`; the season cases in `seasonStamp.test.ts`; the reading checks after the digest; P17 restated in calibration; `withOverlay` refuses unknown overlay keys; an s3 stamp with no step-3 block digests as s2 |
+| `build-kb.md` | the s3 vocabulary and determinism cases in calibration's files; no new registry metric; `pictureOptionsOf` added; commit 15 amended once before it was pushed (`a414a15` to `7f7840a`) |
+| `build-kc.md` | the monotone check folded on every arm, graded on C1 and C2; two build checks beside part 1 (`offClock`, `touchedOnClock`); held inputs checked on AM-2's references; `m5RowZ` apart from `m5Compare`; the s3 bench reads no clock |
+| `build-kd.md` | M2 STREAM not folded on `pocket-1.s3` arms (it reads neither the late block nor the clock); C1's mirrored corpora played inside C1's target; part 1's `earlier` counter; the accepted state read from the raw rule; grading refused without AM-3; the "not resolved by two seed sets" reading; the alone arms' SE by the delta method |
+| `build-v.md` | the P5 display not built (above) |
+| `build-integrate.md` | `92e2001`'s trailer names ADR-090's session, as delivered; the commits in the build's order, not plan §9's numbering (K5 before K3 and K4); the viewer cherry-picked onto `cf65a13` (`08c2b26` became `64dd047`, its diff byte-identical) |
+| `measure/pins.md` | R-1 about 25 minutes a process with three processes on 4 vCPU (plan §6.2: about 10); the ON pins suite 846 s (plan: about 2.5 minutes); R-1's own pin check covers A1, A5, A11 and B1 to B7, not the C arms, which `pocketS3Pins` covers |
+| `measure/measure.md` | the shards took 57.1 minutes wall (plan §6.3: 50 to 60) |
+
+### H.2 The guard under AM-3
+
+The rule is AM-1's (F.11) under AM-3's map (G.9). The readings are the committed report's guard section, on both seed sets, in points per 100 aimed throws. Per set: rise / allowed / SE / z. Then the pooled Z, e*, AM-1's verdict, the filed reading per set (the rise within or above the allowance, with no noise term), and the paired, game-clustered Z (reported, never graded).
+
+**League-wide** (line 2.0):
+
+| reading | league | set 1 | set 2 | Z | e* | verdict | filed, per set | paired Z |
+|---|---|---|---|---|---|---|---|---|
+| C1 / B3 | flat | -0.02 / +0.01 / 0.12 / -0.24 | -0.03 / +0.01 / 0.12 / -0.35 | -0.42 | 0.16 | PASS | within / within | -0.59 |
+| C1 / B3 | gen | +0.19 / +0.01 / 0.24 / +0.76 | -0.01 / +0.02 / 0.24 / -0.14 | +0.44 | 0.34 | PASS | above / within | +0.58 |
+| C2 / B6 | flat | -0.10 / -0.01 / 0.13 / -0.68 | -0.00 / -0.01 / 0.13 / +0.05 | -0.45 | 0.18 | PASS | within / above | -0.66 |
+| C2 / B6 | gen | -0.25 / +0.00 / 0.25 / -0.99 | +0.01 / +0.00 / 0.26 / +0.03 | -0.68 | 0.36 | PASS | within / above | -0.88 |
+| C11 / B3 | flat | -0.07 / -0.00 / 0.12 / -0.59 | +0.02 / -0.00 / 0.12 / +0.15 | -0.31 | 0.16 | PASS | within / above | -0.46 |
+| C11 / B3 | gen | +0.13 / +0.00 / 0.24 / +0.52 | -0.19 / +0.01 / 0.24 / -0.85 | -0.24 | 0.33 | PASS | above / within | -0.41 |
+
+**By class** (line 3.0; pooled Z for PROGRESSION / RANK_PUSHED / CHECKDOWN / DESPERATION / ON_THE_RUN; CLEAN_EXPIRY has no aimed throw on either side, so it is not scored). Every class reading passes.
+
+| reading | flat | gen |
+|---|---|---|
+| C1 / B3 | -0.63 / -0.10 / +0.24 / -1.45 / -0.93 | -1.08 / +1.45 / -0.54 / -0.10 / +0.01 |
+| C2 / B6 | -0.83 / -0.67 / -0.80 / +0.97 / -0.31 | +1.19 / -0.94 / -1.79 / -0.23 / -1.12 |
+| C11 / B3 | -0.41 / -0.12 / +0.47 / -0.86 / -0.54 | -1.48 / +0.66 / -0.68 / -0.07 / +0.14 |
+
+- **AM-1's verdict under AM-3:** no breach. `guard.mix` PASS (6 readings, largest Z +0.44, C1 against B3 on gen); `guard.byClass` PASS (largest Z +1.45, C1 against B3 on gen, RANK_PUSHED). The step does not stop (D9).
+- **The filed reading beside it** (no noise term): 5 of the 6 league-wide readings would breach on at least one set (all but C1 against B3 on flat), each on one set only.
+- **The paired Z** (reported, never graded): every league-wide reading is between -0.88 and +0.58; in a class, the largest is +2.22 (C1 against B3, gen, RANK_PUSHED; its pooled Z +1.45).
+- **The SE-0 flags (ruling R-1, G.6):** none. No guard row prints a flag, so R-1's standing rule is not triggered.
+
+**The cumulative line and the accepted state** (reported, never graded before step 10; league-wide, then the class that matters):
+
+| reading | league | set 1 | set 2 | Z | e* | as printed | paired Z |
+|---|---|---|---|---|---|---|---|
+| C1 / A0 (cumulative) | flat | +0.70 / +0.21 / 0.12 / +4.06 | +0.83 / +0.21 / 0.12 / +5.38 | +6.68 | 0.17 | BREACH, reported | +7.16 |
+| C1 / A0 (cumulative) | gen | +0.70 / +0.36 / 0.25 / +1.37 | +0.63 / +0.40 / 0.25 / +0.91 | +1.61 | 0.35 | PASS, reported | +1.64 |
+| C2 / A14 (cumulative) | flat | +0.76 / +0.41 / 0.18 / +1.94 | +0.70 / +0.42 / 0.17 / +1.57 | +2.48 | 0.25 | BREACH, reported | +2.64 |
+| C2 / A14 (cumulative) | gen | +0.30 / +0.55 / 0.35 / -0.71 | +0.64 / +0.52 / 0.35 / +0.32 | -0.27 | 0.49 | PASS, reported | -0.31 |
+| C1 / A1 (accepted state) | flat | +0.17 / +0.01 / 0.12 / +1.40 | +0.01 / +0.01 / 0.12 / +0.06 | +1.03 | 0.16 | PASS, reported | +1.36 |
+| C1 / A1 (accepted state) | gen | -0.17 / +0.02 / 0.24 / -0.80 | -0.06 / +0.03 / 0.24 / -0.39 | -0.84 | 0.34 | PASS, reported | -1.14 |
+| C2 / A11 (accepted state) | flat | +0.06 / -0.01 / 0.13 / +0.54 | -0.03 / -0.01 / 0.13 / -0.13 | +0.29 | 0.18 | PASS, reported | +0.39 |
+| C2 / A11 (accepted state) | gen | -0.12 / -0.00 / 0.25 / -0.48 | -0.25 / -0.00 / 0.26 / -0.97 | -1.02 | 0.36 | PASS, reported | -1.38 |
+
+By class on the cumulative line, C1 against A0 on flat: -2.45 / +1.53 / -3.94 / +2.83 (DESPERATION) / -1.24; on gen +1.27 / +1.92 / -6.51 / +0.21 / -0.83. C2 against A14: flat -7.66 / -0.14 / -6.29 / +1.81 / +0.83; gen +1.14 / -0.05 / -2.94 / -0.98 / -2.84. No class on either line prints over 3.0. On the accepted state the largest class Z are +1.84 (C2 against A11, flat, DESPERATION) and +1.74 (C2 against A11, gen, PROGRESSION).
+
+**The DESPERATION split** (reported, never graded; by the last status at or before the release, O50):
+
+- C1 against B3, flat: the dirty share falls from 28.97% to 23.62% on set 1 and from 28.59% to 24.04% on set 2; dirty Z -0.18, clean Z -1.79. The class's rise re-weighted to B3's composition is -0.28 (set 1, against -0.20) and -0.95 (set 2, against -0.89).
+- C1 against B3, gen: dirty share 36.49% to 31.85% and 40.12% to 36.07%; dirty Z -0.48, clean Z -0.02.
+- C1 against A0, flat (the cumulative line): A0's DESPERATION is 89.13% and 89.06% dirty (1,926 dirty and 235 clean aimed throws on set 1), C1's 23.62% and 24.04%. Re-weighted to A0's composition, the rise falls from +1.08 to +0.11 on set 1 and from +1.92 to +1.07 on set 2, and the dirty half alone reads Z +0.45 (the clean half -1.04).
+
+**The checkdown triggers** (reported): on C1 against B3, flat, CHECKDOWN throws with a threat on the release tick fall from 27.80% to 19.27% (set 1) and from 27.74% to 20.12% (set 2); gen 49.20% to 41.39% and 59.29% to 52.31%. The STATUS and NONE shares are 0.
+
+**The declared composition print** (AM-3; reported, never graded), C1 against B3, flat, set 1, aimed throws / interceptions by first must-act tick and forcing source: RANK_PUSHED at 1.0 s THREAT 660 / 76 to 70 / 4, at 1.5 s THREAT 558 / 54 to 825 / 76, with no must-act tick and the count forcing 10,576 / 1,306 to 11,461 / 1,403; PROGRESSION at 1.0 s THREAT 1,583 / 10 to 143 / 0, at 1.5 s THREAT 950 / 5 to 1,210 / 5. On gen, RANK_PUSHED at 1.0 s THREAT 399 / 75 to 48 / 11 and at 1.5 s THREAT 491 / 85 to 694 / 136. The report prints every class, league and pair (C1 against B3, C2 against B6).
+
+### H.3 Every arm against its clause
+
+From the committed report: seed set 1 graded on each league, set 2 and the two-set mean beside, flat then gen. Figures are points per 100 dropbacks unless marked (`s3.unblockedShare` is per 100 hits or sacks, `s3.bin20.tick` and `s3.quick` are shares in percent), with each arm's time to throw beside a hit or sack figure.
+
+**Graded:**
+
+| clause | arms | band | measured | verdict |
+|---|---|---|---|---|
+| `s3.bin20.tick` | C1 | at most 29.4 | flat 15.57 (SE 0.30; B3 20.69), set 2 15.50, mean 15.54; gen 18.98 (SE 0.43; B3 22.67), 20.28, 19.63 [1.606 s and 1.704 s; B3 1.592 s and 1.682 s] | PASS |
+| `s3.quick` | C1 | 30 to 55 | flat **88.91** (SE 0.30; B3 94.24), 88.42, 88.67; gen **83.14** (SE 0.46; B3 90.16), 80.73, 81.94 | **FAIL**, to the owner under the miss rule |
+| `s3.unblockedPressures` | C1 | at most 14 | flat **15.67** (SE on dropbacks, an approximation, 0.16; B3 17.53), 15.87, 15.77, on the clock under C1's own reading 15.71 and 15.91; gen **15.25** (0.21; B3 16.99), 15.92, 15.59, on the clock 15.27 and 15.94 | **FAIL**, to the owner under the miss rule |
+| `s3.unblockedShare` | C1 | at most 40 | flat **75.71** (SE 1.03; B3 66.42), 76.49, 76.10, on the clock 75.82 and 76.78; gen **69.78** (SE 1.46; B3 65.05), 72.19, 70.99, on the clock 69.78 and 72.19 | **FAIL**, to the owner under the miss rule |
+| `guard.mix` (AM-1 under AM-3) | C1, C2, C11 | pooled Z above 2.0 breaches | 6 readings, largest Z +0.44 (H.2) | PASS |
+| `guard.byClass` (AM-1 under AM-3) | C1, C2, C11 | pooled Z above 3.0 breaches | 6 arm-league readings, largest Z +1.45 (H.2) | PASS |
+
+Every graded verdict is on the same side of its line on both seed sets, so none is marked "not resolved by two seed sets". The tool's outcome: 0 structural failures, 0 fold faults, 3 graded clause failures (misses under the miss rule), 0 guard breaches; "Merge card: may be posted with the miss options priced (no structural failure, fold fault or guard breach stands)".
+
+**Reported** (never graded):
+
+- **`s3.quickOrigin`** (direction UP): the men on the clock's share of quick first pressures against their share of all first pressures rises on C1, flat +7.95 (set 1) and +8.37 (set 2), gen +11.73 and +13.57, against B3's +3.44, +3.44, +5.72 and +6.58. The origin-keyed reading beside: C1 +5.07, +5.47, +8.06 and +9.57.
+- **`s3.unblockedMen`** (16.3 to 16.8): flat set 1 C1 18.78 (B3 19.12), C2 18.95 (B6 18.99); set 2 C1 19.07 (19.35), C2 19.31 (19.17); gen set 1 C1 18.43 (18.33), C2 18.25 (18.09); set 2 C1 19.12 (19.30), C2 19.08 (19.21). On the clock under each arm's own reading, C1 reads 18.83, 19.12, 18.46 and 19.15.
+- **The stand-in expectations** (`s3.hitOrSack`, `s3.expected.*`): gen-only levels from a B6-like stand-in base, read as C2 minus B6 on gen beside the stand-ins' own change, flat beside as information. C1 has no stand-in counterpart.
+
+  | row (filed level) | gen set 1 | gen set 2 | flat set 1 | flat set 2 | the stand-ins' own change |
+  |---|---|---|---|---|---|
+  | `s3.hitOrSack` (9.1 to 9.3) | -2.17 | -2.35 | -1.07 | -0.91 | -3.3 to -3.7 |
+  | `s3.expected.pressure` (39) | -2.81 | -2.54 | -2.28 | -2.43 | -4.2 |
+  | `s3.expected.sack` (3.55) | -2.43 | -3.10 | -1.59 | -1.49 | -2.34 |
+  | `s3.expected.bin20` (47) | -3.10 | -2.25 | -3.35 | -5.11 | -6.7 |
+  | `s3.expected.quick` (60.3) | -10.72 | -11.70 | -10.97 | -11.17 | -11.9 |
+
+- **`guard.onTheRun.clean`** (2.11): 0 aimed throws on every arm, set and league, so n/a; 0 by construction, as at step 2 (F.8 item 5).
+- **`guard.onTheRun.pressured`** (3.25), printed for every arm and set: for example C1 flat 6.28 (207 aimed) and 4.39 (205), gen 15.93 (113) and 12.35 (81); B3 flat 5.44 (147) and 9.16 (131), gen 20.00 (70) and 8.45 (71).
+- **The eight `guard.reported.*` rows and `guard.removedClass`:** printed for every arm, league and set.
+
+**Structural, and the fold checks** (every one PASS but the one NOT CHECKED by design):
+
+- `s3.part1` (part 1 under AM-2, in place of `s3.part1.m8`): 289,969 men checked over 30 arm-sets, 0 failures, and 0 men earlier than the function on any arm. On C1 flat set 1: 51,346 plays, every one `pocket-1.s3` with a picture; 9,666 men checked; the touched men's check read 5,415 late blocks, 2,035 beaten and checked, 3,380 held the play, 0 failed (set 2: 9,832 men; 5,313 blocks, 2,025 beaten). C1 gen: 2,917 and 3,015 late blocks, 1,241 and 1,370 beaten, 0 failed. Held references on C3, C4 and C5 only; carried records 0 in part 1 (`measure/measure.md`).
+- `s3.monotone` (in place of `s3.part1.monotone`): 58,942 men read on C1 and C2, 0 failures. Speed alone (reported): later at the tenth on C1 0 of 9,666 (flat set 1, largest 0.000317 s), 9 of 5,245 (gen set 1, largest 0.000822 s), 0 of 9,832 and 0 of 5,425 (largest 0.000582 s); C2 0 of 9,237, 10 of 4,937 (largest 0.000627 s), 0 of 9,439 and 0 of 5,161.
+- `s3.part1.determinism`: NOT CHECKED by the graded run, by design; it cites R-1, which held (H.4).
+- `s3.mirror`: M5 on C1 within the noise on every row and set (largest z, flat `escape_caught_rate` set 1 +1.15; gen `looper_moved_share` set 1 -1.07); the exact free-run mirror on both leagues and sets (flat 2,564 and 2,559 men, gen 1,532 and 1,609, 0 differ); part 1's mirrored time the same on every arm.
+- `s3.lateBlock`: 132,012 late blocks read of 134,143 expected over the 14 arm-sets whose reading makes them, 0 failures. The whole gap of 2,131 is C14's (shape L): flat 4,709 of 5,377 and 4,689 of 5,333, gen 2,563 of 2,976 and 2,657 of 3,063; on every S arm read equals expected (`measure/measure.md`, whose reading is that under L a late block enters the stream only through its rolled ticks from `t_e`, so a play that ends before `t_e` carries none).
+- `s3.neverOffered`: the options offered are A, B and C (A priced by C15, C by C11, B plays nothing); C12 (reading (a)) and C13 (the uniform delay) are never offered.
+- `s2.selfCheck` (46 arm-sets; 1,437,149 closing HOLDs at or past `throwawayEarliestSeconds`), `s2.falsifier.counterAlone` (2,008,413 forced acts on 34 arm-sets), `s2.falsifier.everyArrival` (181,298 cases over 46 arm-sets), `s2.warning.clean` and `s2.liveSet` (12,473,049 cases each over 46 arm-sets), `s2.m2.identity` (16 arm-sets: the bases and C13; not folded on a `pocket-1.s3` arm, `build-kd.md`), `s1.streamChecks` (46 arm-sets, both leagues): 0 failures, 0 exceptions.
+- `q3.replay`: A0, A14, A1, A11, B3, B6 and B5 equal step 2's records on both sets (14 of 14).
+
+**The census on C1** (reported): late blocks by band on flat set 1, LATE_EXCHANGE 3,040 and RAN_THROUGH 2,375; untouched exchanges 23 (set 2: 23; gen 8 and 7); carried records 23 (set 2: 28; gen 11 and 10); the late blocks' m runs 1 to 19, median 10, on every C1 and C2 arm-set, inside AM-2's range. Exclusive affected plays against B3, flat set 1: 12,986 of 51,346 (FREE_RUN 8,721, LATE_BLOCK 5,190, CLIMB_FRONT 675; a play may count under more than one); gen set 1 7,015 of 28,419.
+
+**Each arm, seed set 1** (pressure / hit-or-sack / sacks per 100 dropbacks / release in seconds; from the measures file):
+
+| arm | flat | gen |
+|---|---|---|
+| A0 | 86.85 / 20.05 / 16.43 / 1.242 | 85.26 / 24.04 / 16.72 / 1.235 |
+| A14 | 96.12 / 39.18 / 34.84 / 2.396 | 95.87 / 56.45 / 46.18 / 2.250 |
+| A1 | 31.81 / 3.29 / 2.70 / 1.589 | 33.05 / 3.89 / 2.80 / 1.666 |
+| A11 | 44.66 / 7.57 / 6.18 / 2.739 | 44.28 / 10.57 / 7.55 / 2.695 |
+| B3 | 27.80 / 3.94 / 3.11 / 1.592 | 28.73 / 4.38 / 3.01 / 1.682 |
+| B6 | 43.48 / 9.54 / 7.54 / 2.747 | 43.83 / 12.43 / 8.54 / 2.704 |
+| B5 | 33.14 / 3.67 / 2.94 / 1.589 | 36.87 / 4.01 / 2.83 / 1.663 |
+| C1 | 21.99 / 3.37 / 2.56 / 1.606 | 23.29 / 3.50 / 2.29 / 1.704 |
+| C2 | 41.20 / 8.46 / 5.96 / 2.741 | 41.02 / 10.26 / 6.12 / 2.701 |
+| C3 | 26.38 / 3.78 / 2.87 / 1.601 | 27.25 / 3.80 / 2.50 / 1.692 |
+| C4 | 26.17 / 3.78 / 2.84 / 1.602 | 27.34 / 3.64 / 2.47 / 1.687 |
+| C5 | 26.20 / 3.75 / 2.83 / 1.602 | 27.18 / 3.71 / 2.45 / 1.693 |
+| C6 | 21.92 / 3.31 / 2.53 / 1.607 | 23.29 / 3.47 / 2.24 / 1.703 |
+| C7 | 27.02 / 3.98 / 3.13 / 1.595 | 28.08 / 4.24 / 2.88 / 1.688 |
+| C8 | 27.08 / 3.67 / 2.84 / 1.596 | 28.05 / 3.80 / 2.50 / 1.685 |
+| C9 | 27.78 / 3.89 / 3.08 / 1.592 | 28.66 / 4.20 / 2.90 / 1.682 |
+| C10 | 23.53 / 3.41 / 2.70 / 1.597 | 25.09 / 3.77 / 2.63 / 1.688 |
+| C11 | 25.24 / 3.57 / 2.76 / 1.600 | 26.57 / 3.60 / 2.38 / 1.697 |
+| C12 | 14.78 / 1.23 / 0.97 / 1.631 | 16.82 / 1.45 / 0.94 / 1.730 |
+| C13 | 13.38 / 1.09 / 0.88 / 1.637 | 14.86 / 1.42 / 0.93 / 1.747 |
+| C14 | 27.66 / 3.04 / 2.35 / 1.608 | 31.27 / 2.89 / 1.88 / 1.694 |
+| C15 | 14.23 / 1.64 / 1.27 / 1.630 | 15.81 / 1.89 / 1.26 / 1.738 |
+| C16 | 27.65 / 4.40 / 3.50 / 1.586 | 28.49 / 4.79 / 3.25 / 1.673 |
+
+The re-played bases' rows equal G.3's step-2 rows, as `q3.replay` requires.
+
+**The headline** (the report's; set 1 / set 2):
+
+| contrast | league | pressure | hit-or-sack | sacks | release |
+|---|---|---|---|---|---|
+| C1 - B3, the design | flat | -5.80 / -5.78 | -0.57 / -0.54 | -0.54 / -0.50 | +0.014 / +0.017 s |
+| C1 - B3 | gen | -5.43 / -5.52 | -0.88 / -0.97 | -0.72 / -0.85 | +0.022 / +0.037 s |
+| C2 - B6, pricing | flat | -2.28 / -2.43 | -1.07 / -0.91 | -1.59 / -1.49 | -0.006 / -0.008 s |
+| C2 - B6 | gen | -2.81 / -2.54 | -2.17 / -2.35 | -2.43 / -3.10 | -0.003 / -0.001 s |
+
+**The parts, against B3** (the information arms, set 1 / set 2; pressure, then hit-or-sack, then sacks):
+
+| arm | league | pressure | hit-or-sack | sacks |
+|---|---|---|---|---|
+| C3, the spot alone | flat | -1.42 / -1.44 | -0.15 / -0.11 | -0.24 / -0.12 |
+| C4, the ratings alone | flat | -1.62 / -1.51 | -0.16 / -0.11 | -0.27 / -0.16 |
+| C5, the drop alone | flat | -1.59 / -1.46 | -0.19 / -0.17 | -0.28 / -0.21 |
+| C7, UNBLOCKED alone | flat | -0.78 / -0.68 | +0.04 / -0.03 | +0.02 / -0.04 |
+| C8, BLOWN_UP alone | flat | -0.72 / -0.70 | -0.26 / -0.21 | -0.27 / -0.23 |
+| C9, LOOPER_FREE alone | flat | -0.01 / -0.03 | -0.05 / -0.02 | -0.03 / -0.01 |
+| C10, the late block alone | flat | -4.27 / -4.30 | -0.53 / -0.50 | -0.41 / -0.40 |
+| C16, the climb lane alone | flat | -0.15 / -0.06 | +0.47 / +0.56 | +0.39 / +0.49 |
+| C6, the head-only Mug | flat | -5.88 / -5.69 | -0.62 / -0.52 | -0.58 / -0.50 |
+| C3 | gen | -1.47 / -1.51 | -0.59 / -0.64 | -0.51 / -0.59 |
+| C4 | gen | -1.39 / -1.25 | -0.74 / -0.67 | -0.54 / -0.65 |
+| C5 | gen | -1.55 / -1.38 | -0.67 / -0.70 | -0.56 / -0.66 |
+| C7 | gen | -0.65 / -0.65 | -0.14 / +0.03 | -0.13 / -0.04 |
+| C8 | gen | -0.68 / -0.53 | -0.59 / -0.61 | -0.52 / -0.58 |
+| C9 | gen | -0.07 / +0.15 | -0.19 / -0.16 | -0.11 / -0.04 |
+| C10 | gen | -3.64 / -3.86 | -0.61 / -0.51 | -0.38 / -0.26 |
+| C16 | gen | -0.24 / +0.16 | +0.41 / +0.63 | +0.24 / +0.39 |
+| C6 | gen | -5.44 / -5.54 | -0.91 / -1.00 | -0.78 / -0.85 |
+
+C14 against B5 (the L basis): flat -5.48 / -5.71, -0.63 / -0.66, -0.59 / -0.60; gen -5.60 / -5.69, -1.12 / -0.93, -0.95 / -0.79. C12 (reading (a), never offered) against B3: flat -13.02 / -13.07, -2.71 / -2.66, -2.14 / -2.10; gen -11.91 / -11.89, -2.93 / -2.93, -2.07 / -2.02. C13 (the uniform delay, contrast only): flat -14.42 / -14.49, -2.84 / -2.86, -2.23 / -2.22; gen -13.87 / -14.23, -2.97 / -3.06, -2.08 / -2.06, with release +0.044 to +0.073 s.
+
+**The alone arms' first arrivals** (the report's; each arm's mean first arrival among threats not from a won rep, touched men included, against B3's, set 1 and set 2 pooled, with the paired SE; then the same among men on the clock under the arm's own reading): C3 flat +0.065 s (SE 0.002), on the clock +0.092; C4 -0.039, on the clock -0.060; C5 -0.009, on the clock -0.016; C7 +0.015 (0.001), on the clock -0.089; C8 +0.070, on the clock +0.140; C9 -0.018, on the clock +0.157; C10 +0.082 (0.004), on the clock -0.000, not resolved; C16 -0.002 (0.001), not resolved, on the clock -0.001, not resolved. Gen: C3 +0.064 and +0.092, C4 -0.065 and -0.101, C5 -0.007 and -0.013, C7 +0.013 and -0.097, C8 +0.058 and +0.095, C9 -0.019 and +0.176, C10 +0.118 (0.006) and -0.001 (not resolved), C16 +0.001 and +0.001 (both not resolved).
+
+**Per arm, beside the status-defined rows:** `clean_with_live_won_rep` (ticks / dropbacks, set 1): B3 flat 0.454% / 1.189%, gen 0.483% / 1.348%; C1 flat 0.432% / 1.225%, gen 0.496% / 1.488%; C2 flat 0.813% / 3.607%, gen 0.771% / 3.422%; C14 flat 0.070% / 0.194% (B5 0.068% / 0.173%). PUSH ticks, printed apart, are 0 on every arm shown.
+
+### H.4 The proofs, with times
+
+**At `64dd047`, the integrated build** (`proofs.md`; one driver in the background on 4 vCPU, 2026-10-31 10:58:00Z to 11:58:03Z, 60 minutes; base `93c2762`; wall seconds): every proof holds, no finding, no fix commit.
+
+| proof | what | exit | time |
+|---|---|---|---|
+| P-1, P-1b | golden pins v1 to v7 on both leagues, two processes | 0, 0 | 106 s, 97 s |
+| P-1c | the season path pins | 0 | 53 s |
+| P-2 | `docConformance` at census `fnv1a:365da48d` | 0 | 3 s |
+| P-3 (a), P-4, P-5 | `adr089Base` and `pocketLegacyShape`: `fnv1a:395a9ae2`, baseline-0009 and the generated league | 0 | 179 s |
+| P-3 (b) | the baseline tool on this tree, then the carry-forward: identical to step 2's and step 1's except `engineCommit`, no `engineRules` | 0, 0, 0 | 75 s, 190 s, 0 s |
+| P-5r | the real rows on the cache | 0 | 6 s |
+| P-6, P-6s3 | the legacy clean bench, reproduced, and the s3 bench (flat release 1.6634 s with 20.625% throwaways; gen 1.7992 s with 11.127%): 10 of 10 | 0 | 243 s |
+| P-7 | step 0's command re-fills a fresh pending filing byte-identical to the committed one (73 fields; `FILED_DIGEST` `fnv1a:9a1c90e9`) | 0 | 429 s |
+| P-8 | `pnpm install --frozen-lockfile && pnpm verify` (calibration 1,977 passed and 110 skipped; engine 1,414 passed and 2 skipped) | 0 | 849 s |
+| P-9 | the step-0 surface, filing, comparators, bands, amendments and step-1 re-grade suites: 104 passed, 4 skipped | 0 | 5 s |
+| P-10, P-11 | the line bench; the one-threat bench | 0, 0 | 8 s, 31 s |
+| P-12 | scope, the never-edit files, ADR-089 lines 1 to 2,853 and a pure append, randomness, commit messages, `git status` | 0 | 1 s |
+| P-13 | every CLI save, `--out` and export byte-identical to the base's (19 files) | 0 | 163 s |
+| P-14, Q-5 | the engine's legacy and step-2 suites: 291 of 291; 355 of 355 | 0, 0 | 29 s, 33 s |
+| P-15 | the gated knownTruth ladder census | **1** | 85 s |
+| P-16 | the snap picture, game by game, under legacy, s1 and s2 equal to the base's: 42 runs, 1,140 games, 174,939 pictures | 0 | 79 s + 79 s |
+| P-17 | payload key sets on the golden games equal to the base's (1,302 event-type entries, 1,807 key-list entries) | 0 | (with P-16) |
+| P-18 | the isolation spies: 8 of 8 | 0 | 10 s |
+| Q-1, Q-1 ON | `POCKET_1_S1_PINS` and the base pins | 0, 0 | 33 s, 144 s |
+| Q-2b, Q-2c | step 1's and step 2's re-grades, byte for byte | 0, 0 | 4 s, 29 s |
+| Q-4, Q-4 ON | `POCKET_1_S2_PINS` | 0, 0 | 55 s, 250 s |
+| Q-8 | `engineRules`, `seasonSurface`, `exportGame` (69); the CLI cases | 0, 0 | 9 s, 53 s |
+| R-3 | part 1, the touched check, the monotone check and the mirror on C1, C2 and C6 (golden 10 a league, mirrored), with a negative control that fails part 1 only | 0 | 31 s |
+| R-4 | roll accounting as a pairing (C1 against B3): 43 | 0 | 29 s |
+| R-5 | the engine's step-3 suites: 457 | 0 | 28 s |
+| R-6 | the shared literal table, engine and calibration | 0 | 21 s |
+| R-7 | the census on C1, C2 and C6 (golden 50 a league): only the Mug's shown rush moved free runners (C1 21 of 952 flat, 14 of 917 gen; C6 none); no coverage look moved any | 0 | 60 s |
+
+**P-15 is satisfied as a no-change proof, as at steps 1 and 2.** It fails at the head with 131 `pass_rush_tick` cells, and the same command at the base fails the same way (83 s): the same 131 cells and a byte-identical 384-line census report, also identical to step 2's lists at `b98ecd1` and `8b24cd9`. It is backlog entry 175's finding, not fixed here.
+
+**After the review fixes, at `e476369`** (`build-fix.md`; base `93c2762`): P-1 16 of 16 (115 s) and P-1b (106 s); the s1, base and s2 pins 32 of 32 (60 s) and ON (267 s); P-3 (a) (184 s); P-9 104 passed, 4 skipped (5 s); P-14 291 (30 s); Q-5 355 (32 s); P-18 8 (13 s); P-16 identical (80 s + 83 s) and P-17 identical; R-3 clean, its negative control failing part 1 only (4 flat, 17 gen; 29 s); R-4 43 (24 s); R-6 105 and 63 (20 s); P-13 identical (151 s); P-12 "ALL CHECKS HOLD" (1 s); `pnpm install --frozen-lockfile && pnpm verify` 0 (930 s; calibration 1,993 passed and 110 skipped, engine 1,414 passed and 2 skipped). Every exit 0.
+
+**After the contracts lift, at `b581e27`** (`contracts/proofs.md`; base main `01b541b`; one driver, 2026-10-31 16:41:42Z to 17:26:45Z, 45 minutes, exit 0): P-1 and P-1b 16 of 16 (109 s, 110 s); P-1c 6 of 6 (59 s); P-2 26 of 26 (3 s); P-3 (a) (201 s); P-9 104 passed, 4 skipped (6 s); P-14 294 (33 s); Q-5 357 (34 s); P-18 8 (9 s); R-5 457 (27 s); the pins 32 (59 s) and ON (280 s); Q-2b (4 s); Q-2c (31 s); Q-8 70 (8 s) and CLI (57 s); P-16 (88 s + 91 s) and P-17 identical; R-3 C1, C2, C6 and C14 clean and the pair published as P5 says (39 s); R-4 46 (30 s); R-6 (21 s); P-6s3 10 of 10 (265 s); P-11 5 of 5 (33 s); P-13 identical (169 s); contracts 55 of 55 (3 s); P-12 (1 s); P-8 0 (912 s; engine 1,417 passed and 2 skipped, calibration 2,028 passed and 110 skipped). The bundle digest held at `fnv1a:c4462712`. Seven check fixes followed (`76976a5` to `21bd646`).
+
+**After main `73325df` and the filings, at `a28f867` and `1cda5d7`** (`integrate/proofs.md`; base `73325df`; one driver from 20:04:18Z to 20:46:48Z, then the fix and its re-runs from 20:50:46Z): P-1 and P-1b 16 of 16 (105 s, 104 s); P-1c (54 s); P-2 (3 s); P-3 (a) (191 s); P-9 114 passed, 4 skipped (6 s); P-14 294 (31 s); Q-5 357 (32 s); P-18 (10 s); R-5 457 (26 s); the pins 32 (56 s) and ON (254 s); Q-2b (5 s); Q-2c (29 s); Q-8 70 (8 s) and CLI (53 s); P-16 (84 s + 81 s; 174,939 pictures) and P-17 (1,322 and 1,859 entries, the new ones main's stem records on legacy) identical; R-3 C1, C2, C6, C11 and C14 clean (C11's touched men on the clock 98 flat and 108 gen, 0 failed; 44 s); R-4 46 (28 s); R-6 (20 s); P-6s3 (249 s); **P-11 exit 1** (15 s) at `a28f867` and the same on the base (14 s), then after `1cda5d7` 6 of 6 (31 s), its rows equal to the lift's byte for byte; P-13 identical (160 s); contracts 64 (4 s); P-12 (6 s); P-8 0 at `a28f867` (865 s) and at `1cda5d7` (877 s; calibration 2,059 passed and 110 skipped, engine 1,466 and 2, playbook 3,275, franchise 508, narrative 88, attributes 86, contracts 64, game 57).
+
+**R-1 and the pins** (`measure/pins.md`, at `0fe4079`, fingerprint `4f06dd3ec80adf28`): `pocket -- --step 3 --digests` in two background processes, 21:35:37Z to 22:00:49Z (1,512 s) and to 22:01:06Z (1,529 s), each exit 0, with a third process beside them (the per-game digests, about 925 s); the two outputs byte-identical (sha256 `216e27d6e01ed26e093aa6fdc0146a6e5586b5e18453836085e9f80788d6acba`, 24,462 bytes), 26 arms (C1 to C16, A1, A5, A11, B1 to B7) on both leagues, the base pins holding. The literals of `s3Pins.ts` against R-1 and the per-game run: 240 and 307 checks, 0 mismatches. `pocketS3Pins` 35 of 35 (156 s) and 35 of 35 under `FF_POCKET_ON=1` (846 s); `pnpm -r typecheck` (28 s); two pin mutations failed the suite as intended; the combined suites 230 passed (183 s). C1's 50-game folds: flat canonical `ccd918d5`, bytes `7cc640fb`, 376,847 events; gen `9314aa8d`, `eda206f1`, 392,728. The pins commit `e35327c` moved the source fingerprint once, to `26fe8e465322fc06`.
+
+**The arms** (`measure/measure.md`; 4 vCPU, 15 GB): the three shards at once from 22:25:29Z, 3,427 s, 3,141 s and 3,193 s (57.1 minutes wall), each exit 0, 46 arm-sets cached; the graded run from a clean tree, 4 s (`.md` 837,030 bytes, sha256 `5b9de3a9...`; `.json` 17,242,419 bytes, sha256 `f89a8a26...`); C1 played fresh into an empty cache, 646 s, its cache files byte-identical to the shards' and every field equal to the graded measures; a re-grade from the cache, 5 s, byte-identical to the committed report and measures and to shard 1's. Every record is stamped `dirty: false`, fingerprint `26fe8e465322fc06`, commit `e35327c`, amendments `fnv1a:517bb9fe`, Node v22.22.0.
+
+**The command, as built** (`build-kd.md`, `src/pocket/main.ts`; paths relative to `packages/calibration`):
+
+- `pocket -- --step 3 [--arms C1,C2] [--shard i/n] [--cache <dir>] [--seed-set 1|2] [--report <file.md>] [--out <file.json>]`; a `--seed-set` run is reported, never graded.
+- `pocket -- --step 3 --digests --out <file.json>`: the golden 50 games a league under every playable C arm and A1, A5, A11 and B1 to B7, with no cache (R-1).
+- `pocket -- --step 3 [--arms C1,C2] [--cache <dir>] [--seed-set 1|2] --part1`: part 1 and its checks alone, a preview, never graded.
+- Every form refuses before anything plays unless the filing and the amendments file's step-3 view load and are pinned; a graded run also needs AM-3. A write under `reports/` is refused from a dirty tree. The committed records were written by `--step 3 --report reports/adr-089-step3.md --out reports/adr-089-step3.json` from the shards' cache, under `data-cache/pocket-step3/<fingerprint>/`. Unlike step 1's command, step 3's does not refuse a write over its committed records (`measure/measure.md`); a re-run that is not meant to replace them writes elsewhere.
+
+**This record** ran, on its own text before its commit, the suites named in its commit message.
+
+### H.5 What goes back to the owner
+
+1. **Three graded predictions miss on C1. They go to the owner under the miss rule: no band moved, nothing was re-filed, tuned or re-run to try again.** `s3.bin20.tick` passes (flat 15.57, gen 18.98 against at most 29.4). The misses (set 1; set 2 beside):
+   - `s3.quick`: flat 88.91 (88.42), gen 83.14 (80.73), against 30 to 55. B3 read 94.24 and 90.16, so C1 lowers it, not enough.
+   - `s3.unblockedPressures`: flat 15.67 (15.87), gen 15.25 (15.92), against at most 14 per 100 dropbacks. B3 read 17.53 and 16.99.
+   - `s3.unblockedShare`: flat 75.71 (76.49), gen 69.78 (72.19), against at most 40 in 100 hits and sacks. B3 read 66.42 and 65.05.
+
+   Plan §7 expected these from step 2's records (B3's quick share 88.7 to 94.3, unblocked pressures 17.0 to 17.7, share 65.1 to 68.0).
+2. **The class of each missed row** (the report's miss rule, on C1 and C2, by AM-2's free-runner key; part 1 found 0 men earlier than the function everywhere; class (iii) is printed as not applicable at step 3; no row is unclassed):
+
+   | arm, league, set | `s3.bin20.tick` | `s3.quick` | `s3.unblockedPressures` | `s3.unblockedShare` |
+   |---|---|---|---|---|
+   | C1 flat 1 | passes (15.57) | TIMING: misses with no free runner (68.74) | SUPPLY (15.67) | SUPPLY (75.71) |
+   | C1 flat 2 | passes (15.50) | TIMING (67.07) | SUPPLY (15.87) | SUPPLY (76.49) |
+   | C1 gen 1 | passes (18.98) | TIMING (59.21) | SUPPLY (15.25) | SUPPLY (69.78) |
+   | C1 gen 2 | passes (20.28) | SUPPLY: misses (80.73) while it passes with no free runner (54.47) | SUPPLY (15.92) | SUPPLY (72.19) |
+   | C2 flat 1 | SUPPLY: 41.68; n 24.96 within 29.4, f 22.29 above 5.92 | SUPPLY (61.84; 34.91 with none) | SUPPLY (18.90) | SUPPLY (74.20) |
+   | C2 flat 2 | SUPPLY: 41.05; n 24.57, f 21.85 above 6.41 | SUPPLY (62.40; 34.98) | SUPPLY (19.25) | SUPPLY (73.69) |
+   | C2 gen 1 | SUPPLY: 46.71; n 27.53, f 26.47 above 2.58 | SUPPLY (60.73; 34.44) | SUPPLY (18.21) | SUPPLY (71.16) |
+   | C2 gen 2 | SUPPLY: 48.31; n 26.53, f 29.65 above 3.91 | SUPPLY (60.18; 32.95) | SUPPLY (19.06) | SUPPLY (71.08) |
+
+   **The sets differ on C1 gen:** set 1 is classed SUPPLY and TIMING, set 2 SUPPLY alone; both are named. Beside the classes: on C1, p (pressured given a man on the clock on a 2.0 s throw) is 100.00% by the arm's reading, and by origin 65.46% and 66.67% (flat), 73.06% and 74.31% (gen); C2's by origin 88.97%, 88.45%, 90.69% and 91.10%. The literal count against the filed Wait table: C1 flat 2,459 of 9,643 and 2,561 of 9,809 men nobody touched earlier than the table, gen 828 of 5,237 and 852 of 5,418.
+3. **The options, each priced on both seed sets and both leagues** (the report's; against C1; set 1 / set 2):
+
+   | option | league | `s3.bin20.tick` | `s3.quick` | `s3.unblockedPressures` (D19 as filed; on the clock) | `s3.unblockedShare` (D19 as filed; on the clock) |
+   |---|---|---|---|---|---|
+   | A, priced by C15 | flat | 11.77 / 12.01 (-3.81 / -3.49) | 81.83 / 82.19 (-7.09 / -6.23) | 5.92 / 6.07 (-9.75 / -9.80); 5.94 / 6.09 | 46.76 / 47.98 (-28.95 / -28.51); 46.76 / 48.21 |
+   | A | gen | 13.94 / 15.44 (-5.05 / -4.84) | 74.98 / 72.58 (-8.16 / -8.15) | 5.70 / 5.99 (-9.56 / -9.93); 5.71 / 6.02 | 41.93 / 41.39 (-27.85 / -30.81); 41.93 / 41.39 |
+   | C, priced by C11 | flat | 22.89 / 23.01 (+7.31 / +7.51) | 93.60 / 93.48 (+4.68 / +5.06) | 15.80 / 16.07 (+0.14 / +0.20); 22.14 / 22.41 | 72.32 / 72.94 (-3.39 / -3.56); 78.90 / 79.76 |
+   | C | gen | 26.76 / 29.28 (+7.77 / +9.00) | 89.57 / 87.95 (+6.43 / +7.22) | 15.28 / 16.09 (+0.02 / +0.16); 22.17 / 23.56 | 67.77 / 70.19 (-2.01 / -2.00); 72.05 / 75.07 |
+
+   - **A, a protection design:** "fewer blown pickups and missed stunt exchanges, first as an information arm, then as its own design with its own petitions." C15 is the readers' supply-cut stand-in, a band-edge shift, not a protection design.
+   - **B, accept and report:** "the row is recorded in the ledger as a named, accepted miss and the build goes on; acceptance has not passed while it stands, unless the owner rules by name that it passes." Nothing is played to price it.
+   - **C, reading (c):** "The owner revisits who counts as 'completely unblocked' (D19, reading (b), against reading (c)); reading (a) is never offered." The filed unblocked rows read D19's band test, so they show the engine change alone; the same rows on the clock under C11's own reading show the change in who counts (review MEAS-S4).
+   - **Never offered:** C12 (reading (a)); C13 (the uniform delay); a late block, a uniform delay or a refit of the free-run constants for a man nobody touched; ADR-090's tables, `t_e`, `w`, the references and the creeper's speed (AM-2). One pass of the options per step.
+4. **No guard breach under AM-3** (H.2): none of the six graded readings breaches, league-wide or in a class, and no SE-0 flag stands. The filed reading beside it, with no noise term, would breach 5 of the 6 league-wide readings on one set each; under F.11 the step does not stop for those, and they are printed beside AM-1's.
+5. **The cumulative line prints BREACH on flat, reported and never graded before step 10.** C1 against A0: Z +6.68 (set 1 rise +0.70 against allowed +0.21, z +4.06; set 2 +0.83 against +0.21, z +5.38); its DESPERATION class Z +2.83 is mostly the class's change of membership (A0 89% dirty, C1 24%; the rise re-weighted to A0's composition +0.11 and +1.07; the dirty half Z +0.45). C2 against A14: Z +2.48. Gen is under the line on both rows. At step 10's acceptance the guard reads against today's game, so the whole rise comes back to the owner then (F.9 item 8).
+6. **The stand-in expectations are reported, never graded:** C2's changes over B6 on gen are smaller than the stand-ins' own for pressure (-2.81 and -2.54 against -4.2), hit-or-sack (-2.17 and -2.35 against -3.3 to -3.7) and the 2.0 s bin (-3.10 and -2.25 against -6.7), near it for the quick share (-10.72 and -11.70 against -11.9), and larger for sacks (-2.43 and -3.10 against -2.34) (H.3).
+7. **At merge, the owner should know:**
+   - default play does not change (H.4), and `pocket-1.s3` plays only behind the switch;
+   - after merge `POCKET_1_S3_PINS` and `POCKET_1_S3_DIGEST` are never re-recorded under that name (H.1);
+   - `1cda5d7` fixes main's gated one-threat bench, which failed on main at `73325df` too, and rides this branch;
+   - `s3.part1.determinism` is cited from R-1 (byte-identical in two processes), as the report's `next` line asks before the merge card;
+   - the viewer does not show P5's pair yet.
+8. **Each departure from the plan** is listed in H.1's departures table.
+
+### H.6 The Orchestrator's readings
+
+**The rulings that bind this step** are recorded where they were made, and not restated: G.8 (AM-2, with the late block's CHOSEN values and the readings it files), G.9 (AM-3, and the Orchestrator's rulings 1 to 8 on the build's review blockers, item 1 quoting the owner's typed yes), G.10 (AM-4) and G.11 (AM-5, the ruling on review CT-F7), with the note after it.
+
+**Readings of the results.** Each was drafted by the record writer from the committed report and the working reports named, for the Orchestrator to confirm or strike before the merge card; none moves a band, a clause or a pin, and none is a ruling.
+
+1. **The late block carries most of the pressure fall; the free-run clock moves less.** C1 against B3 falls 5.80 points of pressure on flat set 1 (5.43 on gen). The late block alone (C10) falls 4.27 (gen 3.64). Each one-input clock arm moves 1.62 points or less on flat (C3 1.42, C4 1.62, C5 1.59) and 1.55 or less on gen, and each one-origin arm 0.78 or less (C7, C8, C9). The parts are not additive by construction and the report prints no interaction, so this is an ordering, not a decomposition.
+2. **The unblocked misses are supply, and step 3 was not built to cut supply.** Part 1 found no man earlier than the function on any arm. The number of completely unblocked men per 100 dropbacks is about the same on C1 as on B3 (flat 18.78 against 19.12, gen 18.43 against 18.33, set 1), above the filed 16.3 to 16.8 on both: step 3 changes when they arrive, not how many there are. The supply stand-in (C15) brings unblocked pressures inside 14 on all four readings (5.70 to 6.07) but leaves their share above 40 (41.39 to 47.98) and the quick share above 55 (72.58 to 82.19), so no option priced here passes all three rows.
+3. **The quick share misses partly without free runners.** With no man on the clock in the play, C1's quick split still reads 68.74 and 67.07 (flat) and 59.21 (gen set 1), above 55, which is why those rows are classed TIMING; gen set 2 reads 54.47, inside. Quick pressures also come from won reps (the quick share by cause: WON_REP 74.31% on flat set 1), which step 1's beat clock times and step 3 does not touch.
+4. **The guard shows the earliest forced decisions moving half a second later, as AM-3's composition print was declared to look for.** On C1 against B3, flat, the RANK_PUSHED throws first forced at 1.0 s by a threat fall from 660 to 70 and those at 1.5 s rise from 558 to 825; the league-wide Z is -0.42 (flat) and +0.44 (gen). The largest class reading, RANK_PUSHED on gen, is Z +1.45 pooled, and its paired Z, +2.22, is reported only.
+5. **The cumulative flat line is the same story as at step 2.** C1 against A0 reads Z +6.68 (step 2's B3 against A0 read +7.07), and its DESPERATION class is mostly composition (re-weighted rises +0.11 and +1.07; dirty half Z +0.45). C1 against A1, the accepted state, reads +1.03 (flat) and -0.84 (gen). It comes back to the owner at step 10, under `acc.intGuard`, as filed.
+6. **The climb lane alone (C16) adds hits and sacks without moving pressure.** C16 against B3: pressure -0.15 and -0.06 (flat), hit-or-sack +0.47 and +0.56, sacks +0.39 and +0.49; gen +0.41 and +0.63 hit-or-sack. Its first arrivals are not resolved from B3's. In C1 this comes with the late block's fall, so C1's sacks still fall.
+7. **The CLEAN gap with a live won rep, G.6 item 7's falsifier, carried.** C1 reads 0.432% of ticks and 1.225% of dropbacks on flat set 1 (B3 0.454% and 1.189%), gen 0.496% and 1.488% (B3 0.483% and 1.348%), with no PUSH tick. A beaten late-block man is not in this count: his threat keeps its origin, PICKUP_LOST or STUNT_LOOPER (G.8), and the row counts only a threat from a WON_REP (`metrics/pocketRows.ts:402-404`, `LIVE_WON_REP`; critique 1 N11). "Past him" was not chosen, so the gap stays a reported falsifier (§4.3), not a failure.
+8. **The L basis moves as the design does.** C14 against B5 falls 5.48 and 5.71 points of pressure on flat and 5.60 and 5.69 on gen, beside C1 against B3's 5.80, 5.78, 5.43 and 5.52; under L a late block that never reaches `t_e` leaves no record, which is the whole of `s3.lateBlock`'s gap (H.3).
+9. **Ruled and unruled are kept apart.** The late block's `t_e` and `w`, the references and the Mug's picture are rulings (G.8, G.9); D19's reading (b) is the owner's answer and is what option C reopens; the free-run constants are filed and never fitted.

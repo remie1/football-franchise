@@ -122,8 +122,15 @@ the same games, pressure fell from 32% to 28% of dropbacks on the flat-rated tes
 graded pocket predictions held; on the made-up league pressure fell 0.02 points further than the
 predicted range, which is reported as filed. The interception check, as amended before step 2, did
 not trip. Step 2's numbers are in `packages/calibration/reports/adr-089-step2.md`; you chose to merge
-it with its switch off (30 October 2026). Step 3 waits on step 2 of the build of where every man stands at
-the snap (ADR-090, designed and ruled 31 October 2026).
+it with its switch off (30 October 2026). Step 3, also behind the switch, times a rusher nobody
+blocked from where he stood at the snap, how fast he is and how deep the quarterback drops, and
+blocks a rusher somebody got a hand on late and weakly; default play has still not changed. With
+the switch on, against step 2 on the same games, pressure fell from 28% to 22% of dropbacks on the
+flat-rated test league and from 29% to 23% on the made-up league, sacks fell by 0.5 to 0.7 per 100
+dropbacks, and the interception check did not trip; but too many pressures still come quickly and
+from rushers nobody blocked (three of the four graded pocket predictions missed), and you choose
+among a protection design, accepting the miss, or changing who counts as completely unblocked
+(numbers in `packages/calibration/reports/adr-089-step3.md`).
 
 **Next after the pocket fix:** the made-up league intercepts about 6.8% of passes against the
 NFL's 2.3%, because tipped balls go to the fastest reactor and strong passers throw into covered
@@ -140,8 +147,9 @@ windows. Its fix is designed right after the pocket fix, measured on the fixed p
 - Where every man stands at the snap (ADR-090, ruled 30-31 October 2026): a spot in yards for all
   22 players on every play, drawn in the game viewer. Disguises cost ground (a Mug backer and a late
   rotation really stand there at the snap), and a poor disguiser cheats toward his job. Its first
-  steps change no game and can land while the pocket fix is measured; step 2 is the pocket fix's
-  free rushers. Step 0 is built (31 October 2026): the spot tables and the pre-snap steps as code
+  steps change no game and can land while the pocket fix is measured; step 2, the pocket fix's
+  free rushers, is built behind the pocket fix's switch (ADR-089 step 3, 31 October 2026).
+  Step 0 is built (31 October 2026): the spot tables and the pre-snap steps as code
   no game calls yet, checked over every call against every formation and against your August
   alignment ranges (`pnpm --filter @ff/calibration snap-spots`,
   `packages/calibration/reports/adr-090-step0.md`). Step 1 is built (31 October 2026, your typed

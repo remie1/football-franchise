@@ -13320,3 +13320,152 @@ Derived by grep at the step-2 head (`a3790a8`), not recalled. Each line is `unru
   the shown list, which the quarterback's coverage read reads today (ADR-090 §4.5), so it waits until ADR-089 has
   finished measuring and is measured with step 4's arms.
 - **Owner and trigger.** Owner: Orchestrator (`packages/playbook`, masks). Trigger: before ADR-090 step 4 builds.
+
+## 178. ADR-089 step 3: free runners on the free-run clock and the late block are built behind the switch; default play has not moved
+
+- **Form.** A ruling entry (`BACKLOG-ENTRY-TEMPLATE.md`): it records step 3's build behind the `pocket-1` switch, the
+  amendments AM-2 to AM-5 (ADR-089 Appendix G.8 to G.11), the contracts edits S3, P5, P17 and S4 granted by the
+  owner's typed yes, and the Orchestrator's rulings on the review's blockers (G.9), so the four ruling sections follow.
+  ADR-089 Appendix H is the human-read record. Entry 173 stays PR #33's (held open by the owner); entries 174 to 176 are
+  steps 0 to 2 and entry 177 is ADR-090 step 0's. Whichever of PR #33 and this branch lands second resolves an
+  end-of-file text conflict. The `CLAUDE.md` command lines for step 3 land in the same commit as this entry.
+- **What landed (no play change).** The free-run clock (`engine/src/resolve/freeRun.ts`, `freeRunClock`), a pure
+  function of a man's snap spot, Speed and Acceleration, the offense call's drop and his start, on the step-0 filing's
+  fifteen `constants.freeRun.*`, with calibration's copy pinned to it by one literal table; free runners timed from
+  `PLAY_START.payload.snap` under reading B (D19's three origins and AM-2's untouched exchange; `sim/freeRunTiming.ts`),
+  with the hand-off fix and the looper's side; the late, weak block for a man somebody got a hand on
+  (`resolve/lateBlock.ts`, `t_e` 1.0 s and `w` 0.1, AM-2's CHOSEN values), on shape S and, after P17, on shape L with
+  AM-5's pair label; the FRONT climb lane; `RUSH_THREAT`'s `distanceYards` and `closingSpeed` under `pocket-1.s3` (P5);
+  the head-only Mug picture (`playbook/src/snapSpots.ts`) and the frozen caller's picture option; the rules bundle
+  `pocket-1.s3` (design digest `POCKET_1_S3_DIGEST` `fnv1a:c4462712`), with a save stamped `pocket-1.s3@<overlay
+  digest>`; arms C1 to C16 with the re-played bases A0, A14, A1, A11, B3, B6 and B5; part 1 on the published picture,
+  the touched men's check and the monotone check; `pocket -- --step 3`; the stream pins `POCKET_1_S3_PINS`; the
+  viewer's late-block and free-runner lines; and the arms' numbers, `packages/calibration/reports/adr-089-step3.md` and
+  `.json`. All of it is behind the switch, which is OFF: `DEFAULT_TUNABLES` is unchanged (census `fnv1a:365da48d`,
+  digest `fnv1a:395a9ae2`), and the golden pins v1-v7, the season path, baseline-0009, the generated league,
+  `pocket-1.s1` and `pocket-1.s2` (their pins replay byte for byte), the step-0 filing (`FILED_DIGEST`
+  `fnv1a:9a1c90e9`) and every legacy, s1 and s2 snap picture did not move. The contracts edits are doc text, or
+  optional fields only `pocket-1.s3` writes: S3 `38729cb`, P5 `218a737` (lifted by E6b `58a374b`), P17 `c340520`
+  (lifted by E4b `b581e27`) and S4 `c61ec9d`, each with the contracts-guardian's APPLY. Main was merged in twice
+  (`b8cff79`, `22b3940`); `1cda5d7` fixes main's gated one-threat bench, which failed on main at `73325df` too.
+- **What the arms showed** (graded as filed; nothing re-filed, tuned or re-run; ADR-089 Appendix H.3). The design arm
+  C1 against step 2's design B3 on the same seeds: pressure -5.80 points on flat and -5.43 on gen, hit-or-sack -0.57
+  and -0.88, sacks -0.54 and -0.72, release +0.014 s and +0.022 s (set 1). One of the four graded s3 clauses passes
+  (`s3.bin20.tick`, flat 15.57 and gen 18.98 against at most 29.4); three miss, the same way on both seed sets:
+  `s3.quick` (flat 88.91, gen 83.14, against 30 to 55), `s3.unblockedPressures` (15.67 and 15.25 against at most 14)
+  and `s3.unblockedShare` (75.71 and 69.78 against at most 40). Every unblocked miss is classed SUPPLY, and the quick
+  share TIMING on three of C1's four readings (it misses with no free runner in the play) and SUPPLY on gen set 2. The
+  interception guard under AM-1 and AM-3 does not breach (6 readings, largest league-wide Z +0.44, largest class Z
+  +1.45); the cumulative line against today's game, reported and never graded before step 10, prints BREACH on flat
+  (C1 against A0, Z +6.68). The tool's outcome: 0 structural failures, 0 fold faults, 3 graded clause failures, 0
+  guard breaches, "Merge card: may be posted with the miss options priced". What goes back to the owner is ADR-089
+  Appendix H.5: the miss under the miss rule, with options A (a protection design, priced by C15), B (accept and
+  report) and C (reading (c), priced by C11).
+
+### Implied scope
+
+Derived by grep at the step-3 record head (`d8247c9`), not recalled. Each line is `unruled` by this entry.
+
+- **Every reader that counts a `pass_rush_tick` as a block rep** (pattern `pass_rush_tick` over
+  `packages/calibration/src`, `pocket/` left out). Under `pocket-1.s3` a late block writes `pass_rush_tick` CHECKs with
+  actors `[rusher, toucher]` from `t_e` (dieless on shape S, rolled on shape L) and a `pass_rush_beat` CHECK
+  (`engine/src/resolve/lateBlock.ts:97-190`). `metrics/collect.ts:1842-1843` passes every such tick to `recordRushRep`
+  (`:1990-2015`), which counts a rep for the rusher and a block rep for the toucher, so tier 4's per-player win rates
+  (`metrics/tier34.ts:180-206`) would read the late block's ticks as ordinary reps; `knownTruth/bandCensus.ts:130` and
+  `knownTruth/pocketChannelShares.ts:361` fold the same ticks. None is run on a `pocket-1.s3` stream at step 3.
+  `unruled`.
+- **The readers of P5's pair** (pattern `distanceYards|closingSpeed` over `packages/*/src` and `apps/game/src`, the
+  engine and `calibration/src/pocket` left out): none. The other hits are `knownTruth/docConformance.ts`'s note on
+  `arrival.nominalClosingSpeedYardsPerSecond` (`:1104-1159`, which calls the nominal `distanceYards` back-derived) and
+  the placekick's own `distanceYards`. The contract's text (`contracts/src/events.ts:401-416`) says a won rep's pair,
+  and a beaten late block's, is the engine's nominal one, which no measurement backs, while a free runner's is his
+  path from his snap spot; the viewer does not show the pair (plan §8's optional stream V display, not built). A
+  reader that takes the pair up reads two kinds of number under one name. `unruled`.
+- **The stem and the count read play only under `legacy`** (`engine/src/game/simulateGame.ts:671-675`,
+  `playsLegacyRules` at `engine/src/sim/pocketRules.ts:429`): a `pocket-1.s3` game has neither, so step 3's arms
+  measure the pocket without them, and a step that makes `pocket-1` the default decides how the two meet. `unruled`.
+- **The `foldGame` calls that pass no tunables, and so read `DEFAULT_TUNABLES`** (pattern `foldGame(` over
+  `packages/calibration/src`): `harness/worker.ts:41` (the worker pool, which refuses a `pocket-1` bootstrap),
+  `harness/batch.ts:323` (a `legacy` batch), `metrics/collect.ts:2297` (`collectGames`) and `pocket/step0.ts:658`
+  (step 0's base). Entries 175 and 176 named the same four (then at `:2170` and `:585`); a fold on a `pocket-1.s3` arm
+  through any of them reads the wrong dials. `unruled`.
+
+### Provenance of factual claims
+
+- **Default play unchanged:** MEASURED four times. At the integrated build `64dd047` (proofs P-1 to P-18, Q-1 to Q-8
+  and R-3 to R-7 against `93c2762`; `proofs.md`); after the review fixes at `e476369` (`build-fix.md`); after the
+  contracts lift at `b581e27`, against main `01b541b` (`contracts/proofs.md`); and after main `73325df` and the
+  filings, at `a28f867` and `1cda5d7` (`integrate/proofs.md`). P-13: every CLI save, `--out` and export
+  byte-identical to the base's. P-16: every legacy, s1 and s2 snap picture equal to the base's (174,939 pictures).
+  P-17: payload key sets equal. `pocket-1.s1` and `pocket-1.s2` replay byte for byte (Q-1 and Q-4, with their ON
+  suites). ADR-089 Appendix H.4 gives each proof's time.
+- **P-15** (the gated ladder census) exits 1 at the head and at the base with the same 131 `pass_rush_tick` cells and
+  a byte-identical census report, MEASURED: entry 175's Finding 1, unchanged.
+- **P-11** (the gated one-threat bench) failed after main `73325df` came in and failed the same way on main itself,
+  MEASURED; after `1cda5d7` it passes 6 of 6 with rows equal to the lift's byte for byte (`integrate/proofs.md`).
+- **The arms:** `reports/adr-089-step3.md` and `.json`, stamped commit `e35327c`, fingerprint `26fe8e465322fc06`,
+  `dirty: false`, amendments `fnv1a:517bb9fe`, Node v22.22.0, caller v7; flat 496 games and gen 272 games on each seed
+  set; MEASURED in three shards (3,427 s, 3,141 s and 3,193 s at once, 57.1 minutes wall). C1 played fresh into an
+  empty cache (646 s) gives cache files byte-identical to the shards', and a re-grade from the cache reproduces the
+  committed report and measures byte for byte (`measure/measure.md`). `q3.replay`: A0, A14, A1, A11, B3, B6 and B5
+  equal step 2's records on both seed sets, MEASURED.
+- **The pins:** `POCKET_1_S3_PINS` MEASURED at `0fe4079` by `pocket -- --step 3 --digests` in two processes (1,512 s
+  and 1,529 s), byte-identical, and checked by `pocketS3Pins` (35 of 35, and 35 of 35 under `FF_POCKET_ON=1`)
+  (`measure/pins.md`).
+- **The guard's readings:** MEASURED on both seed sets (H.2). The count of filed-rule breaches beside them (5 of the 6
+  league-wide readings, on one set each) is DERIVED from the measures file's per-set filed reading.
+- **The miss classes and the option prices:** MEASURED by the tool's miss rule on C1 and C2 and by arms C15 and C11
+  (H.5). That C15 stands for option A is DERIVED: it shifts the pickup and exchange band edges 30 points, and is not a
+  protection design.
+- **`s3.lateBlock`'s gap** (2,131 of 134,143 expected late blocks, all on C14, shape L): MEASURED. That a late block on
+  L that never reaches `t_e` leaves no record is DERIVED (`measure/measure.md`'s reading).
+- **The readings in ADR-089 Appendix H.6** (the late block carries most of the pressure fall; the unblocked misses are
+  supply; and the rest): DERIVED from the MEASURED arms, drafted for the Orchestrator to confirm or strike.
+- **The review:** four lenses on `64dd047`; 29 findings fixed (three in part) in 15 commits, each code fix with a test
+  that failed before it, and 4 declined, as `build-fix.md` lists them, MEASURED by its fail-before runs.
+
+### Premise ledger
+
+- **The owner's typed yes** (2026-10-31T14:38:53Z, "Yes, make contracts edits S3, P5 and P17, and edit S4"; G.9 item
+  1): CARRIED AS TESTIMONY. CONFIRMED in the build: the four edits are doc text or optional fields only
+  `pocket-1.s3` writes, and P-16 and P-17 find every legacy, s1 and s2 picture and key set unchanged.
+- **D19, reading (b)** (the owner's answer on who counts as completely unblocked): CARRIED AS TESTIMONY. CONFIRMED in
+  the build: C1 plays reading B, and the filed unblocked rows read D19's three origins.
+- **AM-2** (G.8; `t_e` 1.0 and `w` 0.1, CHOSEN; shown to the owner, not asked): the Orchestrator's, CARRIED AS
+  TESTIMONY until the owner reads it. CONFIRMED in the build: a test pins AM-2's dials equal to the s3 overlay's
+  `blitzPickup.lateBlock`.
+- **AM-3, AM-4 and AM-5** (G.9 to G.11; `1df7e3d`, `eecf61c`, `bca1838`; AM-5 shown at 2026-10-31T18:34:30Z): the
+  Orchestrator's, CARRIED AS TESTIMONY. Their pin CONFIRMED (`AMENDMENTS_DIGEST` and `STEP3_AMENDMENTS_DIGEST`
+  `fnv1a:517bb9fe`; step 2's view `fnv1a:d5f9de6d`).
+- **The Orchestrator's rulings on the review's blockers** (G.9 items 1 to 8): CARRIED AS TESTIMONY.
+- **The Mug's picture** (ADR-090's rulings; the design reads the picture as ruled, the Mug worn): CARRIED AS
+  TESTIMONY. C6, on the head-only picture, reads within 0.2 points of C1 on pressure (flat 21.92 against 21.99, gen
+  23.29 against 23.29, set 1).
+- **P-15 satisfied as a no-change proof:** step 1's ruling carried to step 3, CARRIED AS TESTIMONY; the no-change fact
+  CONFIRMED.
+- **Plan §7's expectation of the misses** (from step 2's records): CONFIRMED by B3's re-played figures (quick share
+  94.24 and 90.16, unblocked pressures 17.53 and 16.99, share 66.42 and 65.05, set 1).
+- **PR #33 is open** (held by the owner): CONFIRMED on GitHub at this record (REST `pulls/33`: state open, not
+  merged).
+
+### What remains unjustified
+
+- **The three missed bands** (`s3.quick` 30 to 55, `s3.unblockedPressures` at most 14, `s3.unblockedShare` at most
+  40): ⛔ NEITHER. C1 misses all three on both seed sets; they go to the owner under the miss rule with options A, B
+  and C, each priced (ADR-089 Appendix H.5). No option priced here passes all three rows.
+- **Option A's price:** ⛔ NEITHER. C15 is a band-edge stand-in; a protection design would be its own design with its
+  own petitions.
+- **The quick share's TIMING part:** ⛔ NEITHER. With no man on the clock in the play C1's quick split still reads
+  above 55 on three of its four readings; quick pressures from won reps are timed by step 1's beat clock, which step 3
+  does not touch.
+- **AM-2's `t_e` and `w`:** ⚠ RULED (G.8, CHOSEN, shown, not asked); never fitted, and never offered for change at
+  this step.
+- **AM-1's widths under AM-3's map** (Z above 2.0 league-wide, 3.0 in a class): ⚠ RULED (F.11, G.9). The filed
+  reading, with no noise term, would breach 5 of the 6 graded readings on one set each.
+- **The cumulative line's BREACH on flat:** ⚠ RULED to be reported, never graded, before step 10 (F.9 item 8); it
+  comes back to the owner at step 10's acceptance.
+- **`guard.onTheRun.clean`:** ⛔ NEITHER. 0 aimed throws on every arm, as at step 2, so its basis (2.11) is never
+  compared.
+- **The `clean_with_live_won_rep` gap** (C1 flat 0.432% of ticks and 1.225% of dropbacks, B3 0.454% and 1.189%): ⚠
+  RULED ("Past him" was not chosen, ADR-089 §4.3); a reported falsifier, not a failure. A beaten late-block man keeps
+  his origin (PICKUP_LOST or STUNT_LOOPER) and is not counted as a live won rep (`metrics/pocketRows.ts:402-404`).
