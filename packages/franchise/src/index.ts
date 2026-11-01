@@ -148,3 +148,4 @@ export { CREW_RULES } from "./officials/tables.js";
 export {
   makeCrews, carryCrews, crewsProblem, crewIdFor, officialsRng, type CrewAssignment, type SeasonOfficiating,
 } from "./officials/crews.js";
+export { assignWeek, crewWeek, weekRng, type AssignWeekInput } from "./officials/assign.js";
