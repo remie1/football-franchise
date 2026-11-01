@@ -14,7 +14,7 @@
  * Built to outlive the front work: an event kind it does not know is skipped, and anything it
  * reads off PLAY_START (which contracts type as `unknown`) is read defensively.
  */
-import type { MatchEvent, PocketStatus } from "@ff/contracts";
+import type { MatchEvent, PenaltyOutcome, PocketStatus } from "@ff/contracts";
 import { nameOf, teamName, type GameFile } from "./gameFile.js";
 import { clock, downAndDistance, gain, gapWords, kickSpot, quarter, sentenceCase, spot } from "./words.js";
 
@@ -102,6 +102,13 @@ const POCKET_WORDS: Readonly<Record<PocketStatus, string | undefined>> = {
   IMMEDIATE: "immediate pressure",
 };
 
+/** How the log words a flag that was not marked off (ADR-093 F3). */
+const FLAG_WORDS: Readonly<Record<Exclude<PenaltyOutcome, "ENFORCED">, string>> = {
+  DECLINED: "declined",
+  OFFSET: "offsetting",
+  SUPERSEDED: "superseded",
+};
+
 /** Yards at or past which a snap is flagged as a big play. Display only. */
 export const BIG_PLAY_YARDS = 20;
 
@@ -170,7 +177,15 @@ function describeSnap(file: GameFile, snap: SnapView, events: readonly Ev[]): { 
   }
 
   for (const p of all(events, "PENALTY")) {
-    parts.push(`Penalty on ${who(p.payload.player)}: ${sentenceCase(p.payload.kind)}, ${p.payload.yards} yards, ${p.payload.accepted ? "accepted" : "declined"}`);
+    const flag = p.payload;
+    // An outcome this viewer has no words for (a newer file's) is shown in its own name, lower-cased.
+    const ruling =
+      flag.outcome !== "ENFORCED"
+        ? (FLAG_WORDS[flag.outcome] ?? sentenceCase(flag.outcome).toLowerCase())
+        : flag.enforcement.safety
+          ? "safety"
+          : `${flag.enforcement.yards} ${flag.enforcement.yards === 1 ? "yard" : "yards"}, accepted`;
+    parts.push(`Penalty on ${who(flag.player)}: ${sentenceCase(flag.kind)}, ${ruling}`);
     tags.push("penalty");
   }
   if (scored) {

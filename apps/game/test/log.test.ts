@@ -151,3 +151,65 @@ describe("the pocket fix's new kinds (ADR-089 §9)", () => {
     expect(readBoxScore(changed)).toEqual(readBoxScore(FIXTURE));
   });
 });
+
+// ADR-093 F3: a flag in the play log. Nothing in the engine writes one yet, so the flags here are
+// built as a later engine's file would carry them: inside the play, before its PLAY_RESULT (the
+// order the PENALTY doc pins).
+type Added = { type: string; payload: unknown; playId?: string };
+
+/** The fixture with `added` put in front of play 3's result (the dropped pass), seq renumbered. */
+function withBeforePlay3Result(file: GameFile, added: readonly Added[]): GameFile {
+  const events = file.events.flatMap((e) => {
+    const playId = "playId" in e.event ? e.event.playId : undefined;
+    const before = e.event.type === "PLAY_RESULT" && String(playId) === "p3" ? added : [];
+    return [...before.map((n) => ({ ...e, event: { ...n, gameId: e.event.gameId } as unknown as MatchEvent })), e];
+  });
+  return { ...file, events: events.map((e, seq) => ({ ...e, seq })) };
+}
+
+/** A defensive offside on Dez Edge (the home defense), on play 3. */
+const flag = (outcome: string, enforcement?: object): Added => ({
+  type: "PENALTY",
+  playId: "p3",
+  payload: {
+    kind: "DEFENSIVE_OFFSIDE", player: "de", team: "t:00", rollRef: "p3/penalty:de", freePlay: true, outcome,
+    ...(enforcement === undefined ? {} : { enforcement }),
+  },
+});
+const marks = (yards: number) => ({ safety: false, spot: "PREVIOUS_SPOT", yards, halfTheDistance: false, down: "YARDS_ONLY" });
+const play3 = (file: GameFile) => buildPlayLog(file).drives[0]!.lines[3]!;
+
+describe("a flag in the play log (ADR-093 F3)", () => {
+  const drop = "Ada Quinn incomplete, intended for Ty Ellis (dropped)";
+
+  it("words an enforced flag after the play, with its yards", () => {
+    const line = play3(withBeforePlay3Result(FIXTURE, [flag("ENFORCED", marks(5))]));
+    expect(line).toMatchObject({ text: `${drop}. Penalty on Dez Edge: Defensive offside, 5 yards, accepted.`, tags: ["penalty"] });
+    expect(play3(withBeforePlay3Result(FIXTURE, [flag("ENFORCED", marks(1))])).text).toContain("1 yard, accepted");
+  });
+
+  it("words each other outcome, and a safety", () => {
+    const words = ["DECLINED", "OFFSET", "SUPERSEDED"].map((o) => play3(withBeforePlay3Result(FIXTURE, [flag(o)])).text);
+    expect(words).toEqual([
+      `${drop}. Penalty on Dez Edge: Defensive offside, declined.`,
+      `${drop}. Penalty on Dez Edge: Defensive offside, offsetting.`,
+      `${drop}. Penalty on Dez Edge: Defensive offside, superseded.`,
+    ]);
+    const hold: Added = {
+      type: "PENALTY",
+      playId: "p3",
+      payload: {
+        kind: "OFFENSIVE_HOLDING", player: "lt", team: "t:01", rollRef: "p3/penalty:lt", freePlay: false, outcome: "ENFORCED",
+        enforcement: { safety: true, spot: "SPOT_OF_FOUL", yards: 1 },
+      },
+    };
+    expect(play3(withBeforePlay3Result(FIXTURE, [hold])).text).toBe(`${drop}. Penalty on Lou Tate: Offensive holding, safety.`);
+  });
+
+  it("words an outcome it has no words for in its own name, and changes no other line", () => {
+    const changed = withBeforePlay3Result(FIXTURE, [flag("PICKED_UP")]);
+    expect(play3(changed).text).toBe(`${drop}. Penalty on Dez Edge: Defensive offside, picked up.`);
+    const others = (file: GameFile) => buildPlayLog(file).drives.flatMap((d) => d.lines).filter((l) => l.playId !== "p3");
+    expect(others(changed)).toEqual(others(FIXTURE));
+  });
+});

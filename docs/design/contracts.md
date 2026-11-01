@@ -410,7 +410,7 @@ Derived directly from `match-engine.md`; every roll and resolution the debug pri
 | `RUN_RESOLUTION` | gap battles[], rbVisionCheck, secondLevel[], tackleAttempts[] |
 | `ENV_APPLIED` | which weather/stamina/noise modifiers actually fired this play |
 | `STAMINA_DELTA` | per-player drain/recovery |
-| `PENALTY` | kind, player, accepted? |
+| `PENALTY` | a flag (ADR-093 F3): the foul called (`FoulKind`), the man flagged and his team, the `penalty_check` roll of the moment flagged (`rollRef`), free play or not; what became of it (enforced, declined, offset, superseded) and, when enforced, how (`PenaltyEnforcement`: spot, yards, half the distance, and what it did to the down, `PenaltyDown`: an automatic first down, a loss of down, or yards only; or a safety, with its spot and yards only). Written inside its play, before `PLAY_RESULT`, whose yards it never changes |
 | `PLAY_RESULT` | yards, clock runoff, turnover?, score?, newDown/Distance |
 | `GAME_END` | final score, per-player statlines (aggregated by engine from its own events) |
 

@@ -78,3 +78,67 @@ export type FoulFamily = "LINE_HOLDING" | "COVERAGE" | "PLAYER_SAFETY" | "TECHNI
  *    (§4.4).
  */
 export type FoulTiming = "BEFORE_SNAP" | "AT_SNAP" | "DURING_PLAY" | "AFTER_PLAY";
+
+/**
+ * ADR-093 F3: the spot a penalty is marked off from (§4.2).
+ *  - PREVIOUS_SPOT: where the ball was snapped, or, for a dead-ball foul before the snap (a false
+ *    start, encroachment, a delay of game, for instance), where it was to be snapped: there the
+ *    previous and succeeding spots are one yard line, and §4.3 marks these fouls from the previous
+ *    spot.
+ *  - SPOT_OF_FOUL: where the foul was (for a passer's foul, where he threw).
+ *  - END_OF_RUN: where the runner was down or went out of bounds, or where he lost the ball.
+ *  - SUCCEEDING_SPOT: where the next play would have started (a foul after the play), written so
+ *    even when that is the previous spot's yard line (after an incomplete pass), since a foul after
+ *    the play leaves the down played.
+ * A spot foul (defensive pass interference at the spot of the foul; intentional grounding at the
+ * spot of the pass, when that is worse) is written as the NFL writes it: from the previous spot, by
+ * the yards to that spot. The kicking game's spots, and a foul marked off on the try or on the
+ * kickoff after a touchdown, come with the step that first needs one (8 for kicks; 6 for a personal
+ * foul on a scoring play).
+ */
+export type EnforcementSpot = "PREVIOUS_SPOT" | "SPOT_OF_FOUL" | "END_OF_RUN" | "SUCCEEDING_SPOT";
+
+/**
+ * ADR-093 F3: what became of a flag (§4.4). ENFORCED: marked off. DECLINED: the offended team
+ * refused it: it kept the play's result, took another flag instead, or, for a foul before the snap,
+ * kept the down where it stood. OFFSET: cancelled by a flag on the other team. SUPERSEDED: set
+ * aside because a bigger flag on the other team was enforced instead (a 15-yard foul against a
+ * 5-yard one, §4.4), the NFL's own word for it.
+ */
+export type PenaltyOutcome = "ENFORCED" | "DECLINED" | "OFFSET" | "SUPERSEDED";
+
+/**
+ * ADR-093 F3: what a penalty does to the down besides its yards (§4.3's "first down / down"
+ * column). AUTOMATIC_FIRST_DOWN: a first down whatever the yards (the defense's fouls §4.3 marks
+ * so). LOSS_OF_DOWN: the offense loses the down (an illegal forward pass, intentional grounding).
+ * YARDS_ONLY: neither, though the yards may still reach the line to gain. One value, since no flag
+ * carries both: the first is only ever the defense's, the second only ever the offense's.
+ */
+export type PenaltyDown = "AUTOMATIC_FIRST_DOWN" | "LOSS_OF_DOWN" | "YARDS_ONLY";
+
+/**
+ * ADR-093 F3: how the rulebook marked off a flag (§4.2, §4.3). `yards`: what the flag cost the
+ * flagged team, as the NFL writes it and the real-numbers page counts it: the yards marked off
+ * from `spot`, after half the distance when `halfTheDistance`. `down`: what it did to the down
+ * besides. The down and distance that follow are the next play's to say, not this record's.
+ *
+ * `safety`: the flagged offense fouled in its own end zone, so the defense scores (§4.2). Then
+ * `spot` is SPOT_OF_FOUL and `yards` the distance from the previous spot to the goal line, as the
+ * NFL writes it. No down follows a safety, so half the distance and the down do not apply: both are
+ * absent, never `false` or YARDS_ONLY (ADR-036).
+ */
+export type PenaltyEnforcement =
+  | {
+      safety: false;
+      spot: EnforcementSpot;
+      yards: number;
+      halfTheDistance: boolean;
+      down: PenaltyDown;
+    }
+  | {
+      safety: true;
+      spot: "SPOT_OF_FOUL";
+      yards: number;
+      halfTheDistance?: never;
+      down?: never;
+    };

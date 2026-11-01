@@ -9,6 +9,7 @@ import type { DraftPickKind, GameKind, GameResult, PlayoffBracket } from "./leag
 import type { StaffRole, ContractKind, InjuryBand, InjurySetting } from "./players.js";
 import type { StaffDepartureReason } from "./staff.js";
 import type { RelationshipParty, RelationshipWord } from "./relationships.js";
+import type { FoulKind, PenaltyEnforcement, PenaltyOutcome } from "./penalties.js";
 import type { MeetingPoint, StaffMeeting, TeamDirection } from "./meeting.js";
 import type { SidelineAdjustmentPayload, StemPayload } from "./stem.js";
 
@@ -567,7 +568,45 @@ export type MatchEvent =
       } } & MatchEventBase)
   | ({ type: "ENV_APPLIED"; payload: { weather?: RollModifier[]; stamina?: RollModifier[]; noise?: RollModifier[] } } & MatchEventBase)
   | ({ type: "STAMINA_DELTA"; payload: { player: PlayerId; delta: number }[] } & MatchEventBase)
-  | ({ type: "PENALTY"; payload: { kind: string; player: PlayerId; accepted: boolean; yards: number } } & MatchEventBase)
+  /**
+   * ADR-093 F3: a flag: what the officials called, and what became of it (§2, §4). Reshaped from
+   * `{ kind, player, accepted, yards }`, which nothing ever emitted: `accepted` could not say OFFSET
+   * or SUPERSEDED, and `yards` on a declined flag would be a 0 that reads as a distance (ADR-036),
+   * so both are gone, and a reader of either fails to compile rather than reading a new meaning
+   * (ADR-010).
+   *
+   * `kind`, `player` and `team` are the foul called, the man flagged and his team. A flag the NFL
+   * puts on a team and no man (delay of game, too many men on the field, and about half of illegal
+   * formation and illegal shift flags) waits for a widening at the step that builds it, and never
+   * names a stand-in player (ADR-010). `rollRef` names the `penalty_check` CHECK of the moment
+   * flagged: the foul's own roll, or, for a wrong flag, the near-foul's (§5.3). The flag's own
+   * fields do not say which, so it reads as called (§7); what happened and what was called stay
+   * apart (§1). `freePlay`: the flag is on the defense for a live-ball foul at the snap (defensive
+   * offside, for one), so the play ran and the offense keeps its result (DECLINED) or takes the
+   * penalty (ENFORCED) (ADR-091 §8; ADR-091's petition M5 is this field).
+   *
+   * ENFORCED and DECLINED are the offended team's choice, a COACH decision (§4.6, Iron Rule 6);
+   * OFFSET and SUPERSEDED are the rulebook's (§4.4). Only an ENFORCED flag carries `enforcement`.
+   * `PLAY_RESULT` stays the play's own result: a flag's yards are its `enforcement`'s, never added
+   * to `PLAY_RESULT.yards` (ADR-010). Whether, and how much of, a play's result counts after a flag
+   * (the NFL's "No Play": a hold marked off from the previous spot, a free play's penalty taken,
+   * offsetting flags during the play) is an addition at the step that first produces one.
+   *
+   * Several flags on one play are each a `PENALTY`. Each is written after its play's `PLAY_START`
+   * and before its `PLAY_RESULT`, a flag on a foul before the snap or after the whistle included:
+   * readers close a play at its `PLAY_RESULT`, and the offended team chooses on the play's result,
+   * which the engine knows before it writes that event.
+   */
+  | ({ type: "PENALTY"; payload: {
+        kind: FoulKind;
+        player: PlayerId;
+        team: TeamId;
+        rollRef: string;
+        freePlay: boolean;
+      } & (
+        | { outcome: "ENFORCED"; enforcement: PenaltyEnforcement }
+        | { outcome: Exclude<PenaltyOutcome, "ENFORCED">; enforcement?: never }
+      ) } & MatchEventBase)
   | ({ type: "PLAY_RESULT"; payload: { yards: number; turnover: boolean; score?: number; clockRunoff: number } } & MatchEventBase)
   // ---- Game structure (ADR-014). All GAME-scoped: none of these is a play. ----
   | ({ type: "GAME_START"; payload: { home: TeamId; away: TeamId; seed: string } } & GameEventBase)

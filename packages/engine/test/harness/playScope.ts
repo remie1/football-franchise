@@ -159,7 +159,7 @@ const FOOTBALL_FIELDS: Readonly<Record<string, readonly string[]>> = {
   YAC_ZONE: ["carrier", "zone", "yardsInZone"],
   RUN_RESOLUTION: ["carrier", "carryType", "gap", "yardsBeforeContact", "yards"],
   RUSH_ZONE: ["carrier", "zone", "yardsInZone"],
-  PENALTY: ["kind", "player", "accepted", "yards"],
+  PENALTY: ["kind", "player", "team", "freePlay", "outcome", "enforcement"],
   PLAY_RESULT: ["yards", "turnover", "score", "clockRunoff"],
 };
 
