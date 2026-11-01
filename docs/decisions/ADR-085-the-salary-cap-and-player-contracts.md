@@ -347,3 +347,9 @@ veteran salary benefit, in-season street signings and injured reserve, compensat
   - Cap use is 97%. No team ends a year more than 1% over its cap.
 - **Still open.** New-team deals are still about half the real number. Own-team multi-year deals dip in 2029 (51).
 
+### Fix: same-day tender and extension (2026-11-01, found by the aging thread's 20-season runs)
+
+- **The bug.** The early-extension pass in `reSign` read a tender, tag or re-signing signed minutes earlier as "a deal ending after next season" and extended it the same day. A later cut ended only the deal live that year, so the extension outlived it. The player then sat on another team's roster while carrying the first team's extension, went to free agency when that extension was cut, retired unsigned, and left a dangling roster id. That crashed cut-down day.
+- **The fix.** No extension on the day the team signs the player anything else. `release` also ends that team's deals with him that have not started yet; their bonus lands as dead money. Both fixes have tests.
+- **Effect on the five-year check.** First-year extensions fall from 327 to 205; about 120 were the bug, so own-team counts in steps 7 to 11 were inflated. Means: new-team deals of $2M+ 111 a year, of $5M+ 81 (now in the real 80 to 120), own-team deals of 2+ years 119 (real 210 to 290), dead money $22.2M a team.
+

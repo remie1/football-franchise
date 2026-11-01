@@ -356,6 +356,8 @@ function reSign(
     for (const p of roster) {
       const old = book.contracts.find((c) => String(c.player) === String(p.bio.id) && c.team === team.id && endsAfter(c, next));
       if (!old || hasDealIn(book.contracts, String(p.bio.id), first)) continue;
+      // Not the man it just tendered, tagged or re-signed today: that deal is his answer for now.
+      if (old.signedAt && compareStamps(old.signedAt, at) === 0) continue;
       const cs = seasonsIn(p, first);
       // A drafted player cannot sign a new deal until his third season is over (the real rookie rule).
       if (old.kind === "ROOKIE" && seasonsIn(p, next) < MARKET.rookieExtensionSeasons) continue;
