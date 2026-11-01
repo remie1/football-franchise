@@ -66,20 +66,25 @@ export const RATING_GROUPS: Readonly<Record<string, RatingGroup>> = Object.fromE
 
 /**
  * The learning rate (§2.2): `floor + (1 - floor) × ½^(years past fullUntilAge / ageHalfLife) ×
- * ½^(credited seasons / seasonHalfLife)`. 1 for a rookie of 22 or younger, about 0.76 in his second
- * season, about 0.36 at 26, about 0.2 at 28-29, and never below the floor. Seasons weigh more than
- * age, so a rookie who comes in at 24 (about 0.81) learns faster than a second-year man of 23.
- * CHOSEN (tuned in D5).
+ * ½^(credited seasons / seasonHalfLife)`. About 0.58 for a rookie of 22 (0.66 at 21), 0.28 in his
+ * second season at 23, 0.19 in his third, and from the fourth season on close to the floor, 0.15,
+ * where it stays. Seasons weigh more than age, so a rookie who comes in at 24 (0.45) learns faster
+ * than a second-year man of 23. No player is young enough to reach 1: the table's sizes (§2.3) are a
+ * ceiling the youngest rookies come nearest.
+ * CHOSEN, tuned by ADR-087 D5b round 1 (2026-11-01): the first speeds (floor 0.1, full until 22, age
+ * half-life 6, season half-life 3.5) let men keep climbing through their mid-20s, about twice the
+ * real league's rise by age, so the stand-in league's average rose 4.4 points in 20 seasons. Most of
+ * a career's learning now comes in the first two seasons, as the real cross-section shows.
  */
 export const LEARNING_RATE = {
-  /** The lowest it goes: a veteran still learns a little. A share of a rookie's rate. */
-  floor: 0.1,
-  /** Years of age: up to here, age does not slow learning. */
-  fullUntilAge: 22,
+  /** The lowest it goes: a veteran still learns a little. A share of the table's full rate. */
+  floor: 0.15,
+  /** Years of age: up to here, age does not slow learning. Below every player's age, so age always counts. */
+  fullUntilAge: 18,
   /** Years of age past `fullUntilAge` that halve the part above the floor. */
-  ageHalfLife: 6,
+  ageHalfLife: 4,
   /** Credited seasons that halve the part above the floor. */
-  seasonHalfLife: 3.5,
+  seasonHalfLife: 0.7,
 } as const;
 
 // ---------------------------------------------------------------------------------------------

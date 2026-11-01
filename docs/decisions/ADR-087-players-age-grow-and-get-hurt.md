@@ -91,6 +91,12 @@ Each week's gains are scaled by a learning rate built from age and credited seas
 highest for a young player in his first seasons (a rookie learns fastest), falls through the
 mid-20s, and is low but never zero for a veteran.
 
+D5b tuning round 1 (2026-11-01) set the speeds (`LEARNING_RATE`): about 0.58 of the full rate for a
+rookie of 22, 0.28 in his second season, 0.19 in his third, and close to the floor, 0.15, from his
+fourth. Most of a career's learning comes in the first two seasons. The first speeds (full until 22,
+then slowly down to 0.1) let players keep climbing through their mid-20s, about twice the real
+league's rise by age, and the stand-in league's average rose 4.4 points in 20 seasons.
+
 ### 2.3 What moves each rating
 
 Every rating belongs to one group (all 56 active ratings, plus `disguise` when ADR-075 adds it):
@@ -111,7 +117,7 @@ The inputs, each week:
 | **Practice** | the default week of reps; heaviest in camp and OTAs | a player who doesn't practise (injured) gets no practice gain that week; a limited one gets part. Later the owner's weekly practice plan (install vs reps vs rest) becomes the knob: more reps, more growth and more practice injuries |
 | **Playing time** (Q3) | a starter gains a little more than a backup | from the game's report of who played (§10) |
 | **Performance** | a corner who wins his matchups gains a little more in coverage; one beaten repeatedly gains less and can slip | from the same report |
-| **Coaching** (Q4) | the best staff against the worst is worth about one rating point a year on a young player | the coordinator on his side of the ball, through his `development` skill (special teams coordinator for K, P, LS). For `disguise`, the defensive coordinator's `teaching`, in ADR-075's windows (spring ~1/4, camp ~1/2, season ~1/4), as the owner ruled there |
+| **Coaching** (Q4) | the best staff against the worst is worth about one rating point a year at the full learning rate; with D5b's speeds (§2.2) that is about 0.6 of a point in a rookie's year and 0.3 in his second, so coaches still matter, a little (the `COACHING` table itself is unchanged) | the coordinator on his side of the ball, through his `development` skill (special teams coordinator for K, P, LS). For `disguise`, the defensive coordinator's `teaching`, in ADR-075's windows (spring ~1/4, camp ~1/2, season ~1/4), as the owner ruled there |
 | **Storylines** | a mentor taking a rookie under his wing; a player distracted by a contract fight | later, through a channel the story side can write to (its own petition) |
 | **Morale** | an unhappy player develops a little slower | later: Spec #14 §3 makes morale a development-rate modifier; not in this build |
 | **Wobble** | a small random step each week | from the season seed, so the same seed always gives the same careers |
@@ -755,6 +761,17 @@ same way on both sides, is 24-26 for every real group, earlier than the aging cu
 it reads when teams hand out snaps, not true ability. Coaches now change between seasons (ADR-084's
 carousel) and each team holds its end-of-season meeting (ADR-081); the walk runs both whenever a
 switch is on.
+
+**Tuning round 1: the learning rate (2026-11-01).** The first knob family, alone in its PR. The
+first speeds let men keep improving through their mid-20s, so by 2032 a 29-year-old on the 53s rated
+3-6 points above the file's 29-year-olds and the average had risen 3.6 points (seed t2). The new
+speeds (§2.2) hold that rise to about 1.4 points by 2032 on seeds t2 and t4, with the year's moves
+the development tests now pin (a starter's core skills: rookie of 22 about +2.5, second year +1,
+26 +0.7, 28 +0.4, 29 +0.2, 32 -1.1, 34 -1.9; a backup keeps about 70% of a starter's gain, inside
+the 60% limit). Alone, they narrow the spread within each position group (about 5.4-5.8 by 2032
+against the Spread line's 6.55), because fast and slow developers now drift apart less: the next knob family,
+the draft classes' spread of talent (Rookies card, with a draft re-check), is what widens it. Nothing
+changes with both switches off.
 
 ## Conjoined mechanisms
 
