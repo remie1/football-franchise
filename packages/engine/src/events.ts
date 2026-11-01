@@ -48,7 +48,11 @@ export type TippedBallRecovery =
   | { readonly recoverable: false };
 
 export interface CheckEmission {
-  readonly checkKind: CheckKind;
+  /**
+   * Every kind but the officials' two (ADR-093 F4), whose CHECK always names the `penalty_check` it
+   * judges and states its chance; they get an emission of their own with ADR-093 step 1's build.
+   */
+  readonly checkKind: Exclude<CheckKind, "official_sees" | "phantom_flag">;
   readonly actors: readonly PlayerId[];
   readonly roll: RollDetail;
   readonly target?: number;
@@ -111,7 +115,12 @@ export type ThreatApproach = Exclude<RushApproach, "BLOCKED">;
  */
 export interface PresnapEmission {
   readonly actor: PlayerId;
-  readonly kind: CheckKind;
+  /**
+   * Every kind but the foul roll and the officials' two (ADR-093 F4), which are always CHECKs and
+   * never a pre-snap read: a `penalty_check` is the CHECK a foul and a flag name, and each
+   * officials' roll names the `penalty_check` it judges.
+   */
+  readonly kind: Exclude<CheckKind, "penalty_check" | "official_sees" | "phantom_flag">;
   readonly roll: RollDetail;
   readonly target: number;
   readonly tier: ResultTier;

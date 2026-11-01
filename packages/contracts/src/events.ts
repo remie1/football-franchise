@@ -155,6 +155,21 @@ export type CheckKind =
    */
   | "communication" | "snap_jump" | "fumble" | "penalty_check"
   /**
+   * ADR-093 F4: the officials' two rolls (§5.1), each rolled once and only when it matters
+   * (ADR-005): a snap with no foul and no near-foul rolls neither. Each is a CHECK, never a
+   * `PRESNAP_READ`, even on a foul before the snap: it names the `penalty_check` CHECK it judges by
+   * `rollRef` and states its chance as `target`, both always present, and is written after that
+   * CHECK, in the same play (ADR-059). `actors` is the one man whose foul or near-foul it judges
+   * (the `FOUL`'s player, or the wrong flag's `PENALTY.player`). `testsAttrs` is empty and there is
+   * no `opposedRoll`: officials have no ratings, and the foul's visibility, the crew's lean and the
+   * situation set the target (§5.2, §6.1, §6.4).
+   *  - `official_sees`: on a foul. Made, the foul is flagged (`FOUL.flagged`).
+   *  - `phantom_flag`: on a near-foul, a `penalty_check` that only just missed (§5.3). Made, a
+   *    wrong flag is thrown: a `PENALTY` with that `rollRef` and no `FOUL` behind it. This CHECK,
+   *    not a missing event, is what says the flag was wrong.
+   */
+  | "official_sees" | "phantom_flag"
+  /**
    * ADR-091 petition M3, the stem at the line (§5.2 to §5.4): the Mike's timing (`stem_timing`), a
    * moved lineman's shift on an on-time stem (`stem_shift`) and the quarterback's snap on movement
    * on an early one (`snap_on_movement`). Each is rolled only when it decides something (ADR-005);
@@ -298,7 +313,14 @@ export type MatchEvent =
    */
   | ({ type: "PLAY_START"; payload: unknown } & MatchEventBase)
   | ({ type: "PRESNAP_READ"; payload: {
-        actor: PlayerId; kind: CheckKind; roll: RollDetail; target: number; tier: ResultTier;
+        actor: PlayerId;
+        /**
+         * ADR-093 F4: every kind but the foul roll and the officials' two, which are always CHECKs:
+         * a `penalty_check` is the CHECK a `FOUL`, a `PENALTY` and the officials' rolls name, and
+         * each officials' roll names the `penalty_check` it judges.
+         */
+        kind: Exclude<CheckKind, "penalty_check" | "official_sees" | "phantom_flag">;
+        roll: RollDetail; target: number; tier: ResultTier;
         /** The read's own band label (a free string, ADR-011): §5.1's six-band ladder for
          *  `coverage_read` and `blitz_recognition` (ADR-068 §2, ADR-073); HELD / BROKE for
          *  `leash_discipline` (ADR-072). Same reasoning as ADR-011 gave `CHECK.band`: a
@@ -318,7 +340,18 @@ export type MatchEvent =
   | ({ type: "STEM"; payload: StemPayload } & MatchEventBase)
   | ({ type: "TICK"; payload: { tick: number } } & MatchEventBase)
   | ({ type: "CHECK"; payload: (
-        | { checkKind: CheckKind; roll: RollDetail }
+        | { checkKind: Exclude<CheckKind, "official_sees" | "phantom_flag">; roll: RollDetail }
+        /**
+         * ADR-093 F4: the officials' two rolls always name the `penalty_check` they judge
+         * (`rollRef`) and state their chance (`target`), and are never opposed (`opposedRoll`).
+         */
+        | {
+            checkKind: "official_sees" | "phantom_flag";
+            roll: RollDetail;
+            opposedRoll?: never;
+            rollRef: string;
+            target: number;
+          }
         | {
             checkKind: "pass_rush_tick";
             /**
@@ -360,7 +393,8 @@ export type MatchEvent =
          * check derives from — for `pass_rush_tick`, the `pass_rush_rep` whose latent it
          * jitters around; for a `pass_rush_tick` with no `roll` (ADR-089 P3, shape S), the
          * `pass_rush_beat` whose breaking time sets its margin; for `pass_rush_beat` (ADR-089 P2),
-         * the CHECK whose block it times.
+         * the CHECK whose block it times; for `official_sees` and `phantom_flag` (ADR-093 F4), the
+         * `penalty_check` they judge.
          *
          * Present so the deciding quantity is REPRODUCIBLE FROM THE STREAM. Without it the
          * margin that selects a band exists only in engine memory, and Iron Rule 3 is not
