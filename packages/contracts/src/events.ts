@@ -9,7 +9,7 @@ import type { DraftPickKind, GameKind, GameResult, PlayoffBracket } from "./leag
 import type { StaffRole, ContractKind, InjuryBand, InjurySetting } from "./players.js";
 import type { StaffDepartureReason } from "./staff.js";
 import type { RelationshipParty, RelationshipWord } from "./relationships.js";
-import type { FoulKind, PenaltyEnforcement, PenaltyOutcome } from "./penalties.js";
+import type { FoulKind, FoulTiming, PenaltyEnforcement, PenaltyOutcome } from "./penalties.js";
 import type { MeetingPoint, StaffMeeting, TeamDirection } from "./meeting.js";
 import type { SidelineAdjustmentPayload, StemPayload } from "./stem.js";
 
@@ -574,6 +574,36 @@ export type MatchEvent =
       } } & MatchEventBase)
   | ({ type: "ENV_APPLIED"; payload: { weather?: RollModifier[]; stamina?: RollModifier[]; noise?: RollModifier[] } } & MatchEventBase)
   | ({ type: "STAMINA_DELTA"; payload: { player: PlayerId; delta: number }[] } & MatchEventBase)
+  /**
+   * ADR-093 F2: a foul a player committed, flagged or not: a game fact (§1, §2; Iron Rule 3). What
+   * the officials called is `PENALTY`; a foul nobody flagged is here and in no `PENALTY`, and a
+   * wrong flag, thrown on a near-foul, has no `FOUL` behind it (§5.3). What the coach sees of a
+   * foul is ADR-093 §7's, not this event's.
+   *
+   * `rollRef` names the `penalty_check` CHECK that made it (ADR-004, §8). `flagged`: the officials
+   * flagged it, and one `PENALTY` with this `rollRef` is written after it. `when` is its moment
+   * (`FoulTiming`), and `yardLine` where it happened, in yards from the snapping team's own goal
+   * line whichever team fouled (the scale of `DRIVE_START.startYardLine` for its offense), below 0
+   * in its own end zone and above 100 in the other team's. `player` is the man whose foul it is and
+   * `team` his team, as on `PENALTY` (a foul the NFL puts on a team and no man waits for its step).
+   * The base's `tick` is when, on a foul during the play, and is absent on a foul before the snap,
+   * at it, or after the play.
+   *
+   * Written, as `PENALTY` is, after its play's `PLAY_START` and before its `PLAY_RESULT`. A foul
+   * before the snap names the `PlayId` of the down it was committed on, a dead-ball foul that stops
+   * the snap included (the NFL's play-by-play gives that down its own row), and the replayed down is
+   * a new play with its own `PlayId`; how a stopped down's events say that no snap was made is
+   * petitioned at the step that first produces one.
+   */
+  | ({ type: "FOUL"; payload: {
+        kind: FoulKind;
+        player: PlayerId;
+        team: TeamId;
+        when: FoulTiming;
+        yardLine: number;
+        rollRef: string;
+        flagged: boolean;
+      } } & MatchEventBase)
   /**
    * ADR-093 F3: a flag: what the officials called, and what became of it (§2, §4). Reshaped from
    * `{ kind, player, accepted, yards }`, which nothing ever emitted: `accepted` could not say OFFSET
