@@ -6,6 +6,10 @@
  * which positions go in round 1, how often a pick of each round is a starter, how many compensatory
  * picks go to how many clubs, and how many cut players are claimed off waivers. The real numbers it is
  * set against are `NFL_DRAFT` below, measured from nflverse's draft picks table.
+ *
+ * The reading itself is `draftReader` (an `onRun` and the rows it adds up to), so another check can
+ * run it on its own walk: the 20-season check (`careerCheck.ts`) reads the draft and its own rows from
+ * one walk.
  */
 import type { FranchiseEvent, PlayerState, Position } from "@ff/contracts";
 import { runCapCheck, type CapCheckInput } from "./capCheck.js";
@@ -53,14 +57,37 @@ export interface DraftCheckResult {
 
 const band = (round: number) => (round <= 3 ? String(round) : "4-7");
 
-export function runDraftCheck(input: Omit<CapCheckInput, "onRun">): DraftCheckResult {
+/**
+ * The draft check's reader: an `onRun` for the cap check's walk, and the rows it adds up to once the
+ * walk is done. `runDraftCheck` runs it alone; the 20-season check (`runCareerCheck`) runs it beside
+ * its own on one walk.
+ */
+export interface DraftReader {
+  readonly onRun: (season: number, events: readonly FranchiseEvent[], people: SeasonPeople) => void;
+  result(): DraftCheckResult;
+  /** What it has read so far, as plain JSON (a checkpoint between seasons), and back into a fresh reader. */
+  save(): DraftReaderState;
+  restore(state: DraftReaderState): void;
+}
+
+/** The draft reader's state as plain JSON. */
+export interface DraftReaderState {
+  readonly position: [string, Position][];
+  readonly pickRound: [string, { draft: number; round: number }][];
+  readonly roundOne: string[];
+  readonly seasons: [string, { onTeam: number; started: number; everStarted: boolean }][];
+  readonly perYear: DraftCheckResult["perYear"];
+  readonly lastSeason: number;
+}
+
+export function draftReader(): DraftReader {
   const groupOf = new Map<Position, string>();
   for (const [g, ps] of Object.entries(DRAFT_GROUPS)) for (const p of ps) groupOf.set(p, g);
-  const position = new Map<string, Position>();
-  const pickRound = new Map<string, { draft: number; round: number }>();
-  const roundOne: string[] = [];
-  const seasons = new Map<string, { onTeam: number; started: number; everStarted: boolean }>();
-  const perYear: DraftCheckResult["perYear"] = [];
+  let position = new Map<string, Position>();
+  let pickRound = new Map<string, { draft: number; round: number }>();
+  let roundOne: string[] = [];
+  let seasons = new Map<string, { onTeam: number; started: number; everStarted: boolean }>();
+  let perYear: DraftCheckResult["perYear"] = [];
   let lastSeason = 0;
 
   const onRun = (season: number, events: readonly FranchiseEvent[], people: SeasonPeople) => {
@@ -96,19 +123,39 @@ export function runDraftCheck(input: Omit<CapCheckInput, "onRun">): DraftCheckRe
       }
     }
   };
-  runCapCheck({ ...input, onRun });
 
-  const roundOneCount: Record<string, number> = Object.fromEntries(Object.keys(DRAFT_GROUPS).map((g) => [g, 0]));
-  for (const id of roundOne) { const g = groupOf.get(position.get(id)!) ?? "ST"; roundOneCount[g]!++; }
-  const roundOneShare = Object.fromEntries(Object.entries(roundOneCount).map(([g, n]) => [g, roundOne.length === 0 ? 0 : n / roundOne.length]));
-  const rate: Record<string, [number, number]> = {};
-  const ever: Record<string, [number, number]> = {};
-  for (const [id, pick] of pickRound) {
-    const s = seasons.get(id);
-    const b = band(pick.round);
-    if (s) { const r = (rate[b] ??= [0, 0]); r[0] += s.started; r[1] += s.onTeam; }
-    if (lastSeason - pick.draft + 1 >= 3) { const e = (ever[b] ??= [0, 0]); e[0] += s?.everStarted ? 1 : 0; e[1]++; }
-  }
-  const ratio = (m: Record<string, [number, number]>) => Object.fromEntries(Object.entries(m).map(([k, [a, b]]) => [k, b === 0 ? 0 : a / b]));
-  return { drafts: perYear.length, roundOneShare, starterRate: ratio(rate), everStarter: ratio(ever), perYear };
+  const result = (): DraftCheckResult => {
+    const roundOneCount: Record<string, number> = Object.fromEntries(Object.keys(DRAFT_GROUPS).map((g) => [g, 0]));
+    for (const id of roundOne) { const g = groupOf.get(position.get(id)!) ?? "ST"; roundOneCount[g]!++; }
+    const roundOneShare = Object.fromEntries(Object.entries(roundOneCount).map(([g, n]) => [g, roundOne.length === 0 ? 0 : n / roundOne.length]));
+    const rate: Record<string, [number, number]> = {};
+    const ever: Record<string, [number, number]> = {};
+    for (const [id, pick] of pickRound) {
+      const s = seasons.get(id);
+      const b = band(pick.round);
+      if (s) { const r = (rate[b] ??= [0, 0]); r[0] += s.started; r[1] += s.onTeam; }
+      if (lastSeason - pick.draft + 1 >= 3) { const e = (ever[b] ??= [0, 0]); e[0] += s?.everStarted ? 1 : 0; e[1]++; }
+    }
+    const ratio = (m: Record<string, [number, number]>) => Object.fromEntries(Object.entries(m).map(([k, [a, b]]) => [k, b === 0 ? 0 : a / b]));
+    return { drafts: perYear.length, roundOneShare, starterRate: ratio(rate), everStarter: ratio(ever), perYear };
+  };
+  const save = (): DraftReaderState => JSON.parse(JSON.stringify({
+    position: [...position], pickRound: [...pickRound], roundOne, seasons: [...seasons], perYear, lastSeason,
+  })) as DraftReaderState;
+  const restore = (state: DraftReaderState): void => {
+    const c = JSON.parse(JSON.stringify(state)) as DraftReaderState;
+    position = new Map(c.position);
+    pickRound = new Map(c.pickRound);
+    roundOne = [...c.roundOne];
+    seasons = new Map(c.seasons);
+    perYear = [...c.perYear];
+    lastSeason = c.lastSeason;
+  };
+  return { onRun, result, save, restore };
+}
+
+export function runDraftCheck(input: Omit<CapCheckInput, "onRun">): DraftCheckResult {
+  const reader = draftReader();
+  runCapCheck({ ...input, onRun: reader.onRun });
+  return reader.result();
 }

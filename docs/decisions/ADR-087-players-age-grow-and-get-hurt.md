@@ -699,6 +699,63 @@ run twice to the same events.
   call-ups and about 6 street specialists; 24-26 unsigned street players retire a season; about 3.5
   position battles, 24.5 injury covers and 23 starter returns per team.
 
+### D5b: the 20-season check, rulings and pass lines (2026-10-31)
+
+Recorded before any graded run, as the D5b plan requires
+([plan](https://claude.ai/artifact/Wtajcwp83CP5EMi9WUswWb)). The tools are PR #57: the many-season
+walk (`runCapCheck` with `players`), the watch-only reader (`careerCheck.ts`), the real side
+(`nfl-careers`, `NFL_CAREERS`, `reports/nfl-careers.md`), the `career-check` command and the grader
+(`careerGrade.ts`, whose `CAREER_BANDS` table is the source of truth for every line below).
+
+**The owner's answers (decision cards, 2026-10-31 21:05-21:07Z).**
+
+| Card | Answer | What it sets |
+|---|---|---|
+| Drift | Loose: 3 points | The average overall on the 53s stays within 3 points of year 0 every season 2029-45 (GATE). The mean of 2036-45 within ±1.0 is reported only. The pooled within-group spread keeps its own line, 2036-45 within ±10% (GATE). |
+| Close | Close | League mean age ±0.5 years, 31-and-over share ±3 points, peak usage age per group ±1.5 years, expected career ±20% (GATE). |
+| Old | Hold until teams cut sooner | The 34-and-over share (at most the NFL's + 2 points) and reaching 10 seasons (±3 points) block the switch-on (GATE). The fix is teams valuing players on next season's expected rating when they keep, cut and re-sign: the salary-cap thread's step 12, on `expectedOverallChange(player, { starter })`, which this ADR's first tuning PR adds to franchise `players/`. No retirement rule by age (Q7 stands). |
+| Even | Fix first, block below 2.75 | The win spread, mean of 2029-45, must be at least 2.75 (GATE); the NFL band 2.75-3.35 is reported. The fix comes from roster building, cuts and how differently players grow, never a hidden boost to the real rosters (ADR-088 Q8); for the made-up league, a wider spread of team quality used only when growth is on. |
+| Rookies | Yes, with a draft re-check | Draft-class talent (`PROSPECT_TALENT`) may be tuned together with growth; every such change re-runs the draft check (D7) with the draft thread. |
+| Aged | Real veterans only | "Everyone aged once" ages the stand-in league's veterans only (a new league file, the old one kept). The made-up league stays as it is, so ADR-089's final records stand. |
+
+**Two more answers after tuning round 1 (decision cards, 2026-11-01 01:54Z).**
+
+| Card | Answer | What it sets |
+|---|---|---|
+| Spread | The league file as loaded | The pooled within-group spread's line (2036-45 within ±10%, GATE) is measured from the league file as loaded: its 53s before the walk signs anyone, 7.28 on the 23 October file, so the line runs 6.55-8.00. Not from year 0's week 8 (about 7.6-7.7), whose spread carries the stopgap kickers (backups rated 24-42, and a few punters) the walk signs for injuries; that value is shown beside it, not graded. The Drift rows keep year 0 (the card did not ask about them). |
+| Floor | Keep floor; judge growth vs season one | The win spread's 2.75 stays the GATE for the switch-on. A growth or draft-talent tuning round is judged on keeping the later seasons as spread out as season one: the mean of 2029-45 at least season one's spread on the same seeds, both switches on (reported; a shortfall inside the seeds' noise is "can't tell"). Season one itself is near 2.5 with both switches on (20 seeds, `reports/player-checks-standin.md`: off 2.79, growth 2.82, injuries 2.49, both 2.51), so the rest of the gap to 2.75 waits on how the engine turns team strength into wins and on roster building, outside this ADR's tuning. |
+
+**Readings the Orchestrator recorded with the six answers of 2026-10-31 (CHOSEN; told to the owner
+2026-10-31, no objection).**
+
+- **A gross miss fails.** A row is "can't tell" only when its value is in band or outside it by no
+  more than 2·√(SE_sim² + SE_ref²). Further out it fails, however wide the reference's error.
+- **Rookie** means a player's first season on a team, matching nflverse's years of experience
+  (seasons since entry). "No credited season" is reported beside it.
+- **Week-8 league rows** (mean age, 22 or under, 31 and over, 34 and over, rookies, undrafted) are
+  graded against the latest three real seasons, 2022-24, because the undrafted and young shares fall
+  steadily across 2018-24 and our own 2026 start fails the seven-season mean. Group mean ages keep
+  2018-24.
+- **Careers are also graded by position family and league-wide** (QB; RB-WR-TE; OL-IDL-EDGE;
+  LB-CB-S; K-P-LS), beside the per-group rows, because single small groups (kickers, punters,
+  snappers, quarterbacks) can only catch a gross miss.
+- **Draft rows** (ADR-086 D7 was judged by reading): starter rate by round band (1, 2, 3, 4-7)
+  within ±0.10 of `NFL_DRAFT` (GATE); ever a starter within ±0.10 and the round-1 shares, reported.
+- **Tuning limits:** a backup who only practices keeps at least 60% of a starter's yearly gain
+  (today about 70%); `LEARNING_RATE.floor` stays above 0; no slope or cost that depends on rating
+  level; `WOBBLE`, `GROWTH`, `COACHING` and `PATIENCE` are not tuned; one knob family per PR; rows
+  still out after six rounds are reported, not forced. After the veterans are aged once, the aging
+  tables freeze; any later change goes to the owner.
+- **The flip** is recommended only when every GATE row passes or is "can't tell", including the Old
+  rows, so switching growth and injuries on by default also waits on the cap thread's step 12.
+
+**Known before the first run.** The 2026 file has 13% of the 53s aged 31 or over against about 10%
+in every real season since 2018 (unexplained; checked before grading). Peak usage age, measured the
+same way on both sides, is 24-26 for every real group, earlier than the aging curves' peaks (25-30):
+it reads when teams hand out snaps, not true ability. Coaches now change between seasons (ADR-084's
+carousel) and each team holds its end-of-season meeting (ADR-081); the walk runs both whenever a
+switch is on.
+
 ## Conjoined mechanisms
 
 Development and injuries are separate mechanisms that both change who plays and how well. Each has

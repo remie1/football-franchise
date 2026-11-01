@@ -171,6 +171,14 @@ describe("unsignedDay (§6.1)", () => {
     expect(r.memory.unsignedSince).toEqual({});
   });
 
+  it("never retires a man who is on a team, even if the free agents still list him", () => {
+    const rostered = player("Rostered", { patience: 0, team: "T1" });
+    const r = unsignedDay({ at: { season: 2027, phase: "TRAINING_CAMP", week: 1, day: 1 }, rules: RULES, seed: SEED, players: [rostered], freeAgents: [rostered.bio.id], memory: emptyMemory() });
+    expect(r.events).toEqual([]);
+    expect(r.players).toEqual([rostered]);
+    expect(r.memory.unsignedSince).toEqual({});
+  });
+
   it("is the same walk for the same seed, whether or not the walk is stopped and carried on", () => {
     const players = Array.from({ length: 30 }, (_, i) => player(`FA${i}`));
     const straight = walk(freeWorld(players), start, end);
