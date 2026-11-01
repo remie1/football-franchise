@@ -186,7 +186,7 @@ function describeSnap(file: GameFile, snap: SnapView, events: readonly Ev[]): { 
           ? "safety"
           : `${flag.enforcement.yards} ${flag.enforcement.yards === 1 ? "yard" : "yards"}, accepted`;
     parts.push(`Penalty on ${who(flag.player)}: ${sentenceCase(flag.kind)}, ${ruling}`);
-    tags.push("penalty");
+    if (!tags.includes("penalty")) tags.push("penalty");
   }
   if (scored) {
     parts.push("Touchdown!");

@@ -200,10 +200,22 @@ describe("a flag in the play log (ADR-093 F3)", () => {
       playId: "p3",
       payload: {
         kind: "OFFENSIVE_HOLDING", player: "lt", team: "t:01", rollRef: "p3/penalty:lt", freePlay: false, outcome: "ENFORCED",
-        enforcement: { safety: true, spot: "SPOT_OF_FOUL", yards: 1 },
+        enforcement: { safety: true, spot: "SPOT_OF_FOUL", yards: 48 },
       },
     };
     expect(play3(withBeforePlay3Result(FIXTURE, [hold])).text).toBe(`${drop}. Penalty on Lou Tate: Offensive holding, safety.`);
+  });
+
+  it("words two flags on one play in stream order, under one penalty tag", () => {
+    const holding: Added = {
+      type: "PENALTY",
+      playId: "p3",
+      payload: { kind: "OFFENSIVE_HOLDING", player: "lt", team: "t:01", rollRef: "p3/penalty:lt", freePlay: false, outcome: "OFFSET" },
+    };
+    expect(play3(withBeforePlay3Result(FIXTURE, [flag("OFFSET"), holding]))).toMatchObject({
+      text: `${drop}. Penalty on Dez Edge: Defensive offside, offsetting. Penalty on Lou Tate: Offensive holding, offsetting.`,
+      tags: ["penalty"],
+    });
   });
 
   it("words an outcome it has no words for in its own name, and changes no other line", () => {
