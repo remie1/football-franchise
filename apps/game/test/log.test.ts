@@ -213,3 +213,17 @@ describe("a flag in the play log (ADR-093 F3)", () => {
     expect(others(changed)).toEqual(others(FIXTURE));
   });
 });
+
+describe("the offended team's decision in the play log (ADR-093 F6)", () => {
+  it("is not worded: a decision before its flag leaves the log as the flag alone words it", () => {
+    const decision: Added = {
+      type: "COACH_DECISION",
+      payload: { kind: "PENALTY_OPTION", rollRef: "p3/penalty:de", authority: "COACH", team: "t:01", choice: "ACCEPT" },
+    };
+    const alone = withBeforePlay3Result(FIXTURE, [flag("ENFORCED", marks(5))]);
+    const decided = withBeforePlay3Result(FIXTURE, [decision, flag("ENFORCED", marks(5))]);
+    expect(buildPlayLog(decided)).toEqual(buildPlayLog(alone));
+    expect(readDriveChart(decided)).toEqual(readDriveChart(alone));
+    expect(readBoxScore(decided)).toEqual(readBoxScore(alone));
+  });
+});

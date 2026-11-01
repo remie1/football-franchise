@@ -252,7 +252,13 @@ export type DriveResult =
 
 export type ScoreKind = "TOUCHDOWN" | "FIELD_GOAL" | "EXTRA_POINT" | "TWO_POINT" | "SAFETY";
 export type PlacekickKind = "FIELD_GOAL" | "EXTRA_POINT";
-export type CoachDecisionKind = "FOURTH_DOWN" | "COIN_TOSS";
+/**
+ * ADR-093 F6: `PENALTY_OPTION` is the offended team's choice on a flag against the other team
+ * (§3, §4.6): accept or decline; on a free play, the play or the penalty; with the 10-second runoff,
+ * the runoff or not (§4.5). Authority COACH, as every kind here (Iron Rule 6). ADR-091's petition
+ * M5 named this decision; it is the same one.
+ */
+export type CoachDecisionKind = "FOURTH_DOWN" | "COIN_TOSS" | "PENALTY_OPTION";
 export type GameEndReason = "REGULATION" | "OVERTIME" | "TIE";
 
 /**
@@ -635,9 +641,19 @@ export type MatchEvent =
   | ({ type: "SCORE"; payload: {
         team: TeamId; kind: ScoreKind; points: number; home: number; away: number;
       } } & GameEventBase)
-  | ({ type: "COACH_DECISION"; payload: {
-        kind: CoachDecisionKind; authority: "COACH"; team: TeamId; choice: string;
-      } } & GameEventBase)
+  /**
+   * ADR-093 F6: a `PENALTY_OPTION` decision is the offended team's on one flag, and names it:
+   * `rollRef` is that flag's `PENALTY.rollRef` (a game event about a play states the link in its own
+   * payload, ADR-014 item 13). One for each flag whose outcome the offended team chose (ENFORCED or
+   * DECLINED), written before that flag's `PENALTY` and, like it, inside the play's events: after
+   * the play's `PLAY_START` and before its `PLAY_RESULT`. An OFFSET or SUPERSEDED flag has none
+   * (§4.4). `team` is the offended team, deciding; `choice` names the option taken, such as ACCEPT
+   * or DECLINE, and the options are the rulebook's (ADR-093 step 0). No other kind names a flag.
+   */
+  | ({ type: "COACH_DECISION"; payload: (
+        | { kind: Exclude<CoachDecisionKind, "PENALTY_OPTION">; rollRef?: never }
+        | { kind: "PENALTY_OPTION"; rollRef: string }
+      ) & { authority: "COACH"; team: TeamId; choice: string } } & GameEventBase)
   /**
    * The three kicking events are PLAY-scoped, not game-scoped (ADR-016). A field-goal
    * attempt is a fourth down, a punt is a play, a kickoff is a free-kick down — and once
@@ -819,6 +835,9 @@ export type FranchiseEvent =
  * ADR-089 P3: A CHECK IS NOT ALWAYS A ROLL. Under `pocket-1`'s shape S a `pass_rush_tick` carries
  * no `roll`: its band and margin are set by the `pass_rush_beat` its `rollRef` names, which
  * recorded the one die. It is counted as a CHECK and as no roll.
+ *
+ * ADR-093 F6: a `PENALTY_OPTION` COACH_DECISION, which is game-scoped, carries the `rollRef` of its
+ * flag's `penalty_check`, a roll in the play it decides on (ADR-014 item 13).
  *
  * Stated here rather than left implicit so the next author does not have to
  * re-derive whether it is allowed. An implicit generalization gets re-litigated
