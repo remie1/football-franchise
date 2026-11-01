@@ -30,6 +30,7 @@ import {
 } from "./fixtures.js";
 import type { Scenario } from "./fixtures.js";
 import { APPROACH_CARD, RULE_SETS, buildBullRushScenario, isShapeS } from "./pocketTunables.js";
+import { callsUnder } from "./snapFixtures.js";
 
 const CARD = APPROACH_CARD;
 const SHAPES: readonly BlockClockShape[] = ["S", "L"];
@@ -339,7 +340,7 @@ describe("ADR-089 P4 — the label on the stream", () => {
         const n = fixture === "bull rush" ? 400 : 60;
         for (let i = 0; i < n; i++) {
           const { state, calls } = build();
-          const { events } = simulatePassPlay(state, calls, `approach-${fixture}-${i}`, tunables);
+          const { events } = simulatePassPlay(state, callsUnder(tunables, state, calls), `approach-${fixture}-${i}`, tunables);
           for (const [rusher, { derived, published }] of streamLabels(events, shape)) {
             if (published.length === 0) {
               expect(derived, `${fixture} ${i}: ${rusher} has no threat`).toBe("BLOCKED");
@@ -375,7 +376,7 @@ describe("ADR-089 P4 — the label on the stream", () => {
       ] as const) {
         for (let i = 0; i < 300; i++) {
           const { state, calls } = build();
-          const { events } = simulatePassPlay(state, calls, `swap-${i}`, tunables);
+          const { events } = simulatePassPlay(state, callsUnder(tunables, state, calls), `swap-${i}`, tunables);
           const stunt = events.find((e) => e.event.type === "CHECK" && e.event.payload.checkKind === "stunt_communication");
           if (stunt?.event.type !== "CHECK" || (stunt.event.payload.band !== "PASSED_OFF" && stunt.event.payload.band !== "PASSED_OFF_CLEAN")) continue;
           const threat = events.find((e) => e.event.type === "RUSH_THREAT" && String(e.event.payload.rusher) === man);

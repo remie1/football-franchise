@@ -7,6 +7,9 @@
  * `unknown` in contracts, so the calls are read defensively and a field the stream lacks is left
  * out, never guessed. The one comparison made here — which defenders' shown assignment differs
  * from the one they played — is a display of two fields the call already carries side by side.
+ * The one cross-reference — which CHECK a beat, a tick or a threat names by its `rollRef` — is how
+ * the stream itself says a late block is one (ADR-089 step 3, `lateBlocksOf` below); nothing is
+ * timed or decided here.
  */
 import type { MatchEvent, RollDetail } from "@ff/contracts";
 import { nameOf, type GameFile } from "./gameFile.js";
@@ -244,7 +247,72 @@ const APPROACH_WORDS: Readonly<Record<ThreatApproach, string>> = {
   PUSH: "bull rush, still engaged",
 };
 
-function timelineText(file: GameFile, e: Ev): string | undefined {
+// --- ADR-089 step 3: the late block, read by reference ----------------------------------------
+
+/**
+ * Which of a play's CHECKs and threats belong to a late block (ADR-089 §4.4.2, step 3, under
+ * `pocket-1.s3`). A rusher somebody got a hand on before the snap (one who ran through the back in
+ * a `blitz_pickup`, or a looper whose blocker took the exchange late in a `stunt_communication`) is
+ * blocked late and weakly by that man, and the stream says so by reference, never by a label's
+ * spelling:
+ *  - shape S: his `pass_rush_beat` names that touching CHECK by `rollRef`, and each of his dieless
+ *    `pass_rush_tick`s names the beat;
+ *  - shape L: each of his rolled `pass_rush_tick`s names the touching CHECK itself;
+ *  - beaten: his `RUSH_THREAT` keeps his own origin (`PICKUP_LOST` or `STUNT_LOOPER`) and names the
+ *    touching CHECK, as a free runner's would; it is his because a late beat or late tick of the
+ *    same rusher names the same CHECK.
+ * A beat or tick is `[rusher, toucher]`; the rusher may be the man who carried the record in a
+ * passed-off twist. Under `legacy`, `pocket-1.s1` and `pocket-1.s2` no beat or tick names a pickup
+ * or stunt CHECK, so `beats` and `toucher` are empty and the play detail reads as it always has,
+ * apart from the bare `against:` hover fix (build-v.md): an opposed roll with no modifiers no longer
+ * prints an empty "against: " in its dice hover, legacy jitter ticks included (review NPC-N1).
+ */
+interface LateBlocks {
+  /** `rngLabel`s of the play's `blitz_pickup` and `stunt_communication` rolls. */
+  readonly touching: ReadonlySet<string>;
+  /** `rngLabel`s of the late beats (shape S). */
+  readonly beats: ReadonlySet<string>;
+  /** The toucher of each late block, keyed by `lateKey(rusher, the touching CHECK's label)`. */
+  readonly toucher: ReadonlyMap<string, string>;
+}
+
+const lateKey = (rusher: string, touchingLabel: string): string => `${rusher}\u0000${touchingLabel}`;
+
+type CheckPayload = Extract<Ev, { type: "CHECK" }>["payload"];
+
+function lateBlocksOf(events: readonly Ev[]): LateBlocks {
+  const touching = new Set<string>();
+  for (const e of events) {
+    if (e.type !== "CHECK") continue;
+    const kind: string = e.payload.checkKind;
+    if ((kind === "blitz_pickup" || kind === "stunt_communication") && e.payload.roll !== undefined) touching.add(e.payload.roll.rngLabel);
+  }
+  const beats = new Set<string>();
+  const toucher = new Map<string, string>();
+  for (const e of events) {
+    if (e.type !== "CHECK") continue;
+    const p = e.payload;
+    const kind: string = p.checkKind;
+    // A late beat (shape S) or a rolled late tick (shape L): each names the touching CHECK itself.
+    // A dieless tick names its beat, so it says nothing here that its beat has not.
+    if ((kind !== "pass_rush_beat" && kind !== "pass_rush_tick") || p.roll === undefined || p.rollRef === undefined || !touching.has(p.rollRef)) continue;
+    if (kind === "pass_rush_beat") beats.add(p.roll.rngLabel);
+    const [rusher, blocker] = arr(p.actors).map(str);
+    if (rusher !== undefined && blocker !== undefined) toucher.set(lateKey(rusher, p.rollRef), blocker);
+  }
+  return { touching, beats, toucher };
+}
+
+/** A late beat, or a late tick of either shape (see `LateBlocks`). */
+function isLateBlockCheck(late: LateBlocks, p: CheckPayload): boolean {
+  const kind: string = p.checkKind;
+  if (p.rollRef === undefined) return false;
+  if (kind === "pass_rush_beat") return p.roll !== undefined && late.touching.has(p.rollRef);
+  if (kind === "pass_rush_tick") return p.roll === undefined ? late.beats.has(p.rollRef) : late.touching.has(p.rollRef);
+  return false;
+}
+
+function timelineText(file: GameFile, e: Ev, late: LateBlocks): string | undefined {
   const who = (id: string) => nameOf(file, id);
   switch (e.type) {
     case "POCKET_STATUS":
@@ -253,7 +321,11 @@ function timelineText(file: GameFile, e: Ev): string | undefined {
       const p = e.payload;
       // A label this viewer has no words for (a newer file's) is shown in its own name, lower-cased.
       const approach = p.approach === undefined ? "" : `; ${APPROACH_WORDS[p.approach] ?? sentenceCase(p.approach).toLowerCase()}`;
-      return `${who(p.rusher)} (${p.alignment.toLowerCase()}): ${p.state.toLowerCase()}${p.state === "TRAVELLING" ? `, due tick ${p.etaTick}` : ""} [${sentenceCase(p.origin).toLowerCase()}${approach}]`;
+      // ADR-089 step 3: a pickup or stunt threat whose rusher has a late block naming the same
+      // CHECK is that block beaten, on its tick (a free runner's comes at the snap, and has none).
+      const toucher = p.state === "TRAVELLING" && p.origin !== "WON_REP" ? late.toucher.get(lateKey(p.rusher, p.rollRef)) : undefined;
+      const beaten = toucher === undefined ? "" : `beats ${who(toucher)}'s late block, `;
+      return `${who(p.rusher)} (${p.alignment.toLowerCase()}): ${beaten}${p.state.toLowerCase()}${p.state === "TRAVELLING" ? `, due tick ${p.etaTick}` : ""} [${sentenceCase(p.origin).toLowerCase()}${approach}]`;
     }
     case "QB_READ":
       return `Reads ${who(e.payload.target)}: sees ${e.payload.perceivedOpenness} open (really ${e.payload.actualOpenness})`;
@@ -296,6 +368,7 @@ export function buildPlayDetail(file: GameFile, playId: string): PlayDetail {
   const reads: ReadRow[] = [];
   const timeline: TimelineRow[] = [];
   const dice: DiceRow[] = [];
+  const late = lateBlocksOf(events);
   let tick = "snap";
   // The engine restates the pocket every tick; the timeline shows it only when it changes.
   let pocket: string | undefined;
@@ -323,10 +396,12 @@ export function buildPlayDetail(file: GameFile, playId: string): PlayDetail {
       const checkKind: string = p.checkKind;
       const missing = checkKind === "pass_rush_tick" ? "no die" : "missing roll";
       dice.push({
-        kind: sentenceCase(p.checkKind),
+        // ADR-089 step 3: a late block's beat and ticks keep their kind and are marked as its.
+        kind: `${sentenceCase(p.checkKind)}${isLateBlockCheck(late, p) ? " (late block)" : ""}`,
         who: p.actors.map((a) => nameOf(file, a)).join(" vs "),
         roll: p.roll === undefined ? missing : sayRoll(p.roll),
-        modifiers: [p.roll === undefined ? "" : sayModifiers(p.roll), p.opposedRoll === undefined ? "" : `against: ${sayModifiers(p.opposedRoll)}`].filter((m) => m !== "").join("; "),
+        // An opposed roll with no modifiers (a tick's bare d100s) adds nothing to the hover.
+        modifiers: [p.roll === undefined ? "" : sayModifiers(p.roll), p.opposedRoll === undefined || p.opposedRoll.modifiers.length === 0 ? "" : `against: ${sayModifiers(p.opposedRoll)}`].filter((m) => m !== "").join("; "),
         against: p.opposedRoll !== undefined ? `vs ${sayRoll(p.opposedRoll)}` : p.target !== undefined ? `needs ${p.target}` : "",
         margin: p.margin,
         tier: sentenceCase(p.tier),
@@ -338,7 +413,7 @@ export function buildPlayDetail(file: GameFile, playId: string): PlayDetail {
       if (e.payload.status === pocket) continue;
       pocket = e.payload.status;
     }
-    const text = timelineText(file, e);
+    const text = timelineText(file, e, late);
     if (text !== undefined) timeline.push({ tick, text });
   }
 

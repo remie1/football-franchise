@@ -385,7 +385,18 @@ function renderPreSnap(events: readonly MatchEventEnvelope[], name: NameLookup):
 
 function renderLineBattle(events: readonly MatchEventEnvelope[], name: NameLookup): string[] {
   const matchups = new Map<string, { rusher: PlayerId; blocker: PlayerId; rows: string[] }>();
+  // ADR-089 step 3 (E6): the pickup and stunt CHECKs' labels, so a late block's beat (which names
+  // its touching CHECK, not a rep) is not printed "on rep margin" (critique 1 S9).
+  const preSnapChecks = new Set<string>();
   for (const { event } of events) {
+    if (
+      event.type === "CHECK" &&
+      (event.payload.checkKind === "blitz_pickup" || event.payload.checkKind === "stunt_communication") &&
+      event.payload.roll !== undefined
+    ) {
+      preSnapChecks.add(event.payload.roll.rngLabel);
+      continue;
+    }
     // ADR-089 P2: shape S's breaking-time draw, once per block, printed at the head of its
     // matchup's rows (a legacy stream has none, so its printout is unchanged).
     if (event.type === "CHECK" && event.payload.checkKind === "pass_rush_beat") {
@@ -397,9 +408,15 @@ function renderLineBattle(events: readonly MatchEventEnvelope[], name: NameLooku
       if (rusher === undefined || blocker === undefined) continue;
       const key = `${String(rusher)}|${String(blocker)}`;
       const entry = matchups.get(key) ?? { rusher, blocker, rows: [] };
+      // ADR-089 step 3 (E4, E6): a late block's beat names the CHECK in which his toucher got a
+      // hand on him; its margin is that CHECK's, turned round, and the block starts late.
+      const late = b.rollRef !== undefined && preSnapChecks.has(b.rollRef);
       entry.rows.push(
-        `  │    Beat (block clock): ${b.roll.die} ${b.roll.raw.toFixed(4)} on rep margin ${signed(b.margin)}` +
-          `  [${b.roll.rngLabel}]`,
+        late
+          ? `  │    Late block (touched pre-snap, blocked late and weakly): ${b.roll.die} ${b.roll.raw.toFixed(4)}` +
+              ` on the touching check's margin, turned round ${signed(b.margin)}  [${b.roll.rngLabel}]`
+          : `  │    Beat (block clock): ${b.roll.die} ${b.roll.raw.toFixed(4)} on rep margin ${signed(b.margin)}` +
+              `  [${b.roll.rngLabel}]`,
       );
       matchups.set(key, entry);
       continue;
@@ -454,7 +471,12 @@ function renderLineBattle(events: readonly MatchEventEnvelope[], name: NameLooku
         p.origin === "WON_REP"
           ? `  │    Tick ${at}: ${name(p.rusher)} wins the rep → ${p.alignment} threat,` +
             ` ${travel.toFixed(1)}s to travel, arrival ${eta}${approach}`
-          : `  │    Pre-snap: ${name(p.rusher)} is UNBLOCKED (${freeRunnerReason(p.origin)})` +
+          : event.tick !== undefined
+            ? // ADR-089 step 3 (E4): a pickup or stunt origin published on a tick is a beaten late
+              // block (a free runner's threat is published at the snap, before the first tick).
+              `  │    Tick ${at}: ${name(p.rusher)} beats his late block (${freeRunnerReason(p.origin)})` +
+              ` → ${p.alignment} threat, ${travel.toFixed(1)}s to travel, arrival ${eta} (roll ${p.rollRef})${approach}`
+            : `  │    Pre-snap: ${name(p.rusher)} is UNBLOCKED (${freeRunnerReason(p.origin)})` +
             ` → ${p.alignment} free runner,` +
             ` ${travel.toFixed(1)}s to travel, arrival ${eta} (roll ${p.rollRef})${approach}`,
       );

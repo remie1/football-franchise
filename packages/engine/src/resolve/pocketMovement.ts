@@ -28,9 +28,10 @@
 import { getAttr } from "@ff/contracts";
 import type { AttrId, PlayerState, Rng, RollDetail } from "@ff/contracts";
 import { ATTR, attrName } from "../attrs.js";
-import type { CheckEmission } from "../events.js";
+import type { CheckEmission, ThreatApproach } from "../events.js";
 import { actorAttrModifier, bandFor, compact, rollD100, tierFor } from "../rolls.js";
-import type { Tunables } from "../tunables.js";
+import type { ClimbLaneTunables, Tunables } from "../tunables.js";
+import { fromOf } from "./approach.js";
 import type { ArrivalClock } from "./rushThreat.js";
 import { minTimeToArrival, threatsWithAlignment, urgencySteps } from "./rushThreat.js";
 
@@ -56,13 +57,30 @@ export interface ResponseAppeal {
   readonly appeal: number;
 }
 
+/**
+ * ADR-089 step 3 (E5): which threats close the climb lane. INTERIOR, every rule set before step 3
+ * and `pocket-1.s3` without `pocket.climbLane`: an INTERIOR-aligned threat. FRONT
+ * (`pocket.climbLane`): a threat whose from-class is FRONT (`resolve/approach.ts`'s `fromOf`).
+ */
+export type ClimbLaneRule = "INTERIOR" | ClimbLaneTunables;
+
+/**
+ * A live threat as the climb lane reads it: its alignment always, and its approach, which every
+ * `pocket-1` threat carries (P4) and the FRONT rule reads (plan §2.5, critique 2 N4).
+ */
+export interface ClimbLaneThreat extends ArrivalClock {
+  readonly approach?: ThreatApproach;
+}
+
 export interface PocketMovementArgs {
   /** Required, never defaulted: a missed call site must be a compile error. */
   readonly tunables: Tunables;
   readonly qb: PlayerState;
   readonly tick: number;
   /** Rushers currently travelling. Shape, not just count, drives availability. */
-  readonly threats: readonly ArrivalClock[];
+  readonly threats: readonly ClimbLaneThreat[];
+  /** ADR-089 step 3 (E5): the climb lane rule the play runs (`sim/pocketRules.ts`). Required, never defaulted. */
+  readonly climbLane: ClimbLaneRule;
   readonly stepUpsUsed: number;
   /** §8.7 — a throwaway is only legal once the concept has had time to develop. */
   readonly throwawayAvailable: boolean;
@@ -111,14 +129,28 @@ function appealFrom(
  * Is the climb lane open? Two ways it is not: somebody is penetrating the
  * interior (you cannot climb into him), or the quarterback has already climbed
  * as far as the pocket goes.
+ *
+ * ADR-089 step 3 (E5; plan §2.5, "no FRONT threat"): under the climb lane rule FRONT the
+ * first way reads the threat's from-class instead of its alignment, so an EDGE man coming THROUGH
+ * (a looper the line never touched, a twist's penetrator) closes the lane too, and an INTERIOR man
+ * coming round the SIDE (ARC) does not. Under INTERIOR, today's rule, unchanged.
  */
 export function climbLaneOpen(
   tunables: Tunables,
-  threats: readonly ArrivalClock[],
+  threats: readonly ClimbLaneThreat[],
   stepUpsUsed: number,
+  climbLane: ClimbLaneRule,
 ): boolean {
   if (stepUpsUsed >= tunables.pocketMovement.stepUp.maxPerPlay) return false;
-  return threatsWithAlignment(threats, "INTERIOR").length === 0;
+  if (climbLane === "INTERIOR") return threatsWithAlignment(threats, "INTERIOR").length === 0;
+  return !threats.some((t) => {
+    if (t.approach === undefined) {
+      throw new Error(
+        `@ff/engine: the climb lane rule FRONT (pocket.climbLane) read ${String(t.rusher)}'s threat with no approach; every pocket-1 threat carries one (P4)`,
+      );
+    }
+    return fromOf(t.approach, t.alignment) === "FRONT";
+  });
 }
 
 /** The QB's own ranking of the responses available to him, best-first. */
@@ -126,14 +158,15 @@ export function rankResponses(args: {
   readonly tunables: Tunables;
   readonly qb: PlayerState;
   readonly tick: number;
-  readonly threats: readonly ArrivalClock[];
+  readonly threats: readonly ClimbLaneThreat[];
+  readonly climbLane: ClimbLaneRule;
   readonly stepUpsUsed: number;
   readonly throwawayAvailable: boolean;
 }): { readonly ranked: readonly ResponseAppeal[]; readonly urgency: number } {
   const { tunables } = args;
   const t = tunables.pocketMovement;
   const urgency = urgencySteps(tunables, minTimeToArrival(args.threats, args.tick));
-  const canClimb = climbLaneOpen(tunables, args.threats, args.stepUpsUsed);
+  const canClimb = climbLaneOpen(tunables, args.threats, args.stepUpsUsed, args.climbLane);
 
   const scored: ResponseAppeal[] = [];
   for (const key of Object.keys(t.appeal) as AppealKey[]) {

@@ -388,3 +388,24 @@ Filed here because `match-engine` may not write `CALIBRATION-BACKLOG.md`.
   down linemen unblocked or blitz a defensive back. The `INTERIOR`/`LINE` cell's 0.128% population
   is a fact about the corpus, not about the engine.
 - **`apps/game`:** none. A later ETA renders as a later ETA.
+
+## Amendment (ADR-089 step 3, `pocket-1.s3` only)
+
+Under ADR-089's step-3 rules, which run only behind the `pocket-1.s3` switch, **the free runner's
+path is timed from his snap spot**, not by this ADR's six-cell table
+(`blitzPickup.freeRunnerPath.offsetSecondsByAlignmentAndDepth`) on `freeRunnerArrivalSeconds`. A man
+nobody touched (UNBLOCKED, BLOWN_UP, LOOPER_FREE, and a LATE_EXCHANGE looper who had no blocker)
+runs on ADR-089's free-run clock (its §4.4.3 to §4.4.5; amendment AM-2, ADR-089 Appendix G, G.8).
+His path runs from his own entry in the snap picture ADR-090 publishes (`PLAY_START.payload.snap`)
+to the quarterback at the offense call's `dropDepthYards` (default D22), less a reach of 1.0 yard,
+and an EDGE rusher's is bent by 1.1. A looper first crosses the width between the two men plus 0.5
+yard, then runs from his partner's spot, and takes his partner's side (default D16). A creeper
+starts already moving, at 3 yards a second, with no get-off. **The speed term item 6 named is
+built, with acceleration**: the time over that path comes from his Speed and Acceleration through
+`getAttr` (default D18), after a get-off of 0.35 s and any DELAYED wait of 0.5 s, rounded to a
+tenth, with no die. A record carried to the other stunt partner is timed for the man who carries
+it, on his own spot, ratings and alignment (the stunt hand-off fix). A touched man (RAN_THROUGH,
+LATE_EXCHANGE) is a late, weak block instead (AM-2).
+
+Under `legacy`, which is the default, and under `pocket-1.s1` and `pocket-1.s2`, this ADR's path
+term is unchanged and times every free runner, the hand-off defect included.

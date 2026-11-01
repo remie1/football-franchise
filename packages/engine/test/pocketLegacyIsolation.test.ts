@@ -10,6 +10,9 @@
  * set without `pocket.forcing` (legacy, S, SW, L5, L8 and SWH, step 1's rule at step 2's
  * horizons); `mustActThreat` is called under S2 (`PER_RUSHER`) only and `counterExcludes` under
  * S2N (`COUNTER_LESS_SEEN`) only.
+ *
+ * ADR-089 step 3 (P-18): the free-run clock, the timing pass, the picture check, the late block's
+ * entry points, `threatSideOf` and `fromOf` are wrapped the same way; no set before s3 calls any.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -19,23 +22,67 @@ vi.mock("../src/resolve/beatClock.js", async (importOriginal) => {
 });
 vi.mock("../src/resolve/approach.js", async (importOriginal) => {
   const real = await importOriginal<typeof import("../src/resolve/approach.js")>();
-  return { ...real, threatApproachOf: vi.fn(real.threatApproachOf), withApproach: vi.fn(real.withApproach) };
+  return {
+    ...real,
+    threatApproachOf: vi.fn(real.threatApproachOf),
+    withApproach: vi.fn(real.withApproach),
+    threatSideOf: vi.fn(real.threatSideOf),
+    fromOf: vi.fn(real.fromOf),
+  };
+});
+// ADR-089 step 3 (P-18): every new s3 entry point, counted.
+vi.mock("../src/resolve/freeRun.js", async (importOriginal) => {
+  const real = await importOriginal<typeof import("../src/resolve/freeRun.js")>();
+  return { ...real, freeRunClock: vi.fn(real.freeRunClock) };
+});
+vi.mock("../src/sim/freeRunTiming.js", async (importOriginal) => {
+  const real = await importOriginal<typeof import("../src/sim/freeRunTiming.js")>();
+  return { ...real, timeFreeRunners: vi.fn(real.timeFreeRunners), assertSnapPictureFor: vi.fn(real.assertSnapPictureFor) };
+});
+vi.mock("../src/resolve/lateBlock.js", async (importOriginal) => {
+  const real = await importOriginal<typeof import("../src/resolve/lateBlock.js")>();
+  return {
+    ...real,
+    drawLateBeat: vi.fn(real.drawLateBeat),
+    resolveLateBeatTick: vi.fn(real.resolveLateBeatTick),
+    resolveLateTickL: vi.fn(real.resolveLateTickL),
+    lateThreatOf: vi.fn(real.lateThreatOf),
+  };
 });
 vi.mock("../src/resolve/pocket.js", async (importOriginal) => {
   const real = await importOriginal<typeof import("../src/resolve/pocket.js")>();
   return { ...real, mustActThreat: vi.fn(real.mustActThreat), counterExcludes: vi.fn(real.counterExcludes) };
 });
 
+import { playerId } from "@ff/contracts";
 import { simulateGame, simulatePassPlay } from "../src/index.js";
 import { drawBeat, resolveBeatTick } from "../src/resolve/beatClock.js";
-import { threatApproachOf, withApproach } from "../src/resolve/approach.js";
+import { fromOf, threatApproachOf, threatSideOf, withApproach } from "../src/resolve/approach.js";
+import { freeRunClock } from "../src/resolve/freeRun.js";
+import { drawLateBeat, lateThreatOf, resolveLateBeatTick, resolveLateTickL } from "../src/resolve/lateBlock.js";
 import { counterExcludes, mustActThreat } from "../src/resolve/pocket.js";
+import { assertSnapPictureFor, timeFreeRunners } from "../src/sim/freeRunTiming.js";
 import { DEFAULT_TUNABLES } from "../src/tunables.js";
 import { buildGameFixture } from "./gameFixtures.js";
 import { buildFrontScenario, buildLopsidedRushScenario, buildScenario, buildScramblerScenario } from "./fixtures.js";
-import { L5_TUNABLES, RULE_SETS, S2N_TUNABLES, S2_TUNABLES, SW_TUNABLES, buildBullRushScenario } from "./pocketTunables.js";
+import { L5_TUNABLES, RULE_SETS, S2N_TUNABLES, S2_TUNABLES, S3L8_TUNABLES, S3L_TUNABLES, S3_TUNABLES, SW_TUNABLES, buildBullRushScenario, isStep3 } from "./pocketTunables.js";
+import { frontWithPicture, withLineUp, withPicture } from "./snapFixtures.js";
 
 const FIXTURES = [buildScenario, buildLopsidedRushScenario, buildScramblerScenario, () => buildFrontScenario({ extras: 2 })];
+
+/** ADR-089 step 3 (P-18): the new entry points, by name. */
+const STEP3_SPY_TABLE = [
+  ["freeRunClock", freeRunClock],
+  ["timeFreeRunners", timeFreeRunners],
+  ["assertSnapPictureFor", assertSnapPictureFor],
+  ["drawLateBeat", drawLateBeat],
+  ["resolveLateBeatTick", resolveLateBeatTick],
+  ["resolveLateTickL", resolveLateTickL],
+  ["lateThreatOf", lateThreatOf],
+  ["threatSideOf", threatSideOf],
+  ["fromOf", fromOf],
+] as const;
+const STEP3_SPIES = STEP3_SPY_TABLE.map(([, f]) => vi.mocked(f as (...args: never[]) => unknown));
 
 afterEach(() => {
   vi.mocked(drawBeat).mockClear();
@@ -44,6 +91,7 @@ afterEach(() => {
   vi.mocked(withApproach).mockClear();
   vi.mocked(mustActThreat).mockClear();
   vi.mocked(counterExcludes).mockClear();
+  for (const spy of STEP3_SPIES) spy.mockClear();
 });
 
 describe("ADR-089 step 1 — legacy runs no new branch", () => {
@@ -152,5 +200,84 @@ describe("ADR-089 step 2 — no rule set without pocket.forcing runs must act or
     }
     expect(vi.mocked(counterExcludes)).toHaveBeenCalled();
     expect(vi.mocked(mustActThreat)).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * ADR-089 step 3 — P-18 (plan §6.1, critique 3 S4): every new s3 entry point (the free-run clock,
+ * the timing pass and the picture check, the late beat, the late ticks of both shapes and the
+ * beaten late threat, D16's side and the FRONT climb lane's `fromOf`) is called by no rule set
+ * before step 3, play or game, with or without a picture on the calls; and the spies are wired:
+ * the s3 sets call them. `resolveLateTickL` stays at zero under `RULE_SETS`' s3 sets as well, since
+ * neither runs a late block on shape L (S3 is shape S; S3L has no late block); C14's shape
+ * (`S3L8_TUNABLES`, shape L with the late block, P17 in contracts since c340520 and lifted in
+ * E4b) calls it.
+ */
+describe("ADR-089 step 3 — no rule set before step 3 runs a step-3 entry point (P-18)", () => {
+  const STEP3_FIXTURES = [
+    ...FIXTURES,
+    buildBullRushScenario,
+    () => frontWithPicture({ extras: 2, stunts: [{ penetrator: playerId("dt1"), looper: playerId("de1"), complexity: "TRIPLE" }] }).scenario,
+    () => frontWithPicture({ extras: 2, stunts: [{ penetrator: playerId("blz0"), looper: playerId("de1"), complexity: "T_E" }] }).scenario,
+  ];
+  const named = (): Record<string, number> => Object.fromEntries(STEP3_SPY_TABLE.map(([name, f]) => [name, vi.mocked(f as (...args: never[]) => unknown).mock.calls.length]));
+
+  it("legacy, S, SW, L5, L8, SWH, S2 and S2N call none of them, play (with and without a picture) and game", () => {
+    const before = RULE_SETS.filter((r) => !isStep3(r.name));
+    expect(before.map((r) => r.name)).toEqual(["legacy", "S", "SW", "L5", "L8", "SWH", "S2", "S2N"]);
+    for (const { tunables } of before) {
+      for (const build of STEP3_FIXTURES) {
+        for (let i = 0; i < 25; i++) {
+          const { state, calls } = build();
+          simulatePassPlay(state, calls, `isolation-s3-${i}`, tunables);
+          simulatePassPlay(state, withPicture(state, calls), `isolation-s3-${i}`, tunables);
+        }
+      }
+    }
+    const fixture = buildGameFixture({ seed: "isolation-s3-game" });
+    const pictured = { ...fixture.inputs, callers: { home: withLineUp(fixture.inputs.callers.home), away: withLineUp(fixture.inputs.callers.away) } };
+    simulateGame(fixture.state, fixture.inputs, fixture.seed);
+    simulateGame(fixture.state, pictured, fixture.seed, SW_TUNABLES);
+    simulateGame(fixture.state, pictured, fixture.seed, S2_TUNABLES);
+    expect(named()).toEqual(Object.fromEntries(STEP3_SPY_TABLE.map(([name]) => [name, 0])));
+  });
+
+  it("the spies are wired: the s3 sets call every one but shape L's late tick, play and game", () => {
+    for (const tunables of [S3_TUNABLES, S3L_TUNABLES]) {
+      for (const build of STEP3_FIXTURES) {
+        for (let i = 0; i < 25; i++) {
+          const { state, calls } = build();
+          simulatePassPlay(state, withPicture(state, calls), `isolation-s3-on-${i}`, tunables);
+        }
+      }
+    }
+    // A late block breaks a median 0.8 s after t_e and many plays are over by then: play the
+    // twisting front on until one is beaten inside the play.
+    for (let i = 0; i < 400 && vi.mocked(lateThreatOf).mock.calls.length === 0; i++) {
+      const f = frontWithPicture({ extras: 2, stunts: [{ penetrator: playerId("dt1"), looper: playerId("de1"), complexity: "TRIPLE" }] });
+      simulatePassPlay(f.scenario.state, f.calls, `isolation-s3-beaten-${i}`, S3_TUNABLES);
+    }
+    const plays = named();
+    for (const [name] of STEP3_SPY_TABLE) {
+      if (name === "resolveLateTickL") expect(plays[name], name).toBe(0);
+      else expect(plays[name], name).toBeGreaterThan(0);
+    }
+    for (const spy of STEP3_SPIES) spy.mockClear();
+    const fixture = buildGameFixture({ seed: "isolation-s3-game" });
+    const pictured = { ...fixture.inputs, callers: { home: withLineUp(fixture.inputs.callers.home), away: withLineUp(fixture.inputs.callers.away) } };
+    simulateGame(fixture.state, pictured, fixture.seed, S3_TUNABLES);
+    const game = named();
+    for (const name of ["freeRunClock", "timeFreeRunners", "assertSnapPictureFor", "threatSideOf"]) expect(game[name], name).toBeGreaterThan(0);
+    expect(game["resolveLateTickL"]).toBe(0);
+    // C14's shape runs shape L's late block (P17, E4b), and only through resolveLateTickL.
+    for (const spy of STEP3_SPIES) spy.mockClear();
+    for (let i = 0; i < 400 && vi.mocked(resolveLateTickL).mock.calls.length === 0; i++) {
+      const f = frontWithPicture({ extras: 2, stunts: [{ penetrator: playerId("dt1"), looper: playerId("de1"), complexity: "TRIPLE" }] });
+      simulatePassPlay(f.scenario.state, f.calls, `isolation-s3l8-${i}`, S3L8_TUNABLES);
+    }
+    const onL = named();
+    expect(onL["resolveLateTickL"]).toBeGreaterThan(0);
+    expect(onL["drawLateBeat"]).toBe(0);
+    expect(onL["resolveLateBeatTick"]).toBe(0);
   });
 });

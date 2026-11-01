@@ -25,12 +25,35 @@
  *     the horizons (pkA's A123); the forcing key is present exactly on B1, B3, B4 and B6.
  * 11. The 26 digests of the union are distinct and `armOfDigest` maps every stamped one.
  * 12. The mechanisms: step 2's four appended, and each B arm's exclusive set against its base.
+ *
+ * Step 3 (plan §5.1, §4.2; AM-2's references), in the last describes:
+ * 13. C1 to C16 and step 3's run list (the bases A0, A14, A1, A11, B3, B6, B5, then the C arms) are
+ *     arms of this build: `isAnyArmId` and `isRunIdOf(3, ...)` take them, `isArmId` and step 1's and
+ *     step 2's run lists do not; `ALL_ARM_IDS` gains them after step 2's, and step 1's and step 2's
+ *     lists are unchanged.
+ * 14. The table is plan §5.1's, row by row: clock, patches, forcing, rules, base, each arm's step-3
+ *     blocks (reading, origins, hold, picture, late block, climb lane), the graded and reported
+ *     clauses (the filing's step-3 rows, every one carried); the held references are AM-2's, read
+ *     back out of the committed text.
+ * 15. Every C arm but C13 is stamped `pocket-1.s3` at its own digest and C1 is the bundle itself at
+ *     `POCKET_1_S3_DIGEST`; C13 is B3 plus `LATE` stamped `pocket-1.s2`; C15 is C1 plus
+ *     `BAND_EDGES`; each is its patches, clock and blocks built afresh; each moves only its own
+ *     leaves against its base; the digests of the whole union are distinct and `armOfDigest` maps
+ *     every stamped one.
+ * 16. C14 waits on P17, which is in contracts (E4b): the table builds it like the others, with its
+ *     late block on shape L, and no arm is refused (`pocketP17Withheld.test.ts` keeps the refusal's
+ *     path, with P17 withheld in that suite only).
+ * 17. The mechanisms: step 3's five appended; each C arm's exclusive set against its base.
+ * 18. AM-3's base map (C1 on B3, C2 on B6, C11 on B3), filed (ADR-089 Appendix G, G.9) and on a
+ *     stand-in entry, names arms of this build; an id past C16 does not. The committed amendments
+ *     file is read, never written; `pocket --step 3` (K4) takes C14.
  */
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { applyTunablePatch, DEFAULT_TUNABLES, type Tunables } from "@ff/engine";
 import { stableDigest } from "../src/harness/digest.js";
 import { readFileSync } from "node:fs";
+import { amendmentsProblems, AMENDMENTS_PATH, guardFor, loadAmendments } from "../src/pocket/amendments.js";
 import {
   ALL_ARM_IDS,
   allArms,
@@ -50,6 +73,7 @@ import {
   isArmId,
   isRunIdOf,
   isStep2ArmId,
+  isStep3ArmId,
   LATE,
   lOverlay,
   MECHANISMS,
@@ -68,10 +92,22 @@ import {
   STEP2_BASES,
   STEP2_RUN_IDS,
   step2Arms,
+  STEP3_ARM_DEFS,
+  STEP3_ARM_IDS,
+  STEP3_RUN_IDS,
+  step3Arms,
+  AM2_REFERENCES,
+  armRefusal,
+  BAND_EDGE_SHIFT,
+  BAND_EDGES,
+  OTHER_PICTURE,
+  type ArmDef,
   type ArmId,
+  type ArmStep,
 } from "../src/pocket/arms.js";
 import { FILED_PATH } from "../src/pocket/bands.js";
 import { loadFiled } from "../src/pocket/filed.js";
+import { parsePocketArgs } from "../src/pocket/step0.js";
 import {
   EngineRulesError,
   overlayDigestOf,
@@ -80,6 +116,11 @@ import {
   POCKET_1_S2_DIGEST,
   POCKET_1_S2_RULES,
   POCKET_1_S2_LEAVES,
+  POCKET_1_S3_CLIMB_LANE,
+  POCKET_1_S3_DIGEST,
+  POCKET_1_S3_FREE_RUN,
+  POCKET_1_S3_LATE_BLOCK,
+  POCKET_1_S3_OVERLAY,
   rulesTunables,
   withOverlay,
 } from "../src/pocket/rules.js";
@@ -314,7 +355,7 @@ const clockLabel = (d: { readonly clock: { readonly kind: string; readonly windo
 
 describe("step 2's patch sets (plan §4.1)", () => {
   it("HALF and FOLLOWS are POCKET_1_S2_LEAVES split, appended after step 1's five", () => {
-    expect([...PATCH_SET_NAMES]).toEqual(["HOLD", "HEELS", "PAST_ONLY", "LATE", "HORIZONS", "HALF", "FOLLOWS"]);
+    expect([...PATCH_SET_NAMES].slice(0, 7)).toEqual(["HOLD", "HEELS", "PAST_ONLY", "LATE", "HORIZONS", "HALF", "FOLLOWS"]);
     expect(PATCH_SETS.HALF).toBe(HALF);
     expect(PATCH_SETS.FOLLOWS).toBe(FOLLOWS);
     expect(HALF).toEqual([POCKET_1_S2_LEAVES[0]]);
@@ -345,8 +386,9 @@ describe("step 2's arm lists (plan §4.1, C2-F4)", () => {
     expect([...STEP2_RUN_IDS]).toEqual(["A0", "A14", "A1", "A5", "A11", "B1", "B2", "B3", "B4", "B5", "B6", "B7"]);
     expect(STEP2_BASES.map((b) => b.id)).toEqual(["A0", "A14", "A1", "A5", "A11"]);
     expect([...STEP2_RUN_IDS]).toEqual([...STEP2_BASES.map((b) => b.id), ...STEP2_ARM_IDS]);
-    expect([...ALL_ARM_IDS]).toEqual([...ARM_IDS, ...STEP2_ARM_IDS]);
-    expect(everyArm().map((a) => a.id)).toEqual([...ALL_ARM_IDS]);
+    // Step 3's ids are appended after step 2's; every arm this build builds is in that order.
+    expect([...ALL_ARM_IDS]).toEqual([...ARM_IDS, ...STEP2_ARM_IDS, ...STEP3_ARM_IDS]);
+    expect(everyArm().map((a) => a.id).slice(0, 24)).toEqual([...ARM_IDS, ...STEP2_ARM_IDS]);
   });
 
   it("checks an id per step: step 1 takes its 17 only, step 2 its run list only", () => {
@@ -500,7 +542,7 @@ describe("step 2's built arms (plan §4.1, O28, C3-12, C3-14)", () => {
   });
 
   it("has 26 distinct digests over the union, and armOfDigest maps every stamped one", () => {
-    const all = [...everyArm(), ...PROOF_OVERLAY_IDS.map((id) => proofOverlay(id))];
+    const all = [...allArms(), ...step2Arms(), ...PROOF_OVERLAY_IDS.map((id) => proofOverlay(id))];
     expect(all).toHaveLength(26);
     expect(new Set(all.map((a) => a.digest)).size).toBe(26);
     for (const a of all) {
@@ -513,7 +555,7 @@ describe("step 2's built arms (plan §4.1, O28, C3-12, C3-14)", () => {
     expect(all.filter((a) => a.rules === "pocket-1.s2").map((a) => a.id)).toEqual([...STEP2_ARM_IDS]);
     expect(() => armOfDigest("fnv1a:00000000")).toThrow(EngineRulesError);
     expect(() => armOfDigest("fnv1a:00000000")).toThrow(
-      "a stream stamped with overlay fnv1a:00000000, which no step-1 arm of this build carries, nor any step-2 arm: its dials cannot be named (N9)",
+      "a stream stamped with overlay fnv1a:00000000, which no step-1 arm of this build carries, nor any step-2 or step-3 arm: its dials cannot be named (N9)",
     );
   });
 
@@ -527,7 +569,7 @@ describe("step 2's built arms (plan §4.1, O28, C3-12, C3-14)", () => {
 
 describe("step 2's mechanisms (plan §4.1, C3-13)", () => {
   it("appends MUST_ACT, HALF, FOLLOWS and COUNTER_LESS_SEEN after step 1's eight, which keep their order", () => {
-    expect([...MECHANISMS]).toEqual(["S", "WINDOW", "L", "HEELS", "PAST_ONLY", "HOLD", "HORIZONS", "LATE", "MUST_ACT", "HALF", "FOLLOWS", "COUNTER_LESS_SEEN"]);
+    expect([...MECHANISMS].slice(0, 12)).toEqual(["S", "WINDOW", "L", "HEELS", "PAST_ONLY", "HOLD", "HORIZONS", "LATE", "MUST_ACT", "HALF", "FOLLOWS", "COUNTER_LESS_SEEN"]);
   });
 
   it("gives each B arm the mechanisms its base lacks, the forcing rule last", () => {
@@ -546,7 +588,8 @@ describe("step 2's mechanisms (plan §4.1, C3-13)", () => {
     // Step 1's arms carry no forcing rule, so their mechanisms are step 1's.
     for (const a of allArms()) expect(mechanismsOf(a).some((m) => m === "MUST_ACT" || m === "COUNTER_LESS_SEEN" || m === "HALF" || m === "FOLLOWS"), a.id).toBe(false);
     const ids: ArmId[] = [...ALL_ARM_IDS];
-    expect(ids).toHaveLength(24);
+    expect(ids).toHaveLength(40);
+    expect([...allArms(), ...step2Arms()]).toHaveLength(24);
   });
 });
 
@@ -564,5 +607,392 @@ describe("the legacy-clock tripwire in build (review FID-F-8, CT-F9)", () => {
       expect(() => buildArm(def), JSON.stringify({ rules: def.rules, forcing: def.forcing })).toThrow(EngineRulesError);
       expect(() => buildArm(def)).toThrow(message);
     }
+  });
+});
+
+
+// --- step 3 (plan §5.1, §4.2; AM-2's references) ---------------------------------------------------------
+
+/** One line for an arm's step-3 blocks: the free-run block's reading, origins, hold and picture; the late block; the climb lane. */
+function blocksLabel(d: Pick<ArmDef, "step3">): string {
+  const f = d.step3?.freeRun;
+  const free = f === undefined ? "-" : [f.reading, f.origins?.join("|") ?? "all", f.hold === undefined ? "real" : `held:${Object.keys(f.hold).sort().join("|")}`, f.picture].join(" ");
+  return [free, d.step3?.lateBlock === undefined ? "-" : "late", d.step3?.climbLane ?? "-"].join(" / ");
+}
+
+const DESIGN_PICTURE = POCKET_1_S3_FREE_RUN.picture;
+const step3Def = (id: string): ArmDef => {
+  const def = STEP3_ARM_DEFS.find((d) => d.id === id);
+  if (def === undefined) throw new Error(`no step-3 def ${id}`);
+  return def;
+};
+/** The C arms this build builds: all sixteen, C14 among them since P17 (E4b). */
+const BUILT_C = [...STEP3_ARM_IDS];
+
+describe("step 3's arm lists (plan §5.1, §4.2)", () => {
+  it("lists C1 to C16 and step 3's run list: the seven re-played bases, then the C arms", () => {
+    expect([...STEP3_ARM_IDS]).toEqual(Array.from({ length: 16 }, (_, i) => `C${String(i + 1)}`));
+    expect([...STEP3_RUN_IDS]).toEqual(["A0", "A14", "A1", "A11", "B3", "B6", "B5", ...STEP3_ARM_IDS]);
+    expect(new Set(STEP3_RUN_IDS).size).toBe(STEP3_RUN_IDS.length);
+    for (const id of STEP3_RUN_IDS.slice(0, 7)) expect(everyArm().some((a) => a.id === id), id).toBe(true);
+    expect(Object.isFrozen(ALL_ARM_IDS)).toBe(true);
+    expect(STEP3_ARM_DEFS.map((d) => d.id)).toEqual([...STEP3_ARM_IDS]);
+    // Every C arm is built, C14 too (P17 in contracts); everyArm() is the three steps' in order.
+    expect(step3Arms().map((a) => a.id)).toEqual(BUILT_C);
+    expect(everyArm().map((a) => a.id)).toEqual([...ARM_IDS, ...STEP2_ARM_IDS, ...BUILT_C]);
+    // Step 1's and step 2's lists are as they were.
+    expect(ARM_IDS).toHaveLength(17);
+    expect(STEP1_RUN_IDS).toBe(ARM_IDS);
+    expect([...STEP2_RUN_IDS]).toEqual(["A0", "A14", "A1", "A5", "A11", "B1", "B2", "B3", "B4", "B5", "B6", "B7"]);
+    expect(ARM_DEFS.map((d) => d.id)).toEqual([...ARM_IDS]);
+    expect(STEP2_ARM_DEFS.map((d) => d.id)).toEqual([...STEP2_ARM_IDS]);
+  });
+
+  it("checks an id per step: step 3 takes its run list only, steps 1 and 2 no C id", () => {
+    const steps: readonly ArmStep[] = [1, 2, 3];
+    expect(runIdsOf(3)).toBe(STEP3_RUN_IDS);
+    expect(steps.map((step) => runIdsOf(step))).toEqual([STEP1_RUN_IDS, STEP2_RUN_IDS, STEP3_RUN_IDS]);
+    for (const id of STEP3_ARM_IDS) {
+      expect(isAnyArmId(id), id).toBe(true);
+      expect(isStep3ArmId(id), id).toBe(true);
+      expect(isRunIdOf(3, id), id).toBe(true);
+      expect(isArmId(id), id).toBe(false);
+      expect(isStep2ArmId(id), id).toBe(false);
+      expect(isRunIdOf(1, id), id).toBe(false);
+      expect(isRunIdOf(2, id), id).toBe(false);
+    }
+    for (const id of [...ARM_IDS, ...STEP2_ARM_IDS]) {
+      expect(isStep3ArmId(id), id).toBe(false);
+      expect(isRunIdOf(3, id), id).toBe((STEP3_RUN_IDS as readonly string[]).includes(id));
+    }
+    // A5 is step 2's base for B5, not one of step 3's re-played bases; B1, B2, B4 and B7 are not re-played.
+    for (const notRun of ["A5", "A2", "A15", "A0b", "B1", "B2", "B4", "B7"]) expect(isRunIdOf(3, notRun), notRun).toBe(false);
+    for (const bad of ["C0", "C17", "c1", "C01", "C", ""]) {
+      expect(isAnyArmId(bad), bad).toBe(false);
+      expect(isStep3ArmId(bad), bad).toBe(false);
+      for (const step of steps) expect(isRunIdOf(step, bad), `${bad} at step ${String(step)}`).toBe(false);
+    }
+  });
+});
+
+describe("step 3's arm table (plan §5.1)", () => {
+  it("is the plan's table, row by row", () => {
+    const D = DESIGN_PICTURE;
+    const O = OTHER_PICTURE;
+    expect(O).not.toBe(D);
+    expect(new Set([D, O])).toEqual(new Set(["AS_RULED", "MUG_HEAD_ONLY"]));
+    const rows = Object.fromEntries(
+      STEP3_ARM_DEFS.map((d) => [d.id, [clockLabel(d), [...d.patchSets].join("+") || "-", d.forcing ?? "-", d.base ?? "-", d.rules ?? "-", d.pricing, d.seedSet, blocksLabel(d), d.waitsOn ?? "-"]]),
+    );
+    const s3 = "pocket-1.s3";
+    const all = `B all real ${D} / late / FRONT`;
+    expect(rows).toEqual({
+      C1: ["S+W", "HALF+FOLLOWS", "PER_RUSHER", "B3", s3, false, 1, all, "-"],
+      C2: ["S+W", "HOLD+HALF+FOLLOWS", "PER_RUSHER", "B6", s3, true, 1, all, "-"],
+      C3: ["S+W", "HALF+FOLLOWS", "PER_RUSHER", "B3", s3, false, 1, `B all held:drop|ratings ${D} / - / -`, "-"],
+      C4: ["S+W", "HALF+FOLLOWS", "PER_RUSHER", "B3", s3, false, 1, `B all held:drop|spot ${D} / - / -`, "-"],
+      C5: ["S+W", "HALF+FOLLOWS", "PER_RUSHER", "B3", s3, false, 1, `B all held:ratings|spot ${D} / - / -`, "-"],
+      C6: ["S+W", "HALF+FOLLOWS", "PER_RUSHER", "B3", s3, false, 1, `B all real ${O} / late / FRONT`, "-"],
+      C7: ["S+W", "HALF+FOLLOWS", "PER_RUSHER", "B3", s3, false, 1, `B UNBLOCKED real ${D} / - / -`, "-"],
+      C8: ["S+W", "HALF+FOLLOWS", "PER_RUSHER", "B3", s3, false, 1, `B BLOWN_UP real ${D} / - / -`, "-"],
+      C9: ["S+W", "HALF+FOLLOWS", "PER_RUSHER", "B3", s3, false, 1, `B LOOPER_FREE real ${D} / - / -`, "-"],
+      C10: ["S+W", "HALF+FOLLOWS", "PER_RUSHER", "B3", s3, false, 1, "- / late / -", "-"],
+      C11: ["S+W", "HALF+FOLLOWS", "PER_RUSHER", "B3", s3, false, 1, `C all real ${D} / - / FRONT`, "-"],
+      C12: ["S+W", "HALF+FOLLOWS", "PER_RUSHER", "B3", s3, false, 1, `A all real ${D} / late / FRONT`, "-"],
+      C13: ["S+W", "HALF+FOLLOWS+LATE", "PER_RUSHER", "B3", "pocket-1.s2", false, 1, "- / - / -", "-"],
+      C14: ["L8", "HEELS+HALF+FOLLOWS", "-", "B5", s3, false, 1, all, "P17"],
+      C15: ["S+W", "HALF+FOLLOWS+BAND_EDGES", "PER_RUSHER", "B3", s3, false, 1, all, "-"],
+      C16: ["S+W", "HALF+FOLLOWS", "PER_RUSHER", "B3", s3, false, 1, "- / - / FRONT", "-"],
+    });
+    expect(step3Def("C1").role).toBe("design");
+    expect(step3Def("C2").role).toBe("pricing arm, never a design value");
+    expect(step3Def("C13").role).toMatch(/^contrast only/);
+    expect(step3Def("C12").role).toMatch(/never offered$/);
+    for (const id of ["C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10", "C11", "C12", "C14", "C15", "C16"]) expect(step3Def(id).role, id).toMatch(/^information/);
+  });
+
+  it("each free-run block is the design's with the one change its row names; the design's late block and climb lane are pocket-1.s3's", () => {
+    const { reading, origins, hold, picture, ...constants } = POCKET_1_S3_FREE_RUN;
+    expect([reading, origins, hold, picture]).toEqual(["B", undefined, undefined, DESIGN_PICTURE]);
+    for (const d of STEP3_ARM_DEFS) {
+      const f = d.step3?.freeRun;
+      if (f === undefined) continue;
+      const { reading: r, origins: o, hold: h, picture: p, ...rest } = f;
+      expect(rest, `${d.id} keeps the fifteen constants and movingGetOffSeconds`).toEqual(constants);
+      const changes = [r !== reading, o !== undefined, h !== undefined, p !== picture].filter(Boolean).length;
+      expect(changes, `${d.id} changes at most one input of the design's free-run block`).toBe(f === POCKET_1_S3_FREE_RUN ? 0 : 1);
+      if (d.step3?.lateBlock !== undefined) expect(d.step3.lateBlock, d.id).toBe(POCKET_1_S3_LATE_BLOCK);
+      if (d.step3?.climbLane !== undefined) expect(d.step3.climbLane, d.id).toBe(POCKET_1_S3_CLIMB_LANE);
+    }
+    for (const id of ["C1", "C2", "C14", "C15"]) expect(step3Def(id).step3, id).toEqual({ freeRun: POCKET_1_S3_FREE_RUN, lateBlock: POCKET_1_S3_LATE_BLOCK, climbLane: POCKET_1_S3_CLIMB_LANE });
+    expect(step3Def("C1").step3?.freeRun).toBe(POCKET_1_S3_FREE_RUN);
+    // The held inputs are AM-2's references, never the arm's own numbers.
+    expect(step3Def("C3").step3?.freeRun?.hold).toEqual({ ratings: AM2_REFERENCES.ratings, drop: AM2_REFERENCES.drop });
+    expect(step3Def("C4").step3?.freeRun?.hold).toEqual({ spot: AM2_REFERENCES.spot, drop: AM2_REFERENCES.drop });
+    expect(step3Def("C5").step3?.freeRun?.hold).toEqual({ spot: AM2_REFERENCES.spot, ratings: AM2_REFERENCES.ratings });
+  });
+
+  it("holds AM-2's references, read back out of the committed text", () => {
+    const file = JSON.parse(readFileSync(AMENDMENTS_FILE, "utf8")) as { entries: { id: string; rule: { references?: string } }[] };
+    const text = file.entries.find((e) => e.id === "AM-2")?.rule.references ?? "";
+    const num = (re: RegExp): number[] => {
+      const m = re.exec(text);
+      if (m === null) throw new Error(`AM-2's references do not say ${String(re)}: ${text}`);
+      return m.slice(1).map(Number);
+    };
+    expect(num(/Speed (\d+(?:\.\d+)?) and Acceleration (\d+(?:\.\d+)?)/)).toEqual([AM2_REFERENCES.ratings.speed, AM2_REFERENCES.ratings.acceleration]);
+    expect(num(/drop (\d+(?:\.\d+)?) yards/)).toEqual([AM2_REFERENCES.drop]);
+    const s = AM2_REFERENCES.spot;
+    expect(num(/down lineman \((\d+(?:\.\d+)?), (\d+(?:\.\d+)?)\), linebacker \((\d+(?:\.\d+)?), (\d+(?:\.\d+)?)\), defensive back \((\d+(?:\.\d+)?), (\d+(?:\.\d+)?)\)/)).toEqual([
+      s.downLineman.depth, s.downLineman.width, s.linebacker.depth, s.linebacker.width, s.defensiveBack.depth, s.defensiveBack.width,
+    ]);
+    expect(AM2_REFERENCES).toEqual({ spot: { downLineman: { depth: 1, width: 2.5 }, linebacker: { depth: 2.5, width: 2.5 }, defensiveBack: { depth: 5, width: 7 } }, ratings: { speed: 50, acceleration: 50 }, drop: 5 });
+    for (const [path, node] of nodes(AM2_REFERENCES)) expect(Object.isFrozen(node), path).toBe(true);
+  });
+
+  it("C15's band edges are every finite pickup and exchange edge 30 points easier, and nothing else", () => {
+    expect(BAND_EDGE_SHIFT).toBe(30);
+    expect(PATCH_SET_NAMES[PATCH_SET_NAMES.length - 1]).toBe("BAND_EDGES");
+    expect(PATCH_SETS.BAND_EDGES).toBe(BAND_EDGES);
+    expect(BAND_EDGES.map((p) => [p.tunableId, p.currentValue, p.proposedValue])).toEqual([
+      ["blitzPickup.bands.0.minMargin", 15, -15],
+      ["blitzPickup.bands.1.minMargin", 0, -30],
+      ["blitzPickup.bands.2.minMargin", -19, -49],
+      ["stunt.bands.0.minMargin", 20, -10],
+      ["stunt.bands.1.minMargin", 0, -30],
+      ["stunt.bands.2.minMargin", -19, -49],
+    ]);
+    const labels = (path: "blitzPickup" | "stunt"): unknown[] => [0, 1, 2, 3].map((i) => leafAt(DEFAULT_TUNABLES, `${path}.bands.${String(i)}.label`));
+    expect(labels("blitzPickup")).toEqual(["PICKED_UP_CLEAN", "PICKED_UP", "RAN_THROUGH", "BLOWN_UP"]);
+    expect(labels("stunt")).toEqual(["PASSED_OFF_CLEAN", "PASSED_OFF", "LATE_EXCHANGE", "LOOPER_FREE"]);
+    const c15 = armById("C15").tunables;
+    expect(c15.blitzPickup.bands.map((b) => b.minMargin)).toEqual([-15, -30, -49, Number.NEGATIVE_INFINITY]);
+    expect(c15.stunt.bands.map((b) => b.minMargin)).toEqual([-10, -30, -49, Number.NEGATIVE_INFINITY]);
+  });
+
+  it("each base is a re-played base on the same seeds, with the arm's settings except step 3's mechanisms", () => {
+    const stepThreePatches = new Set(["LATE", "BAND_EDGES"]);
+    const replayed = STEP3_RUN_IDS.slice(0, 7);
+    for (const d of STEP3_ARM_DEFS) {
+      expect(replayed, `${d.id}'s base is re-played at step 3`).toContain(d.base);
+      const base = armById(d.base!);
+      expect(base.seedSet, d.id).toBe(d.seedSet);
+      expect(clockLabel(base), `${d.id}'s base runs its clock`).toBe(clockLabel(d));
+      expect(d.patchSets.filter((n) => !stepThreePatches.has(n)), `${d.id}'s other patches are its base's`).toEqual([...base.patchSets]);
+      expect(base.forcing, d.id).toBe(d.forcing);
+      expect(base.rules, d.id).toBe("pocket-1.s2");
+      expect(base.pricing, d.id).toBe(d.pricing);
+    }
+  });
+
+  it("names only clauses the filing holds, each as filed, and carries every graded or reported step-3 clause", () => {
+    const file = loadFiled(join(import.meta.dirname, "..", FILED_PATH));
+    const clause = new Map(file.bands.clauses.map((c) => [c.id, c]));
+    for (const d of STEP3_ARM_DEFS) {
+      for (const id of d.graded) expect(clause.get(id)?.kind, `${d.id} grades ${id}`).toBe("graded");
+      for (const id of d.reported) expect(clause.get(id)?.kind, `${d.id} reports ${id}`).toBe("reported");
+      for (const id of [...d.graded, ...d.reported]) expect(["3", "guard"], `${d.id}: ${id} is a step-3 or guard clause`).toContain(clause.get(id)?.step);
+    }
+    const graded = new Set(STEP3_ARM_DEFS.flatMap((d) => d.graded));
+    const reported = new Set(STEP3_ARM_DEFS.flatMap((d) => d.reported));
+    for (const c of file.bands.clauses) {
+      if (c.step !== "3" || c.kind === "structural") continue;
+      expect(c.kind === "graded" ? graded.has(c.id) : reported.has(c.id), c.id).toBe(true);
+    }
+    // Plan §5.2 to §5.4: the step's graded rows on C1; the stand-in expectations on C2 (read as C2
+    // minus B6 on gen); AM-3's map guards C1, C2 and C11 only.
+    expect(step3Def("C1").graded).toEqual(["s3.bin20.tick", "s3.quick", "s3.unblockedPressures", "s3.unblockedShare", "guard.mix", "guard.byClass"]);
+    expect(step3Def("C1").reported).toEqual(["s3.quickOrigin", "s3.unblockedMen"]);
+    expect(step3Def("C2").reported).toEqual(["s3.hitOrSack", "s3.expected.pressure", "s3.expected.sack", "s3.expected.bin20", "s3.expected.quick"]);
+    const guarded = STEP3_ARM_DEFS.filter((d) => d.graded.includes("guard.mix")).map((d) => d.id);
+    expect(guarded).toEqual(["C1", "C2", "C11"]);
+    for (const id of ["C2", "C11"]) expect(step3Def(id).graded, id).toEqual(["guard.mix", "guard.byClass"]);
+    for (const d of STEP3_ARM_DEFS) if (!guarded.includes(d.id)) expect(d.graded, d.id).toEqual([]);
+  });
+});
+
+describe("step 3's built arms (plan §5.1, O28)", () => {
+  it("every C arm but C13 is stamped pocket-1.s3 at its own digest; C13 is stamped pocket-1.s2 at its own", () => {
+    for (const a of step3Arms()) {
+      const name = a.id === "C13" ? "pocket-1.s2" : "pocket-1.s3";
+      expect(a.rules, a.id).toBe(name);
+      expect(a.tunables.engineRules, a.id).toEqual({ name, overlayDigest: a.digest });
+      expect(a.overlayDigest, a.id).toBe(a.digest);
+      if (a.id !== "C1") expect(a.digest, a.id).not.toBe(POCKET_1_S3_DIGEST);
+    }
+  });
+
+  it("C1 is pocket-1.s3 itself, at POCKET_1_S3_DIGEST, and the same as its patches, overlay, blocks and forcing built afresh", () => {
+    const c1 = armById("C1");
+    expect(c1.tunables).toBe(rulesTunables("pocket-1.s3"));
+    expect(c1.digest).toBe(POCKET_1_S3_DIGEST);
+    const fresh = withOverlay(c1.patches.reduce(applyTunablePatch, DEFAULT_TUNABLES), "pocket-1.s3", POCKET_1_S3_OVERLAY, { rule: "PER_RUSHER" });
+    expect(fresh.engineRules!.overlayDigest).toBe(POCKET_1_S3_DIGEST);
+    expect(stableDigest(fresh)).toBe(c1.tunablesDigest);
+    // Built through withOverlay from copies (not the design's references), C1's definition gives the same bundle.
+    const copies = buildArm({ ...step3Def("C1"), step3: { freeRun: { ...POCKET_1_S3_FREE_RUN }, lateBlock: { ...POCKET_1_S3_LATE_BLOCK }, climbLane: POCKET_1_S3_CLIMB_LANE } });
+    expect(copies.tunables).not.toBe(c1.tunables);
+    expect(copies.digest).toBe(POCKET_1_S3_DIGEST);
+    expect(copies.tunablesDigest).toBe(c1.tunablesDigest);
+  });
+
+  it("each C arm is its patches on DEFAULT_TUNABLES, then its clock's overlay, its step-3 blocks and its forcing block", () => {
+    for (const a of step3Arms()) {
+      const clock = a.clock.kind === "L" ? lOverlay(a.clock.R) : S_WINDOW_OVERLAY;
+      const b = a.step3 ?? {};
+      const pickup = { ...(b.freeRun === undefined ? {} : { freeRun: b.freeRun }), ...(b.lateBlock === undefined ? {} : { lateBlock: b.lateBlock }) };
+      const overlay = { ...clock, ...(Object.keys(pickup).length > 0 ? { blitzPickup: pickup } : {}), ...(b.climbLane === undefined ? {} : { pocket: { climbLane: b.climbLane } }) };
+      const fresh = withOverlay(a.patches.reduce(applyTunablePatch, DEFAULT_TUNABLES), a.id === "C13" ? "pocket-1.s2" : "pocket-1.s3", overlay, a.forcing === undefined ? undefined : { rule: a.forcing });
+      expect(fresh.engineRules!.overlayDigest, a.id).toBe(a.digest);
+      expect(stableDigest(fresh), a.id).toBe(a.tunablesDigest);
+      expect(a.patches.map((p) => p.tunableId), a.id).toEqual(a.patchSets.flatMap((n) => PATCH_SETS[n].map((p) => p.tunableId)));
+      for (const p of a.patches) expect(leafAt(a.tunables, p.tunableId), `${a.id} ${p.tunableId}`).toBe(p.proposedValue);
+    }
+  });
+
+  it("moves only its own leaves and blocks against its base", () => {
+    const free = "blitzPickup.freeRun.";
+    const late = "blitzPickup.lateBlock.";
+    const climb = "pocket.climbLane";
+    const lateLeaves = LATE.map((p) => p.tunableId);
+    const edges = BAND_EDGES.map((p) => p.tunableId);
+    const expected: Record<string, readonly string[]> = {
+      C1: [free, late, climb], C2: [free, late, climb], C3: [free], C4: [free], C5: [free], C6: [free, late, climb], C7: [free], C8: [free], C9: [free],
+      C10: [late], C11: [free, climb], C12: [free, late, climb], C13: lateLeaves, C14: [free, late, climb], C15: [...edges, free, late, climb], C16: [climb],
+    };
+    for (const a of step3Arms()) {
+      const before = leaves(armById(a.base!).tunables);
+      const after = leaves(a.tunables);
+      const moved = [...after].filter(([p, v]) => before.get(p) !== v).map(([p]) => p).filter((p) => !p.startsWith("engineRules."));
+      const allowed = expected[a.id]!;
+      const owner = (p: string): string | undefined => allowed.find((x) => (x.endsWith(".") ? p.startsWith(x) : p === x));
+      for (const p of moved) expect(owner(p), `${a.id} moves ${p}`).toBeDefined();
+      for (const x of allowed) expect(moved.some((p) => owner(p) === x), `${a.id} moves ${x}`).toBe(true);
+      expect([...before.keys()].filter((p) => !after.has(p)), a.id).toEqual([]);
+    }
+    // Only C6 draws the other picture; every other free-run block draws the design's.
+    for (const a of step3Arms()) {
+      const p = a.tunables.blitzPickup.freeRun?.picture;
+      if (p !== undefined) expect(p, a.id).toBe(a.id === "C6" ? OTHER_PICTURE : DESIGN_PICTURE);
+    }
+  });
+
+  it("has distinct digests over the whole union, and armOfDigest maps every stamped one", () => {
+    const all = [...everyArm(), ...PROOF_OVERLAY_IDS.map((id) => proofOverlay(id))];
+    // Step 3's sixteen, C14 among them since P17 (E4b).
+    expect(all).toHaveLength(17 + 7 + 16 + 2);
+    expect(new Set(all.map((a) => a.digest)).size).toBe(all.length);
+    for (const a of all) {
+      expect(overlayDigestOf(a.tunables), a.id).toBe(a.digest);
+      if (a.rules !== "legacy") expect(armOfDigest(a.overlayDigest!), a.id).toBe(a);
+    }
+    expect(all.filter((a) => a.rules === "pocket-1.s3").map((a) => a.id)).toEqual(BUILT_C.filter((id) => id !== "C13"));
+    expect(armOfDigest(POCKET_1_S3_DIGEST).id).toBe("C1");
+  });
+
+  it("every C arm's tunables are frozen at every depth", () => {
+    for (const a of step3Arms()) {
+      for (const [path, node] of nodes(a.tunables)) expect(Object.isFrozen(node), `${a.id} ${path}`).toBe(true);
+      expect(Object.isFrozen(a), a.id).toBe(true);
+    }
+    for (const d of STEP3_ARM_DEFS) for (const [path, node] of nodes(d)) expect(Object.isFrozen(node), `${d.id} ${path}`).toBe(true);
+  });
+
+  it("refuses step 3's blocks on an arm of another rules name", () => {
+    const c10 = step3Def("C10");
+    expect(() => buildArm({ ...c10, rules: "pocket-1.s2" })).toThrow(/^arm C10: only a pocket-1\.s3 arm carries step 3's blocks$/);
+    expect(() => buildArm({ ...c10, rules: "pocket-1.s1" })).toThrow(EngineRulesError);
+    const { rules: _rules, forcing: _forcing, ...unstamped } = c10;
+    expect(() => buildArm({ ...unstamped, clock: { kind: "LEGACY" }, patchSets: [] })).toThrow(/^arm C10: an arm on today's clock carries no rules stamp and no forcing block$/);
+  });
+});
+
+describe("C14 waits on petition P17, which is in contracts (plan §3.4, §5.1; E4b)", () => {
+  it("is defined and built: no arm is refused, armById builds it, everyArm and step3Arms carry it", () => {
+    for (const id of ALL_ARM_IDS) expect(armRefusal(id), id).toBeUndefined();
+    const c14 = armById("C14");
+    expect(c14.rules).toBe("pocket-1.s3");
+    expect(c14.base).toBe("B5");
+    expect(() => armById("Z9" as ArmId)).toThrow(/^arms: no arm Z9$/);
+    expect(everyArm().some((a) => a.id === "C14")).toBe(true);
+    expect(step3Arms().some((a) => a.id === "C14")).toBe(true);
+  });
+
+  it("its definition builds with the late block on shape L (C14's shape), and without the late block too", () => {
+    const c14 = step3Def("C14");
+    for (const d of STEP3_ARM_DEFS) expect(d.waitsOn === "P17", d.id).toBe(d.clock.kind === "L" && d.step3?.lateBlock !== undefined);
+    const built = buildArm(c14);
+    expect(built.rules).toBe("pocket-1.s3");
+    expect(built.tunables.passRush.repClock).toEqual({ fullExpressionSeconds: 8 });
+    expect(built.tunables.blitzPickup.lateBlock).toEqual(POCKET_1_S3_LATE_BLOCK);
+    expect(built.tunables.blitzPickup.freeRun).toEqual(POCKET_1_S3_FREE_RUN);
+    expect(armById("C14").tunablesDigest).toBe(built.tunablesDigest);
+    const { lateBlock: _late, ...rest } = c14.step3!;
+    const { waitsOn: _waits, ...free } = c14;
+    const without = buildArm({ ...free, step3: rest });
+    expect(without.rules).toBe("pocket-1.s3");
+    expect(without.tunables.passRush.repClock).toEqual({ fullExpressionSeconds: 8 });
+    expect(without.tunables.blitzPickup.lateBlock).toBeUndefined();
+  });
+});
+
+describe("step 3's mechanisms (plan §5.1)", () => {
+  it("appends FREE_RUN, LATE_BLOCK, CLIMB_FRONT, MUG_HEAD_ONLY and BAND_EDGES after step 2's", () => {
+    expect([...MECHANISMS].slice(12)).toEqual(["FREE_RUN", "LATE_BLOCK", "CLIMB_FRONT", "MUG_HEAD_ONLY", "BAND_EDGES"]);
+    for (const a of [...allArms(), ...step2Arms()]) {
+      expect(mechanismsOf(a).some((m) => ["FREE_RUN", "LATE_BLOCK", "CLIMB_FRONT", "MUG_HEAD_ONLY", "BAND_EDGES"].includes(m)), a.id).toBe(false);
+    }
+  });
+
+  it("gives each C arm the mechanisms its base lacks", () => {
+    const mug = OTHER_PICTURE === "MUG_HEAD_ONLY" ? ["MUG_HEAD_ONLY"] : [];
+    const designMug = DESIGN_PICTURE === "MUG_HEAD_ONLY" ? ["MUG_HEAD_ONLY"] : [];
+    const s3 = ["FREE_RUN", ...designMug, "LATE_BLOCK", "CLIMB_FRONT"];
+    const ex = Object.fromEntries(STEP3_ARM_DEFS.map((d) => [d.id, [...exclusiveMechanisms(d)]]));
+    expect(ex).toEqual({
+      C1: s3, C2: s3,
+      C3: ["FREE_RUN", ...designMug], C4: ["FREE_RUN", ...designMug], C5: ["FREE_RUN", ...designMug],
+      C6: ["FREE_RUN", ...mug, "LATE_BLOCK", "CLIMB_FRONT"],
+      C7: ["FREE_RUN", ...designMug], C8: ["FREE_RUN", ...designMug], C9: ["FREE_RUN", ...designMug],
+      C10: ["LATE_BLOCK"],
+      C11: ["FREE_RUN", ...designMug, "CLIMB_FRONT"],
+      C12: s3,
+      C13: ["LATE"],
+      C14: s3,
+      C15: ["BAND_EDGES", ...s3],
+      C16: ["CLIMB_FRONT"],
+    });
+  });
+});
+
+describe("AM-3's base map and the command line at step 3 (plan §4.2, §2.10)", () => {
+  it("AM-3's base map on a stand-in entry names arms of this build; an id past C16 does not (the committed file is only read)", () => {
+    const PKG = join(import.meta.dirname, "..");
+    const filing = loadFiled(join(PKG, FILED_PATH));
+    const committed = loadAmendments(join(PKG, AMENDMENTS_PATH), filing);
+    // AM-3 is filed (ADR-089 Appendix G, G.9): its map is the stand-in's below.
+    expect(guardFor(committed, "3").bases).toEqual({ C1: "B3", C2: "B6", C11: "B3" });
+    const withBases = (bases: Record<string, Record<string, string>>): unknown => {
+      const j = JSON.parse(JSON.stringify(committed)) as { entries: Record<string, unknown>[] };
+      const standIn = JSON.parse(JSON.stringify(j.entries.find((e) => e["id"] === "AM-1"))) as Record<string, unknown>;
+      standIn["id"] = `AM-${String(j.entries.length + 1)}`;
+      standIn["filedBeforeStep"] = "3";
+      standIn["steps"] = ["3", "4", "5a", "5b", "6", "7", "8a", "8b", "9", "10"];
+      (standIn["rule"] as Record<string, unknown>)["bases"] = bases;
+      j.entries.push(standIn);
+      return j;
+    };
+    expect(amendmentsProblems(withBases({ "3": { C1: "B3", C2: "B6", C11: "B3" } }), filing)).toEqual([]);
+    // The stand-in's map is the table's base column for the three guarded arms.
+    for (const [arm, base] of Object.entries({ C1: "B3", C2: "B6", C11: "B3" })) expect(step3Def(arm).base, arm).toBe(base);
+    const past = amendmentsProblems(withBases({ "3": { C17: "B3", C2: "C0" } }), filing);
+    expect(past.some((p) => /bases\.3\.C17: not an arm of this build/.test(p)), past.join("; ")).toBe(true);
+    expect(past.some((p) => /bases\.3\.C2: its base "C0" is not an arm of this build/.test(p)), past.join("; ")).toBe(true);
+  });
+
+  it("the command line takes --step 3 (K4's harness), C14 among its arms (P17, E4b); step 2's takes no C arm", () => {
+    expect(parsePocketArgs(["--step", "3", "--arms", "C1"], "/")).toEqual({ step: 3, arms: ["C1"] });
+    expect(parsePocketArgs(["--step", "3", "--arms", "C14"], "/")).toEqual({ step: 3, arms: ["C14"] });
+    expect(() => parsePocketArgs(["--step", "2", "--arms", "C1"], "/")).toThrow(/^--arms: C1 is not an arm \(step 2's: A0, A14, A1, A5, A11, B1 to B7\)$/);
   });
 });
