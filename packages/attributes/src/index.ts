@@ -9,7 +9,7 @@ export {
   type GenerateLeagueInput, type FictionalProvenance,
 } from "./fictional/generate.js";
 export {
-  generateDraftClass, DRAFT_CLASS_SIZE, PROSPECT_TALENT, CLASS_WOBBLE,
+  generateDraftClass, DRAFT_CLASS_SIZE, PROSPECT_TALENT, PROSPECT_TALENT_WITH_GROWTH, CLASS_WOBBLE,
   type GenerateDraftClassInput, type GeneratedDraftClass,
 } from "./fictional/draftClass.js";
 export type { Measurements } from "./fictional/derive.js";

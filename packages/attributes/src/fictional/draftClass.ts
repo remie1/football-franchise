@@ -11,7 +11,9 @@
  *
  * Growth is ADR-087's: with `development` on, each prospect also gets his growth rate, body and
  * patience, and his combine drills go on his bio (P2), from another fork of his own
- * (`development/<player id>`, `development.ts`), so switching it on moves no name or rating here.
+ * (`development/<player id>`, `development.ts`). His talent is drawn from the growth-on class talent
+ * (`PROSPECT_TALENT_WITH_GROWTH`, D5b), from the same draw, so switching it on moves no name,
+ * position or age here; only the ratings that follow from his talent.
  */
 import { createRng, playerId, type DraftClass, type PlayerState, type Position, type Rng } from "@ff/contracts";
 import type { Measurements } from "./derive.js";
@@ -27,6 +29,19 @@ export const DRAFT_CLASS_SIZE = 900;
  * CHOSEN, provenance NONE; D7 tunes it so a top-10 pick usually starts and most 7th-rounders do not stick.
  */
 export const PROSPECT_TALENT = { mean: -0.8, sd: 0.75 } as const;
+/**
+ * Prospect talent when growth is on (ADR-087 D5b, the owner's Rookies card: draft-class talent may be
+ * tuned together with growth, each change with a draft re-check). With D5b's learning rate most of a
+ * career's growth comes in the first two seasons, so fast and slow developers drift apart less; a
+ * lower, wider class keeps the spread within each position group near the league file's and the
+ * undrafted share near the real one. CHOSEN, tuned by the D5b check on the four tuning seeds (20
+ * seasons, growth and injuries on, after ADR-085 step 13): against `PROSPECT_TALENT` it brings the
+ * pooled spread back into its line (7.52 against 5.94; line 6.55-8.00) and the undrafted share to
+ * 24.6% (32.2%; real 25.7%), and moves the D7 starter rates by at most 0.03 (ADR-087 §11, "Tuning
+ * round 1: the class talent"). Used only when `development` is on, so a league without growth is
+ * unchanged.
+ */
+export const PROSPECT_TALENT_WITH_GROWTH = { mean: -1.5, sd: 1.15 } as const;
 /** How much a class's strength, and its depth at one position, wobble from year to year (talent units). */
 export const CLASS_WOBBLE = { overall: 0.1, position: 0.15 } as const;
 
@@ -68,13 +83,14 @@ export function generateDraftClass(input: GenerateDraftClassInput): GeneratedDra
   const depth: Partial<Record<Position, number>> = {};
   for (const p of POSITION_ORDER) depth[p] = CLASS_WOBBLE.position * gauss(root.fork(`depth/${p}`));
 
+  const classTalent = input.development ? PROSPECT_TALENT_WITH_GROWTH : PROSPECT_TALENT;
   const players: PlayerState[] = [];
   const combine: Record<string, Measurements> = {};
   const overall: Record<string, number> = {};
   for (let i = 0; i < size; i++) {
     const rng = root.fork(`prospect/${i}`);
     const position = drawPosition(rng);
-    const talent = PROSPECT_TALENT.mean + yearLevel + depth[position]! + PROSPECT_TALENT.sd * gauss(rng);
+    const talent = classTalent.mean + yearLevel + depth[position]! + classTalent.sd * gauss(rng);
     const m = measure(rng, position, talent);
     const ratings = rateAttributes(rng, position, talent, m);
     const id = playerId(`d:${input.draft}:${String(i).padStart(4, "0")}`);
