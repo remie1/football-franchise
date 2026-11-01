@@ -156,11 +156,14 @@ function unusedRoom(team: TeamId, season: number, people: Pick<LeaguePeople, "ca
  * before it signs: that season's top 51, less the team's cushion and the free-agency room it will want
  * that March (it does not spend next year's free-agency money now). A one-year deal always passes.
  */
-function secondYearFits(team: TeamId, c: PlayerContract, book: Book, cap: CapForSeason, plan: CapPlan): boolean {
+function secondYearFits(team: TeamId, c: PlayerContract, book: Book, cap: CapForSeason, plan: CapPlan, totals?: Map<number, number>): boolean {
   const y = c.years.filter((x) => !x.voidYear)[1];
   if (!y) return true;
   const keep = plan.cushion + plan.marchRoom * MARKET.freeAgencyShare * cap(y.season);
-  return capNumber(y) <= cap(y.season) - teamCapTotal(team, y.season, book.contracts, book.dead, { top51: true }).total - keep;
+  // `totals` keeps a team's top-51 totals by season while its book does not change (one team's pass in a round).
+  let total = totals?.get(y.season);
+  if (total === undefined) { total = teamCapTotal(team, y.season, book.contracts, book.dead, { top51: true }).total; totals?.set(y.season, total); }
+  return capNumber(y) <= cap(y.season) - total - keep;
 }
 
 /**
@@ -713,6 +716,7 @@ function freeAgency(
   const released: PlayerId[] = [];
   // A player who turned a team down today is not asked again today: the team moves to its next target.
   const turnedDown = new Set<string>();
+  const graded = new Map<string, number>();
   for (let round = 0; round < MARKET.rounds && pool.length > 0; round++) {
     const offers = new Map<string, { team: TeamId; contract: PlayerContract; worth: number; cut?: { i: number; p: PlayerState } }[]>();
     // The most room any team that wanted him had, when none could fit him (step 12).
@@ -725,10 +729,21 @@ function freeAgency(
       const room = roomFor(t.id, season, book, config.cap, reserve(t.id), adjustedCap(t.id, season, people, config.cap) - config.cap(season), plan(t.id).lookAhead, ctx.day);
       if (room <= 0) continue;
       const skill = skillOf(t.id, people);
-      const grade = (p: PlayerState) => teamGrade(t.id, p, skill, config.rate, ctx.seed, season);
+      // A team's grade of a man is fixed for the day, so it is drawn once and kept across rounds.
+      const grade = (p: PlayerState) => {
+        const k = `${String(t.id)}|${String(p.bio.id)}`;
+        let g = graded.get(k);
+        if (g === undefined) { g = teamGrade(t.id, p, skill, config.rate, ctx.seed, season); graded.set(k, g); }
+        return g;
+      };
       const roster = playersOf(t, byId);
       const gradesHere = new Map<Position, number[]>();
-      for (const r of roster) (gradesHere.get(r.bio.position) ?? gradesHere.set(r.bio.position, []).get(r.bio.position)!).push(grade(r));
+      const menAt = new Map<Position, { r: PlayerState; g: number }[]>();
+      for (const r of roster) {
+        const g = grade(r);
+        (gradesHere.get(r.bio.position) ?? gradesHere.set(r.bio.position, []).get(r.bio.position)!).push(g);
+        (menAt.get(r.bio.position) ?? menAt.set(r.bio.position, []).get(r.bio.position)!).push({ r, g });
+      }
       const needs = new Map<Position, number>();
       // His best target: the most valuable free agent he needs and can afford.
       let best: { p: PlayerState; contract: PlayerContract; score: number; starts: boolean; cut?: { i: number; p: PlayerState } } | undefined;
@@ -736,10 +751,11 @@ function freeAgency(
       const liveAt = new Map<string, number>();
       book.contracts.forEach((c, i) => { if (c.team === t.id && !c.ended && c.years.some((y) => y.season === season && !y.voidYear)) liveAt.set(String(c.player), i); });
       const cutCost = new Map<number, { dead: number; saving: number }>();
+      const totals = new Map<number, number>();
       const cutFor = (pos: Position, g: number, short: number) => {
         let pick: { i: number; p: PlayerState; saving: number } | undefined;
-        for (const r of roster) {
-          if (r.bio.position !== pos || grade(r) > g - MARKET.upgradeMargin) continue;
+        for (const { r, g: gr } of menAt.get(pos) ?? []) {
+          if (gr > g - MARKET.upgradeMargin) continue;
           const i = liveAt.get(String(r.bio.id));
           if (i === undefined) continue;
           const k = cutCost.get(i) ?? (() => {
@@ -773,7 +789,7 @@ function freeAgency(
         const apy = Math.max(floor, Math.min(asks.get(String(p.bio.id))!, Math.round(v.apy * (MARKET.offerBase + MARKET.offerNeed * need) / 1000) * 1000));
         let contract = buildOffer(p, t.id, season, ctx.day, apy, v.years, v.percentile, cs, config.cap, "VETERAN");
         // Step 12: when next year has no room for a longer deal, the team offers one year ("prove it").
-        if (v.years > 1 && !secondYearFits(t.id, contract, book, config.cap, plan(t.id))) {
+        if (v.years > 1 && !secondYearFits(t.id, contract, book, config.cap, plan(t.id), totals)) {
           contract = buildOffer(p, t.id, season, ctx.day, apy, 1, v.percentile, cs, config.cap, "VETERAN");
         }
         let cut: { i: number; p: PlayerState } | undefined;
