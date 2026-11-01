@@ -353,3 +353,16 @@ veteran salary benefit, in-season street signings and injured reserve, compensat
 - **The fix.** No extension on the day the team signs the player anything else. `release` also ends that team's deals with him that have not started yet; their bonus lands as dead money. Both fixes have tests.
 - **Effect on the five-year check.** First-year extensions fall from 327 to 205; about 120 were the bug, so own-team counts in steps 7 to 11 were inflated. Means: new-team deals of $2M+ 111 a year, of $5M+ 81 (now in the real 80 to 120), own-team deals of 2+ years 119 (real 210 to 290), dead money $22.2M a team.
 
+
+### Step 12: good free agents find teams, and each team's own scout (owner's "continue", 2026-11-01)
+
+- **Finding** (asked by the aging thread). About 100 above-average players a year reached free agency and never signed again. A trace of every free agent rated at or above the league's average 53-man player showed that teams wanted them but never made an offer. A team bid its own full price even after his ask had fallen, passed when a longer deal didn't fit next year, and from the second week of March had under $2M of room. Of those newly free, 48%, 28% and 8% signed in years one to three. Real (counted from OverTheCap, deals of 1.5%+ of the cap that ran out in 2016 to 2022): 86% to 94% of veterans 30 and under signed again within two years, 71% at 31 to 32 and 58% at 33 or older. About half of the next deals were for one year.
+- **Changes** (`leagueYear.ts`, free agency):
+  - An offer is the team's own value, but never more than the player asks.
+  - When a longer deal won't fit the second year, the team offers one year.
+  - After the draft (the bargain window), a player nobody could fit lowers his ask to what the team with the most room that wanted him can pay, never below his minimum.
+  - A swap: a team short of room may let go a lesser man at the same position (graded at least the upgrade margin below the newcomer) to sign him. The cut must save enough this year, and his dead money over all seasons must be at most `MARKET.swapDeadMost` = 2% of the cap (CHOSEN). The man let go joins the free agents.
+  - `leagueYearSteps` now defaults its scouting to `headCoachEvaluation`, as the draft does, instead of a flat 50. Every caller (the cap check, `runSeason`'s league year) gets each team's own evaluator.
+- **Five-year check** (`reports/cap-check.md`): newly free above-average players signing that offseason went from 48%, 28% and 8% to 94%, 87% and 43% in years one to three. The cap check has no retirements, so the unsigned pool grows and later years read low. Means: new-team deals of $2M+ 175 a year (111; real 180 to 240), of $5M+ 87 (81; real 80 to 120), own-team deals of 2+ years 120 (119; real 210 to 290), dead money $29.4M a team (22.2; real about 34), cap use 98%.
+- **Not kept.** The swap with no dead-money limit signed nearly all of them, but left $37M to $47M a team of dead money. A 0.5% limit signed only about half after year one.
+- **Next.** The step "cut aging players sooner" waits on the aging thread's `expectedOverallChange`. Own-team multi-year deals are the largest gap left.
