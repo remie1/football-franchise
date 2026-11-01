@@ -131,8 +131,8 @@ flat-rated test league and from 29% to 23% on the made-up league, and sacks fell
 100 dropbacks (a second set of games read the same on the flat league, and 30% to 25% with sacks
 down 0.9 on the made-up one); the interception check did not trip. But too many pressures still
 come quickly and from rushers nobody blocked (three of the four graded pocket predictions missed),
-and you choose among a protection design, accepting the miss, or changing who counts as
-completely unblocked so that a rusher somebody got a hand on counts too (numbers in
+and you chose to accept the misses as they stand and to merge step 3 with its switch off (1 November
+2026); a protection design stays open for later (numbers in
 `packages/calibration/reports/adr-089-step3.md`).
 
 **Next after the pocket fix:** the made-up league intercepts about 6.8% of passes against the
