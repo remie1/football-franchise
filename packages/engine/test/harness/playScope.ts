@@ -138,7 +138,7 @@ export function streamDigest(events: readonly MatchEventEnvelope[]): string {
  *
  * The kept set is ADR-045 §3a.2's, named rather than counted: **decisions, throw
  * type, catch outcome, play result.** It is a PER-TYPE FIELD PROJECTION and not
- * a type filter, because three of the kept payloads carry the subject's own
+ * a type filter, because four of the kept payloads carry the subject's own
  * number or a roll label beside the outcome.
  *
  * Deliberately EXCLUDED, and why:
