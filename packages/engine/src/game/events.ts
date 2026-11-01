@@ -68,6 +68,7 @@ import type {
   GameId,
   MatchEvent,
   MatchEventEnvelope,
+  OfficiatingCrew,
   PlayId,
   PossessionCause,
   RollDetail,
@@ -157,8 +158,13 @@ export class GameEventLog {
 
   // --- game structure -------------------------------------------------------
 
-  gameStart(home: TeamId, away: TeamId, seed: string): void {
-    this.emit({ type: "GAME_START", payload: { home, away, seed }, gameId: this.gameId });
+  /** ADR-093 F5: `crew` rides last, and only when the game has one; no crew writes no key. */
+  gameStart(home: TeamId, away: TeamId, seed: string, crew?: OfficiatingCrew): void {
+    this.emit({
+      type: "GAME_START",
+      payload: { home, away, seed, ...(crew === undefined ? {} : { crew }) },
+      gameId: this.gameId,
+    });
   }
 
   coinToss(winner: TeamId, choice: "RECEIVE" | "DEFER", receivesFirst: TeamId, roll: RollDetail): void {
