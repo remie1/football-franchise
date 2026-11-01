@@ -14,13 +14,13 @@
  */
 import {
   compareStamps, createRng, DEFAULT_LEAGUE_RULES,
-  type CalendarStamp, type DeadMoneyCharge, type FranchiseEvent, type LeagueRules, type PlayerContract, type PlayerState, type Position,
+  type CalendarStamp, type DeadMoneyCharge, type FranchiseEvent, type LeagueRules, type PlayerContract, type PlayerId, type PlayerState, type Position,
   type SeasonState, type StaffState, type Team, type TeamId,
 } from "@ff/contracts";
 import { isDay, type DayStep, type DayStepContext, type LeaguePeople } from "../season/people.js";
 import { BOARD_ERROR, POSITION_VALUE, STARTERS, WANTED, needAt, type Rate } from "../draft/board.js";
 import { seasonsIn } from "../draft/cutdown.js";
-import { DRAFT_DAYS } from "../draft/steps.js";
+import { DRAFT_DAYS, headCoachEvaluation } from "../draft/steps.js";
 import { capNumber, designatedIn, expireContract, isAfterJune1, liveIn, releasePlayer, restructure, teamCapTotal } from "./money.js";
 import { BASE_CAP, CASH_FLOOR, MAX_PRORATION_YEARS, POST_JUNE_1_DESIGNATIONS, RFA_SEASONS, type TenderLevel } from "./rules.js";
 import { ROOKIE_SCALE_2026 } from "./rookieScale2026.js";
@@ -63,6 +63,12 @@ export const MARKET = {
   offerBase: 0.95,
   offerNeed: 0.15,
   /**
+   * Step 12: a team short of room may let a lesser man at the position go to sign a better one, if
+   * cutting him leaves at most this share of the cap in dead money (all seasons). CHOSEN: 2% (about
+   * $6M in 2026) brought dead money to about $29M a team over five years (real about $34M).
+   */
+  swapDeadMost: 0.02,
+  /**
    * The new league year: teams restructure and cut to have room for their draft class, the in-season
    * cushion and this share of the cap for free agency (real teams clear space in February and March).
    * Step 11: real teams' new-team deals of $2M+ add up to about 20% of the cap a team a year, in
@@ -94,7 +100,7 @@ export const MARKET = {
 export interface LeagueYearConfig {
   rate: Rate;
   cap: CapForSeason;
-  /** A team's evaluator skill, 0..100 (default 50). */
+  /** A team's evaluator skill, 0..100 (default: its head coach's talent evaluation, as the draft reads it; 50 without a staff). */
   scouting?: (team: TeamId, people: LeaguePeople) => number;
 }
 
@@ -227,7 +233,7 @@ function placePlayers(players: readonly PlayerState[], teams: readonly Team[]): 
 // ---------- the steps ----------
 
 export function leagueYearSteps(config: LeagueYearConfig): DayStep[] {
-  const skillOf = (t: TeamId, people: LeaguePeople) => config.scouting?.(t, people) ?? 50;
+  const skillOf = (t: TeamId, people: LeaguePeople) => (config.scouting ?? headCoachEvaluation)(t, people);
   return [
     {
       id: "cap-set",
@@ -703,10 +709,14 @@ function freeAgency(
     return [String(p.bio.id), askingPrice(p, valuePlayer(p, config.rate(p), curves, floor).apy, market.window, market.weeksIntoBargain, floor, ctx.seed, season)];
   }));
   const signed = new Set<string>();
+  // Men let go to make room (step 12): they join the free agents after today's market.
+  const released: PlayerId[] = [];
   // A player who turned a team down today is not asked again today: the team moves to its next target.
   const turnedDown = new Set<string>();
   for (let round = 0; round < MARKET.rounds && pool.length > 0; round++) {
-    const offers = new Map<string, { team: TeamId; contract: PlayerContract; worth: number }[]>();
+    const offers = new Map<string, { team: TeamId; contract: PlayerContract; worth: number; cut?: { i: number; p: PlayerState } }[]>();
+    // The most room any team that wanted him had, when none could fit him (step 12).
+    const shortOf = new Map<string, number>();
     const order = shuffled(teams.map((t) => t.id), ctx.seed, `fa/${String(ctx.day.phase)}/${ctx.day.week}/${ctx.day.day}/${round}`);
     for (const teamId of order) {
       const t = teams.find((x) => x.id === teamId)!;
@@ -721,7 +731,31 @@ function freeAgency(
       for (const r of roster) (gradesHere.get(r.bio.position) ?? gradesHere.set(r.bio.position, []).get(r.bio.position)!).push(grade(r));
       const needs = new Map<Position, number>();
       // His best target: the most valuable free agent he needs and can afford.
-      let best: { p: PlayerState; contract: PlayerContract; score: number; starts: boolean } | undefined;
+      let best: { p: PlayerState; contract: PlayerContract; score: number; starts: boolean; cut?: { i: number; p: PlayerState } } | undefined;
+      // Step 12: a team short of room may let go a lesser man at the position to make it (a swap).
+      const liveAt = new Map<string, number>();
+      book.contracts.forEach((c, i) => { if (c.team === t.id && !c.ended && c.years.some((y) => y.season === season && !y.voidYear)) liveAt.set(String(c.player), i); });
+      const cutCost = new Map<number, { dead: number; saving: number }>();
+      const cutFor = (pos: Position, g: number, short: number) => {
+        let pick: { i: number; p: PlayerState; saving: number } | undefined;
+        for (const r of roster) {
+          if (r.bio.position !== pos || grade(r) > g - MARKET.upgradeMargin) continue;
+          const i = liveAt.get(String(r.bio.id));
+          if (i === undefined) continue;
+          const k = cutCost.get(i) ?? (() => {
+            const c = book.contracts[i]!;
+            const charges = releasePlayer(c, ctx.day).charges;
+            const now = charges.filter((x) => x.season === season).reduce((a, x) => a + x.amount, 0);
+            const v = { dead: charges.reduce((a, x) => a + x.amount, 0), saving: capNumber(c.years.find((y) => y.season === season)!) - now };
+            cutCost.set(i, v);
+            return v;
+          })();
+          if (k.dead > MARKET.swapDeadMost * config.cap(season)) continue;
+          const saving = k.saving;
+          if (saving >= short && (!pick || saving > pick.saving)) pick = { i, p: r, saving };
+        }
+        return pick;
+      };
       for (const p of pool) {
         if (signed.has(String(p.bio.id)) || turnedDown.has(`${String(t.id)}|${String(p.bio.id)}`)) continue;
         const pos = p.bio.position;
@@ -735,14 +769,26 @@ function freeAgency(
         const cs = seasonsIn(p, season);
         const floor = minimumSalary(season, cs, config.cap);
         const v = valuePlayer(p, g, curves, floor, config.cap(season));
-        const apy = Math.max(floor, Math.round(v.apy * (MARKET.offerBase + MARKET.offerNeed * need) / 1000) * 1000);
-        const contract = buildOffer(p, t.id, season, ctx.day, apy, v.years, v.percentile, cs, config.cap, "VETERAN");
-        if (capNumber(contract.years[0]!) > room) continue;
-        if (!secondYearFits(t.id, contract, book, config.cap, plan(t.id))) continue;
+        // Step 12: a team pays what it thinks he is worth, but never more than he asks.
+        const apy = Math.max(floor, Math.min(asks.get(String(p.bio.id))!, Math.round(v.apy * (MARKET.offerBase + MARKET.offerNeed * need) / 1000) * 1000));
+        let contract = buildOffer(p, t.id, season, ctx.day, apy, v.years, v.percentile, cs, config.cap, "VETERAN");
+        // Step 12: when next year has no room for a longer deal, the team offers one year ("prove it").
+        if (v.years > 1 && !secondYearFits(t.id, contract, book, config.cap, plan(t.id))) {
+          contract = buildOffer(p, t.id, season, ctx.day, apy, 1, v.percentile, cs, config.cap, "VETERAN");
+        }
+        let cut: { i: number; p: PlayerState } | undefined;
+        if (capNumber(contract.years[0]!) > room) {
+          cut = cutFor(pos, g, capNumber(contract.years[0]!) - room);
+          if (!cut) {
+            const id = String(p.bio.id);
+            shortOf.set(id, Math.max(shortOf.get(id) ?? 0, room));
+            continue;
+          }
+        }
         // A hole (fewer than the position's starters, at least one) comes before any upgrade.
         const hole = here.length < Math.max(1, STARTERS[pos]) ? HOLE_FIRST : 0;
         const score = hole + (g - 50) * POSITION_VALUE[pos] * (1 + need);
-        if (!best || score > best.score) best = { p, contract, score, starts: wouldStart(g, pos, here) };
+        if (!best || score > best.score) best = { p, contract, score, starts: wouldStart(g, pos, here), ...(cut ? { cut: { i: cut.i, p: cut.p } } : {}) };
       }
       if (!best) continue;
       const worth = offerWorth(best.p, {
@@ -751,16 +797,37 @@ function freeAgency(
         ownTeam: lastTeam.get(String(best.p.bio.id)) === t.id,
       }, asks.get(String(best.p.bio.id))!);
       const list = offers.get(String(best.p.bio.id)) ?? [];
-      list.push({ team: t.id, contract: best.contract, worth });
+      list.push({ team: t.id, contract: best.contract, worth, ...(best.cut ? { cut: best.cut } : {}) });
       offers.set(String(best.p.bio.id), list);
     }
-    if (offers.size === 0) break;
+    // Step 12: in the bargain basement, a man nobody could fit comes down to what the best of them can pay.
+    let lowered = 0;
+    if (market.window === "BARGAIN") {
+      for (const [id, most] of shortOf) {
+        if (offers.has(id) || signed.has(id)) continue;
+        const p = byId.get(id)!;
+        const floor = minimumSalary(season, seasonsIn(p, season), config.cap);
+        const ask = asks.get(id)!;
+        const next = Math.max(floor, Math.floor(most / 1000) * 1000);
+        if (next < ask) { asks.set(id, next); lowered++; }
+      }
+    }
+    if (offers.size === 0 && lowered === 0) break;
     // Each player takes his best offer if it is worth his ask.
     for (const [id, list] of offers) {
       const top = [...list].sort((a, b) => b.worth - a.worth)[0]!;
       for (const o of list) if (o !== top || o.worth < 1) turnedDown.add(`${String(o.team)}|${id}`);
       if (top.worth < 1) continue;
       const p = byId.get(id)!;
+      if (top.cut) {
+        const r = releasePlayer(book.contracts[top.cut.i]!, ctx.day);
+        book.contracts[top.cut.i] = r.contract;
+        book.dead.push(...r.charges);
+        book.events.push(...r.events);
+        released.push(top.cut.p.bio.id);
+        const gone = String(top.cut.p.bio.id);
+        teams = teams.map((t) => (t.id === top.team ? { ...t, roster: t.roster.filter((x) => String(x) !== gone) } : t));
+      }
       book.contracts.push(top.contract);
       book.events.push(signedEvent(top.contract));
       signed.add(id);
@@ -775,7 +842,7 @@ function freeAgency(
   if (signed.size === 0) return undefined;
   return {
     people: {
-      ...people, teams, players: placePlayers(people.players, teams), freeAgents: people.freeAgents.filter((id) => !signed.has(String(id))),
+      ...people, teams, players: placePlayers(people.players, teams), freeAgents: [...people.freeAgents.filter((id) => !signed.has(String(id))), ...released],
       contracts: book.contracts, deadMoney: book.dead, ...(moves.length > 0 ? { freeAgentMoves: moves } : {}),
     },
     events: book.events,
