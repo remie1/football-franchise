@@ -659,7 +659,7 @@ Results per Tick:
 > At step 1, free runners keep today's timing with these labels; step 3 changes their timing, not
 > their labels.
 >
-> **pocket-1.s3 (ADR-089 step 3, behind the switch; built, not measured).** Three more blocks, each
+> **pocket-1.s3 (ADR-089 step 3, behind the switch; measured, not the default).** Three more blocks, each
 > optional and each refused when malformed or mixed wrongly, never ignored: `blitzPickup.freeRun`
 > (the free-run clock, §7.4 below), `blitzPickup.lateBlock` (the late, weak block, below) and
 > `pocket.climbLane: "FRONT"` (§7.2's climb lane reads no FRONT threat). An s3 pass play needs the

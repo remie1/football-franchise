@@ -123,14 +123,17 @@ graded pocket predictions held; on the made-up league pressure fell 0.02 points 
 predicted range, which is reported as filed. The interception check, as amended before step 2, did
 not trip. Step 2's numbers are in `packages/calibration/reports/adr-089-step2.md`; you chose to merge
 it with its switch off (30 October 2026). Step 3, also behind the switch, times a rusher nobody
-blocked from where he stood at the snap, how fast he is and how deep the quarterback drops, and
-blocks a rusher somebody got a hand on late and weakly; default play has still not changed. With
-the switch on, against step 2 on the same games, pressure fell from 28% to 22% of dropbacks on the
-flat-rated test league and from 29% to 23% on the made-up league, sacks fell by 0.5 to 0.7 per 100
-dropbacks, and the interception check did not trip; but too many pressures still come quickly and
-from rushers nobody blocked (three of the four graded pocket predictions missed), and you choose
-among a protection design, accepting the miss, or changing who counts as completely unblocked
-(numbers in `packages/calibration/reports/adr-089-step3.md`).
+blocked from where he stood at the snap, how fast he is and how deep the quarterback drops, blocks
+a rusher somebody got a hand on late and weakly, and keeps the quarterback from stepping up when a
+rusher is coming at him from in front; default play has still not changed. With the switch on,
+against step 2 on the same graded games, pressure fell from 28% to 22% of dropbacks on the
+flat-rated test league and from 29% to 23% on the made-up league, and sacks fell by 0.5 to 0.7 per
+100 dropbacks (a second set of games read the same on the flat league, and 30% to 25% with sacks
+down 0.9 on the made-up one); the interception check did not trip. But too many pressures still
+come quickly and from rushers nobody blocked (three of the four graded pocket predictions missed),
+and you choose among a protection design, accepting the miss, or changing who counts as
+completely unblocked so that a rusher somebody got a hand on counts too (numbers in
+`packages/calibration/reports/adr-089-step3.md`).
 
 **Next after the pocket fix:** the made-up league intercepts about 6.8% of passes against the
 NFL's 2.3%, because tipped balls go to the fastest reactor and strong passers throw into covered

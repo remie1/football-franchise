@@ -13357,7 +13357,7 @@ Derived by grep at the step-2 head (`a3790a8`), not recalled. Each line is `unru
   share TIMING on three of C1's four readings (it misses with no free runner in the play) and SUPPLY on gen set 2. The
   interception guard under AM-1 and AM-3 does not breach (6 readings, largest league-wide Z +0.44, largest class Z
   +1.45); the cumulative line against today's game, reported and never graded before step 10, prints BREACH on flat
-  (C1 against A0, Z +6.68). The tool's outcome: 0 structural failures, 0 fold faults, 3 graded clause failures, 0
+  (C1 against A0, Z +6.68; C2 against A14, Z +2.48). The tool's outcome: 0 structural failures, 0 fold faults, 3 graded clause failures, 0
   guard breaches, "Merge card: may be posted with the miss options priced". What goes back to the owner is ADR-089
   Appendix H.5: the miss under the miss rule, with options A (a protection design, priced by C15), B (accept and
   report) and C (reading (c), priced by C11).
@@ -13456,12 +13456,12 @@ Derived by grep at the step-3 record head (`d8247c9`), not recalled. Each line i
 - **Option A's price:** ⛔ NEITHER. C15 is a band-edge stand-in; a protection design would be its own design with its
   own petitions.
 - **The quick share's TIMING part:** ⛔ NEITHER. With no man on the clock in the play C1's quick split still reads
-  above 55 on three of its four readings; quick pressures from won reps are timed by step 1's beat clock, which step 3
-  does not touch.
+  above 55 on three of its four readings; that quick pressures from won reps, timed by step 1's beat clock, which step 3
+  does not touch, carry the rest is ADR-089 Appendix H.6 reading 3, a drafted reading, not a measured split.
 - **AM-2's `t_e` and `w`:** ⚠ RULED (G.8, CHOSEN, shown, not asked); never fitted, and never offered for change at
   this step.
 - **AM-1's widths under AM-3's map** (Z above 2.0 league-wide, 3.0 in a class): ⚠ RULED (F.11, G.9). The filed
-  reading, with no noise term, would breach 5 of the 6 graded readings on one set each.
+  reading, with no noise term, would breach 5 of the 6 graded league-wide readings on one set each.
 - **The cumulative line's BREACH on flat:** ⚠ RULED to be reported, never graded, before step 10 (F.9 item 8); it
   comes back to the owner at step 10's acceptance.
 - **`guard.onTheRun.clean`:** ⛔ NEITHER. 0 aimed throws on every arm, as at step 2, so its basis (2.11) is never
