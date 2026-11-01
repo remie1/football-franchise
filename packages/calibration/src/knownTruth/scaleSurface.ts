@@ -695,6 +695,21 @@ export const SURFACE: Record<CheckKind, CheckDescriptor> = {
       "out-of-bounds are unmodelled and that this shortens games.",
   },
 
+  official_sees: {
+    form: "UNIMPLEMENTED",
+    docRef: "ADR-093 §5.1",
+    note:
+      "No producer until a foul is (ADR-093 step 2). The officials' roll on a foul: no " +
+      "ratings, a target set by the foul's visibility, the crew's lean and the situation.",
+  },
+  phantom_flag: {
+    form: "UNIMPLEMENTED",
+    docRef: "ADR-093 §5.3",
+    note:
+      "No producer until a near-foul is (ADR-093 step 2). The officials' roll for a wrong " +
+      "flag on a near-foul: no ratings.",
+  },
+
   coin_toss: {
     form: "UNIMPLEMENTED",
     docRef: "not in the doc",
@@ -719,21 +734,6 @@ export const SURFACE: Record<CheckKind, CheckDescriptor> = {
     form: "UNIMPLEMENTED",
     docRef: "not in the doc",
     note: "Yardage model, not a target check. Backlog entry 19.",
-  },
-
-  official_sees: {
-    form: "UNIMPLEMENTED",
-    docRef: "ADR-093 §5.1",
-    note:
-      "No producer until a foul is (ADR-093 step 2). The officials' roll on a foul: no " +
-      "ratings, a target set by the foul's visibility, the crew's lean and the situation.",
-  },
-  phantom_flag: {
-    form: "UNIMPLEMENTED",
-    docRef: "ADR-093 §5.3",
-    note:
-      "No producer until a near-foul is (ADR-093 step 2). The officials' roll for a wrong " +
-      "flag on a near-foul: no ratings.",
   },
 };
 
