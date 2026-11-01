@@ -20,5 +20,6 @@ export * from "./snap.js";
 export * from "./stem.js";
 export * from "./playcalls.js";
 export * from "./penalties.js";
+export * from "./officials.js";
 export * from "./events.js";
 export * from "./save.js";

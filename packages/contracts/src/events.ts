@@ -9,6 +9,7 @@ import type { DraftPickKind, GameKind, GameResult, PlayoffBracket } from "./leag
 import type { StaffRole, ContractKind, InjuryBand, InjurySetting } from "./players.js";
 import type { StaffDepartureReason } from "./staff.js";
 import type { RelationshipParty, RelationshipWord } from "./relationships.js";
+import type { OfficiatingCrew } from "./officials.js";
 import type { FoulKind, FoulTiming, PenaltyEnforcement, PenaltyOutcome } from "./penalties.js";
 import type { MeetingPoint, StaffMeeting, TeamDirection } from "./meeting.js";
 import type { SidelineAdjustmentPayload, StemPayload } from "./stem.js";
@@ -679,7 +680,14 @@ export type MatchEvent =
       ) } & MatchEventBase)
   | ({ type: "PLAY_RESULT"; payload: { yards: number; turnover: boolean; score?: number; clockRunoff: number } } & MatchEventBase)
   // ---- Game structure (ADR-014). All GAME-scoped: none of these is a play. ----
-  | ({ type: "GAME_START"; payload: { home: TeamId; away: TeamId; seed: string } } & GameEventBase)
+  /**
+   * ADR-093 F5: `crew` is the crew that worked the game, as it stood that season (§6.3): an input
+   * to the officials' rolls, as `seed` is to every roll, so the record says which crew called the
+   * game and how it leaned. Absent when the game had no crew (a calibration batch, or a season game
+   * of a league with no crews yet); its officials then call it at the league's average, every lean
+   * 50.
+   */
+  | ({ type: "GAME_START"; payload: { home: TeamId; away: TeamId; seed: string; crew?: OfficiatingCrew } } & GameEventBase)
   | ({ type: "COIN_TOSS"; payload: {
         winner: TeamId; choice: "RECEIVE" | "DEFER"; receivesFirst: TeamId; roll: RollDetail;
       } } & GameEventBase)
