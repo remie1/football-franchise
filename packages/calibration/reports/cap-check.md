@@ -160,6 +160,22 @@ I tried and did not keep:
 - Void years for two thirds of the league. That raised new-team deals to about 100 a year, but dead money climbed to $59M a team by year five.
 - Judging cap cuts against a deal's yearly value instead of that year's cap number. It changed nothing.
 
+## After the same-day extension fix (2026-11-01)
+
+The aging thread's 20-season runs crashed. A team signed a player to a tender, then on the same day "extended" the tender it had just signed. A later cut ended only the tender, so the extension lingered after he joined another team. About 120 of the first year's 327 extensions were this bug, so own-team deal counts in steps 7 to 11 were inflated by it.
+
+The fix: there is no extension on the day a team tenders, tags or re-signs a player, and a cut also ends that team's deals that have not started.
+
+| League year | 2027 | 2028 | 2029 | 2030 | 2031 | Mean | Real |
+|---|---|---|---|---|---|---|---|
+| New-team deals, $2M+ | 144 | 137 | 72 | 107 | 96 | 111 | 180 to 240 |
+| New-team deals, $5M+ | 88 | 94 | 60 | 82 | 79 | 81 | 80 to 120 |
+| Own-team deals of 2+ years | 181 | 108 | 54 | 97 | 153 | 119 | 210 to 290 |
+| Dead money, mean a team ($M) | 11.9 | 18.7 | 27.5 | 24.8 | 28.1 | 22.2 | about 34 |
+| Cap used, median | 96.8% | 97.5% | 98.4% | 97.8% | 98.1% | 97.7% | |
+
+New-team deals of $5M+ are now inside the real range. Own-team multi-year deals are now the larger gap: 119 a year against 210 to 290.
+
 ## What does not match yet
 
 1. **Too few re-signings.** Before step 7, teams signed about a fifth of the real number of own-team multi-year deals, because there were no early extensions. Step 7 raises it to under half the real number; cap room is now the limit.

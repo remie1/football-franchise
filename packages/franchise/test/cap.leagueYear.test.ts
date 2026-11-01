@@ -83,6 +83,16 @@ describe("the league year (ADR-085 §4)", () => {
     }
   });
 
+  it("nobody signs a tender (or any deal) and an early extension on the same day", () => {
+    const signedOn = new Map<string, string[]>();
+    for (const e of year1.events) {
+      if (e.event.type !== "CONTRACT_SIGNED") continue;
+      const key = `${String(e.event.payload.player)}@${JSON.stringify(e.at)}`;
+      signedOn.set(key, [...(signedOn.get(key) ?? []), e.event.payload.kind ?? "?"]);
+    }
+    for (const kinds of signedOn.values()) expect(kinds.length).toBe(1);
+  });
+
   it("deals run out at the new league year: those players leave their teams for free agency", () => {
     expect(of("CONTRACT_EXPIRED").length).toBeGreaterThan(200);
     const onTeams = new Set(people.teams.flatMap((t) => [...t.roster, ...(t.practiceSquad ?? [])]).map(String));
@@ -130,11 +140,14 @@ describe("the league year (ADR-085 §4)", () => {
     }
   });
 
-  it("cap cuts never take a roster's last men at a position: every team still fields its starters", () => {
+  it("cap cuts never take a roster's last men at a position: a seat empties only when a deal runs out", () => {
     const byId = new Map(people.players.map((p) => [String(p.bio.id), p]));
     for (const t of people.teams) {
       for (const pos of ["QB", "K", "P", "LS"] as Position[]) {
-        expect(t.roster.filter((id) => byId.get(String(id))?.bio.position === pos).length, `${String(t.id)} ${pos}`).toBeGreaterThan(0);
+        if (t.roster.some((id) => byId.get(String(id))?.bio.position === pos)) continue;
+        // A seat can empty when a deal runs out and he signs elsewhere (free agency), never by a cut.
+        const cut = of("PLAYER_RELEASED").filter((e) => e.payload.team === t.id && byId.get(String(e.payload.player))?.bio.position === pos);
+        expect(cut, `${String(t.id)} ${pos}`).toEqual([]);
       }
     }
   });
