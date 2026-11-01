@@ -1,6 +1,6 @@
 /**
  * The 20-season check's grader (ADR-087 D5b, `careerGrade.ts`) on made-up rows: the bands as the
- * owner's answers of 2026-10-31 set them (ADR-087 §11), each changed rule at its edges, the
+ * owner's answers of 2026-10-31 and 2026-11-01 set them (ADR-087 §11), each changed rule at its edges, the
  * gross-miss rule, pooling over seeds, missing seeds, the coach-style check, careers by group, by
  * position family and league-wide, D7's numeric rows, and the flip rule.
  *
@@ -162,14 +162,13 @@ const passingInput = (rows = passing(), more: Partial<GradeInput> = {}) => input
 // --- tests ---------------------------------------------------------------------------------------
 
 describe("the bands", () => {
-  it("are the owner's answers of 2026-10-31 and the readings recorded with them (ADR-087 §11)", () => {
+  it("are the owner's answers of 2026-10-31 and 2026-11-01 and the readings recorded with them (ADR-087 §11)", () => {
     const by = Object.fromEntries(CAREER_BANDS.map((b) => [b.id, b]));
     // Drift, "Loose: 3 points": within 3 points every season (GATE); the late mean reported only.
-    expect(by["overall-mean-each"]).toMatchObject({ mark: "GATE", card: "Drift", rule: { kind: "abs", half: 3 } });
-    expect(by["overall-mean-late"]).toMatchObject({ mark: "REPORT", card: "Drift", rule: { kind: "abs", half: 1.0 } });
-    // The pooled within-group sd keeps its own line; the card did not ask about it.
-    expect(by["pooled-sd"]).toMatchObject({ mark: "GATE", rule: { kind: "rel", frac: 0.1 } });
-    expect(by["pooled-sd"]!.card).toBeUndefined();
+    expect(by["overall-mean-each"]).toMatchObject({ mark: "GATE", card: "Drift", reference: "Year 0", rule: { kind: "abs", half: 3 } });
+    expect(by["overall-mean-late"]).toMatchObject({ mark: "REPORT", card: "Drift", reference: "Year 0", rule: { kind: "abs", half: 1.0 } });
+    // The pooled within-group sd keeps its own line (the Drift card did not ask about it), measured from the league file as loaded (Spread, 2026-11-01).
+    expect(by["pooled-sd"]).toMatchObject({ mark: "GATE", card: "Spread", reference: "The league file as loaded", rule: { kind: "rel", frac: 0.1 } });
     expect(by.at95!.rule).toEqual({ kind: "atMostTimes", times: 2 });
     expect(by.at99!.rule).toEqual({ kind: "atMost", plus: 3 });
     expect(by.gap!.rule).toEqual({ kind: "abs", half: 1.0 });
@@ -191,6 +190,8 @@ describe("the bands", () => {
     // Even, "Fix first, block below 2.75": a floor (GATE) and the NFL band beside it (REPORT).
     expect(by["win-spread"]).toMatchObject({ mark: "GATE", card: "Even", rule: { kind: "atLeast", min: 2.75 } });
     expect(by["win-spread-nfl"]).toMatchObject({ mark: "REPORT", card: "Even", rule: { kind: "range", lo: 2.75, hi: 3.35 } });
+    // Floor, "Keep floor; judge growth vs season one" (2026-11-01): the floor stays the GATE; season one is the tuning's yardstick, reported.
+    expect(by["win-spread-season-one"]).toMatchObject({ mark: "REPORT", card: "Floor", rule: { kind: "notBelow" } });
     expect(by["win-r"]!.rule).toEqual({ kind: "range", lo: 0.25, hi: 0.55 });
     // D7: the starter rate gates within ±0.10; ever a starter within ±0.10 and the round-1 shares are reported.
     expect(by["d7-starter"]).toMatchObject({ mark: "GATE", rule: { kind: "abs", half: 0.1 } });
@@ -208,13 +209,13 @@ describe("the bands", () => {
       "career-reach5-league", "career-reach10", "career-reach10-family", "career-reach10-league", "rookie", "undrafted", "d7-starter", "win-spread",
     ]);
     expect(CAREER_BANDS.filter((b) => b.mark === "REPORT").map((b) => b.id)).toEqual([
-      "overall-mean-late", "groups-report", "d7-ever", "d7-round1", "win-spread-nfl", "win-r", "other-report",
+      "overall-mean-late", "groups-report", "d7-ever", "d7-round1", "win-spread-nfl", "win-spread-season-one", "win-r", "other-report",
     ]);
     // A card names the rows its answer set, and only those.
     expect(CAREER_BANDS.filter((b) => b.card !== undefined).map((b) => `${b.id}:${b.card}`)).toEqual([
-      "overall-mean-each:Drift", "overall-mean-late:Drift", "age-league:Close", "share-31:Close", "share-34:Old", "peak-usage:Close",
+      "overall-mean-each:Drift", "overall-mean-late:Drift", "pooled-sd:Spread", "age-league:Close", "share-31:Close", "share-34:Old", "peak-usage:Close",
       "career-expected:Close", "career-expected-family:Close", "career-expected-league:Close", "career-reach10:Old", "career-reach10-family:Old",
-      "career-reach10-league:Old", "win-spread:Even", "win-spread-nfl:Even",
+      "career-reach10-league:Old", "win-spread:Even", "win-spread-nfl:Even", "win-spread-season-one:Floor",
     ]);
     expect(new Set(CAREER_BANDS.map((b) => b.id)).size).toBe(CAREER_BANDS.length);
   });
@@ -263,6 +264,29 @@ describe("one check", () => {
     // One seed: no SE, as for any check.
     expect(gradeCheck(floor, "x", { value: 3.5, se: null, n: 1 }, { value: 2.75, se: null }).status).toBe("NO_SE");
     expect(outsideBand(floor, 2.74, 2.75)).toBeCloseTo(0.01, 12);
+  });
+
+  it("not below the reference (the win spread against season one): at or above passes, a shortfall within 2·√(SE_sim² + SE_ref²) is not resolvable, further fails", () => {
+    const notBelow: BandRule = { kind: "notBelow" };
+    const ref = { value: 2.5, se: 0.1 };
+    // At or above passes, however noisy: the target is "as spread out as season one", and nothing above it is a miss.
+    for (const se of [0, 0.05, 1]) {
+      expect(gradeCheck(notBelow, "x", { value: 2.5, se, n: 12 }, ref).status).toBe("PASS");
+      expect(gradeCheck(notBelow, "x", { value: 3.4, se, n: 12 }, ref).status).toBe("PASS");
+    }
+    const resolution = 2 * Math.sqrt(0.05 ** 2 + 0.1 ** 2); // 0.2236
+    const near = gradeCheck(notBelow, "x", { value: 2.5 - 0.9 * resolution, se: 0.05, n: 12 }, ref);
+    expect(near).toMatchObject({ status: "NOT_RESOLVABLE", inBand: false, halfWidth: 0 });
+    expect(near.outside).toBeCloseTo(0.9 * resolution, 12);
+    expect(near.resolution).toBeCloseTo(resolution, 12);
+    expect(gradeCheck(notBelow, "x", { value: 2.5 - 1.01 * resolution, se: 0.05, n: 12 }, ref).status).toBe("FAIL");
+    // With no noise on either side, any shortfall fails.
+    expect(gradeCheck(notBelow, "x", { value: 2.49, se: 0, n: 12 }, { value: 2.5, se: 0 }).status).toBe("FAIL");
+    // No season one: no data; one seed: no SE.
+    expect(gradeCheck(notBelow, "x", { value: 2.6, se: 0.05, n: 12 }, { value: null, se: null }).status).toBe("NO_DATA");
+    expect(gradeCheck(notBelow, "x", { value: 2.6, se: null, n: 1 }, ref).status).toBe("NO_SE");
+    expect(outsideBand(notBelow, 2.3, 2.5)).toBeCloseTo(0.2, 12);
+    expect(outsideBand(notBelow, 2.7, 2.5)).toBe(0);
   });
 
   it("the gross-miss rule: not resolvable only in the band or outside it by no more than 2·√(SE_sim² + SE_ref²), when the half-width is under that", () => {
@@ -565,6 +589,70 @@ describe("the grade on made-up seeds", () => {
     expect(flat.flip.reasons).toContain("GATE row win-spread: FAIL");
   });
 
+  it("Spread: the pooled sd is measured from the league file as loaded, year 0's week 8 shown beside it, not graded", () => {
+    // Year 0's week 8 at 7.7 (stopgap kickers in it), the file at 7.28, the late seasons at 6.6: inside 10% of the file, outside 10% of year 0.
+    // The file's mean overall set apart from year 0's (64 against 66), so a Drift row that read the file would show it.
+    const withFile = (later: number) => new Map([...passing(() => ({ sd: later }))].map(([s, r], i) => {
+      const y0 = r.perSeason[0]!;
+      return [s, { ...r, file: { ...r.file!, overall: { ...r.file!.overall, pooledSd: 7.28, mean: 64 } },
+        perSeason: [{ ...y0, week8: { ...y0.week8!, overall: { ...y0.week8!.overall, pooledSd: 7.7 + wobble(i) } } }, ...r.perSeason.slice(1)] }];
+    }));
+    const g = gradeCareerCheck(passingInput(withFile(6.6)));
+    const sd = byId(g, "pooled-sd");
+    expect(sd).toMatchObject({ mark: "GATE", card: "Spread", reference: "The league file as loaded", status: "PASS" });
+    expect(sd.checks[0]).toMatchObject({ label: "2036-2045", status: "PASS", ref: 7.28, seRef: 0 });
+    expect(sd.checks[0]!.sim).toBeCloseTo(6.6, 12);
+    expect(sd.checks[1]).toMatchObject({ label: "year 0 (2026 wk 8), against the same band", status: "REPORTED", ref: 7.28, inBand: true, seeds: 4 });
+    expect(sd.checks[1]!.sim).toBeCloseTo(7.7, 12);
+    expect(sd.note).toContain("league file as loaded");
+    expect(g.flip.recommended).toBe(true);
+    // The Drift rows keep year 0 (the card did not ask about them).
+    expect(byId(g, "overall-mean-each").checks[0]!.ref).toBeCloseTo(66, 12);
+    expect(byId(g, "overall-mean-late").checks[0]!.ref).toBeCloseTo(66, 12);
+    expect(byId(g, "overall-mean-each").status).toBe("PASS");
+    // Against year 0 (7.7) the same 6.6 would have failed; against the file, 6.5 is past 10% and fails.
+    expect(gradeCheck(CAREER_BANDS.find((b) => b.id === "pooled-sd")!.rule, "x", { value: 6.6, se: 0.01, n: 4 }, { value: 7.7, se: 0.01 }).status).toBe("FAIL");
+    const low = gradeCareerCheck(passingInput(withFile(6.5)));
+    expect(byId(low, "pooled-sd").status).toBe("FAIL");
+    expect(low.flip.reasons).toEqual(["GATE row pooled-sd: FAIL"]);
+    // A row with no file picture has no reference.
+    const noFile = gradeCareerCheck(passingInput(new Map([...passing()].map(([s, r]) => [s, { ...r, file: null }]))));
+    expect(byId(noFile, "pooled-sd").status).toBe("NO_DATA");
+    expect(byId(noFile, "overall-mean-each").status).toBe("PASS");
+  });
+
+  it("Floor: 2.75 still gates the flip; the later seasons against season one are reported, the growth tuning's yardstick", () => {
+    const run = (first: number, later: number) => gradeCareerCheck(passingInput(new Map([...passing((i) => ({ spread: later + wobble(i) }))].map(([s, r], i) => {
+      const y0 = r.perSeason[0]!;
+      return [s, { ...r, perSeason: [{ ...y0, winSpread: first + 2 * wobble(i) }, ...r.perSeason.slice(1)] }];
+    }))));
+    // Season one at 2.5, the later seasons at 2.5: as spread out as season one (a pass), and still below the floor (the flip waits).
+    const even = run(2.5, 2.5);
+    const one = byId(even, "win-spread-season-one");
+    expect(one).toMatchObject({ mark: "REPORT", card: "Floor", status: "REPORTED" });
+    expect(one.checks[0]).toMatchObject({ label: "2029-2045", status: "PASS", seeds: 4 });
+    expect(one.checks[0]!.ref).toBeCloseTo(2.5, 12);
+    expect(byId(even, "win-spread").status).toBe("FAIL");
+    expect(even.flip.reasons).toEqual(["GATE row win-spread: FAIL"]);
+    // The later seasons well below season one: the yardstick fails, and it never blocks by itself.
+    const sag = run(2.5, 2.2);
+    expect(byId(sag, "win-spread-season-one").checks[0]!.status).toBe("FAIL");
+    expect(byId(sag, "win-spread-season-one").status).toBe("REPORTED");
+    // A shortfall inside the noise: not resolvable. Season one's own seed-to-seed SE counts: 0.02 short is past the later seasons' noise alone
+    // (2·SE_sim ≈ 0.0129) but inside both sides' (2·√(SE_sim² + SE_ref²) ≈ 0.0289).
+    const close = run(2.5, 2.48);
+    const closeCheck = byId(close, "win-spread-season-one").checks[0]!;
+    expect(closeCheck.status).toBe("NOT_RESOLVABLE");
+    expect(closeCheck.seRef).toBeCloseTo(poolSeeds(SEEDS.map((_, i) => 2.5 + 2 * wobble(i))).se!, 12);
+    expect(closeCheck.outside!).toBeGreaterThan(2 * closeCheck.seSim!);
+    expect(closeCheck.outside!).toBeLessThan(closeCheck.resolution!);
+    // Through the floor and above season one: the flip goes ahead; below season one but through the floor: still goes ahead (reported only).
+    expect(run(2.5, 2.8).flip.recommended).toBe(true);
+    const above = run(3.2, 2.8);
+    expect(byId(above, "win-spread-season-one").checks[0]!.status).toBe("FAIL");
+    expect(above.flip.recommended).toBe(true);
+  });
+
   it("Old: the 34+ share and reaching ten seasons now block; an answer given for the Old card changes nothing", () => {
     // The 34+ share at 8% against 2022-24's 2.9% + 2 points.
     const old = passing((i) => ({ from34: 0.08 + wobble(i) }));
@@ -658,6 +746,9 @@ describe("the grade on made-up seeds", () => {
     expect(renderGradeMarkdown(a)).toContain("the owner's answers of 2026-10-31");
     expect(renderGradeMarkdown(a)).not.toContain("OWNER rows wait");
     expect(renderGradeMarkdown(a)).toContain("A floor (the win spread's 2.75, the coach-style 5% of slots) is never unresolved");
+    expect(renderGradeMarkdown(a)).toContain("The pooled sd is measured from the league file as loaded (Spread)");
+    expect(renderGradeMarkdown(a)).toContain("growth tuning is judged against season one (Floor, reported)");
+    expect(renderGradeMarkdown(a)).toContain("Not below season one (the win spread's tuning yardstick) has no allowance");
     const json = JSON.parse(renderGradeJson(a)) as { bands: unknown[]; rows: unknown[] };
     expect(json.bands).toHaveLength(CAREER_BANDS.length);
     expect(json.rows).toHaveLength(CAREER_BANDS.length);

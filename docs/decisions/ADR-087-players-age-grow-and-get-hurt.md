@@ -718,8 +718,15 @@ walk (`runCapCheck` with `players`), the watch-only reader (`careerCheck.ts`), t
 | Rookies | Yes, with a draft re-check | Draft-class talent (`PROSPECT_TALENT`) may be tuned together with growth; every such change re-runs the draft check (D7) with the draft thread. |
 | Aged | Real veterans only | "Everyone aged once" ages the stand-in league's veterans only (a new league file, the old one kept). The made-up league stays as it is, so ADR-089's final records stand. |
 
-**Readings the Orchestrator recorded with them (CHOSEN; told to the owner 2026-10-31, no
-objection).**
+**Two more answers after tuning round 1 (decision cards, 2026-11-01 01:54Z).**
+
+| Card | Answer | What it sets |
+|---|---|---|
+| Spread | The league file as loaded | The pooled within-group spread's line (2036-45 within ±10%, GATE) is measured from the league file as loaded: its 53s before the walk signs anyone, 7.28 on the 23 October file, so the line runs 6.55-8.00. Not from year 0's week 8 (about 7.6-7.7), whose spread carries the stopgap kickers (backups rated 24-42, and a few punters) the walk signs for injuries; that value is shown beside it, not graded. The Drift rows keep year 0 (the card did not ask about them). |
+| Floor | Keep floor; judge growth vs season one | The win spread's 2.75 stays the GATE for the switch-on. A growth or draft-talent tuning round is judged on keeping the later seasons as spread out as season one: the mean of 2029-45 at least season one's spread on the same seeds, both switches on (reported; a shortfall inside the seeds' noise is "can't tell"). Season one itself is near 2.5 with both switches on (20 seeds, `reports/player-checks-standin.md`: off 2.79, growth 2.82, injuries 2.49, both 2.51), so the rest of the gap to 2.75 waits on how the engine turns team strength into wins and on roster building, outside this ADR's tuning. |
+
+**Readings the Orchestrator recorded with the six answers of 2026-10-31 (CHOSEN; told to the owner
+2026-10-31, no objection).**
 
 - **A gross miss fails.** A row is "can't tell" only when its value is in band or outside it by no
   more than 2·√(SE_sim² + SE_ref²). Further out it fails, however wide the reference's error.

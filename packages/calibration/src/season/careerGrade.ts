@@ -1,22 +1,32 @@
 /**
  * THE 20-SEASON CHECK'S GRADER (ADR-087 §9, row D5b; the D5b plan's "Bands (CHOSEN)" as the owner's
- * answers of 2026-10-31 set them, ADR-087 §11).
+ * answers of 2026-10-31 and 2026-11-01 set them, ADR-087 §11).
  *
  * Pure: the cached rows of the grade seeds (and of the coach-style arms' seeds), the real league's
  * numbers (`NFL_CAREERS`, `NFL_DRAFT`) and the years each band is judged on go in; one grade comes
  * out, with a Markdown and a JSON rendering. Nothing is read from disk here and nothing is drawn.
  *
- * THE OWNER'S ANSWERS (decision cards, 2026-10-31; ADR-087 §11). `CAREER_BANDS` is the source of
- * truth for every line, and a row that a card's answer set names that card:
+ * THE OWNER'S ANSWERS (decision cards, 2026-10-31 and 2026-11-01; ADR-087 §11). `CAREER_BANDS` is
+ * the source of truth for every line, and a row that a card's answer set names that card:
  *  - Drift, "Loose: 3 points": the mean overall on the 53s within 3 points of year 0 every season
  *    2029-45 (GATE); the mean of 2036-45 within ±1.0 is reported only. The pooled within-group sd
- *    keeps its own line, 2036-45 within ±10% (GATE; the card did not ask about it).
+ *    keeps its own line, 2036-45 within ±10% (GATE; the Drift card did not ask about it).
+ *  - Spread, "The league file as loaded" (2026-11-01): the pooled within-group sd's line is measured
+ *    from the league file as loaded (`CareerCheckRows.file`: its 53s before the walk signs anyone),
+ *    not year 0's week 8, whose spread carries the stopgap kickers (and a few punters) the walk
+ *    signs for injuries. Year 0's value is shown beside it, reported. The Drift rows keep year 0.
  *  - Close, "Close": league mean age ±0.5, the 31-and-over share ±3 points, peak usage age per
  *    group ±1.5 years, expected career ±20% (GATE).
  *  - Old, "Hold until teams cut sooner": the 34-and-over share (at most the NFL's + 2 points) and
  *    reaching ten seasons (±3 points) are GATE: they block the flip.
  *  - Even, "Fix first, block below 2.75": the win spread, mean of 2029-45, at least 2.75 (GATE, a
  *    floor only); the NFL's band 2.75-3.35 is reported beside it, so a league too uneven still shows.
+ *  - Floor, "Keep floor; judge growth vs season one" (2026-11-01): 2.75 stays the GATE for the flip.
+ *    A growth or draft-talent tuning round is judged on whether the later seasons stay as spread out
+ *    as season one: the mean of 2029-45 at least season one's spread on the same seeds (reported, a
+ *    `notBelow` check: at or above passes; a shortfall within 2·√(SE_sim² + SE_ref²) is not
+ *    resolvable; further below fails). Season one itself sits near 2.5 with both switches on, so
+ *    the rest of the gap to 2.75 waits on the engine and roster building, not on growth.
  *  - Rookies and Aged set tuning policy (draft talent tuned with growth and the draft check re-run;
  *    only the real veterans aged once): nothing to grade beyond D7's rows.
  * No row is marked OWNER any more. The mark and `GradeInput.ownerAnswers` stay for a later card (an
@@ -40,15 +50,19 @@
  *    reads its players pooled.
  *  - Standard errors: the sim's is the seed-to-seed sample SD over √seeds (none with fewer than two
  *    seeds); the reference's is the real side's own (`Estimate.se`), or for year 0 the seed-to-seed
- *    SE of year 0. A fixed number the owner set (the win spread's floor) and `NFL_DRAFT` carry none.
+ *    SE of year 0, for the league file as loaded its seed-to-seed SE (0 when every seed loads the
+ *    same file), for season one its seed-to-seed SE. A fixed number the owner set (the win spread's
+ *    floor) and `NFL_DRAFT` carry none.
  *  - "Not resolvable" (the gross-miss rule): a check whose band half-width is under
  *    2·√(SE_sim² + SE_ref²) and whose value is in the band or outside it by no more than that
  *    2·√(...): a miss that could be noise. A value further outside its band than 2·√(...) fails
  *    whatever the half-width, so a wide reference SE cannot let a gross miss pass. One-sided bands
  *    use their allowance as the half-width (NFL + 2 points: 2 points; 2×: the reference itself). A
  *    floor (the win spread's 2.75, the coach-style 5% of slots) is a fixed number with no reference
- *    SE and is never unresolved, whatever the sim's SE: below it fails, at or above it passes. The
- *    grade lists the checks the reference's own SE leaves unresolvable whatever the sim does
+ *    SE and is never unresolved, whatever the sim's SE: below it fails, at or above it passes. Not
+ *    below a reference (`notBelow`, the win spread against season one) has no allowance: at or above
+ *    it passes; below it follows the gross-miss rule (by no more than 2·√(...), not resolvable;
+ *    further, a fail). The grade lists the checks the reference's own SE leaves unresolvable whatever the sim does
  *    (half-width under 2·SE_ref): they can fail only by a gross miss.
  *  - A row fails if any check in it fails; otherwise it has no data if any check has no value, no SE
  *    if any check has no seed-to-seed SE (one seed), not resolvable if any check is, else it passes.
@@ -84,7 +98,7 @@ import { NFL_DRAFT } from "./draftCheck.js";
  * the flip as a GATE row does.
  */
 export type BandMark = "GATE" | "REPORT" | "OWNER";
-export type OwnerCard = "Drift" | "Close" | "Old" | "Even";
+export type OwnerCard = "Drift" | "Close" | "Old" | "Even" | "Spread" | "Floor";
 
 /** How a check is judged against its reference. */
 export type BandRule =
@@ -94,6 +108,8 @@ export type BandRule =
   | { readonly kind: "atMostTimes"; readonly times: number }
   | { readonly kind: "atLeast"; readonly min: number }
   | { readonly kind: "range"; readonly lo: number; readonly hi: number }
+  /** At least the reference itself, no allowance (the win spread against season one). */
+  | { readonly kind: "notBelow" }
   | { readonly kind: "order" }
   | { readonly kind: "report" };
 
@@ -119,14 +135,14 @@ const CAREERS_REF = "NFL exit hazard, entry 2012-22";
 const CAREERS_JUDGED = "in-run entrants with two seasons to follow, seeds pooled";
 
 /**
- * The bands, one entry per graded line: the plan's (CHOSEN) as the owner's answers of 2026-10-31
- * and the readings recorded with them set them (ADR-087 §11). Shares are 0-1 (3 points = 0.03).
+ * The bands, one entry per graded line: the plan's (CHOSEN) as the owner's answers of 2026-10-31 and
+ * 2026-11-01 and the readings recorded with them set them (ADR-087 §11). Shares are 0-1 (3 points = 0.03).
  * "2029-45" and "2036-45" are the years the plan names; a band that names none is judged on 2029-45.
  */
 export const CAREER_BANDS: readonly CareerBand[] = [
   { id: "overall-mean-each", row: "Mean overall on the 53", reference: "Year 0", band: "within 3 points each year 2029-45", mark: "GATE", card: "Drift", judged: "each year 2029-45", rule: { kind: "abs", half: 3 } },
   { id: "overall-mean-late", row: "Mean overall on the 53, late mean", reference: "Year 0", band: "mean of 2036-45 within ±1.0 (reported)", mark: "REPORT", card: "Drift", judged: "mean of 2036-45", rule: { kind: "abs", half: 1.0 } },
-  { id: "pooled-sd", row: "Pooled within-group sd", reference: "Year 0", band: "2036-45 within ±10%", mark: "GATE", judged: "mean of 2036-45", rule: { kind: "rel", frac: 0.10 } },
+  { id: "pooled-sd", row: "Pooled within-group sd", reference: "The league file as loaded", band: "2036-45 within ±10%", mark: "GATE", card: "Spread", judged: "mean of 2036-45", rule: { kind: "rel", frac: 0.10 } },
   { id: "at95", row: "95+ count (pooled)", reference: "Year 0", band: "At most 2×", mark: "GATE", judged: "each year 2029-45", rule: { kind: "atMostTimes", times: 2 } },
   { id: "at99", row: "Ratings of 99", reference: "Year 0", band: "99s at most the year-0 count + 3 a league-season", mark: "GATE", judged: "each year 2029-45", rule: { kind: "atMost", plus: 3 } },
   { id: "gap", row: "Starter-backup gap (fieldedStarters)", reference: "Year 0", band: "±1.0", mark: "GATE", judged: "each year 2029-45", rule: { kind: "abs", half: 1.0 } },
@@ -156,6 +172,7 @@ export const CAREER_BANDS: readonly CareerBand[] = [
   { id: "d7-round1", row: "D7 round-1 share by group, switches on", reference: "NFL_DRAFT (round 1, 2011-24)", band: "Reported", mark: "REPORT", judged: "in-run drafts over the whole walk, seeds pooled", rule: { kind: "report" } },
   { id: "win-spread", row: "Win spread", reference: "The owner's floor, 2.75", band: "mean of 2029-45 at least 2.75", mark: "GATE", card: "Even", judged: "mean of 2029-45", rule: { kind: "atLeast", min: 2.75 } },
   { id: "win-spread-nfl", row: "Win spread against the NFL", reference: "3.05 (NFL 2021-24)", band: "2.75-3.35 (reported)", mark: "REPORT", card: "Even", judged: "mean of 2029-45", rule: { kind: "range", lo: 2.75, hi: 3.35 } },
+  { id: "win-spread-season-one", row: "Win spread against season one", reference: "Season one (year 0), same seeds", band: "mean of 2029-45 at least season one's (reported; the growth tuning's yardstick)", mark: "REPORT", card: "Floor", judged: "mean of 2029-45", rule: { kind: "notBelow" } },
   { id: "win-r", row: "Year-over-year win r", reference: "0.40 (4 transitions)", band: "0.25-0.55", mark: "REPORT", judged: "mean of the pairs inside 2029-45", rule: { kind: "range", lo: 0.25, hi: 0.55 } },
   { id: "other-report", row: "Back after a season out; retire after 1 vs 2; FA pool", reference: "NFL / patience arithmetic", band: "Pool trend under 5% a year", mark: "REPORT", judged: "2029-45", rule: { kind: "report" } },
 ];
@@ -238,7 +255,7 @@ export interface GradeRow {
 /**
  * The band's half-width for a check with this reference (and group). A one-sided band's is its
  * allowance: NFL + 2 points, 2 points; 2×, the reference itself; a floor, the floor itself (shown
- * only: `gradeCheck` never leaves a floor unresolved).
+ * only: `gradeCheck` never leaves a floor unresolved); not below the reference, none.
  */
 function halfWidthOf(rule: BandRule, ref: number, group?: string): number | null {
   switch (rule.kind) {
@@ -248,6 +265,7 @@ function halfWidthOf(rule: BandRule, ref: number, group?: string): number | null
     case "atMostTimes": return (rule.times - 1) * Math.abs(ref);
     case "atLeast": return rule.min;
     case "range": return (rule.hi - rule.lo) / 2;
+    case "notBelow": return 0;
     default: return null;
   }
 }
@@ -260,6 +278,7 @@ function inBandOf(rule: BandRule, sim: number, ref: number, group?: string): boo
     case "atMostTimes": return sim <= rule.times * ref;
     case "atLeast": return sim >= rule.min;
     case "range": return sim >= rule.lo && sim <= rule.hi;
+    case "notBelow": return sim >= ref;
     default: return null;
   }
 }
@@ -273,6 +292,7 @@ export function outsideBand(rule: BandRule, sim: number, ref: number, group?: st
     case "atMostTimes": return Math.max(0, sim - rule.times * ref);
     case "atLeast": return Math.max(0, rule.min - sim);
     case "range": return Math.max(0, rule.lo - sim, sim - rule.hi);
+    case "notBelow": return Math.max(0, ref - sim);
     default: return 0;
   }
 }
@@ -282,7 +302,9 @@ export function outsideBand(rule: BandRule, sim: number, ref: number, group?: st
  * In the band: a pass, or not resolvable when the half-width is under 2·√(SE_sim² + SE_ref²).
  * Outside it: a fail, unless the half-width is under 2·√(...) AND the value is outside the band by
  * no more than 2·√(...) (a miss that could be noise), which is not resolvable. A floor (`atLeast`)
- * is never unresolved: below it fails and at or above it passes, whatever the SEs.
+ * is never unresolved: below it fails and at or above it passes, whatever the SEs. Not below the
+ * reference (`notBelow`, no allowance): at or above it passes; below it, by no more than 2·√(...)
+ * is not resolvable, further fails.
  */
 export function gradeCheck(
   rule: BandRule, label: string, sim: { value: number | null; se: number | null; n: number }, ref: { value: number | null; se: number | null },
@@ -303,7 +325,7 @@ export function gradeCheck(
   const resolution = 2 * Math.sqrt(sim.se ** 2 + (ref.se ?? 0) ** 2);
   const unresolved = rule.kind !== "atLeast" && halfWidth < resolution;
   const status: CheckStatus = inBand
-    ? (unresolved ? "NOT_RESOLVABLE" : "PASS")
+    ? (unresolved && rule.kind !== "notBelow" ? "NOT_RESOLVABLE" : "PASS")
     : (unresolved && outside <= resolution ? "NOT_RESOLVABLE" : "FAIL");
   return { ...base, halfWidth, resolution, inBand, outside, status };
 }
@@ -485,8 +507,16 @@ export function gradeCareerCheck(input: GradeInput): CareerGrade {
   rows.push(row("overall-mean-each", eachYear("overall-mean-each", (p) => p.overall.mean)));
   rows.push(row("overall-mean-late", [gradeCheck(bandOf("overall-mean-late").rule, `${windows.late[0]}-${windows.late[1]}`,
     perSeed((r) => windowMean(r, windows.late, (p) => p.overall.mean)), ref0((p) => p.overall.mean))]));
-  rows.push(row("pooled-sd", [gradeCheck(bandOf("pooled-sd").rule, `${windows.late[0]}-${windows.late[1]}`,
-    perSeed((r) => windowMean(r, windows.late, (p) => p.overall.pooledSd)), ref0((p) => p.overall.pooledSd))]));
+  // The pooled sd against the league file as loaded (the Spread card, 2026-11-01); year 0 beside it, reported.
+  const sdRule = bandOf("pooled-sd").rule;
+  const fileSd = perSeed((r) => r.file?.overall.pooledSd ?? null);
+  const fileRef = { value: fileSd.value, se: fileSd.se };
+  const sdYear0 = gradeCheck(sdRule, `year 0 (${runs[0]?.firstSeason ?? "-"} wk 8), against the same band`, perSeed((r) => year0(r)?.overall.pooledSd ?? null), fileRef);
+  rows.push(row("pooled-sd", [
+    gradeCheck(sdRule, `${windows.late[0]}-${windows.late[1]}`, perSeed((r) => windowMean(r, windows.late, (p) => p.overall.pooledSd)), fileRef),
+    { ...sdYear0, status: "REPORTED" },
+  ], "Measured from the league file as loaded (the Spread card's answer, 2026-11-01): its 53s before the walk signs anyone. " +
+    "Year 0's week-8 value is shown against the same band, not graded: it carries the stopgap kickers (and a few punters) the walk signs for injuries."));
   rows.push(row("at95", eachYear("at95", (p) => p.ratings.at95)));
   rows.push(row("at99", eachYear("at99", (p) => p.ratings.at99)));
   rows.push(row("gap", eachYear("gap", (p) => p.gap.gap)));
@@ -640,6 +670,11 @@ export function gradeCareerCheck(input: GradeInput): CareerGrade {
   rows.push(row("win-spread", [gradeCheck(floor, `${windows.early[0]}-${windows.early[1]}`, spread, { value: floor.min, se: null })],
     "The Even card's answer: at least 2.75 blocks below, nothing above; a league too uneven shows on the NFL band's row."));
   rows.push(row("win-spread-nfl", [gradeCheck(bandOf("win-spread-nfl").rule, `${windows.early[0]}-${windows.early[1]}`, spread, est(nfl.winSpread.spread))]));
+  // The growth tuning's yardstick (the Floor card, 2026-11-01): the later seasons against season one, same seeds.
+  const seasonOne = perSeed((r) => seasonRow(r, r.firstSeason)?.winSpread ?? null);
+  rows.push(row("win-spread-season-one", [gradeCheck(bandOf("win-spread-season-one").rule, `${windows.early[0]}-${windows.early[1]}`, spread, { value: seasonOne.value, se: seasonOne.se })],
+    "The Floor card's answer: 2.75 stays the line for the flip; a growth or draft-talent tuning round is judged on keeping the later seasons as spread out as season one " +
+    "(the walk's first season, both switches on). At or above it passes; below it by no more than 2·√(SE_sim² + SE_ref²) is not resolvable; further below fails."));
   const rWindow: readonly [number, number] = [windows.early[0] + 1, windows.early[1]];
   const winR = gradeCheck({ kind: "range", lo: 0.25, hi: 0.55 }, `${windows.early[0]}-${windows.early[1]}`,
     perSeed((r) => seasonMean(r, (s) => s.winR, rWindow)), est(nfl.winYearOverYearR.r));
@@ -732,9 +767,10 @@ export function renderGradeMarkdown(grade: CareerGrade): string {
   const say = (s = "") => lines.push(s);
   say(`# ADR-087 D5b: the 20-season check, pass ${grade.pass}${grade.smoke ? " (SMOKE: not a graded report)" : ""}`);
   say();
-  say("The bands are the owner's answers of 2026-10-31 and the readings recorded with them (ADR-087 §11): a row that names a card (Drift, Close, Old, Even) " +
-    "carries the band or mark that card's answer set. The Old card's rows (the 34-and-over share, reaching ten seasons) are GATE: they block the flip " +
-    "until teams cut old players sooner. The week-8 league rows are set against the latest three real seasons, 2022-24.");
+  say("The bands are the owner's answers of 2026-10-31 and 2026-11-01 and the readings recorded with them (ADR-087 §11): a row that names a card " +
+    "(Drift, Close, Old, Even, Spread, Floor) carries the band or mark that card's answer set. The Old card's rows (the 34-and-over share, reaching ten seasons) " +
+    "are GATE: they block the flip until teams cut old players sooner. The pooled sd is measured from the league file as loaded (Spread). The win spread's " +
+    "2.75 floor gates the flip; growth tuning is judged against season one (Floor, reported). The week-8 league rows are set against the latest three real seasons, 2022-24.");
   const pending = grade.rows.filter((r) => r.mark === "OWNER");
   if (pending.length > 0) {
     say();
@@ -752,6 +788,7 @@ export function renderGradeMarkdown(grade: CareerGrade): string {
   say();
   say("A check is **not resolvable** when its band's half-width is under 2·√(SE_sim² + SE_ref²) and its value is in the band or outside it by no more than that; " +
     "a value further outside its band fails. A floor (the win spread's 2.75, the coach-style 5% of slots) is never unresolved: below it fails. " +
+    "Not below season one (the win spread's tuning yardstick) has no allowance: at or above it passes; below it follows the rule above. " +
     "The sim's SE is the seed-to-seed SD over √seeds.");
   say();
   say("## The flip");
