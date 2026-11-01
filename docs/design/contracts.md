@@ -525,6 +525,7 @@ export interface SaveFile {
     perceptions: PerceivedAttributes[];   // per observer×subject
     league: LeagueStructure;               // ADR-078 C7
     season: SeasonState | null;            // ADR-078 C7 (was `standings: unknown`)
+    officiating?: { crews: OfficiatingCrew[]; assignments: { game: GameId; crew: OfficiatingCrewId }[] };  // ADR-093 F7: the league's crews this season, and the crew given each game so far, played or not; optional, as above
     narrativeState: unknown;               // typed in narrative spec v0
   };
   history: {                          // summaries, not raw event streams
