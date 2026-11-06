@@ -63,6 +63,7 @@ import type {
   TeamId,
 } from "@ff/contracts";
 import { ATTR } from "../attrs.js";
+import { crewOnRecord } from "../officials/officials.js";
 import { rollD100 } from "../rolls.js";
 import { simulatePlay } from "../sim/play.js";
 import { playsLegacyRules } from "../sim/pocketRules.js";
@@ -800,7 +801,7 @@ export function simulateGame(
 
   // --- the loop -----------------------------------------------------------
 
-  log.gameStart(s.home, s.away, seed);
+  log.gameStart(s.home, s.away, seed, inputs.crew === undefined ? undefined : crewOnRecord(inputs.crew));
 
   if (s.phase === "PREGAME") {
     const coinRoll = rollD100(gameRng.fork("coin"), []);

@@ -2,7 +2,7 @@
 
 - **Date:** 2026-10-31
 - **Proposed by:** Orchestrator (thread "Design penalties with human officials")
-- **Status:** **approved (design), all eight questions ruled on 2026-10-31 (§15).** Nothing in `packages/` changes with this ADR. Seven questions went to the owner (§13), all answered on 2026-10-31 (§15); Q6's answer brought an eighth, Q8 (§7.2), in plain words in [ADR-093-questions-explained.md](ADR-093-questions-explained.md) and on cards in the thread. Each contracts edit in §10 needs the owner's typed yes naming it, asked at the step that needs it. The owner never merges: each step comes with its numbers and needs the owner's word before the Orchestrator merges it. **Revised 2026-10-31, the same night,** after the owner asked whether the recommendations rest on real NFL statistics ("is Q1 B about 2.2 real holds a game a real statistic?" It was not: it was the real flag rate divided by a guessed seen chance). Two search passes and new counts (the real-numbers page, Tables 5 to 9 and sources P1 to P9) changed **Q1's recommendation from 1 in 2 to 2 in 3** (§5.2, the NFL's own error count) and **Q5's from no lean to a small lean on the defense's judgment calls** (§6.4, the 2020 season without fans); Q2's 1 in 20 and Q4's yes now rest on real bounds (§5.3, §6.4); the crews' carry-over is now measured, 0.35 (§6.1).
+- **Status:** **approved (design), all eight questions ruled on 2026-10-31 (§15).** Nothing in `packages/` changes with this ADR. Seven questions went to the owner (§13), all answered on 2026-10-31 (§15); Q6's answer brought an eighth, Q8 (§7.2), in plain words in [ADR-093-questions-explained.md](ADR-093-questions-explained.md) and on cards in the thread. Each contracts edit in §10 needs the owner's typed yes naming it, asked at the step that needs it. The owner never merges: each step comes with its numbers and needs the owner's word before the Orchestrator merges it. **Revised 2026-10-31, the same night,** after the owner asked whether the recommendations rest on real NFL statistics ("is Q1 B about 2.2 real holds a game a real statistic?" It was not: it was the real flag rate divided by a guessed seen chance). Two search passes and new counts (the real-numbers page, Tables 5 to 9 and sources P1 to P9) changed **Q1's recommendation from 1 in 2 to 2 in 3** (§5.2, the NFL's own error count) and **Q5's from no lean to a small lean on the defense's judgment calls** (§6.4, the 2020 season without fans); Q2's 1 in 20 and Q4's yes now rest on real bounds (§5.3, §6.4); the crews' carry-over is now measured, 0.35 (§6.1). **Amended 2026-11-01 for step 1:** §16, the step-1 ledger, records how step 1 reads this ADR and what it builds; it changes no ruling but the timing of the stand-in league's copied crews, which come in a step 1b right after step 1, not in step 1 as Q3 says, unless the owner says otherwise (§16 A11); only the near-foul's words in §5.1 and §5.3 change in place. **Ruled 2026-11-06:** step 1's question 1, the crews' carry, is 0.68 (card: "0.68, steady like real crews"), in place of the 0.35 of Q3's ruling, §6.1 and §13's confirmation, which stay as written (§15, §16 A5); and the owner typed the yes for contracts edit E1 (§16 A2).
 - **Asked for by:** the owner, 2026-10-30, on ADR-091's question S2: *"For S2 follow the real NFL rules. If you're waiting on another phase for penalties then it's okay to wait, just make a note that a stem drawing offsides will certainly be resulting in whatever penalty the NFL naturally enforces."* (23:42Z) and *"While we're at it, please make a note for whenever we go over penalties that we need to create a system that accounts for imperfect human reffing"* (23:59Z). On 2026-10-31 at 00:57Z the owner picked this design from the list of work that stays out of the play code while the pocket fix (ADR-089) is measured.
 - **Builds on, and does not reopen:** ADR-091 §8 (defensive offside from a stem, the game's first penalty: a free play, 5 yards or half the distance, the coach's option, the computer's rule D13); ADR-092 C1 (the count battle on every snap, its own ADR, designed after ADR-089: false starts, jumping the count, neutral zone infraction, encroachment, the defensive delay of game); ADR-072 (`discipline`, every position, whose registry note says "pre-snap penalties later", `contracts/src/registry.ts:128`); `player-personality.md` (unsportsmanlike and taunting rates as a sign of a volatile player); ADR-005 (a die only when it matters); Iron Rules 3, 4 and 6.
 - **Real numbers:** [ADR-093-real-penalty-numbers.md](ADR-093-real-penalty-numbers.md) (COMPUTED, nflverse 2022-2024, every flag, every referee).
@@ -113,7 +113,9 @@ Every flag against the other team is a coach's decision (Iron Rule 6): accept or
 
 ### 5.1 One roll per foul, and one per near-foul
 
-When a player commits a foul, the officials roll **once**: flagged or not (`official_sees`, new `CheckKind`, §10). When a player **nearly** commits one (his own foul roll missed by a small margin, §5.3), they roll once for a wrong flag (`phantom_flag`). A snap with no foul and no near-foul rolls nothing for officials, which is ADR-005's die only when it matters. Both rolls go through the seeded PRNG (Iron Rule 4).
+When a player commits a foul, the officials roll **once**: flagged or not (`official_sees`, new `CheckKind`, §10). When a player **nearly** commits one (his own foul roll only just made its target, §5.3 and §16 A2) (amended 2026-11-01, step 1), they roll once for a wrong flag (`phantom_flag`). A snap with no foul and no near-foul rolls nothing for officials, which is ADR-005's die only when it matters. Both rolls go through the seeded PRNG (Iron Rule 4).
+
+*Step 1's reading: §16 A9 (added 2026-11-01, step 1).*
 
 ### 5.2 Visibility
 
@@ -122,6 +124,8 @@ When a player commits a foul, the officials roll **once**: flagged or not (`offi
 | **plain** | false start, offside, encroachment, neutral zone infraction, delay of game, too many men, illegal formation, illegal shift and motion, intentional grounding | 95 in 100 |
 | **in the open** | pass interference both ways, roughing the passer, face mask, horse collar, unnecessary roughness, taunting, unsportsmanlike conduct, illegal forward pass | 80 in 100 |
 | **in the crowd** | offensive holding, defensive holding, illegal use of hands, illegal contact, blocks in the back, ineligible man downfield, chop block, clipping | **2 in 3** (Q1, ruled by the owner 2026-10-31, §15; the choices were 2 in 3, 1 in 2 and 1 in 3) |
+
+*Step 1's reading: §16 A1 (added 2026-11-01, step 1).*
 
 The plain and open rows are CHOSEN (football judgment: a false start is missed only when the official is screened; an interference behind a play the side judge is not watching can be). The crowd row is the owner's question because it sets how many holds happen that nobody flags, and a hold changes the play (§8).
 
@@ -136,7 +140,7 @@ The plain and open rows are CHOSEN (football judgment: a false start is missed o
 
 ### 5.3 Wrong flags come from close plays
 
-A wrong flag in a real game is almost never on nothing at all: it is on a block that looked like a hold, a pass break-up that looked early, a lineman whose hand twitched. So the foul roll of each moment (§8) reports its margin, and a miss by **10 points or less** is a **near-foul**. The officials then roll `phantom_flag` against a chance set so that, league-wide, wrong flags are the owner's share of all flags in that family (**Q2, ruled by the owner 2026-10-31 (§15): 1 in 20**; the choices were 1 in 50, 1 in 20 and 1 in 10). Plain fouls take a tenth of that share (a lineman who did not move is rarely flagged for a false start).
+A wrong flag in a real game is almost never on nothing at all: it is on a block that looked like a hold, a pass break-up that looked early, a lineman whose hand twitched. So the foul roll of each moment (§8) reports its margin: a foul is a foul roll that misses (margin below 0), as in ADR-091 §5.6's "the first miss is defensive offside", and a **near-foul** is one that only just makes its target, by **10 points or less** (margin 0 to 10, 11 faces; §16 A2 and A9) (amended 2026-11-01, step 1). The officials then roll `phantom_flag` against a chance set so that, league-wide, wrong flags are the owner's share of all flags in that family (**Q2, ruled by the owner 2026-10-31 (§15): 1 in 20**; the choices were 1 in 50, 1 in 20 and 1 in 10). Plain fouls take a tenth of that share (a lineman who did not move is rarely flagged for a false start).
 
 **What the real numbers say (added 2026-10-31; sources P2, P4, P5, P9, Table 9).** No NFL source counts wrong flags across all fouls, but four numbers bound the share. The league's grading found **fewer than one wrong call a game in 2014** (P2), under 7% of that season's flags. The league judged **2 of 14 roughing-the-passer flags wrong** on Week 1's Sunday in 2018, a weekend with twice the usual roughing calls, and its Competition Committee found **3 of more than 80** roughing calls from 2022 "questionable" (P5). **Replay took away 3 of 2019's 437 pass interference flags** (0.7%), a floor, since only 27 flags were reviewed and only a clear error could be reversed (Table 9). In the NBA's audited last two minutes, **about 3% of whistled fouls are wrong** (P9). At **1 in 20** judgment flags the game's wrong flags are about 0.4 a game, **about 3% of all flags**, inside every bound; 1 in 50 gives about 1.2%, and 1 in 10 about 6% (Table 10), close to the league's ceiling and twice what the audits find. **The recommendation stayed 1 in 20, now on these numbers, and the owner ruled it.** Every source also finds missed fouls far outnumbering wrong flags: replay added 7 pass interference flags for each one it took away (Table 9), and the NBA's audit finds 6.7 missed fouls per wrong whistle (P9). With Q1 at 2 in 3 and Q2 at 1 in 20, the design's missed fouls outnumber its wrong flags about 8 to 1 (Table 10).
 
@@ -152,6 +156,8 @@ The seen chance and the wrong share decide the true rate (§5.2), never the call
 
 Each crew carries a **lean for each of five families**, 50 the league average. The lean multiplies both its seen chance and its wrong-flag chance. Each family's spread is set so the crews' called rates spread as the NFL's 17 referees did (Table 2, crew SD as a share of the league mean). A single season spreads wider than three seasons pooled, because crews change members (Table 6), so the build targets the single-season spread, measured for each family at its step:
 
+*Step 1's reading: §16 A3 and A4 (added 2026-11-01, step 1).*
+
 | family | fouls | crew SD (real) | what it means |
 |---|---|---|---|
 | **line holding** | offensive holding, illegal use of hands, chop and low blocks | 13% pooled over 2022-2024; **about 17% in a single season** (7% to 29%, Table 6) | the clearest crew difference in the data: 68% of the referee-to-referee spread is real, and it lasts (correlation 0.35 from one season to the next over 158 referee-seasons, 2015-2025, about 4.7 standard errors; Table 6) |
@@ -160,13 +166,19 @@ Each crew carries a **lean for each of five families**, 50 the league average. T
 | **technical** | illegal formation, illegal shift, illegal motion, ineligible man downfield, delay of game | 16% to 36% | the formation and shift calls are a crew's own emphasis |
 | **the snap** | false start, offside, neutral zone, encroachment | 0% to 10% | crews call these alike: the jump is plain to see |
 
+*Step 1's reading: §16 A1 (added 2026-11-01, step 1).*
+
 **A crew's lean carries into the next season at 0.35 (COMPUTED, Table 6; revised 2026-10-31 from a CHOSEN 0.45):** the correlation of each referee's offensive-holding rate from one season to the next, 2015 to 2025, over 158 referee-season pairs. The other families use it until their own steps measure theirs. The build reports its crews' year-to-year correlation beside the real one; it does not fit to it.
+
+*Step 1's reading: §16 A5 (added 2026-11-01, step 1).*
 
 **How much it matters (COMPUTED from Table 2's range):** a game with the strictest holding crew has about 1.3 more offensive holds flagged than with the loosest; every crew together, the strictest calls 15.5 flags a game and the loosest 12.4.
 
 ### 6.2 Crews are assigned each week (Q3)
 
 The NFL assigns its 17 crews to games each week. **Ruled (Q3, the owner, 2026-10-31; §15):** the league has 17 crews with made-up referee names, the stand-ins for the real crews the way the players and coaches are (the owner's direction of 2026-10-23); each week's schedule assigns one crew to each game, with no crew working the same team twice in four weeks (CHOSEN); and the coaches see the crew's leans in game week, the way real teams get a crew's tendencies. Later, the weekly game plan (ADR-076) may read it ("this crew calls holding, keep your hands inside"). **The other choice (not taken):** no named crews; each game draws its leans fresh, and nobody sees them.
+
+*Step 1's reading: §16 A6 and A11 (added 2026-11-01, step 1).*
 
 ### 6.3 Who assigns them
 
@@ -176,11 +188,15 @@ The crews belong to the league, so they are made with the league and saved with 
 
 **Late and close, and the playoffs (Q4).** Flags fall 16% late in close games (fourth quarter or overtime, within 8 points) and 17% in the playoffs (Table 4, z 6.2 and 3.7). Part is the officials letting them play; part is the players and the play mix (false starts, not a judgment call, also fall late: 13.1 against 16.8). **Ruled (Q4, the owner, 2026-10-31; §15): yes, officials let them play, on judgment calls only** (the crowd and open families): their seen chance falls late in close games and in the playoffs by what the build measures is needed, after the players' own share is in, to match Table 4. Pre-snap fouls get no officials' lean; their late fall must come from the players (ADR-092's count design). **The other choice (not taken):** officials call every snap alike, and only the players change.
 
+*Step 1's reading: §16 A7 (added 2026-11-01, step 1).*
+
 **What the real numbers say about Q4 (added 2026-10-31; Tables 4 and 8, source P7).** The drop is old and steady: 12.8 flags per regular-season game against 10.7 per playoff game over 2000-2019 (CBS Sports, P7). It is not just the better teams: in the regular season, playoff teams draw only about 2.5% fewer flags than the rest (2015-2025, Table 8), against a playoff drop of 17% or more, and flags on the offense, mostly holding, fall 30% in the playoffs against 17% on the defense. The research names it: officials' calls, "especially judgment calls", go "way down near the end of tight games and the bigger the stage" in four sports, from "omission bias", officials fearing a wrong call more than a missed one (Moskowitz and Wertheim, P7). And holding and pass interference follow an arc over a game, "low at the beginning and ends of the game, but high in the middle" (Snyder and Lopez, 2015, P7), as Table 4's quarters show (offensive holding 14.6, 15.7, 19.9 and 14.2 per 1,000 snaps). **The recommendation stayed yes, and the owner ruled it**; the build fits that arc over the game as part of the same lean.
 
 **Home and road (Q5).** Road teams draw 7% more flags (z 3.4), but not evenly: the clearest road gaps are **neutral zone infractions by the road defense** (1.62 times as many, z 3.8, where the home offense's hard count draws them, ADR-091 §5.3's hard count at home only), **delay of game by the road offense** (1.26, z 2.6, the crowd noise), and **defensive holding by the road defense** (1.34, z 4.0). Offensive holding goes the other way (0.95, not beyond chance). **The 2020 season, played mostly without fans, splits them (added 2026-10-31; Table 7, source P8).** Without crowds the road team's extra neutral zone infractions (1.64 to 0.83) and delays of game (1.33 to 0.98) vanished, as a published study of that season found for the defense's pre-snap fouls (Farnell, 2023, P8): those are the crowd. The road defense's extra **pass interference** (1.14 with crowds, 1.17 without), **defensive holding** (1.11, 1.08) and **illegal contact** (1.29, 1.19) did not shrink, and road teams were still penalized about 3 yards a game more (The Ringer, P8). A peer-reviewed study that adjusts for score, time and teams finds the odds of defensive pass interference 18 to 20% higher when the home team has the ball (Snyder and Lopez, 2015, P8).
 
 **Ruled (Q5, the owner, 2026-10-31; §15): a small lean, on the defense's judgment calls only** (the recommendation as revised from no lean): for pass interference, defensive holding and illegal contact, the road defense's seen chance and wrong-flag chance are raised so its called rates sit 1.1 to 1.3 times the home defense's, as in Table 7. Whether the cause is the officials or something else about playing away, the play-by-play cannot tell; the lean is the simplest way to copy it. The pre-snap gaps stay the crowd's (the hard count at home, and noise for the road offense when crowd noise is built), and offensive holding's reverse gap (0.92) is a **watched check**, brought to the owner with its number if the build misses it. **The other choice (not taken):** no lean, and the game misses the road defense's extra judgment-call flags, which the season without fans showed are not the crowd's noise.
+
+*Step 1's reading: §16 A8 (added 2026-11-01, step 1).*
 
 ## 7. What the coach sees: the assistant head coach, challenges and the film (Q6, Q8)
 
@@ -226,6 +242,8 @@ Each family of fouls has its own moment in a play, and its own step in the build
 | **kicks** | the return's blocks | as on scrimmage, with the special teams design |
 
 The foul roll is `penalty_check` (the existing `CheckKind`, ADR-091's first producer): `d100 + Discipline ÷ 5` against the family's number, rolled only when the moment happens. Personal fouls add the player's Volatility. Each family's number is fitted so its called rate meets Table 1 under the owner's Q1 and Q2.
+
+*Step 1's reading: §16 A2 (added 2026-11-01, step 1).*
 
 **A hold changes the pocket.** At Q1's ruled 2 in 3, about one hold a game, both teams together, changes a play with no flag (§5.2). That is the pocket's own story, so line holding is built **after ADR-089 finishes**, and its effect on pressure and sacks is measured as its own arm (§9).
 
@@ -274,6 +292,8 @@ The foul roll is `penalty_check` (the existing `CheckKind`, ADR-091's first prod
 - **Officials as people:** each of the seven officials with his own eyes (the umpire sees the line, the back judge the deep ball), grades, and the playoff assignments for the best-graded crews.
 - **Reputation:** officials watching a known holder.
 - **The game plan reads the crew** (ADR-076): a coordinator who prepares for a strict holding crew lowers his line's holds that week.
+
+*Step 1 adds referee careers to this list, a referee retiring and a new one arriving: §16 A6. It also names two fixes for step 9: the referees' names kept clear of the staff's (§16 A4), and each week drawn the first time anything in it asks (§16 A6) (added 2026-11-01, step 1).*
 
 ## 13. Questions for the owner
 
@@ -332,3 +352,273 @@ The owner's answers, as given; each stands for the build. Questions not listed a
 - **Q6, 2026-10-31 12:55Z (in the thread, in words):** "For Q6 can we eventually build our own video library where it's able to create standards for various penalties (or missed penalties) that can swap out the jersey colors, player looks, and stadium details to fit the teams playing and allow the game player to decide whether or not to throw a challenge flag? In the meantime, let's make a temporary system where the assistant head coach offers the game player an opportunity to challenge and gives a percentage of how certain he is. We may potentially want to make the assistant head coach it's own position on staff with its own skills. But for now let's just make it an NPC-type role that serves as the voice for helping our game players during the game in any capacity that wouldn't be related to a coordinator's playcalling." Written into §7 (the assistant head coach now, the video library later) and §12. Because the NFL lets a coach challenge almost no penalty (§7.1), what may be challenged went back to the owner as Q8.
 - **Q8, 2026-10-31 13:08Z (card): real NFL rules.** The coach may challenge what an NFL coach may: rulings of fact (a catch or an incompletion, the spot and the line to gain, down by contact, the sideline, the goal line, a fumble and its recovery, a kick touched, the number of players on the field), under §7.1's rules. So the officials also make mistakes on those rulings, at rates sized so the game's challenges and reviews come out at Table 11's numbers: its own design, after ADR-089, because it changes plays (§12). On a penalty the assistant head coach says what he saw, with his percentage, and there is no flag to throw; the booth's replay assist picks up a wrong flag among its few fouls by itself and never adds one.
 - **Q7, 2026-10-31 12:44Z (card): yes, now.** Steps 0 (the rulebook) and 1 (the officials and crews) are built now, while ADR-089 is measured, because neither changes a play: nothing calls the rulebook and nothing produces a foul yet. Each step comes to the owner with its tests before it merges; step 0 merges only after every rule of §4 is checked against the rulebook (§4.1). Their contracts edits (F1, F3 and F6 at step 0; F2, F4, F5 and F7 at step 1) each still need the owner's typed yes naming them (§10).
+- **Step 1's question 1, 2026-11-06 19:08Z (card): 0.68.** The card asked "Should a crew's habit carry over each winter at 0.68 or 0.35?", and the owner chose "0.68, steady like real crews". A crew's lean carries into the next season at 0.68, so the game's own holding flags show the real link between a referee's seasons, 0.35 (real-numbers Table 6), once one season's luck is in: 0.35 ÷ 0.515 (COMPUTED, §16 A5). This replaces the 0.35 that Q3's ruling, §6.1 and §13's confirmation state, and §6.1's "it does not fit to it", which stay as written. Step 4's crew report tests that model of the luck against holding's real 0.35. The other families use the same dial until their own steps measure theirs (§6.1).
+
+## 16. The step-1 ledger (added 2026-11-01)
+
+*The Orchestrator wrote this section on 2026-11-01 from plan-v2, the step-1 build plan named below, as the step-1 PR's first commit. It records how step 1 (§11) reads this ADR, and what step 1 builds. It changes no ruling but one timing: Q3's ruling builds the stand-in league's copied crews at step 1, and they come in step 1b, a second small PR right after step 1's (A11). The owner was told so on 2026-11-01, and it stands unless the owner says otherwise. The step-1 build plan is `/mnt/project-files/design/ADR-093-step1/plan-v2.md` (revision 2, after four reviews), with its reader notes, reviews and scripts beside it. The plan cites the tree at `7b06b4e`, PR #62's head, and so does this section. No code or test reads this file, and it is outside ADR-089's source fingerprint. Step 1, this section included, comes to the owner with its tests and its numbers, and merges only on the owner's word (§15, Q7). It then merges only inside the window agreed with ADR-089's thread, because step 1's code voids ADR-089's cached arms.*
+
+### What stays as written, and what changed in place
+
+- **Word for word:** the six ruled paragraphs (Q1's in §5.2, Q3's in §6.2, Q4's and Q5's in §6.4, Q6's in §7 and Q8's in §7.2); §6.1's lean sentence, families table and carry; D1 (§9); §13; and §15.
+- **Pointers:** each paragraph an item below reads has a one-line pointer after it, tagged "(added 2026-11-01, step 1)". They follow §5.1's paragraph (A9), §5.2's visibility table (A1), §6.1's opening paragraph (A3, A4), §6.1's families table (A1), §6.1's carry (A5), Q3's ruling (A6, A11), Q4's ruling (A7), Q5's ruling (A8) and §8's foul roll (A2). One more follows §12's list, which A4 and A6 add to.
+- **Changed in place:** only A2's two sign errata, one clause in §5.1 and one in §5.3, each tagged "(amended 2026-11-01, step 1)". §5.3's erratum also names A9. Q2's ruling sentence in §5.3 stays as it was.
+- **One erratum, recorded here and not edited in place:** §6.1's line-holding row says "over 158 referee-seasons". The count is 158 pairs of back-to-back referee-seasons (REAL), as the carry paragraph under the table and Table 6 say ("consecutive referee-season pairs: 158").
+- **Held back:** A10, how D1's crew band reads for a family. No step-1 number tests the band, since step 1 calls no foul (§11). A10 comes to the owner with the first family's called-rate numbers (step 2's snap family or step 4's line holding), as a confirmation or a question. D1 stays as written until then. The items keep the plan's numbering, so there is no A10 below.
+- **Later answers** come as new dated §15 entries, each with a new line here: question 1 (A5); the copies' timing, if the owner changes A11's; the copies' spread (A11); and A10's reading. Nothing written here is rewritten.
+
+### The labels
+
+Every number in this section carries one of four labels, as the plan uses them:
+
+- **REAL:** counted from nflverse: read from the real-numbers page (a table, or its totals) or the data file behind it, or from a dated query named where it is used. The sections above label the page's figures COMPUTED, since this ADR counted them.
+- **REPORTED:** a published figure the real-numbers page quotes from its sources P1 to P10, not counted from data.
+- **COMPUTED:** arithmetic or a simulation on cited numbers, here or in the plan and its notes.
+- **CHOSEN:** judgment. "CHOSEN, ruled" marks the owner's own answer in §15.
+
+### A1. The nine fouls placed
+
+**Owner's word: not needed.** §13 confirms the five families, and placing kinds within them is this ADR's text: the contracts record left it to §6.1 (`/mnt/project-files/design/ADR-093-contracts/final.md`, §10 item 7). Step 1's note to the owner lists the placements.
+
+Seven of the kinds in `FoulKind` (`contracts/src/penalties.ts:24-55`) were in none of §6.1's lists, and tripping was in no class of §5.2. Two more could take either of two families. Step 1 places all nine:
+
+| kind | family, visibility | why |
+|---|---|---|
+| OFFENSIVE_TOO_MANY_MEN_ON_FIELD | TECHNICAL, plain | the lineup as called is the technical family's moment (§8: "a flag the coach's lineup made"); §5.2 lists too many men as plain; it has no Table 2 row, so its weight is 1 (A3); 0.33 per 1,000 snaps (REAL, Table 1) |
+| DEFENSIVE_TOO_MANY_MEN_ON_FIELD | TECHNICAL, plain | the same; 1.26 per 1,000 snaps (REAL, Table 1) |
+| ILLEGAL_FORWARD_PASS | TECHNICAL, open | a rule of the pass's form, a loss of down like grounding (§4.3); §5.2 lists it in the open; under 30 flags in three seasons (REAL: absent from Table 1) |
+| INTENTIONAL_GROUNDING | TECHNICAL, plain | §5.2 lists it as plain; its crew SD is 0% (REAL, Table 2), so its weight is 0, and the family only names its build step |
+| CLIPPING | LINE_HOLDING, crowd | a block from behind, one act with the block in the back; §6.1 already puts the chop block, a 15-yard block foul, in line holding; §5.2 lists clipping in the crowd |
+| ILLEGAL_BLOCK_ABOVE_THE_WAIST | LINE_HOLDING, crowd | §5.2's blocks in the back are in the crowd; its crew SD is 0% (REAL, Table 2); most of its real flags are on kicks (105 of 175, REAL, Table 1), which are KICKS anyway |
+| TRIPPING | PLAYER_SAFETY, **open** | the booth's replay assist lists tripping beside face mask, horse collar and roughing (§7.1; REPORTED, P10), fouls the cameras see plainly; the script behind Table 10 counts it in the open (`families.py:14`). Against: §4.3 enforces it with the block in the back. It is rare either way: under 0.26 per 1,000 snaps (COMPUTED: under 30 flags in 116,127 snaps, REAL) |
+| ILLEGAL_USE_OF_HANDS, the defense's | LINE_HOLDING, crowd, for both sides | §6.1 lists it there, and §11's step 4 builds "line holding and illegal hands"; it shows no road gap (1.04, REAL, Table 7), unlike the three coverage fouls of Q5. If step 5 builds a hands-to-the-face moment in coverage, that moment may take COVERAGE under step 5's own amendment. Not found: how the defense's flags split between rushers and defensive backs, which needs a roster join of `penalty_player_id`, a step-4 task |
+| DEFENSIVE_DELAY_OF_GAME | **SNAP**, plain | this ADR's header puts it in ADR-092 C1's count battle; its foul before the snap is §4.3's abrupt move that draws a flinch (`contracts/src/penalties.ts:28-33`), the snap family's moment (§8: the cadence); the contract names the offense's DELAY_OF_GAME as TECHNICAL, though step 3 builds it with the snap, and makes no such note for the defense's (`contracts/src/penalties.ts:59-60`); §6.1's technical row counts the offense's flags only (all 495 delay-of-game flags of 2022 to 2024 were the offense's: REAL, Table 1, whose 100% on offense is exactly 1.0 in its data, `/mnt/project-files/design/ADR-093-data/adr093-flags.json`). Its other half, delaying the next snap after a play, waits for its own step, and may take TECHNICAL by its moment then |
+
+**The data already place them.** `families.py`, the script that made Table 10 (`/mnt/project-files/design/ADR-093-data/families.py:8-18`), puts both too-many-men kinds, grounding and the defense's delay of game in the plain class. It puts the illegal forward pass and tripping in the open, and illegal use of hands, the block above the waist, chop blocks and clipping in the crowd. So Q1's ruled numbers already counted these placements.
+
+**Every kind, as step 1 builds it,** on a scrimmage snap (the counts are COMPUTED):
+
+| family | kinds | visibility | count |
+|---|---|---|---|
+| SNAP | FALSE_START, DEFENSIVE_OFFSIDE, NEUTRAL_ZONE_INFRACTION, ENCROACHMENT, OFFENSIVE_OFFSIDE, DEFENSIVE_DELAY_OF_GAME | all plain | 6 |
+| TECHNICAL | DELAY_OF_GAME, ILLEGAL_FORMATION, ILLEGAL_SHIFT, ILLEGAL_MOTION, OFFENSIVE_TOO_MANY_MEN_ON_FIELD, DEFENSIVE_TOO_MANY_MEN_ON_FIELD, INTENTIONAL_GROUNDING (plain); INELIGIBLE_DOWNFIELD_PASS (crowd); ILLEGAL_FORWARD_PASS (open) | mixed | 9 |
+| LINE_HOLDING | OFFENSIVE_HOLDING, ILLEGAL_USE_OF_HANDS (both sides), CHOP_BLOCK, CLIPPING, ILLEGAL_BLOCK_ABOVE_THE_WAIST | all crowd | 5 |
+| COVERAGE | DEFENSIVE_PASS_INTERFERENCE, OFFENSIVE_PASS_INTERFERENCE (open); DEFENSIVE_HOLDING, ILLEGAL_CONTACT (crowd) | mixed | 4 |
+| PLAYER_SAFETY | ROUGHING_THE_PASSER, UNNECESSARY_ROUGHNESS, FACE_MASK, HORSE_COLLAR_TACKLE, UNSPORTSMANLIKE_CONDUCT, TAUNTING, TRIPPING | all open | 7 |
+| KICKS | every foul on a kick, whatever its kind | the kind's own | n/a |
+
+- That is 31 kinds: 13 plain, 10 open and 8 crowd (COMPUTED).
+- Every foul on a kick is KICKS (`contracts/src/penalties.ts:58-62`). It takes no lean, and it keeps its kind's own visibility.
+- **How the placements move the spreads** (COMPUTED): with grounding out of TECHNICAL, that family's lean SD would be 11.4 points, not 10.3. With all of illegal use of hands in COVERAGE, COVERAGE would be 9.0 and LINE_HOLDING 8.2, not 8.8 and 8.6 (A4).
+
+### A2. The near-foul's sign
+
+**Owner's word: not needed for this ADR's words. The contracts comment (E1) needs the owner's typed yes naming it.**
+
+- **The sign.** A foul roll (`penalty_check`, §8) that misses, margin below 0, is the foul, as in ADR-091 §5.6: "the first miss is defensive offside". A near-foul is a foul roll that only just makes its target, by 10 points or less: margin 0 to 10, 11 faces of the d100. The old words, "missed by a small margin" (§5.1) and "a miss by 10 points or less" (§5.3), put near-fouls among the misses, which are the fouls. Both now say, in place, that a near-foul only just makes its target.
+- **The 11th face**, margin 0, is CHOSEN. The old words counted 10 faces (margins −1 to −10). The 10 points stay §5.3's CHOSEN margin.
+- **The test.** Step 1's engine test pins the sign at its edges (CHOSEN): margins −100 and −1 read as a foul, 0 and 10 as a near-foul, and 11 as clean.
+- **Volatility, for step 6.** Under this sign a higher roll is a cleaner play: Discipline raises the roll, so a disciplined player fouls less. So §8's "Personal fouls add the player's Volatility" must lower the roll, not raise it, or a volatile player would foul less, against §3 ("a volatile player's late hits and taunts rise"). §8 stays as written. Step 6's amendment settles how Volatility enters the roll.
+- **E1, the contracts comment.** F4's note on `phantom_flag` calls a near-foul "a `penalty_check` that only just missed (§5.3)" (`contracts/src/events.ts:173`). E1 makes it "a `penalty_check` that only just made its target (§5.3)", re-wrapping the note's next two lines and changing no other word. It is a contracts text change, so it needs contracts-guardian's review and the owner's typed yes naming it. The yes is asked with step 1's tests and numbers, and E1 lands in the step-1 PR, beside this item's two errata, so, if the yes comes in time, on main the contract and this ADR change in the same merge (the owner was told on 2026-11-01 that the fix comes for a typed yes with step 1). If the yes has not come when step 1 merges, E1 waits for step 2's PR, which needs it. It is only a comment, but `contracts/src/events.ts` is inside ADR-089's source fingerprint, which hashes comments too (`calibration/src/pocket/step1.ts:130`, `:143-172`), so like any source change it voids ADR-089's cached arms and the player-checks cache: it never lands alone. Until it lands, the note contradicts the build, and after step 1's merge §5.1 and §5.3 too; the engine test holds the sign. The edit, anchored, and its review are filed at `/mnt/project-files/design/ADR-093-step1/E1.md`.
+- **E1's typed yes, 2026-11-06 19:09Z:** "Merge #62 and yes, make contracts edit E1". E1 lands in step 1's PR as its own contracts commit, word for word from `E1.md`, so on main the contract and this item's two errata change in the same merge (added 2026-11-06).
+
+### A3. The lean, its weights, the ceiling and the floor
+
+**Owner's word: not needed for the mapping. How a strict crew is held in goes to the owner as a confirmation, with all its costs, in step 1's note.**
+
+§6.1 says "The lean multiplies both its seen chance and its wrong-flag chance." A product cannot stay a chance above 1. Step 1 reads the sentence this way:
+
+```
+seen chance       = min(0.99, class × M × Q4 × Q5)
+wrong-flag chance = min(1, p × M × Q4 × Q5)        (p: A9; no 0.99 cap)
+M                 = 1 on a kick; otherwise max(0.20, 1 + w × (L − 50) ÷ 50)
+```
+
+- **class** is §5.2's seen chance: plain 0.95 and open 0.80 (CHOSEN, confirmed in §13); crowd 2/3 (CHOSEN, ruled, Q1). **Q4** and **Q5** are the situation's factors (A7, A8).
+- **L** is the crew's lean on the foul's family: 0 to 100, with 50 the league (F5).
+- **The scale** (CHOSEN): L ÷ 50 is the crew's called rate of the family over the league's. That is Table 6's own measure ("each referee's offensive-holding rate as a ratio to that season's league rate"), and F5's words: "how much more or less than the league this crew calls each family of fouls".
+- **The weight w** (COMPUTED from REAL Tables 1 and 2) is a kind's crew SD in Table 2 over its family's composite. The composite is the mean of the family's Table 2 SDs, weighted by their Table 1 rates. A kind with no Table 2 row takes w = 1 (CHOSEN). So the weights average 1 over the family's rates (but for their three-place rounding), and a lean L moves the family's called rate by L ÷ 50, as a chance, wherever neither the ceiling nor the floor binds. The die rolls each chance in whole hundredths (A9), so the rolled rate comes close to that but not exactly: at lean 51, coverage rolls 1.015 times what lean 50 rolls at a neutral site, and 1.023 at a home field over both defenses, against 1.02 (COMPUTED). The weights are in the table below.
+- **Mean-neutral:** M is linear in L, and franchise re-centers each family's leans on 50 every season (A4). So where neither bound binds, the crews' mean M is 1 to within rounding, since the 17 leans are rounded to whole points after re-centering (A4): crews spread each foul's rate, and do not move its league rate.
+- **Kicks take no lean** (M = 1): F5 gives a crew no lean on KICKS.
+- **The ceiling, 0.99** (CHOSEN): even the strictest crew misses 1 plain foul in 100. It binds once M passes 1.042 on plain kinds, 1.2375 on open ones and 1.485 on crowd ones (COMPUTED: 0.99 over the class).
+- **Compress** (CHOSEN): what the ceiling cuts is not moved onto wrong flags.
+  - **What it keeps** (COMPUTED): each crew's seen chance below the ceiling, and every wrong-flag chance as filed. Across the league, Q2's 1 in 20 stays within about 1% of itself (5.05% of judgment flags are wrong), and the league's wrong flags within about 0.005 a game (0.388 to 0.393).
+  - **What it does not keep** (COMPUTED). The league's seen chance on the kinds where the ceiling binds falls below §5.2's 95 and 80 in 100: on plain kinds from 0.933 (offensive offside and the defense's delay of game, which have no Table 2 row and so take weight 1; false starts 0.932, about 93 in 100) down to 0.734 (illegal motion, about 3 in 4); on open kinds from 0.790 (illegal forward pass, also at weight 1; face mask 0.782) down to 0.738 (offensive pass interference and taunting, about 74 in 100), while unsportsmanlike conduct, at the ceiling in 1 crew in 200, stays at 0.800. The crowd kinds stay at 0.664 to 0.667, so Q1 barely moves. And the wrong-flag chance has no ceiling, so a crew at the ceiling throws more than 1 in 20 of its flags wrong: on offensive pass interference and taunting, 5.8% at one SD above the league and 7.5% at two; on a plain kind, up to about 1.2% against 0.5% (illegal motion at two SD). The league's wrong share on the capped open kinds rises a little, to about 5.4%.
+  - **What it costs** (COMPUTED). The families' called-rate spreads land at 0.74 (SNAP), 0.67 (TECHNICAL), 1.00 (LINE_HOLDING), 0.92 (COVERAGE) and 0.86 (PLAYER_SAFETY) of their one-season targets (A4). The officials miss about 0.3 more fouls a game (0.31 to 0.33). So Table 10's 3.49 mistakes a game (COMPUTED) become about 3.8, against the "about 3.5" of Q1's ruling. That is still under the league's own 4.3 to 4.5 (REPORTED, P1), a loose bound, since P1 does not split its count into missed fouls, wrong flags and other errors.
+  - **The other way, "spill",** would move what the ceiling cuts onto wrong flags. It keeps every spread, but gives 0.67 wrong flags a game against the 0.39 that the ruled 1 in 20 gives (COMPUTED). That overrides Q2, so step 1 does not take it.
+- **The floor, 0.20** (CHOSEN): no crew calls under a fifth of the league's rate of any kind. It binds for illegal motion in 15% of crews, illegal shift in 4.5%, and offensive pass interference and taunting in 3.7% (COMPUTED). The other floor is the lean's own range, 0 to 100: PLAYER_SAFETY's 0 and 100 sit 3.6 SD out (COMPUTED).
+- **Why the mapping is the Orchestrator's:** F5 says only "how much more or less than the league", and leaves how a lean moves a chance to the engine (`contracts/src/officials.ts:4-5`, `:16-17`).
+- **In plain words, for the owner:** crews differ less on plain calls and on roughing, face mask, taunting and offensive pass interference. Across the league the officials see about 93 in 100 false starts instead of 95, about 3 in 4 illegal motions, and about 74 in 100 offensive pass interference and taunting fouls instead of 80. A strict crew throws more than 1 in 20 of its flags wrong on those open calls (5.8% at one SD). The officials' mistakes go from about 3.5 to 3.8 a game, still under the league's own 4.3 to 4.5 (REPORTED, P1).
+
+**The weights.** Rates are per 1,000 scrimmage snaps (REAL, Table 1). "Under 0.26" marks a kind absent from Table 1: under 30 flags in 116,127 snaps (COMPUTED). Crew SDs are Table 2's (REAL). w is COMPUTED, rounded to three places.
+
+| kind | family | rate | crew SD | w |
+|---|---|---|---|---|
+| FALSE_START | SNAP | 16.18 | 7% | 1.037 |
+| DEFENSIVE_OFFSIDE | SNAP | 5.36 | 10% | 1.481 |
+| NEUTRAL_ZONE_INFRACTION | SNAP | 2.30 | 0% | 0 |
+| ENCROACHMENT | SNAP | 0.87 | 0% | 0 |
+| OFFENSIVE_OFFSIDE | SNAP | 0.43 | no row | 1 |
+| DEFENSIVE_DELAY_OF_GAME | SNAP | under 0.26 | no row | 1 |
+| DELAY_OF_GAME | TECHNICAL | 4.26 | 16% | 1.019 |
+| ILLEGAL_FORMATION | TECHNICAL | 2.27 | 21% | 1.338 |
+| ILLEGAL_SHIFT | TECHNICAL | 1.68 | 36% | 2.293 |
+| ILLEGAL_MOTION | TECHNICAL | 0.34 | 59% | 3.759 |
+| INELIGIBLE_DOWNFIELD_PASS | TECHNICAL | 2.75 | 0% | 0 |
+| INTENTIONAL_GROUNDING | TECHNICAL | 1.21 | 0% | 0 |
+| DEFENSIVE_TOO_MANY_MEN_ON_FIELD | TECHNICAL | 1.26 | no row | 1 |
+| OFFENSIVE_TOO_MANY_MEN_ON_FIELD | TECHNICAL | 0.33 | no row | 1 |
+| ILLEGAL_FORWARD_PASS | TECHNICAL | under 0.26 | no row | 1 |
+| OFFENSIVE_HOLDING | LINE_HOLDING | 15.92 | 13% | 0.996 |
+| ILLEGAL_USE_OF_HANDS | LINE_HOLDING | 2.17 | 17% | 1.303 |
+| ILLEGAL_BLOCK_ABOVE_THE_WAIST | LINE_HOLDING | 0.60 | 0% | 0 |
+| CHOP_BLOCK | LINE_HOLDING | under 0.26 | no row | 1 |
+| CLIPPING | LINE_HOLDING | under 0.26 | no row | 1 |
+| DEFENSIVE_PASS_INTERFERENCE | COVERAGE | 7.69 | 4% | 0.299 |
+| DEFENSIVE_HOLDING | COVERAGE | 6.52 | 15% | 1.120 |
+| ILLEGAL_CONTACT | COVERAGE | 2.62 | 20% | 1.493 |
+| OFFENSIVE_PASS_INTERFERENCE | COVERAGE | 2.16 | 34% | 2.538 |
+| UNNECESSARY_ROUGHNESS | PLAYER_SAFETY | 4.12 | 22% | 1.033 |
+| ROUGHING_THE_PASSER | PLAYER_SAFETY | 2.58 | 24% | 1.127 |
+| FACE_MASK | PLAYER_SAFETY | 2.08 | 19% | 0.892 |
+| UNSPORTSMANLIKE_CONDUCT | PLAYER_SAFETY | 0.76 | 7% | 0.329 |
+| TAUNTING | PLAYER_SAFETY | 0.46 | 34% | 1.596 |
+| HORSE_COLLAR_TACKLE | PLAYER_SAFETY | 0.33 | no row | 1 |
+| TRIPPING | PLAYER_SAFETY | under 0.26 | no row | 1 |
+
+The composites (COMPUTED): SNAP 0.0675, TECHNICAL 0.1570, LINE_HOLDING 0.1305, COVERAGE 0.1340 and PLAYER_SAFETY 0.2130. For COVERAGE, for example, the rates times the weights sum to 7.69 × 0.299 + 6.52 × 1.120 + 2.62 × 1.493 + 2.16 × 2.538 = 18.995, against the rates' own sum, 18.99 (COMPUTED).
+
+### A4. The spreads, and how the crews are made
+
+**Owner's word: not needed.** §6.1 says each spread is "measured for each family at its step".
+
+| family | composite | one season's crew SD, as a share of the league's rate | lean SD, in points | the 17 crews' range, about |
+|---|---|---|---|---|
+| SNAP | 0.0675 | 8.9% | 4.4 | leans 42 to 58 |
+| TECHNICAL | 0.1570 | 20.6% | 10.3 | 31 to 69 |
+| LINE_HOLDING | 0.1305 | 17.2% | 8.6 | 35 to 65 |
+| COVERAGE | 0.1340 | 17.6% | 8.8 | 34 to 66 |
+| PLAYER_SAFETY | 0.2130 | 28.0% | 14.0 | 25 to 75 |
+
+Every figure in the table is COMPUTED, from REAL Tables 1, 2 and 6.
+
+- **How:** lean SD = 50 × about 1.3 × the family's composite (A3). The factor, 1.3146, is Table 6's mean single-season holding SD over Table 2's pooled 13%: 17.09 ÷ 13, where 17.09% is the mean of Table 6's 11 seasonal SDs, 188 ÷ 11 (COMPUTED from REAL). So offensive holding alone spreads 17.09% of the league's rate in one season, about 8.5 points of lean. Its family's composite, with illegal use of hands in, gives 8.6 (both COMPUTED). Taking the mean of the seasons' SDs is CHOSEN; pooling their variances would give 1.41 (COMPUTED).
+- **Provisional, good to whole points** (COMPUTED). The page's rounding alone moves the factor from 1.23 to 1.41, and the unrounded data give 1.34. With Table 2's every-phase counts set against Table 6's scrimmage-only ones, it lies between about 1.09 and 1.31. So the factor is about 1.3, anywhere from 1.1 to 1.4. Step 1 builds from the rounded page.
+- **One factor for all** (CHOSEN): holding's factor serves every family, until each family's step measures its own single-season spread over 2015 to 2025, as Table 6 did for holding.
+- **Making the 17** (the NFL's 17 crews, REAL; CHOSEN, ruled, Q3). Their ids are `crew-01` to `crew-17` (CHOSEN). Each referee gets a made-up name, drawn from franchise's coach name lists: 113 first names by 134 last names, 15,142 pairs (COMPUTED). Each lean is drawn from a normal curve around 50 at its family's SD, then settled (CHOSEN). A referee may share a full name with someone on the league's staff, a coach or a team president, since the referees' names are drawn without looking at the staff: it happens in 60 of 100 generated leagues (57 with a coach), and in world-1 crew-02's referee has the name of T01's special teams coordinator (COMPUTED). Step 9 keeps the two apart both ways, the referees' names clear of every staff name and new coaches' names clear of the referees' (plan-v2, risk 17). That re-records `officials.crews.test.ts`'s referee check, and in a run with crews it changes the later draws of any new coach whose first drawn name is a referee's. A save keeps its referees, a shared name included.
+- **Settling** (CHOSEN), for each family each season: re-center the 17 leans so their mean is exactly 50, clamp them to 0 to 100, and round them to whole points. Without re-centering, the crews' mean would drift by an SD of about 2.1 points a season (8.6 ÷ √17), about 4% of the league's holding rate (COMPUTED).
+- **Drawn at the target:** after re-centering, the 17 leans' own SD comes out at about 0.955 of the target (COMPUTED). Step 1's note to the owner prints both.
+
+### A5. The carry, and question 1
+
+**Owner's word: needed. Question 1 was asked of the owner on 2026-11-01, with 0.68 recommended against 0.35 as written. The build uses 0.35 until the owner answers.**
+
+- **As written:** a crew's lean carries into the next season at 0.35 (§6.1; Q3's ruling, "carries it into the next season at 0.35"; confirmed in §13). It is Table 6's correlation of each referee's holding ratio from one season to the next, over 158 pairs of back-to-back referee-seasons, 2015 to 2025 (REAL; CHOSEN, ruled, Q3).
+- **The draw:** when a new season starts, each lean is drawn again toward its last, L' = 50 + ρ × (L − 50) + √(1 − ρ²) × σ × z, then settled (A4). ρ is the carry, one dial (franchise's `CREW_RULES.carry`); σ is the family's lean SD (A4); z is a fresh normal draw. At ρ = 0.35, √(1 − ρ²) is 0.9367 (COMPUTED). Ids and referees stay. Last season's assignments are dropped, since the four-week rule starts again (A6).
+- **When:** at the start of the next season's run, from last season's crews, never at the end of a season. A save made at a season's end holds that season's crews as they stand (F7).
+- **The finding: 0.35 shows as about 0.18 in the game's own records** (COMPUTED). Table 6 correlates observed flag ratios, and luck is part of each season's ratio. A crew works about 16 games a season (272 ÷ 17), with 2.268 scrimmage holds a game (15.92 per 1,000 snaps × 142.49 snaps a game, where 142.49 is 116,127 ÷ 815, REAL counts) and a single-season spread of 17.09% (A4). So one season's flags show only part of a crew's habit: their reliability is R = 0.1709² ÷ (0.1709² + 1 ÷ (2.268 × 16)) = 0.515. A habit carried at 0.35 shows about 0.35 × 0.515 = 0.18 (simulated: 0.178). For the records to show the real 0.35, the habit must carry at about 0.35 ÷ 0.515 = 0.68 (simulated: 0.348).
+- **The luck in one run** (COMPUTED, by simulation). Over one run of 170 pairs at 0.35, the 5th to 95th percentile is 0.04 to 0.31. About 99 runs in 100 come out below the real 0.35 (about half do at 0.68). Only about 37 in 100 land inside the real number's own 95% range, 0.21 to 0.48, against about 90 in 100 at 0.68.
+- **The real 0.35 is measured with luck too** (COMPUTED). Its 95% range is 0.21 to 0.48 (Fisher, 158 pairs), so the habit that matches it is about 0.68, plausibly 0.40 to 0.93. Table 6's own luck shares put the real crews' habit at 0.65 to 0.74, which supports 0.68 without the game. If the habit were 0.35, the real records would show 0.35 or more only about 1 time in 70 to 150.
+- **Question 1, asked on 2026-11-01: how steady should a crew's habits be from one season to the next?** The choices are 0.68, so the game's crews look as steady as real ones, or 0.35 as written, so they change more from year to year than real crews do. **0.68 is recommended.** It comes from the same real data, read before any game is played. And 0.35 is the measured link on flags, so it is a floor for the habit, not an estimate of it.
+- **What 0.68 changes on paper:** it sets the habit from the real link through a model of the luck. So it would replace the 0.35 that Q3's ruling and §13's confirmation state, and §6.1's "it does not fit to it". Step 4's check would then test only that model of the luck.
+- **How the readers split:** the numbers reader recommends 0.68, and the franchise reader 0.62 (COMPUTED, from a count that included holds on kicks); the calibration reader would keep 0.35, show the 0.18 it gives, and bring step 4's measured number.
+- **Until the owner answers,** the build uses 0.35. Nothing changes on the field this season either way. A later change breaks no save: saves keep the crews, and the carry is used only when a new season starts. The answer comes as a new dated §15 entry, with a line here. A franchise test holds the dial at 0.35 and each family's lean SD at A4's numbers (`officials.crews.test.ts`, "holds the carry at 0.35 until the owner answers question 1"), so the dial changes only with that answer, in the same change as its §15 entry.
+- **What step 1 shows the owner** (its note): the crews' lean-to-lean correlation, about the dial, and the predicted observed one, the dial × 0.515 by construction, beside the real 0.35. The observed holding correlation waits for step 4's crew report, measured as Table 6 was.
+- **Question 1, answered 2026-11-06 19:08Z (card): 0.68** (§15). `CREW_RULES.carry` is 0.68 (COMPUTED; CHOSEN, ruled, question 1), so √(1 − ρ²) is 0.7332 (COMPUTED). The franchise test now holds the dial at 0.68 and each family's lean SD at A4's numbers (`officials.crews.test.ts`, "holds the carry at 0.68, the owner's answer to question 1, and each family's lean SD at §16 A4's numbers"). At the dial, the crews' lean-to-lean correlation comes out at 0.669 to 0.681 across the five families (COMPUTED: 20 seeds, 50 carries each, 17 crews), and the predicted observed holding correlation is 0.68 × 0.515 ≈ 0.35 (COMPUTED), beside the real 0.35 (REAL, Table 6). No game, golden digest, season-path pin or pinned draw moves: no season game is played with a crew until step 2 (A12), world-1's first crews are a fresh draw, and the tests of later seasons compare against a live carry (added 2026-11-06).
+
+### A6. The weekly assignment
+
+**Owner's word: not needed.** These are the details of Q3's ruled rule.
+
+- **The rule** (CHOSEN, ruled, Q3): "no crew working the same team twice in four weeks". Step 1 reads it this way: a crew that works a game with team t in week o may not work t in weeks o + 1 to o + 3. Calendar weeks count, byes included.
+- **The weeks** (CHOSEN): the 18 regular-season weeks, then playoff week w as week 18 + w. So the rule runs from week 18 into the wild-card round.
+- **One game a week per crew** (CHOSEN).
+- **Each season starts clean** (CHOSEN): the save keeps only this season's assignments (F7).
+- **It can always be met** (COMPUTED, by Hall's theorem). Each game has at most 6 barred crews, so at least 11 are free. Each crew is barred from at most 6 games. So any 1 to 11 games have at least 11 crews between them, and any 7 to 16 games have all 17. The same count still proves "twice in five weeks". For "twice in six" it leaves sets of 8 to 10 games uncovered, so a six-week rule is not guaranteed.
+- **The draw** (CHOSEN). Each week, the crews with the fewest games so far come first, with ties broken by a seeded key. Then the week's games are matched to the crews in that order, by augmenting paths. A first-come pick in the same order fails in 3.9% of weeks; the matching never fails (COMPUTED, by simulation). Each week draws exactly 17 numbers, whatever the matching does, so the draw never depends on its own outcome (Iron Rule 4).
+- **The workload** (COMPUTED). 272 regular-season games make 16 a crew. Every week 1 to 3 crews sit (franchise's schedule has 16 games in weeks 1 to 4 and 15 to 18, 14 in weeks 5 to 10, and 15 in weeks 11 to 14): 34 crew-weeks a season, 2 a crew. The real league's referees work 15.98 games a season (COMPUTED: 815 games ÷ 3 seasons ÷ 17 referees, REAL).
+- **When a week is drawn** (CHOSEN): on its first game day, before its games. It is also drawn when a run stops inside the week, so a save made in game week holds that week's crews (F7: the coaches see their crew in game week). So on days 1 to 6 a straight run has not drawn the week yet, while a run stopped there has. Nothing reads a crew on those days at step 1. When the first reader on those days comes (step 9's game week, and ADR-076's weekly game plan), a week is drawn the first time anything in it asks, with plan-v2 risk 25's test: a straight run and a run stopped at week 9's day 4 have drawn the same crews by day 4.
+- **The playoffs** (CHOSEN): worked by the season's crews, drawn like any other week. Picking the best-graded crews for the playoffs stays in §12's later list.
+- **The referees** (CHOSEN): the same 17 every season. Referee careers, a referee retiring and a new one arriving, join §12's later list.
+- **No event for the assignments.** The franchise events have none, and none is petitioned. The assignments are state, like the schedule. A game's crew enters the stream as `GAME_START.crew` (F5) from step 2. If step 9's screens or the narrative want an event, that is a petition then.
+
+### A7. Q4's reading: let them play
+
+**Owner's word: not needed. Shown to the owner in step 1's note, not asked.**
+
+- **Both chances.** Q4's ruling names the seen chance. Step 1 reads it with Q2: the same factor also multiplies the wrong-flag chance, so 1 in 20 of the flags stays wrong in every situation. On the seen chance alone, a factor of 0.85 would raise the late wrong share from 5% to 5.8% (COMPUTED).
+- **The factor.** For an open or crowd kind on a scrimmage snap, Q4 is the period's factor (the arc's for quarters 1 to 4, overtime's after them), times the late-and-close factor when the game is late and close, times the playoff factor in a playoff game. Each family has its own set of these factors (CHOSEN), since the real arcs differ by family (Table 4).
+- **"Late"** is the fourth period or later, overtime included. **"Close"** is a score within 8 points (CHOSEN, ruled, Q4; Table 4's own definition).
+- **The playoffs** are the wild-card, divisional, conference and championship games. A preseason game counts as a regular one (CHOSEN); none is scheduled today.
+- **Judgment calls only** (ruled): plain kinds take no factor.
+- **Kick fouls take no factor at step 1** (CHOSEN). A kick foul keeps its kind's own visibility, so holding or a block in the back on a return is a crowd call. Step 8, the kicks step, decides whether crowd and open fouls on kicks take Q4.
+- **Every factor is 1 at step 1** (CHOSEN), until each family's step measures the officials' share "after the players' own share is in" (§15, Q4).
+- **The real targets the family steps will meet** (REAL, Table 4, except the two marked COMPUTED): late and close against the rest, all flags 0.840, offensive holding 0.818 and false starts 0.781 (these two COMPUTED from REAL Table 4: 13.43 ÷ 16.41 and 13.11 ÷ 16.78; `notes/notes-numbers.md` §4.1); in the playoffs, all flags 0.829; offensive holding by quarter, 14.60, 15.73, 19.92 and 14.16 per 1,000 snaps.
+- **A finding, brought to the owner as news on the ruling, not as a question** (COMPUTED from REAL Table 4). Late in close games flags fall, plain fouls included: false starts and offsides fall to about 77 in 100 of their usual rate. Holding, pass interference and defensive holding fall less than that, not more, and defensive holding hardly at all: to about 82, 91 and 100 in 100, which is 1.07, 1.19 and 1.30 times the plain fouls' level. So a family's fitted late-and-close factor may come out at 1 or above. That family's step shows the owner the number and never forces it below 1 (D1: "never fitted away").
+
+### A8. Q5's reading: home and road
+
+**Owner's word: not needed. Shown to the owner in step 1's note, not asked.**
+
+- **The split** (CHOSEN). On defensive pass interference, defensive holding and illegal contact, the home defense's chances are multiplied by 2 ÷ (1 + r), and the road defense's by 2r ÷ (1 + r). Every other kind takes 1, and so does every kind at a neutral site. r is 1.14, 1.11 and 1.29 (REAL, Table 7, the seasons with crowds).
+- **The factors** (COMPUTED): home 0.9346 and road 1.0654 on pass interference; 0.9479 and 1.0521 on defensive holding; 0.8734 and 1.1266 on illegal contact.
+- **Why the split.** It keeps Q1, §5.2 and §5.4 as league figures: the league's average seen chance stays at §5.2's 80 in 100 and Q1's 2 in 3. With no crew, the road defense's seen chance is exactly r times the home defense's. The die rolls a chance in whole hundredths (A9): 0.75 and 0.85 on pass interference, 0.63 and 0.70 on defensive holding, 0.58 and 0.75 on illegal contact (COMPUTED). So with no crew the road defense is flagged 1.133, 1.111 and 1.293 times as often (COMPUTED), each inside the ruled 1.1 to 1.3. With crews the rounding averages out, and the ratio stays inside the ruled range: 1.14, 1.11 and about 1.27, since 11.3% of road crews' illegal-contact chances reach the ceiling (COMPUTED). The one-sided reading (home 1, road r) would raise the league's rates by 7.0%, 5.5% and 14.5% (COMPUTED). The split does put the home defense below the class chances, which the ruling's words do not say: at lean 50, 0.748, 0.632 and 0.582 (COMPUTED).
+- **Both chances** take it, as ruled: the "seen chance and wrong-flag chance are raised".
+- **The neutral site** is only the championship game.
+- **Kicks** (CHOSEN): a foul on a kick takes no home-and-road factor at step 1, as it takes no lean (A3) and no let-them-play (A7), so it is seen at its kind's own visibility. Table 7 counts scrimmage snaps only. Step 8, the kicks step, decides.
+- **When it is fitted.** Nothing calls these factors until the coverage step, step 5, which fits them (§15, Q5). Table 7's values are counts: flags on the road team over flags on the home team. The road defense faces 1.0121 times the home defense's snaps (0.503 ÷ 0.497, from the home offense's 50.3% of run and pass plays, REAL; COMPUTED). So step 5 compares counts using the game's own snap split, or fits rate ratios: 1.126, 1.097 and 1.275 (COMPUTED). Defensive holding's 1.097 sits just under the ruled 1.1. Step 1's factors stay as above.
+- **Offensive holding's reverse gap,** 0.92 (REAL, Table 7), stays a watched check, not a factor (§15, Q5).
+- **In plain words:** the home defense is flagged a little less and the road defense a little more, so the league's totals stay as ruled.
+
+### A9. The wrong-flag chance
+
+**Owner's word: not needed now. Step 2 brings the plain wrong-flag miss below with its numbers.**
+
+- **Its shape, per kind** (CHOSEN): p = share ÷ (1 − share) × s × T/N. The share is 1/20 for judgment calls and 1/200 for plain ones (CHOSEN, ruled, Q2). s is the kind's class seen chance (A3). T/N is fouls per near-foul at the kind's moment. A crew's lean and the situation then multiply p, capped only at 1 (A3).
+- **Per kind, not per family:** the class differs within a family (TECHNICAL holds plain, crowd and open kinds), and T/N differs by moment.
+- **None is filed at step 1.** With no filed chance, judging a near-foul of any kind is refused. That is safe: nothing produces a near-foul yet.
+- **Each family's step** measures T/N in its F arm (§9: every foul flagged, no wrong flags), files p rounded to the die, and reports the rolled share against the filed one (CHOSEN band: judgment 4% to 6%, plain 0.25% to 1%). A plain share of 0 is the miss named below, brought to the owner with its numbers, whatever the band says.
+- **The officials' die** (CHOSEN; the Orchestrator's reading of §5.1 and F4). It is drawn on every foul and every near-foul, whatever the chance, and never on a clean foul roll. A chance c becomes a d100 target, min(101, round(101 − 100c)), made when the die reaches it, so the chance made is (101 − target) ÷ 100 (COMPUTED). So 0.95 gives 6, 0.80 gives 21, 2/3 gives 34 (made 67 in 100), the 0.99 ceiling gives 2, and any chance under 0.005 gives 101, which no die reaches. At target 101 the die is still drawn: the CHECK is written and fails, and no flag is thrown. A chance above 0.995, which would give target 1 and a certain flag, is refused (CHOSEN); the dials never reach it.
+- **Why every foul and near-foul is rolled.** §5.1 has the officials roll once on each foul and once on each near-foul. F4's note reads "each rolled once and only when it matters (ADR-005): a snap with no foul and no near-foul rolls neither" (`contracts/src/events.ts:164-165`). So "only when it matters" is the rule of no foul and no near-foul, not "only when the outcome is uncertain". And a flag must have its officials' roll behind it: a made `official_sees` is the flag, and a wrong flag's `phantom_flag` CHECK is what says it was wrong (`contracts/src/events.ts:172-175`).
+- **The cost is stream volume.** Every near-foul writes a `phantom_flag` CHECK, and a plain near-foul's fails every time while its chance rounds to 0. If the volume matters to the viewer or to calibration, the step that meets it brings it with its numbers.
+- **In plain words, for the owner** (step 1's note): "Every foul and every near-foul gets its officials' roll, as ADR-093 §5.1 and the approved contracts note say. No roll is skipped because its outcome is certain."
+- **Named for step 2, decided then.** A d100 cannot roll a plain foul's tenth of the share at any plain moment with T/N under 1.05, since p stays under 0.005 there (COMPUTED). Step 2's stem offside has T/N = 0.04 ÷ 0.11 = 0.36 (COMPUTED: ADR-091 §5.6's average lineman crosses 4 times in 100, CHOSEN there, against A2's 11 near-foul faces). So its p is 0.0017, target 101: never (COMPUTED). At the ruled 1 in 200 that loses about one wrong flag in 1,000 games for that foul, and about 0.026 a game across every plain foul once all are built, one every 38 games (COMPUTED: 5.23 plain flags a game, REAL, Table 10, × 1/200). Step 2 brings it with its numbers, and the recommendation will be to accept none.
+
+### A11. The stand-in league's crews
+
+**Owner's word: Q3's ruling builds them at step 1; they come in step 1b, a second small PR right after step 1's, so between the two merges both leagues have drawn crews. The owner was told so on 2026-11-01, in the step-1 plan posted to the thread ("What I am doing unless you say otherwise"): it is not asked, and it stands unless the owner says otherwise. How widely they spread is asked at step 1b.**
+
+- **Ruled:** the stand-in league's crews are copies of the real crews under made-up referee names, "the stand-ins for the real crews the way the players and coaches are" (§6.2), built at step 1 (§15, Q3).
+- **When: step 1b, a small separate PR right after step 1, not step 1's own PR.** Step 1 itself gives both leagues drawn crews at the real spread (A4). Step 1b puts in the copies before any game uses a crew. The build plan asked this as its question 2. It was stated instead, in the step-1 plan posted to the owner on 2026-11-01, and it stands unless the owner says otherwise. It can be stated because the wait costs the stand-in league nothing: no game reads a crew before step 2 (below). Why step 1b:
+  - The copies need step 1's decisions first: A1's placements and A3's scale set their numbers.
+  - They use step 1's carried and standing crews, and add no seam of their own.
+  - Nothing reads a lean before step 2. Step 2's foul, defensive offside, is in the snap family, where crews hardly differ (10%, REAL, Table 2). A copy first matters at step 4, line holding.
+  - The stand-in league cannot be saved today, so step 1's save could not hold its crews either way.
+  - This season's referee records cover 65 of the 108 games played so far (REAL: the referee column of nflverse's 2026 schedules file, `schedules/games.csv`, read on 2026-11-01, is filled for 65 of the 108 games played through 29 October; the plan's stand-in notes, `notes/notes-standin.md` §2.2).
+  - Step 1 stays small while ADR-089's step 4 is in flight. Step 1b changes attributes and calibration code, so like any code change it voids ADR-089's cached arms, and it takes the same merge window as step 1.
+- **How widely: asked at step 1b, with its numbers.** A copy built from a season and a half of records keeps only the part of a crew's habit those records can show: about a third of it: 0.36 if real crews' habits carry at 0.68, and 0.18 to 0.57 if they carry at 0.40 to 0.93 (COMPUTED). So in their first season the copies differ by about 13% of the league's holding rate (12.3% to 13.9%, COMPUTED), against 17% for the real crews in one season (COMPUTED from REAL Table 6, A4) and Q3's "sized to the real spread". After one winter's carry the spread comes back to about 16.7% at a carry of 0.35, or 15.4% at 0.68 (COMPUTED). The choices will be to keep the copies as measured, each one as close to its real crew as the records allow, or to widen them to 17%. Keeping them as measured is recommended: the gap closes after one winter.
+- **Who builds step 1b:** attributes-pipeline for the importer, the one module real data touch (Iron Rule 7); calibration for the reader; and the Orchestrator for a CLAUDE.md line and the owner's word.
+
+### A12. The build choices
+
+**Owner's word: not needed.** The contracts record left these to the build: "A build choice, brought with step 1's numbers" (final.md, §10 item 3).
+
+- **Crews made, assigned and saved, and handed to each game's resolver, but no season game is played with one until step 2.** Franchise's `runSeason` hands each game's crew to its resolver in a `GameContext`. Neither of calibration's resolvers (`realSimResolver` and `peopleResolver`, in `calibration/src/season/realSeason.ts`) takes that context, so neither passes a crew to the engine before step 2; calibration's season test (`realSeasonOfficials.test.ts`) pins that no `GAME_START` carries one on `realSimResolver`'s path. No golden digest moves, and no `GOLDEN_STRIP` entry lands. A season gets crews only when its caller asks for them. So a season run without them is today's run, byte for byte, and the pinned season path does not move. Until step 2, a season game's `GAME_START` shows no crew, whatever the save holds. Step 1's note says it in plain words: "This season the crews are made, assigned and saved, but no game uses them until step 2, so no pinned number moves."
+- **The game's input** gains the crew (F5), written whole on `GAME_START` only when a game has one. It also gains one paired field for what the schedule says of the game: its kind and whether it is at a neutral site, for Q4's playoffs and Q5's neutral site. The field is paired so that a playoff game with no site, or a site with no kind, cannot be written, and it keeps the contract's own names (`contracts/src/league.ts:16-28`). Nothing in a game reads either until step 2. With no such field, a game is a regular-season game at the home team's field (CHOSEN). A batch, export or bench game has no schedule entry, so it is officiated that way, Q5's split included. A season game's kind and site are on its schedule entry, which the season resolver already gets (final.md, §10 item 2), and the season path hands them over with the crew from step 2. Nothing differs until a factor reads them: a fitted playoff factor on a judgment family (step 4 at the earliest) or Q5's split on the coverage fouls (step 5). A playoff game handed no field would be called as a regular-season game, against A7, and the championship also as a home game, against A8.
+- **The officials' dials stay outside `DEFAULT_TUNABLES`** until ADR-089's step 11 lifts its census of the tunables (`calibration/test/adr089Filed.test.ts:43-44`; the precedent is the stem's dials, `engine/src/game/stem.ts:17-23`). An amendment then moves the dials into the tunables and re-pins the census.
+- **Nothing of the officials' code joins the engine's barrel.** That rule is ADR-012's, not the census's, and step 11 does not lift it: ADR-012's test pins the barrel as an exact set (`engine/test/tunablePatch.test.ts:41-115`). An export there needs its own amendment to ADR-012.
+- **Step 1b is its own PR** (A11).
+- **The strict save check** (CHOSEN). Loading a save replays its season with the saved crews, and refuses any that are not this season's draw. This replaces the contracts record's words "crews do not enter it" and "gives each game its saved crew" (final.md, §10 item 5). The price: every save with a season and crews stops loading after any later change to the weekly draw, as a save with a season already does when the schedule's builder changes. So two franchise tests pin the draw as recorded, world-1's 2027 season, its 18 weeks and its playoffs (`officials.assign.test.ts` and `runSeason.officials.test.ts`, each "keeps world-1's 2027 ... as recorded"): a change to the draw is deliberate, and re-records them. Saves from before step 1 have no crews; they load and play on without them.
+- **The crew report** (`crew-check`) is built at step 4, when called holds exist to set beside the carry dial. At step 1 it could print nothing that step 1's seeded tests do not already pin. Its CLAUDE.md line lands with it.
+- **No ADR-078 amendment.** Calibration reaches step 1's crews through the franchise names ADR-078 R1 already permits (Iron Rule 1).
+
+### What goes to the owner with step 1
+
+- **Asked:** question 1, the carry (A5), on 2026-11-01; and E1's typed yes, with step 1's tests and numbers, after contracts-guardian's review (A2).
+- **Answered** (2026-11-06): question 1, 0.68 (§15, A5); and E1's typed yes (A2) (added 2026-11-06).
+- **Asked later:** the copies' spread, at step 1b (A11); and A10's reading, with the first family's numbers.
+- **Stated, not asked** (told to the owner on 2026-11-01; it stands unless the owner says otherwise): the stand-in league's copies come in step 1b, a second small PR right after step 1's, not in step 1's own PR, where Q3's ruling puts them (A11).
+- **Shown, not asked** (each stands unless the owner says otherwise): how a strict crew is held in, with every cost (A3); letting them play on both chances, with no factor on kick fouls at step 1 (A7); home and road, with no factor on kick fouls either (A8); the playoffs worked by the season's crews, and the same 17 referees every season (A6); every foul and near-foul rolled (A9).
+- **News on a ruling:** the late-and-close finding (A7).
+- **Listed:** the nine placements (A1) and the build choices (A12).
+- **With them:** step 1's tests and their numbers, with every pin unchanged, before anything merges.

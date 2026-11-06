@@ -22,6 +22,13 @@
  * players as they are that day (rosters, depth charts, emergency signings, free agents), every event
  * the players' steps emitted, and their memory, and `readSave` hands back the league's people to carry
  * on with, so a loaded season plays on exactly as a straight one would.
+ *
+ * Officials (ADR-093 F7): given the season's crews (`SeasonRun.officiating`), a save keeps the
+ * league's 17 crews and every game of the season given a crew so far, this game week's included.
+ * `readSave` checks the crews whenever the save has them, a save with no season included, and checks
+ * each game's crew against its season, then replays the season with the saved crews as they stand:
+ * a saved crew that is not the season's own draw, a week only partly given, a played game with no
+ * crew, or a crew for a game the save's date has not reached is refused (strict, ADR-093 §16 A12).
  */
 import {
   ATTRIBUTE_REGISTRY_V1, DEFAULT_LEAGUE_RULES, SAVE_FORMAT_VERSION, compareStamps, stampToString,
@@ -35,7 +42,9 @@ import type { PlayerMemory } from "../players/types.js";
 import { checkViews } from "../relationships/ledger.js";
 import type { League } from "../league/buildLeague.js";
 import { assertValidStamp, seasonStart } from "../calendar/clock.js";
-import { runSeason, type GameResolver } from "../season/runSeason.js";
+import { runSeason, type GameResolver, type SeasonRun } from "../season/runSeason.js";
+import { crewsProblem, type SeasonOfficiating } from "../officials/crews.js";
+import type { OfficiatingInput } from "../officials/season.js";
 
 export interface MakeSaveInput {
   league: League;
@@ -72,10 +81,18 @@ export interface MakeSaveInput {
   development?: { events: readonly FranchiseEventEnvelope[]; depthMemory: PlayerMemory };
   /** ADR-081 G2: each team's last end-of-season meeting. */
   meetings?: readonly StaffMeeting[];
+  /**
+   * ADR-093 F7: the league's crews and every game given one so far (`SeasonRun.officiating`). Its
+   * season must be the save's (`calendar.season`). Absent, the save has no crews.
+   */
+  officiating?: SeasonOfficiating;
 }
 
 export function makeSave(input: MakeSaveInput): SaveFile {
-  const { league, season, staff } = input;
+  const { league, season, staff, officiating } = input;
+  if (officiating && officiating.season !== input.calendar.season) {
+    throw new Error(`makeSave: the crews are ${officiating.season}'s, but the save is in ${input.calendar.season}`);
+  }
   const staffTeams = new Map((staff?.world.teams ?? []).map((t) => [String(t.id), t]));
   const teams = staff === undefined ? league.teams : league.teams.map((t) => {
     const s = staffTeams.get(String(t.id));
@@ -103,6 +120,7 @@ export function makeSave(input: MakeSaveInput): SaveFile {
       perceptions: [],
       league: league.structure,
       season,
+      ...(officiating ? { officiating: { crews: [...officiating.crews], assignments: [...officiating.assignments] } } : {}),
       narrativeState: null,
       fashion: null,
     },
@@ -246,6 +264,16 @@ export function readSave(input: unknown): LoadedSave {
   const staff = w.staff.length === 0 && w.staffContracts === undefined && w.relationships === undefined
     ? undefined : readStaff(save);
 
+  // ADR-093 F7: the league's officials, when the save has them. The crews are checked here, season or
+  // not; each game's crew is checked against the season below, and against its draw by the replay.
+  const officiating = w.officiating;
+  if (officiating !== undefined) {
+    if (!isObject(officiating) || !Array.isArray(officiating.crews) || !Array.isArray(officiating.assignments)) refuse("its officials are damaged");
+    const problem = crewsProblem(officiating.crews);
+    if (problem !== undefined) refuse(`its officials are damaged (${problem})`);
+    if (w.season === null && officiating.assignments.length > 0) refuse("it gives crews to games but has no season");
+  }
+
   if (w.season !== null) {
     const s = w.season;
     if (!isObject(s) || !Array.isArray(s.results) || !isObject(s.schedule)) refuse("its season is damaged");
@@ -254,19 +282,46 @@ export function readSave(input: unknown): LoadedSave {
     for (const r of s.results) {
       if (!r.seed.startsWith(`${save.worldSeed}/`)) refuse(`game ${String(r.gameId)} was played on another league's dice`);
     }
-    // Replay the saved season up to the saved day without playing a single game.
+    // ADR-093 F7: each game given a crew is a game of this season (playoff games are in the bracket),
+    // given one of the league's crews, once.
+    if (officiating !== undefined) {
+      const listed = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
+      const games = new Set([...listed(s.schedule.games), ...listed(isObject(s.bracket) ? s.bracket.games : undefined)]
+        .map((g) => (isObject(g) ? String(g.gameId) : "")));
+      const crewIds = new Set(officiating.crews.map((c) => String(c.id)));
+      const given = new Set<string>();
+      for (const a of officiating.assignments) {
+        if (!isObject(a) || typeof a.game !== "string" || typeof a.crew !== "string") refuse("a game's crew is damaged");
+        const game = String(a.game);
+        if (!games.has(game)) refuse(`it gives a crew to a game that is not in its season (${game})`);
+        if (!crewIds.has(String(a.crew))) refuse(`game ${game}'s crew is not one of the league's (${String(a.crew)})`);
+        if (given.has(game)) refuse(`game ${game} has two crews`);
+        given.add(game);
+      }
+    }
+    // Replay the saved season up to the saved day without playing a single game, with the saved crews
+    // as they stand: runSeason draws each week again and refuses saved crews that are not the draw.
     const noNewGames: GameResolver = (game) => refuse(`it is missing the result of ${String(game.gameId)}, played before its date`);
-    let replay: SeasonState;
+    const standing: OfficiatingInput | undefined = officiating === undefined
+      ? undefined : { kind: "STANDING", crews: officiating.crews, assignments: officiating.assignments };
+    let run: SeasonRun;
     try {
-      replay = runSeason({ league, season: s.season, seed: save.worldSeed, rules, resolve: noNewGames, resumeFrom: s, stopAfter: save.calendar, through: "YEAR" }).state;
+      run = runSeason({
+        league, season: s.season, seed: save.worldSeed, rules, resolve: noNewGames, resumeFrom: s, stopAfter: save.calendar, through: "YEAR",
+        ...(standing ? { officiating: standing } : {}),
+      });
     } catch (e) {
       if (e instanceof SaveError) throw e;
       return refuse((e as Error).message.replace(/^runSeason: /, ""));
     }
+    const replay = run.state;
     const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
     if (!same(replay.results, s.results)) refuse("its results are out of order");
     if (!same(replay.standings, s.standings)) refuse("its standings don't match its results");
     if (!same(replay.bracket, s.bracket)) refuse("its playoff bracket doesn't match its results");
+    // The replay draws the week the save stops in, so a save that dropped that week's crews (none of
+    // its games played yet) passes every check above and is caught here.
+    if (officiating !== undefined && !same(run.officiating?.assignments, officiating.assignments)) refuse("its crews' games don't match its season");
   }
 
   const development = w.development === undefined ? undefined : (() => {

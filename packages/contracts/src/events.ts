@@ -170,9 +170,9 @@ export type CheckKind =
    * no `opposedRoll`: officials have no ratings, and the foul's visibility, the crew's lean and the
    * situation set the target (§5.2, §6.1, §6.4).
    *  - `official_sees`: on a foul. Made, the foul is flagged (`FOUL.flagged`).
-   *  - `phantom_flag`: on a near-foul, a `penalty_check` that only just missed (§5.3). Made, a
-   *    wrong flag is thrown: a `PENALTY` with that `rollRef` and no `FOUL` behind it. This CHECK,
-   *    not a missing event, is what says the flag was wrong.
+   *  - `phantom_flag`: on a near-foul, a `penalty_check` that only just made its target (§5.3).
+   *    Made, a wrong flag is thrown: a `PENALTY` with that `rollRef` and no `FOUL` behind it. This
+   *    CHECK, not a missing event, is what says the flag was wrong.
    */
   | "official_sees" | "phantom_flag"
   /**

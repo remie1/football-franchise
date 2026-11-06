@@ -28,10 +28,12 @@ import type {
   ChemistryTable,
   GameEndReason,
   GameId,
+  OfficiatingCrew,
   PlayerId,
   PlayerState,
   PossessionCause,
   Rng,
+  ScheduledGame,
   SnapPicture,
   TeamId,
 } from "@ff/contracts";
@@ -393,6 +395,18 @@ export interface GameInputs {
   readonly snapshot: GameSnapshot;
   /** One caller per team. The offence's caller calls offence; the defence's, defence. */
   readonly callers: { readonly home: PlayCaller; readonly away: PlayCaller };
+  /**
+   * ADR-093 F5, step 1: the crew that works this game, as it stands this season (§6.3). Absent: no
+   * crew, every lean 50 (contracts `events.ts:710-716`). Written whole on `GAME_START` through
+   * `crewOnRecord`; read by the officials from step 2.
+   */
+  readonly crew?: OfficiatingCrew;
+  /**
+   * ADR-093 §6.4, step 1: what the schedule says of this game, for Q4's playoffs and Q5's neutral
+   * site. Absent: a regular-season game at the home team's field. Nothing in the loop reads it until
+   * step 2.
+   */
+  readonly scheduled?: Readonly<Pick<ScheduledGame, "kind" | "neutralSite">>;
 }
 
 /**

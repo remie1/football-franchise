@@ -52,6 +52,13 @@
  * ADR-087 §7) never reach the news or `--out`. Not with `--rosters flat`, which has no squads. The
  * stand-in league's growth records and copied injuries come with the file
  * (`pnpm --filter @ff/attributes standin-development`, ADR-087 §2.5); each is read only with its switch.
+ *
+ * Officials (ADR-093 step 1): a new league's 17 crews are made from the world seed, and each week's
+ * games are given theirs as the season reaches them. `--save` keeps the crews and each game's crew,
+ * and `--load` carries on with them, each saved game keeping its crew (`officiatingFor`); a save from
+ * before crews carries on without any. The stand-in league plays with drawn crews too, but still
+ * cannot save. `--out` is unchanged. No game reads its crew until step 2, so until then a season
+ * game's record shows no crew, whatever the save holds.
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -59,7 +66,7 @@ import { compareStamps, DEFAULT_LEAGUE_RULES, isTruthLayerEvent, stampToString, 
 import { buildLeague, buildStaff, makeSave, readSave } from "@ff/franchise";
 import { createNewsDesk, formatEdition } from "@ff/narrative";
 import { CALLER_VERSIONS, DEFAULT_CALLER_VERSION, type CallerVersion } from "../caller/anticipate.js";
-import { runRealSeason, seasonToPlay, type SeasonRosters } from "./realSeason.js";
+import { officiatingFor, runRealSeason, seasonToPlay, type SeasonRosters } from "./realSeason.js";
 import { readStandInFile } from "./standInLeague.js";
 import { checkStamp, engineRulesDigestOf, LEGACY_RULES, rulesTunables } from "../pocket/rules.js";
 import { savePlayedWith, seasonOutStamp, seasonRules } from "./stamp.js";
@@ -200,11 +207,15 @@ const printNews = (editions: ReturnType<Desk["take"]>) => {
     console.log(`\n${formatEdition(e, desk!.scoreLine)}`);
   }
 };
+// ADR-093 step 1: a new league makes its crews; a save carries on with its own; a save from before
+// crews has none and plays on without them, as a save from before coaches carries on without coaches.
+const officiating = officiatingFor(loaded?.save);
 const { league, rated, run } = runRealSeason({
   seed, season, callerVersion, rosters, league: base,
   ...(standIn === undefined ? {} : { standIn }),
   ...(args.teamStrengthSd === undefined ? {} : { teamStrengthSd: args.teamStrengthSd }),
   ...(loaded ? { rules: loaded.rules, ...(loaded.save.world.season ? { resumeFrom: loaded.save.world.season } : {}) } : {}),
+  ...(officiating ? { officiating } : {}),
   ...(args.stopAfter ? { stopAfter: stopDay(args.stopAfter, season) } : {}),
   // ADR-084 step 1: with the players' switches on, the coaches change after the playoffs and their views drift.
   ...(players ? { players, ...(staff ? { coaching: staff } : {}) } : {}),
@@ -248,7 +259,12 @@ if (args.save) {
       depthMemory: people.playerMemory ?? (() => { throw new Error("the players' steps left no memory to save"); })(),
     },
   } : { league };
-  const save = makeSave({ ...development, calendar: run.calendar, season: run.state, createdBy: "calibration season", playedWith: savePlayedWith(callerVersion, engineRules), rules: loaded?.rules ?? DEFAULT_LEAGUE_RULES, ...squad, ...(coaches ? { staff: coaches } : {}), ...(people?.meetings ? { meetings: people.meetings } : {}) });
+  const save = makeSave({
+    ...development, calendar: run.calendar, season: run.state, createdBy: "calibration season", playedWith: savePlayedWith(callerVersion, engineRules),
+    rules: loaded?.rules ?? DEFAULT_LEAGUE_RULES, ...squad, ...(coaches ? { staff: coaches } : {}), ...(people?.meetings ? { meetings: people.meetings } : {}),
+    // ADR-093 F7: the crews and each game's crew so far, when the season has them.
+    ...(run.officiating ? { officiating: run.officiating } : {}),
+  });
   writeFileSync(path, JSON.stringify(save, listTraits, 2));
   console.log(`Saved ${path}`);
 }

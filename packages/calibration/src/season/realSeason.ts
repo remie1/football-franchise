@@ -30,11 +30,19 @@
  *
  * The stand-in league with a switch on plays the league file's own season (`standInSeason`), with
  * each player's starting development read only for the switch that uses it (`buildStandInLeague`).
+ *
+ * Officials (ADR-093 step 1): with `officiating`, the league's 17 crews are made for a new league
+ * (`{ kind: "NEW" }`) or carried on as a save holds them (`STANDING`, the choice `officiatingFor`
+ * makes for the season command), each game the save gave a crew keeping it, and the run hands them
+ * back on `run.officiating`. Absent, there are no crews, as before: a calibration batch, the pocket's
+ * corpora and a save from before crews play without them. No game reads a crew until step 2, so
+ * neither resolver hands one to the engine, and until then a season game's record shows no crew,
+ * whatever the save holds.
  */
 import {
   clampRating, DEFAULT_LEAGUE_RULES, teamId,
-  type CalendarStamp, type FranchiseEventEnvelope, type GameResult, type LeagueRules, type PlayerState, type ScheduledGame,
-  type SeasonSchedule, type SeasonState, type StaffState, type Team, type TeamId,
+  type CalendarStamp, type FranchiseEventEnvelope, type GameResult, type LeagueRules, type PlayerState, type SaveFile,
+  type ScheduledGame, type SeasonSchedule, type SeasonState, type StaffState, type Team, type TeamId,
 } from "@ff/contracts";
 import type { GameSnapshot, GameSummary, Tunables } from "@ff/engine";
 import { buildLeague, runSeason, type GameResolver, type League, type SeasonRun } from "@ff/franchise";
@@ -53,6 +61,23 @@ import { buildStandInLeague, standInSeason, type readStandInFile, type StandInLe
 
 /** The league's people as `runSeason` carries them (ADR-086 §2), read off the resolver's type. */
 export type SeasonPeople = NonNullable<Parameters<GameResolver>[2]>;
+/** ADR-093 step 1: the league's crews as `runSeason` takes them, read off its input (ADR-078 R1). */
+export type SeasonOfficiatingInput = NonNullable<Parameters<typeof runSeason>[0]["officiating"]>;
+
+/**
+ * ADR-093 step 1: the crews a season command run starts with. The choice lives here, where a test
+ * reaches it, because the season command runs on import and exports nothing.
+ *  - no save (a new league): `{ kind: "NEW" }`, its 17 crews made from the world seed;
+ *  - a save with crews: `{ kind: "STANDING", crews, assignments }`, from its `world.officiating`, so
+ *    each game the save gave a crew keeps it;
+ *  - a save from before crews: `undefined`, and the season plays on without them.
+ */
+export function officiatingFor(save: Pick<SaveFile, "world"> | undefined): SeasonOfficiatingInput | undefined {
+  if (save === undefined) return { kind: "NEW" };
+  const slot = save.world.officiating;
+  return slot === undefined ? undefined : { kind: "STANDING", crews: slot.crews, assignments: slot.assignments };
+}
+
 /** The players' switches (ADR-087 §9). */
 export interface PlayerSwitches {
   readonly development?: boolean;
@@ -259,6 +284,14 @@ export interface RealSeasonInput {
   /** Save and load: stop after this day, or carry on from a saved season. */
   readonly stopAfter?: CalendarStamp;
   readonly resumeFrom?: SeasonState;
+  /**
+   * ADR-093 step 1: the league's crews. `{ kind: "NEW" }` makes a new league's 17; a save's crews
+   * carry on as they stand (`STANDING`, see `officiatingFor`), each game keeping its crew. The run
+   * hands them back on `run.officiating`. Absent: no crews, as before (a calibration batch, the
+   * pocket's corpora, a save from before crews). No game reads a crew until step 2, so neither
+   * resolver hands one to the engine.
+   */
+  readonly officiating?: SeasonOfficiatingInput;
   /** Whose players play: each team's own made-up squad (default), or the flat league's. */
   readonly rosters?: SeasonRosters;
   /** With `rosters: "standin"`: the parsed league file (ADR-088 R5). */
@@ -333,6 +366,8 @@ export function runRealSeason(input: RealSeasonInput): { league: League; rated?:
     league, season, seed: input.seed, rules,
     ...(input.stopAfter ? { stopAfter: input.stopAfter } : {}),
     ...(input.resumeFrom ? { resumeFrom: input.resumeFrom } : {}),
+    // ADR-093 step 1: crews only when asked for, so a season without them is today's run.
+    ...(input.officiating ? { officiating: input.officiating } : {}),
     ...(input.onEvent ? { onEvent: input.onEvent } : {}),
   };
   if (!switched || rated === undefined) {

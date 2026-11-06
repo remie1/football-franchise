@@ -27,11 +27,17 @@
  * unsigned retirements run as day steps too, after any `daySteps`. A resumed run does not run a
  * day's steps again; `resumeEvents` hands back what they emitted on those days, so the resumed
  * stream is the one a straight run gives.
+ *
+ * Officials (ADR-093 step 1): with `officiating`, the league's 17 crews are made, carried in from
+ * last season, or taken as a save holds them; each week's crews are drawn on the week's first game
+ * day, and on the day a run stops, so a save made in game week keeps them; and each game's crew is
+ * handed to the resolver in its context. Absent, nothing changes: no crews, the same resolver calls
+ * and the same `SeasonRun`.
  */
 import {
   DEFAULT_LEAGUE_RULES, compareStamps, stampToString,
   type CalendarStamp, type FranchiseEvent, type FranchiseEventEnvelope, type GameResult,
-  type LeagueRules, type ScheduledGame, type SeasonSchedule, type SeasonState, type TeamId,
+  type LeagueRules, type OfficiatingCrew, type ScheduledGame, type SeasonSchedule, type SeasonState, type TeamId,
 } from "@ff/contracts";
 import type { League } from "../league/buildLeague.js";
 import type { LeaguePeople, DayStep } from "./people.js";
@@ -44,12 +50,23 @@ import { advance, nextDay, phaseWeeks, seasonStart, DAYS_PER_WEEK, type ClockWor
 import { buildSchedule } from "../schedule/buildSchedule.js";
 import { computeStandings } from "../standings/computeStandings.js";
 import { advanceBracket, seedPlayoffs } from "../playoffs/bracket.js";
+import { seasonOfficials, type OfficiatingInput } from "../officials/season.js";
+import type { SeasonOfficiating } from "../officials/crews.js";
+
+/**
+ * What the league hands one game beside its people. `crew` (ADR-093 step 1): the crew working it,
+ * when the season has officials; frozen, since every game the crew works is handed the same one.
+ * ADR-092 R1's coaching packet may join it.
+ */
+export interface GameContext { readonly crew?: OfficiatingCrew }
 
 /**
  * Plays one game. Must return a result for exactly `game` (same id, home and away) and must be a
- * pure function of its arguments, or the season is not reproducible.
+ * pure function of its arguments, or the season is not reproducible. `context` comes only when the
+ * season has something to hand the game (ADR-093 step 1: its crew); a season with none calls the
+ * resolver exactly as before.
  */
-export type GameResolver = (game: ScheduledGame, seed: string, people?: LeaguePeople) => GameResult | ResolvedGame;
+export type GameResolver = (game: ScheduledGame, seed: string, people?: LeaguePeople, context?: GameContext) => GameResult | ResolvedGame;
 
 /** A result with whatever else the resolver learned (ADR-086 §2; e.g. who played, for ADR-087). Day steps see it. */
 export interface ResolvedGame { result: GameResult; extras?: unknown }
@@ -120,6 +137,11 @@ export interface RunSeasonInput {
    * save's `world.development.events`, S1), emitted again on their days in place of running the steps.
    */
   resumeEvents?: readonly FranchiseEventEnvelope[];
+  /**
+   * ADR-093 step 1: the league's crews (§6.1 to §6.3). Absent: none, and every game is played
+   * without one, as before.
+   */
+  officiating?: OfficiatingInput;
 }
 
 export interface SeasonRun {
@@ -135,6 +157,11 @@ export interface SeasonRun {
    * step's id, in stream order. Absent when the run had no steps.
    */
   stepEvents?: { step: string; envelope: FranchiseEventEnvelope }[];
+  /**
+   * ADR-093 step 1: the crews as they stand this season, and every game given one so far, played
+   * or not. A run that stops in a game week has that week's crews. Absent when the input had none.
+   */
+  officiating?: SeasonOfficiating;
 }
 
 /** A playoff game the resolver returns level is played again on a fresh seed, at most this often. */
@@ -144,7 +171,9 @@ export function gameSeed(seed: string, game: ScheduledGame): string {
   return `${seed}/${String(game.gameId)}`;
 }
 
-function play(game: ScheduledGame, seed: string, resolve: GameResolver, saved: ReadonlyMap<string, GameResult>, people?: LeaguePeople): ResolvedGame {
+function play(
+  game: ScheduledGame, seed: string, resolve: GameResolver, saved: ReadonlyMap<string, GameResult>, people?: LeaguePeople, context?: GameContext,
+): ResolvedGame {
   const base = gameSeed(seed, game);
   const kept = saved.get(String(game.gameId));
   if (kept) {
@@ -156,7 +185,8 @@ function play(game: ScheduledGame, seed: string, resolve: GameResolver, saved: R
   }
   for (let replay = 0; replay <= MAX_PLAYOFF_REPLAYS; replay++) {
     const s = replay === 0 ? base : `${base}/replay-${replay}`;
-    const resolved = unwrap(people ? resolve(game, s, people) : resolve(game, s));
+    // Today's calls exactly when there is no context.
+    const resolved = unwrap(context ? resolve(game, s, people, context) : people ? resolve(game, s, people) : resolve(game, s));
     const r = resolved.result;
     if (r.gameId !== game.gameId || r.home !== game.home || r.away !== game.away) {
       throw new Error(`runSeason: resolver answered ${String(r.gameId)} (${String(r.away)}@${String(r.home)}) for ${String(game.gameId)}`);
@@ -198,6 +228,7 @@ export function runSeason(input: RunSeasonInput): SeasonRun {
     throw new Error(`runSeason: the saved season is not season ${season} of this league and seed`);
   }
   const saved = new Map((resumeFrom?.results ?? []).map((r) => [String(r.gameId), r]));
+  const officials = input.officiating && seasonOfficials(input.officiating, { season, seed, rules, ...(resumeFrom ? { resumeFrom } : {}) });
 
   // Standings and seeding count regular-season games only.
   const regularIds = new Set(schedule.games.filter((g) => g.kind === "REGULAR").map((g) => String(g.gameId)));
@@ -261,18 +292,28 @@ export function runSeason(input: RunSeasonInput): SeasonRun {
 
   const played = new Set<string>();
   const past = (at: CalendarStamp) => stopAfter !== undefined && compareStamps(at, stopAfter) > 0;
+  // Every game the season knows now: the schedule's, and the bracket's so far.
+  const known = () => [...state.schedule.games, ...(state.bracket?.games ?? [])];
   const finish = (complete: boolean): SeasonRun => {
     const unused = [...saved.keys()].filter((id) => !played.has(id));
     if (unused.length > 0) throw new Error(`runSeason: the save has results this run did not reach (${unused.slice(0, 3).join(", ")})`);
+    // A run that stops in a game week draws that week, so a save made then keeps its crews. A stop
+    // outside the regular season and the playoffs, or in the week off before the final, draws nothing.
+    if (!complete) officials?.assignWeekOf(world.calendar, known());
+    const lost = officials?.unreached() ?? [];
+    if (lost.length > 0) throw new Error(`runSeason: the save has crews for games this run did not reach (${lost.slice(0, 3).join(", ")})`);
     runSteps();
     if (complete && draftConfig && input.through === "YEAR") {
       const turned = turnYear(people!, { season: season + 1, rules, ...(draftConfig.cap ? { cap: draftConfig.cap } : {}) });
       people = turned.people;
       for (const event of turned.events) emit(event);
     }
-    return { state, calendar: world.calendar, events, complete, ...(people ? { people } : {}), ...(steps.length > 0 ? { stepEvents } : {}) };
+    return {
+      state, calendar: world.calendar, events, complete, ...(people ? { people } : {}), ...(steps.length > 0 ? { stepEvents } : {}),
+      ...(officials ? { officiating: officials.result() } : {}),
+    };
   };
-  const pending = () => [...state.schedule.games, ...(state.bracket?.games ?? [])]
+  const pending = () => known()
     .filter((g) => !played.has(String(g.gameId)))
     .sort((a, b) => compareStamps(a.at, b.at) || String(a.gameId).localeCompare(String(b.gameId)));
 
@@ -296,9 +337,12 @@ export function runSeason(input: RunSeasonInput): SeasonRun {
     const day = queue[0]!.at;
     if (past(day)) break;
     moveTo(day);
+    // The week's crews, drawn on its first game day, before its games.
+    officials?.assignWeekOf(day, known());
     const results = [...state.results];
     for (const game of queue.filter((g) => sameDay(g.at, day))) {
-      const { result, extras } = play(game, seed, resolve, saved, people);
+      const crew = officials?.crewOf(game);
+      const { result, extras } = play(game, seed, resolve, saved, people, crew ? { crew } : undefined);
       if (steps.length > 0) today.push({ game, result, ...(extras !== undefined ? { extras } : {}) });
       results.push(result);
       played.add(String(game.gameId));
