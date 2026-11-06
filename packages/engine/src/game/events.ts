@@ -216,7 +216,8 @@ export class GameEventLog {
     this.emit({ type: "KICKOFF", payload, gameId: this.gameId, playId });
   }
 
-  coachDecision(kind: CoachDecisionKind, team: TeamId, choice: string): void {
+  /** Every kind but PENALTY_OPTION (ADR-093 F6), which names its flag and gets its own writer. */
+  coachDecision(kind: Exclude<CoachDecisionKind, "PENALTY_OPTION">, team: TeamId, choice: string): void {
     this.emit({
       type: "COACH_DECISION",
       payload: { kind, authority: "COACH", team, choice },

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  createRng, playerId,
+  createRng, playerId, DEFAULT_LEAGUE_RULES,
   type DraftClass, type FranchiseEvent, type PlayerContract, type PlayerState, type Position, type TeamId,
 } from "@ff/contracts";
 import {
@@ -8,6 +8,7 @@ import {
   liveIn, countsForComp, adjustedCap, designatedIn, needWeights, offerWorth, valuePlayer, marketCurves, termFor, apyOf, percentileOf, quantile,
   type GameResolver, type LeaguePeople,
 } from "../src/index.js";
+import { MARKET } from "../src/cap/leagueYear.js";
 import { WANTED, type Rate } from "../src/draft/board.js";
 import { draftSteps } from "../src/draft/steps.js";
 
@@ -83,6 +84,16 @@ describe("the league year (ADR-085 §4)", () => {
     }
   });
 
+  it("nobody signs a tender (or any deal) and an early extension on the same day", () => {
+    const signedOn = new Map<string, string[]>();
+    for (const e of year1.events) {
+      if (e.event.type !== "CONTRACT_SIGNED") continue;
+      const key = `${String(e.event.payload.player)}@${JSON.stringify(e.at)}`;
+      signedOn.set(key, [...(signedOn.get(key) ?? []), e.event.payload.kind ?? "?"]);
+    }
+    for (const kinds of signedOn.values()) expect(kinds.length).toBe(1);
+  });
+
   it("deals run out at the new league year: those players leave their teams for free agency", () => {
     expect(of("CONTRACT_EXPIRED").length).toBeGreaterThan(200);
     const onTeams = new Set(people.teams.flatMap((t) => [...t.roster, ...(t.practiceSquad ?? [])]).map(String));
@@ -130,11 +141,14 @@ describe("the league year (ADR-085 §4)", () => {
     }
   });
 
-  it("cap cuts never take a roster's last men at a position: every team still fields its starters", () => {
+  it("cap cuts never take a roster's last men at a position: a seat empties only when a deal runs out", () => {
     const byId = new Map(people.players.map((p) => [String(p.bio.id), p]));
     for (const t of people.teams) {
       for (const pos of ["QB", "K", "P", "LS"] as Position[]) {
-        expect(t.roster.filter((id) => byId.get(String(id))?.bio.position === pos).length, `${String(t.id)} ${pos}`).toBeGreaterThan(0);
+        if (t.roster.some((id) => byId.get(String(id))?.bio.position === pos)) continue;
+        // A seat can empty when a deal runs out and he signs elsewhere (free agency), never by a cut.
+        const cut = of("PLAYER_RELEASED").filter((e) => e.payload.team === t.id && byId.get(String(e.payload.player))?.bio.position === pos);
+        expect(cut, `${String(t.id)} ${pos}`).toEqual([]);
       }
     }
   });
@@ -193,6 +207,34 @@ describe("the league year (ADR-085 §4)", () => {
     expect(countsForComp({ season: 2026, phase: "OFF_DRAFT", week: 3, day: 7 })).toBe(true);
     expect(countsForComp({ season: 2026, phase: "OFF_DRAFT", week: 4, day: 1 })).toBe(false);
     expect(countsForComp({ season: 2026, phase: "OFF_SUMMER", week: 1, day: 1 })).toBe(false);
+  });
+
+  it("step 12: a team short of room lets a lesser man at the position go to sign a better one, only if he is cheap to cut", () => {
+    // A market swap: a release and a veteran signing by the same team, the same day, at the same position.
+    const posOf = (id: unknown) => people.players.find((p) => String(p.bio.id) === String(id))?.bio.position
+      ?? people0.players.find((p) => String(p.bio.id) === String(id))?.bio.position;
+    const swaps = year1.events.filter((e) => e.event.type === "PLAYER_RELEASED" && marketWindow(e.at, DEFAULT_LEAGUE_RULES.cutdown!) !== undefined
+      && !(e.at.phase === "OFF_RESET_FA" && e.at.week === 1 && e.at.day === 1));
+    expect(swaps.length).toBeGreaterThan(0);
+    for (const s of swaps) {
+      const rel = s.event as Extract<FranchiseEvent, { type: "PLAYER_RELEASED" }>;
+      const sign = year1.events.find((e) => e.event.type === "CONTRACT_SIGNED" && e.event.payload.kind === "VETERAN" && e.event.payload.team === rel.payload.team
+        && JSON.stringify(e.at) === JSON.stringify(s.at) && posOf(e.event.payload.player) === posOf(rel.payload.player));
+      expect(sign).toBeDefined();
+      const dead = people.deadMoney!.filter((d) => String(d.player) === String(rel.payload.player) && d.team === rel.payload.team).reduce((a, d) => a + d.amount, 0);
+      expect(dead).toBeLessThanOrEqual(MARKET.swapDeadMost * cap(2027));
+    }
+  });
+
+  it("step 12: when a longer deal won't fit next year, a team offers one year", () => {
+    const market = year1.events.filter((e) => e.event.type === "CONTRACT_SIGNED" && e.event.payload.kind === "VETERAN" && marketWindow(e.at, DEFAULT_LEAGUE_RULES.cutdown!) !== undefined);
+    const lengths = market.map((e) => {
+      const p = (e.event as Extract<FranchiseEvent, { type: "CONTRACT_SIGNED" }>).payload;
+      const c = people.contracts!.find((x) => String(x.player) === String(p.player) && x.team === p.team && JSON.stringify(x.signedAt) === JSON.stringify(e.at))!;
+      return c.years.filter((y) => !y.voidYear).length;
+    });
+    expect(lengths.filter((n) => n === 1).length).toBeGreaterThan(0);
+    expect(lengths.filter((n) => n > 1).length).toBeGreaterThan(0);
   });
 
   it("is the same for the same seed", () => {

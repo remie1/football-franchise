@@ -122,8 +122,18 @@ the same games, pressure fell from 32% to 28% of dropbacks on the flat-rated tes
 graded pocket predictions held; on the made-up league pressure fell 0.02 points further than the
 predicted range, which is reported as filed. The interception check, as amended before step 2, did
 not trip. Step 2's numbers are in `packages/calibration/reports/adr-089-step2.md`; you chose to merge
-it with its switch off (30 October 2026). Step 3 waits on step 2 of the build of where every man stands at
-the snap (ADR-090, designed and ruled 31 October 2026).
+it with its switch off (30 October 2026). Step 3, also behind the switch, times a rusher nobody
+blocked from where he stood at the snap, how fast he is and how deep the quarterback drops, blocks
+a rusher somebody got a hand on late and weakly, and keeps the quarterback from stepping up when a
+rusher is coming at him from in front; default play has still not changed. With the switch on,
+against step 2 on the same graded games, pressure fell from 28% to 22% of dropbacks on the
+flat-rated test league and from 29% to 23% on the made-up league, and sacks fell by 0.5 to 0.7 per
+100 dropbacks (a second set of games read the same on the flat league, and 30% to 25% with sacks
+down 0.9 on the made-up one); the interception check did not trip. But too many pressures still
+come quickly and from rushers nobody blocked (three of the four graded pocket predictions missed),
+and you chose to accept the misses as they stand and to merge step 3 with its switch off (1 November
+2026); a protection design stays open for later (numbers in
+`packages/calibration/reports/adr-089-step3.md`).
 
 **Next after the pocket fix:** the made-up league intercepts about 6.8% of passes against the
 NFL's 2.3%, because tipped balls go to the fastest reactor and strong passers throw into covered
@@ -140,8 +150,9 @@ windows. Its fix is designed right after the pocket fix, measured on the fixed p
 - Where every man stands at the snap (ADR-090, ruled 30-31 October 2026): a spot in yards for all
   22 players on every play, drawn in the game viewer. Disguises cost ground (a Mug backer and a late
   rotation really stand there at the snap), and a poor disguiser cheats toward his job. Its first
-  steps change no game and can land while the pocket fix is measured; step 2 is the pocket fix's
-  free rushers. Step 0 is built (31 October 2026): the spot tables and the pre-snap steps as code
+  steps change no game and can land while the pocket fix is measured; step 2, the pocket fix's
+  free rushers, is built behind the pocket fix's switch (ADR-089 step 3, 31 October 2026).
+  Step 0 is built (31 October 2026): the spot tables and the pre-snap steps as code
   no game calls yet, checked over every call against every formation and against your August
   alignment ranges (`pnpm --filter @ff/calibration snap-spots`,
   `packages/calibration/reports/adr-090-step0.md`). Step 1 is built (31 October 2026, your typed
@@ -167,6 +178,15 @@ windows. Its fix is designed right after the pocket fix, measured on the fixed p
   the offensive coordinator changes his count about once a game. You chose to have the count matter on every
   snap (jumping the count, false starts) in a design of its own after the pocket fix, with
   officials who sometimes miss a call.
+- Penalties called by human officials (ADR-093, approved 31 October 2026, all eight questions ruled):
+  every foul enforced by the NFL's rulebook, players who foul through their Discipline, and
+  officials who miss some fouls, sometimes flag a close play that wasn't one, and work in 17 crews
+  with their own leans, all sized to real NFL flags (three seasons in detail, thirteen for how
+  crews and the league's standard move). Nobody counts missed calls, so how much the officials
+  miss is your call, fenced in by the league's own grading (you chose 2 in 3 of the holding seen
+  and 1 in 20 judgment flags wrong). An assistant head coach offers challenges with an honest
+  percentage, under the NFL's real challenge rules. Its first two steps (the rulebook and the
+  officials), which change no play, come next; the fouls themselves come after the pocket fix.
 
 **Started outside the simulator (21 October 2026):** a game viewer for the browser, a season
 shell for the front office, faster CI, and this guide.

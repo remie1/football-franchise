@@ -39,3 +39,23 @@ describe("deal shape (step 11)", () => {
     expect(c.years[1]!.baseSalary / c.years[0]!.baseSalary).toBeCloseTo(1.05, 2);
   });
 });
+
+describe("a cut ends every deal with that team (aging thread's crash, 2026-10-31)", () => {
+  it("a cut man's extension that has not started ends with him", async () => {
+    const { release } = await import("../src/draft/money.js");
+    const tender = deal(1e6, 1);
+    const ext = veteranContract({
+      player: playerId("p"), team: teamId("T1"), season: 2027, signedAt: at, apy: 20e6, years: 3, bonusShare: 0.2, guaranteedYears: 0,
+      minimum: () => 1e6, kind: "EXTENSION",
+    });
+    const other = veteranContract({ player: playerId("p"), team: teamId("T2"), season: 2027, signedAt: at, apy: 2e6, years: 1, bonusShare: 0, guaranteedYears: 0, minimum: () => 1e6 });
+    const book = [tender, ext, other];
+    const dead: Parameters<typeof release>[1] = [];
+    release(book, dead, playerId("p"), teamId("T1"), { season: 2026, phase: "PRESEASON", week: 3, day: 2 });
+    expect(book[0]!.ended).toBeDefined();
+    expect(book[1]!.ended).toBeDefined();
+    expect(book[2]!.ended).toBeUndefined();
+    // The extension's signing bonus was paid when he signed: it lands as dead money.
+    expect(dead.reduce((s, d) => s + d.amount, 0)).toBeGreaterThan(0);
+  });
+});

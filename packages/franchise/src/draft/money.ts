@@ -74,6 +74,16 @@ export function release(book: PlayerContract[], dead: DeadMoneyCharge[], player:
   const r = releasePlayer(book[i]!, at);
   book[i] = r.contract;
   dead.push(...r.charges);
+  // A deal with the same team that has not started yet (an extension) ends with him: a cut man
+  // carries no deal with the team that let him go.
+  const year = transactionYear(at);
+  for (let j = 0; j < book.length; j++) {
+    const c = book[j]!;
+    if (j === i || c.ended || String(c.player) !== String(player) || c.team !== team || !c.years.some((y) => y.season > year)) continue;
+    const later = releasePlayer(c, at);
+    book[j] = later.contract;
+    dead.push(...later.charges);
+  }
   return r.events;
 }
 

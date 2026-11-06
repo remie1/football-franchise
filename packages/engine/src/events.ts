@@ -48,7 +48,11 @@ export type TippedBallRecovery =
   | { readonly recoverable: false };
 
 export interface CheckEmission {
-  readonly checkKind: CheckKind;
+  /**
+   * Every kind but the officials' two (ADR-093 F4), whose CHECK always names the `penalty_check` it
+   * judges and states its chance; they get an emission of their own with ADR-093 step 1's build.
+   */
+  readonly checkKind: Exclude<CheckKind, "official_sees" | "phantom_flag">;
   readonly actors: readonly PlayerId[];
   readonly roll: RollDetail;
   readonly target?: number;
@@ -97,6 +101,15 @@ export type BeatTickEmission = Omit<CheckEmission, "checkKind" | "roll" | "oppos
 export type ThreatApproach = Exclude<RushApproach, "BLOCKED">;
 
 /**
+ * ADR-089 P5: how far he had to come and how fast he came, as a `RUSH_THREAT` carries them: both
+ * or neither, so the pair is one argument and a threat with half of it cannot be published.
+ */
+export interface ThreatGeometry {
+  readonly distanceYards: number;
+  readonly closingSpeed: number;
+}
+
+/**
  * A PRE-SNAP check (§5). Its own shape rather than a `CheckEmission`, because
  * `PRESNAP_READ`'s payload is genuinely different: ONE actor, a bare target, no
  * opposed roll.
@@ -111,7 +124,12 @@ export type ThreatApproach = Exclude<RushApproach, "BLOCKED">;
  */
 export interface PresnapEmission {
   readonly actor: PlayerId;
-  readonly kind: CheckKind;
+  /**
+   * Every kind but the foul roll and the officials' two (ADR-093 F4), which are always CHECKs and
+   * never a pre-snap read: a `penalty_check` is the CHECK a foul and a flag name, and each
+   * officials' roll names the `penalty_check` it judges.
+   */
+  readonly kind: Exclude<CheckKind, "penalty_check" | "official_sees" | "phantom_flag">;
   readonly roll: RollDetail;
   readonly target: number;
   readonly tier: ResultTier;
@@ -308,8 +326,13 @@ export class PlayEventLog {
    * table says justifies that origin.
    *
    * ADR-089 P4: `approach` is how he got there (§4.0's card), present on every threat of a play
-   * under `pocket-1` and spread in only when present, as the payload's last key; a legacy threat
-   * writes no key. Typed without BLOCKED, as the contract field is.
+   * under `pocket-1` and spread in only when present; a legacy threat writes no key. Typed without
+   * BLOCKED, as the contract field is.
+   *
+   * ADR-089 P5: `geometry` is his distance and closing speed, spread in after `approach` (the
+   * contract's key order) only when given, both keys or neither. The caller passes it only when
+   * the play's rules say so (`PocketRules.threatGeometry`, `sim/passPlay.ts`), never because the
+   * threat happens to carry a pair.
    */
   rushThreat(
     rusher: PlayerId,
@@ -319,6 +342,7 @@ export class PlayEventLog {
     etaTick: number,
     state: RushThreatState,
     approach?: ThreatApproach,
+    geometry?: ThreatGeometry,
   ): void {
     this.push({
       type: "RUSH_THREAT",
@@ -330,6 +354,7 @@ export class PlayEventLog {
         etaTick,
         state,
         ...(approach === undefined ? {} : { approach }),
+        ...(geometry === undefined ? {} : { distanceYards: geometry.distanceYards, closingSpeed: geometry.closingSpeed }),
       },
       ...this.base(),
     });

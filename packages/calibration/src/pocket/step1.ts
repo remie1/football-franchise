@@ -55,7 +55,7 @@ import { positionsFromSnapshot } from "../knownTruth/pocketChannelShares.js";
 import { emptyAccumulator, foldGame, mergeAccumulators, type SimAccumulator, type SimGameObservation } from "../metrics/collect.js";
 import "../metrics/index.js";
 import { isInapplicable } from "../metrics/types.js";
-import { ARM_DEFS, ARM_IDS, armById, exclusiveMechanisms, STEP2_ARM_DEFS, type Arm, type ArmId, type Mechanism } from "./arms.js";
+import { ARM_DEFS, ARM_IDS, armById, exclusiveMechanisms, STEP2_ARM_DEFS, STEP3_ARM_DEFS, type Arm, type ArmId, type Mechanism } from "./arms.js";
 import { FILED_PATH, intGuard, intGuardByClass, type GuardVerdict, type IntMix } from "./bands.js";
 import { constructById } from "./constructs.js";
 import { flatBaseline, genSeason, goldenGames, type CorpusVisitor, type SeedSet } from "./corpus.js";
@@ -287,10 +287,11 @@ export interface ArmRecord {
 
 /**
  * The arm an arm's affected plays and pricing rows read against: its base, or A0 for A14 (the hold's
- * own rows). A step-2 arm's base is AM-1's step-2 map (`STEP2_ARM_DEFS`).
+ * own rows). A step-2 arm's base is AM-1's step-2 map (`STEP2_ARM_DEFS`); a step-3 arm's is plan
+ * §5.1's base column (`STEP3_ARM_DEFS`), which AM-3 maps for C1, C2 and C11.
  */
 export function referenceOf(id: ArmId): ArmId | undefined {
-  const def = ARM_DEFS.find((d) => d.id === id) ?? STEP2_ARM_DEFS.find((d) => d.id === id);
+  const def = ARM_DEFS.find((d) => d.id === id) ?? STEP2_ARM_DEFS.find((d) => d.id === id) ?? STEP3_ARM_DEFS.find((d) => d.id === id);
   return def?.base ?? (id === "A14" ? "A0" : undefined);
 }
 
@@ -400,6 +401,12 @@ export interface PlayArmOptions {
    * step-1 record.
    */
   readonly visit?: (league: League, o: SimGameObservation, snapshot: GameSnapshot, tunables: Tunables) => void;
+  /**
+   * Step 3's seam: called once a league's games are folded, with that league's whole accumulator
+   * (the miss rule's split reads its pocket fold). Read only; nothing it does reaches the step-1
+   * record.
+   */
+  readonly finish?: (league: League, accumulator: SimAccumulator) => void;
 }
 
 /** Plays one arm on both leagues at its seed set and returns its record (plain data). */
@@ -420,6 +427,7 @@ export function playArm(id: ArmId, seedSet: SeedSet, env: Step1Env, opts: PlayAr
     if (league === "flat") flatBaseline(seedSet, visit, { ...game, ...(corpus.flatFirst === null ? {} : { first: corpus.flatFirst }) });
     else genSeason(seedSet, visit, { ...game, ...(corpus.genThroughWeek === null ? {} : { throughWeek: corpus.genThroughWeek }) });
     folds[league] = f;
+    opts.finish?.(league, f.accumulator);
     opts.log?.(`${opts.label ?? "pocket step 1"}: ${id} ${league} seed set ${String(seedSet)}, ${String(f.games)} games`);
   }
   const rows = { flat: sanitize(pocketRows(folds.flat.rows)) as Record<string, unknown>, gen: sanitize(pocketRows(folds.gen.rows)) as Record<string, unknown> };
@@ -1048,7 +1056,7 @@ export interface Step1RunResult {
 }
 
 /** `path` with every symlink resolved: the real path of its nearest existing ancestor, then the rest as given. */
-function realOf(path: string): string {
+export function realOf(path: string): string {
   let at = resolve(path);
   const rest: string[] = [];
   while (!existsSync(at)) {

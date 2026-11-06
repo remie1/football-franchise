@@ -17,14 +17,22 @@
  * table, :190-192): flat desperation INT 5.7%, flat rank-pushed 14.1% at 12.4%, and open throws'
  * completion / INT, gen 48.0% / 2.66% and flat 46.8% / 0.38%. Each figure prints with "reproduced"
  * or "REPORTED-UNREPRODUCED" beside it, and is asserted as reproduced at the printed precision.
+ *
+ * **Step 3's clean bench (ADR-089 step 3, plan §2.9):** `cleanBenchTunablesS3` (the `pocket-1.s3`
+ * bundle on the four leaves, the free-run get-off, moving get-off and late block's engage time at
+ * 50 s) is checked always (built through `withOverlay`, stamped, nothing else of the bundle moved);
+ * under the gate it plays the same two corpora on the published picture, every s3 PASS play's
+ * `PLAY_START` carrying its snap, with pressured 0 and sacks 0 asserted on both leagues and release
+ * and throwaways reported. The legacy bench above stays asserted as it was.
  */
 import type { MatchEventEnvelope, PlayerId, Position } from "@ff/contracts";
-import type { Tunables } from "@ff/engine";
+import { applyTunablePatch, DEFAULT_TUNABLES, type Tunables } from "@ff/engine";
 import { beforeAll, describe, expect, it } from "vitest";
 import { positionsFromSnapshot } from "../src/knownTruth/pocketChannelShares.js";
 import { emptyAccumulator, foldGame, type SimAccumulator } from "../src/metrics/collect.js";
 import { flatBaseline, genSeason } from "../src/pocket/corpus.js";
-import { cleanBenchTunables } from "../src/pocket/oneThreatBench.js";
+import { CLEAN_BENCH_S3_SECONDS, cleanBenchTunables, cleanBenchTunablesS3 } from "../src/pocket/oneThreatBench.js";
+import { POCKET_1_S2_LEAVES, POCKET_1_S3_DIGEST, POCKET_1_S3_RULES, overlayDigestOf, rulesOnPlayStart, rulesTunables } from "../src/pocket/rules.js";
 import { emptyRowsFold, foldRowsDropback, type RowsFold } from "../src/pocket/rows.js";
 import { dropbacksOf } from "../src/pocket/throwClass.js";
 
@@ -177,5 +185,122 @@ describe.skipIf(GATED)("ADR-089 step 0: the clean bench (FF_POCKET_BENCH=1)", ()
       reported("flat", "open throws completion / INT per aimed", [f.guards["openCompletion"], f.guards["openInt"]], ["46.8", "0.38"]),
     ];
     expect(results).toEqual([true, true, true, true]);
+  });
+});
+
+// --- step 3's clean bench (plan §2.9) ----------------------------------------------------------------
+
+describe("ADR-089 step 3: the s3 clean bench's tunables (cleanBenchTunablesS3)", () => {
+  const t = cleanBenchTunablesS3();
+  const s3 = rulesTunables(POCKET_1_S3_RULES);
+
+  it("is pocket-1.s3 with the free-run get-offs and the late block's engage time at 50 s, past the last tick", () => {
+    expect(CLEAN_BENCH_S3_SECONDS).toBe(50);
+    expect(t.blitzPickup.freeRun).toEqual({ ...s3.blitzPickup.freeRun, getOffSeconds: 50, movingGetOffSeconds: 50 });
+    expect(t.blitzPickup.lateBlock).toEqual({ ...s3.blitzPickup.lateBlock, engageSeconds: 50 });
+    for (const v of [t.blitzPickup.freeRun!.getOffSeconds, t.blitzPickup.freeRun!.movingGetOffSeconds, t.blitzPickup.lateBlock!.engageSeconds]) expect(v).toBeGreaterThan(t.clock.maxTick);
+    expect(t.pocket.climbLane).toBe(s3.pocket.climbLane);
+    expect(t.pocket.forcing).toEqual(s3.pocket.forcing);
+    expect(t.passRush.beatClock).toEqual(s3.passRush.beatClock);
+    expect(t.passRush.repClock).toEqual(s3.passRush.repClock);
+    expect(t.passRush.approach).toEqual(s3.passRush.approach);
+    expect(t.passRush.beatClock).toBeDefined();
+  });
+
+  it("sits on the clean bench's four leaves and Half and Follows, as pocket-1.s3 sits on Half and Follows", () => {
+    expect(t.passRush.blockerStructuralAdvantage).toBe(500);
+    expect(t.blitzPickup.freeRunnerArrivalSeconds).toBe(50);
+    expect(t.blitzPickup.freeRunnerPath.maxArrivalSeconds).toBe(99);
+    expect(t.stunt.looperArrivalSeconds).toBe(50);
+    expect(t.arrival).toEqual(s3.arrival);
+    expect(POCKET_1_S2_LEAVES.reduce(applyTunablePatch, DEFAULT_TUNABLES).arrival).toEqual(s3.arrival);
+  });
+
+  it("is stamped pocket-1.s3 at a digest of its own, the one its tunables recompute, and frozen", () => {
+    expect(t.engineRules?.name).toBe(POCKET_1_S3_RULES);
+    expect(t.engineRules?.overlayDigest).not.toBe(POCKET_1_S3_DIGEST);
+    const { engineRules: _stamp, ...unstamped } = t;
+    expect(t.engineRules?.overlayDigest).toBe(overlayDigestOf(unstamped as Tunables));
+    expect(Object.isFrozen(t)).toBe(true);
+    expect(Object.isFrozen(t.blitzPickup.freeRun)).toBe(true);
+    // DEFAULT_TUNABLES and the bundle are untouched.
+    expect(DEFAULT_TUNABLES.passRush.blockerStructuralAdvantage).toBe(0);
+    expect(s3.blitzPickup.freeRun?.getOffSeconds).toBe(0.35);
+    expect(s3.engineRules?.overlayDigest).toBe(POCKET_1_S3_DIGEST);
+  });
+});
+
+interface S3BenchRun extends BenchRun {
+  s3PassStarts: number;
+  pictures: number;
+  /** Free runners published at the snap, and the earliest `etaTick` among them. */
+  snapThreats: number;
+  earliestSnapEta: number;
+}
+
+function foldS3Bench(run: S3BenchRun, events: readonly MatchEventEnvelope[], tunables: Tunables, positions: ReadonlyMap<PlayerId, Position>): void {
+  foldBench(run, events, tunables, positions);
+  let ticked = true;
+  for (const { event } of events) {
+    if (event.type === "PLAY_START") {
+      ticked = false;
+      const payload = event.payload as { readonly kind?: unknown; readonly snap?: unknown } | undefined;
+      if (payload?.kind !== "PASS_PLAY_V1" || rulesOnPlayStart(payload)?.name !== POCKET_1_S3_RULES) continue;
+      run.s3PassStarts += 1;
+      if (payload.snap !== undefined) run.pictures += 1;
+    } else if (event.type === "TICK") ticked = true;
+    else if (event.type === "RUSH_THREAT" && !ticked) {
+      run.snapThreats += 1;
+      run.earliestSnapEta = Math.min(run.earliestSnapEta, event.payload.etaTick);
+    }
+  }
+}
+
+function s3Summary(run: S3BenchRun): Record<string, unknown> {
+  const { seconds: _seconds, ...rest } = summary(run);
+  return { ...rest, s3PassStarts: run.s3PassStarts, pictures: run.pictures, snapThreats: run.snapThreats, earliestSnapEta: run.snapThreats === 0 ? null : run.earliestSnapEta };
+}
+
+describe.skipIf(GATED)("ADR-089 step 3: the s3 clean bench (FF_POCKET_BENCH=1)", () => {
+  const tunables = cleanBenchTunablesS3();
+  const empty = (): S3BenchRun => ({ ...emptyRun(), s3PassStarts: 0, pictures: 0, snapThreats: 0, earliestSnapEta: Number.POSITIVE_INFINITY });
+  const flat = empty();
+  const gen = empty();
+
+  beforeAll(() => {
+    flatBaseline(
+      1,
+      (o, snap) => {
+        flat.acc = foldGame(flat.acc, o);
+        foldS3Bench(flat, o.events, tunables, positionsFromSnapshot(snap));
+        flat.games += 1;
+      },
+      { tunables },
+    );
+    genSeason(
+      1,
+      (o, snap) => {
+        gen.acc = foldGame(gen.acc, o);
+        foldS3Bench(gen, o.events, tunables, positionsFromSnapshot(snap));
+        gen.games += 1;
+      },
+      { tunables },
+    );
+    process.stdout.write(`ADR-089 s3 clean bench:\n${JSON.stringify({ flat: s3Summary(flat), gen: s3Summary(gen) }, null, 1)}\n`);
+  }, 1_800_000);
+
+  it.each([
+    ["flat", () => flat, 496],
+    ["gen", () => gen, 272],
+  ] as const)("%s: every PASS play is s3 on its published picture; pressured 0 and sacks 0 (release and throwaways reported)", (league, run, games) => {
+    const r = run();
+    process.stdout.write(`ADR-089 s3 clean bench ${league}: release ${mean(r.acc.play.throwTicks).toFixed(4)} s, throwaways ${pct(r.throwaways, r.passStarts).toFixed(3)}% of ${String(r.passStarts)} PASS plays\n`);
+    expect(r.games).toBe(games);
+    expect(r.passStarts).toBeGreaterThan(0);
+    expect(r.s3PassStarts).toBe(r.passStarts);
+    expect(r.pictures).toBe(r.s3PassStarts);
+    if (r.snapThreats > 0) expect(r.earliestSnapEta).toBeGreaterThan(tunables.clock.maxTick);
+    expect(r.acc.play.pressuredDropbacks).toBe(0);
+    expect(r.acc.play.sacks).toBe(0);
   });
 });

@@ -16,6 +16,7 @@ export type CoachAttrId = Brand<string, "CoachAttrId">;
 export type TraitId = Brand<string, "TraitId">;
 export type SceneId = Brand<string, "SceneId">;
 export type AssetId = Brand<string, "AssetId">;
+export type OfficiatingCrewId = Brand<string, "OfficiatingCrewId">; // ADR-093 F5
 
 export const playerId = (s: string) => s as PlayerId;
 export const teamId = (s: string) => s as TeamId;
@@ -28,6 +29,7 @@ export const attrId = (s: string) => s as AttrId;
 export const coachAttrId = (s: string) => s as CoachAttrId;
 export const traitId = (s: string) => s as TraitId;
 export const storylineId = (s: string) => s as StorylineId;
+export const officiatingCrewId = (s: string) => s as OfficiatingCrewId;
 
 export type Position =
   | "QB" | "RB" | "FB" | "WR" | "TE"

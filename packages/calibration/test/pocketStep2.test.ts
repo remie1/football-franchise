@@ -1,10 +1,12 @@
 /**
  * ADR-089 step 2 — THE HARNESS (`src/pocket/step2.ts`; step-2 plan §4.1 to §4.7, §6's K3 row).
  *
- *  - the refusals before anything plays (plan §4.6): the filing, a missing or unpinned amendments
- *    file, a step-2 base map that is missing, misses an arm, names one step 2 does not grade, or reads
- *    an arm against another base than this build's; `runStep2`, `--m2` and `--digests` alike, with no
- *    arm played and no cache made;
+ *  - the refusals before anything plays (plan §4.6): the filing, a missing amendments file or one
+ *    whose step-2 view (the entries filed before step 2 or earlier) is not pinned, a step-2 base map
+ *    that is missing, misses an arm, names one step 2 does not grade, or reads an arm against another
+ *    base than this build's; `runStep2`, `--m2` and `--digests` alike, with no arm played and no
+ *    cache made; AM-2 and any later entry leave the step-2 view, its pin and the guard alone
+ *    (step-3 plan §4.3);
  *  - the stamp (step 1's, its `amendments` the pinned digest, the key in its place), the plan's
  *    targets and shards, the packed guard vectors;
  *  - Q-2's projection on the committed step-1 records: equal to itself, moved by a projected field,
@@ -25,7 +27,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { AMENDMENTS_DIGEST, AMENDMENTS_PATH, amendmentsDigest } from "../src/pocket/amendments.js";
+import { AMENDMENTS_DIGEST, AMENDMENTS_PATH, amendmentsDigest, amendmentsDigestAtStep, STEP2_AMENDMENTS_DIGEST, type AmendmentsFile } from "../src/pocket/amendments.js";
 import { armById, STEP2_ARM_IDS, STEP2_BASES, STEP2_RUN_IDS, type ArmId } from "../src/pocket/arms.js";
 import { FILED_PATH } from "../src/pocket/bands.js";
 import { SEED_SETS, type SeedSet } from "../src/pocket/corpus.js";
@@ -101,7 +103,7 @@ describe("the refusals before anything plays (plan §4.6)", () => {
     const { file, guard } = preflightStep2(FILED, AMENDMENTS);
     expect(file.bands.clauses.length).toBeGreaterThan(0);
     expect(guard).toEqual({
-      digest: AMENDMENTS_DIGEST,
+      digest: STEP2_AMENDMENTS_DIGEST,
       entry: "AM-1",
       record: "ADR-089 Appendix F, F.11",
       bases: { B1: "A1", B2: "A1", B3: "A1", B4: "A1", B5: "A5", B6: "A11", B7: "A1" },
@@ -122,13 +124,13 @@ describe("the refusals before anything plays (plan §4.6)", () => {
     expect(() => checkFilingForStep2(changed as unknown as FiledFile)).toThrow(/digests to fnv1a:[0-9a-f]{8}, not fnv1a:9a1c90e9/);
   });
 
-  /** Writes an amendments file edited by `edit`; returns its path and the digest that would pin it. */
+  /** Writes an amendments file edited by `edit`; returns its path and the step-2 view's digest that would pin it. */
   const amendmentsWith = (dir: string, edit: (json: Record<string, unknown>) => void): { path: string; pin: string } => {
     const json = committedAmendments();
     edit(json);
     const path = join(dir, "amendments.json");
     writeFileSync(path, jsonText(json));
-    return { path, pin: amendmentsDigest(json) };
+    return { path, pin: amendmentsDigestAtStep(json as unknown as AmendmentsFile, "2") };
   };
 
   it("refuses a missing amendments file, a changed one under the committed pin, and every faulty step-2 map", () => {
@@ -149,6 +151,29 @@ describe("the refusals before anything plays (plan §4.6)", () => {
     expect(() => preflightStep2(FILED, extra.path, extra.pin)).toThrow(/refused before anything plays: AM-1's step-2 base map names A2, which step 2 does not grade \(B1 to B7\)/);
     const differ = amendmentsWith(dir, (j) => { step2Map(j)["B5"] = "A1"; });
     expect(() => preflightStep2(FILED, differ.path, differ.pin)).toThrow(/refused before anything plays: AM-1's step-2 base map reads B5 against A1, and this build's arm against A5/);
+  });
+
+  it("reads the file as it stood at step 2 (step-3 plan §4.3): a later entry moves neither the pin nor the guard; one filed before step 2 after the fact is refused, and the whole file is still validated", () => {
+    const dir = tempDir("view");
+    const entries = (j: Record<string, unknown>): Record<string, unknown>[] => j["entries"] as Record<string, unknown>[];
+    // The committed file holds AM-2 too: its whole digest is not step 2's pin, and step 2 still reads AM-1 under d5f9de6d.
+    expect(entries(committedAmendments()).map((e) => e["id"]).slice(0, 2)).toEqual(["AM-1", "AM-2"]);
+    expect(amendmentsDigest(committedAmendments())).toBe(AMENDMENTS_DIGEST);
+    expect(AMENDMENTS_DIGEST).not.toBe(STEP2_AMENDMENTS_DIGEST);
+    const committed = preflightStep2(FILED, AMENDMENTS).guard;
+    expect(committed.digest).toBe("fnv1a:d5f9de6d");
+    // A stand-in entry filed before a later step: the view, the pin and the guard do not move.
+    const later = amendmentsWith(dir, (j) => { const e = entries(j); e.push({ ...structuredClone(e[1]!), id: `AM-${String(e.length + 1)}`, filedBeforeStep: "4", steps: ["4"] }); });
+    expect(later.pin).toBe(STEP2_AMENDMENTS_DIGEST);
+    expect(preflightStep2(FILED, later.path).guard).toEqual(committed);
+    // A stand-in filed before step 2 after the fact: the view moves, and step 2 refuses the file.
+    const early = amendmentsWith(dir, (j) => { const e = entries(j); e.push({ ...structuredClone(e[1]!), id: `AM-${String(e.length + 1)}`, filedBeforeStep: "2" }); });
+    expect(early.pin).not.toBe(STEP2_AMENDMENTS_DIGEST);
+    expect(() => preflightStep2(FILED, early.path)).toThrow(/refused before anything plays: ADR-089: the amendments file .*, read at step 2 \(its entries filed before step 2 or an earlier step\), digests to fnv1a:[0-9a-f]{8}, not the pin fnv1a:d5f9de6d/);
+    // A later entry that is not a valid one is refused: the whole file loads and validates first.
+    const broken = amendmentsWith(dir, (j) => { const e = entries(j); e.push({ ...structuredClone(e[1]!), id: "AM-99", filedBeforeStep: "4", steps: ["4"] }); });
+    expect(broken.pin).toBe(STEP2_AMENDMENTS_DIGEST);
+    expect(() => preflightStep2(FILED, broken.path)).toThrow(/^ADR-089 step 2: refused before anything plays: not an adr-089-amendments\/v1 file:\n {2}- entries\.\d+\.id: must be AM-\d+ /);
   });
 
   it("plays nothing and makes no cache when refused: the run, --m2 and --digests alike", () => {
@@ -190,7 +215,7 @@ describe("the stamp", () => {
       const two = step2StampOf(id, 2, ENV, TINY);
       expect(Object.keys(two)).toEqual(Object.keys(one));
       expect(one.amendments).toBe("none");
-      expect(two).toEqual({ ...one, amendments: AMENDMENTS_DIGEST });
+      expect(two).toEqual({ ...one, amendments: STEP2_AMENDMENTS_DIGEST });
     }
     expect(step2StampOf("B3", 1, ENV).rules).toBe("pocket-1.s2");
     expect(step2StampOf("A1", 1, ENV).rules).toBe("pocket-1.s1");
@@ -428,7 +453,7 @@ describe("real arms on a cut corpus, and the digests", () => {
 
   it("Q-3: A1's golden folds through the step-2 digests equal S-9's pins (first 10 a league); a step-2 arm is stamped pocket-1.s2", () => {
     const d = runStep2Digests({ filedPath: FILED, amendmentsPath: AMENDMENTS, node: "v-test", first: 10, arms: ["A1"] });
-    expect(d).toMatchObject({ format: STEP2_DIGESTS_FORMAT, amendments: AMENDMENTS_DIGEST, gamesPerLeague: 10, caller: "v7" });
+    expect(d).toMatchObject({ format: STEP2_DIGESTS_FORMAT, amendments: STEP2_AMENDMENTS_DIGEST, gamesPerLeague: 10, caller: "v7" });
     expect(digestPinProblems(d)).toEqual([]);
     const b3 = runStep2Digests({ filedPath: FILED, amendmentsPath: AMENDMENTS, node: "v-test", first: 1, arms: ["B3"] });
     expect(b3.arms["B3"]!.stamp).toEqual({ arm: "B3", rules: "pocket-1.s2", overlayDigest: armById("B3").overlayDigest, tunablesDigest: armById("B3").tunablesDigest, patches: armById("B3").patches.map((p) => `${p.tunableId}: ${String(p.currentValue)} -> ${String(p.proposedValue)}`) });
@@ -442,7 +467,7 @@ describe("digestPinProblems (Q-3's base check)", () => {
     const pins = [["A1", POCKET_1_S1_PINS.arms.A1], ["A5", POCKET_1_S1_BASE_PINS.arms.A5], ["A11", POCKET_1_S1_BASE_PINS.arms.A11]] as const;
     return {
       format: STEP2_DIGESTS_FORMAT,
-      amendments: AMENDMENTS_DIGEST,
+      amendments: STEP2_AMENDMENTS_DIGEST,
       node: "v",
       caller: "v7",
       gamesPerLeague: games,
@@ -937,7 +962,7 @@ describe("the run", () => {
     expect(calls.slice().sort()).toEqual(STEP2_RUN_IDS.flatMap((id) => [`${id}.set1`, `${id}.set2`]).sort());
     const bytes = { report: readFileSync(report, "utf8"), out: readFileSync(out, "utf8") };
     const measures = JSON.parse(bytes.out) as { format: string; filedDigest: string; amendments: string; fingerprint: string; arms: Record<string, Step2Record> };
-    expect(measures).toMatchObject({ format: STEP2_MEASURES_FORMAT, filedDigest: STEP0_FILED_DIGEST, amendments: AMENDMENTS_DIGEST, fingerprint: ENV.fingerprint });
+    expect(measures).toMatchObject({ format: STEP2_MEASURES_FORMAT, filedDigest: STEP0_FILED_DIGEST, amendments: STEP2_AMENDMENTS_DIGEST, fingerprint: ENV.fingerprint });
     expect(Object.keys(measures.arms)).toEqual(STEP2_RUN_IDS.flatMap((id) => [`${id}.set1`, `${id}.set2`]));
     expect(bytes.out).not.toContain(dir);
     expect(bytes.report).not.toContain(dir);
@@ -962,7 +987,7 @@ describe("the run", () => {
     const r = runStep2({ ...base(dir, []), arms: ["B3"], out });
     expect(r).toMatchObject({ graded: false, played: ["B3.set1", "B3.set2"], wrote: [out] });
     const body = JSON.parse(readFileSync(out, "utf8")) as { format: string; amendments: string; fingerprint: string; records: Record<string, unknown> };
-    expect(body).toMatchObject({ format: STEP2_RECORDS_FORMAT, amendments: AMENDMENTS_DIGEST, fingerprint: ENV.fingerprint });
+    expect(body).toMatchObject({ format: STEP2_RECORDS_FORMAT, amendments: STEP2_AMENDMENTS_DIGEST, fingerprint: ENV.fingerprint });
     expect(Object.keys(body.records)).toEqual(["B3.set1", "B3.set2"]);
     for (const s of [1, 2] as const) expect(body.records[`B3.set${String(s)}`]).toEqual(JSON.parse(readFileSync(armFileOf(r.cacheDir, "B3", s), "utf8")));
     const two = runStep2({ ...base(dir, []), arms: ["B3", "A1"], out: join(dir, "two.json") });

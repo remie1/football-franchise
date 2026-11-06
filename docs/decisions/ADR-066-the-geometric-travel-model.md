@@ -658,3 +658,41 @@ those are the alignment inputs this ruling invalidates.**
 
 ✅ **The subject condition is now A SNAP POSITION, not a geometry.** **`unruled`: whether the comment
 is corrected in place or the field's placeholder status is restated against the new sequence.**
+
+## Amendment (ADR-089 step 3, `pocket-1.s3` only)
+
+**The halt's step 3 ("Geometry consumes snap position WHEN THERE IS ONE. Not before") is met for
+free runners, and only for them.** ADR-090 (where every man stands at the snap) gives every play a
+snap picture (`PlayCalls.snap`, copied onto `PLAY_START.payload.snap`; its step 1), and under
+ADR-089's step-3 rules, which run only behind the `pocket-1.s3` switch, a man nobody touched is
+timed from his own spot in it, not from his alignment (ADR-089 §4.4.3 to §4.4.5; amendment AM-2,
+ADR-089 Appendix G, G.8). So the distance this ADR's stated limit warns of, "a distance from
+somewhere he isn't", is not computed for him: his spot is where he is at the snap, the creeper's
+movement included. The engine fills `RushThreat.distanceYards` (his whole path) and
+`closingSpeed` (that path over his unrounded time) for these men; they stay engine-internal, and
+reach `RUSH_THREAT` only if the owner grants ADR-089's petition P5.
+
+**Blocked rushers stay halted.** A man who beats his blocker keeps the won-rep travel table
+(`arrival.travelSecondsByAlignmentAndMove`, ADR-061), as does a touched man once his late block is
+beaten; no gap-to-lateral offset or coordinate is built for anyone else, and the quarterback's own
+deep drop into the edge rusher stays later (ADR-089 §4.4.3). Under `legacy`, which is the default,
+and under `pocket-1.s1` and `pocket-1.s2`, nothing here applies.
+
+The open item above, `RushThreat.distanceYards`'s comment and its subject condition, is ADR-090's
+petition S4 (doc text: the subject condition becomes "a snap spot (ADR-090)"); the comment is not
+changed before the owner's typed yes.
+
+**Orchestrator note (2026-10-31): P5 and S4 granted.** The owner gave his typed yes to ADR-089's
+petition P5 and ADR-090's petition S4 on 2026-10-31 at 14:38:53Z, in the ADR-089 thread: "Yes,
+make contracts edits S3, P5 and P17, and edit S4". So the note above no longer waits on the owner.
+P5 reached contracts at `218a737`: `RUSH_THREAT`'s payload gains `distanceYards` and
+`closingSpeed`, both or neither. The engine lifted its gate at `58a374b` (E6b), so the pair is
+published, not kept engine-internal. It is published only under `pocket-1.s3`:
+- a free runner the free-run clock timed carries the clock's pair: his path from his snap spot,
+  and that path over his whole time from the snap;
+- a won rep and a beaten late block carry the nominal pair;
+- a free runner on today's set time carries neither.
+
+Under `legacy`, `pocket-1.s1` and `pocket-1.s2`, neither key is written. S4's comment edit is
+`c61ec9d`. `RushThreat.distanceYards`' subject condition is now "a snap spot (ADR-090)", which
+closes the open item above.
