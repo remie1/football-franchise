@@ -130,12 +130,12 @@ describe("the league's officiating crews (ADR-093 step 1, §6.1 to §6.3)", () =
     }
   });
 
-  it("holds the carry at 0.35 until the owner answers question 1, and each family's lean SD at §16 A4's numbers", () => {
+  it("holds the carry at 0.68, the owner's answer to question 1, and each family's lean SD at §16 A4's numbers", () => {
     // The tests above check the draws against whatever CREW_RULES says, so these numbers are pinned
-    // here. The carry changes only with the owner's answer to question 1 (0.35 as written, or 0.68),
-    // a dated §15 entry of ADR-093 (§16 A5); a family's spread only at its own step, which measures it
-    // again (§16 A4).
-    expect(CREW_RULES.carry).toBe(0.35);
+    // here. The carry is the owner's answer to question 1 on 2026-11-06 (0.68, against 0.35 as
+    // written), a dated §15 entry of ADR-093 (§16 A5), and changes only with the owner's word; a
+    // family's spread only at its own step, which measures it again (§16 A4).
+    expect(CREW_RULES.carry).toBe(0.68);
     expect(CREW_RULES.leanSd).toEqual({ LINE_HOLDING: 8.6, COVERAGE: 8.8, PLAYER_SAFETY: 14.0, TECHNICAL: 10.3, SNAP: 4.4 });
   });
 

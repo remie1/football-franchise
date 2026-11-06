@@ -21,11 +21,14 @@ export const CREW_RULES = Object.freeze({
    */
   leanSd: Object.freeze({ LINE_HOLDING: 8.6, COVERAGE: 8.8, PLAYER_SAFETY: 14.0, TECHNICAL: 10.3, SNAP: 4.4 } satisfies Record<CrewLeanFamily, number>),
   /**
-   * How a crew's lean carries into the next season (§6.1, §16 A5): 0.35 as written (REAL, Table 6,
-   * 158 pairs of back-to-back referee-seasons), until the owner answers whether it should be the
-   * habit that shows 0.35 in the game's records, about 0.68.
+   * Question 1, ruled on 2026-11-06 (§15, §16 A5): how a crew's lean carries into the next season
+   * (§6.1). It is the habit that makes the game's own holding flags show the real league's 0.35
+   * (REAL, Table 6: offensive holding, 158 pairs of back-to-back referee-seasons) once one season's
+   * luck is in. One season's holding flags show only about 0.515 of a crew's habit (COMPUTED), so
+   * the habit carries at about 0.35 ÷ 0.515 = 0.68 (COMPUTED; CHOSEN, ruled). The other families
+   * use it until their own steps measure theirs (§6.1).
    */
-  carry: 0.35,
+  carry: 0.68,
   /**
    * Q3, ruled: no crew works the same team twice in this many weeks, byes included (§6.2, §16 A6).
    * With 17 crews and at most 16 games a week it can always be met (Hall's condition); so could a
