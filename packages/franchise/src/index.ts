@@ -18,7 +18,7 @@ export {
 } from "./playoffs/bracket.js";
 export {
   runSeason, gameSeed, MAX_PLAYOFF_REPLAYS,
-  type GameResolver, type ResolvedGame, type RunSeasonInput, type SeasonRun,
+  type GameContext, type GameResolver, type ResolvedGame, type RunSeasonInput, type SeasonRun,
 } from "./season/runSeason.js";
 // ADR-086: the league's people through the year, and the day steps that change them.
 export { isDay, type LeaguePeople, type DayStep, type DayStepContext } from "./season/people.js";
@@ -143,3 +143,10 @@ export {
   applyMeetingMoves, holdMeeting, meetingStaff, reportCard, type MeetingInput, type MeetingOutcome, type ReportCardLine,
 } from "./meeting/meeting.js";
 export { MEETING_STEP_PREFIX, meetingSteps, seasonOverAt, type MeetingStepsConfig } from "./meeting/steps.js";
+// ADR-093 step 1: the league's officiating crews (made for a new league, carried into each new season).
+export { CREW_RULES } from "./officials/tables.js";
+export {
+  makeCrews, carryCrews, crewsProblem, crewIdFor, officialsRng, type CrewAssignment, type SeasonOfficiating,
+} from "./officials/crews.js";
+export { assignWeek, crewWeek, weekRng, type AssignWeekInput } from "./officials/assign.js";
+export { seasonOfficials, type OfficiatingInput, type SeasonOfficials } from "./officials/season.js";

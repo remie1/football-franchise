@@ -2,6 +2,10 @@
  * ADR-087 §10 through the real sim: a season with the players' switches on plays with the people as
  * they are each week, and carrying on from a stop gives exactly the straight run. Two regular-season
  * weeks keep it quick.
+ *
+ * ADR-093 step 1: the straight run and the stopped one are asked for their crews, and the run carried
+ * on from the stop takes the stopped run's crews as they stand, so the players' path (the season with
+ * the people) hands back the straight run's crews and each game's crew.
  */
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -24,7 +28,7 @@ const players = { development: true, injuries: true } as const;
 const week = (n: number): CalendarStamp => ({ season, phase: "REGULAR_SEASON", week: n, day: 7 });
 
 describe("a real-sim season with the players' switches on", () => {
-  const straight = runRealSeason({ seed, season, players, staff, stopAfter: week(2) });
+  const straight = runRealSeason({ seed, season, players, staff, stopAfter: week(2), officiating: { kind: "NEW" } });
 
   it("plays its games, grows and hurts players, and labels the players' steps' events", () => {
     const types = new Set(straight.run.events.map((e) => e.event.type));
@@ -48,14 +52,19 @@ describe("a real-sim season with the players' switches on", () => {
     for (const position of ["K", "P", "LS"]) expect(pool.some((p) => p.bio.position === position), position).toBe(true);
   });
 
-  it("carried on from week 1 with the people, the steps' events and the day, gives the straight run", () => {
-    const first = runRealSeason({ seed, season, players, staff, stopAfter: week(1) });
+  it("carried on from week 1 with the people, the steps' events, the day and the crews, gives the straight run, crews included", () => {
+    const first = runRealSeason({ seed, season, players, staff, stopAfter: week(1), officiating: { kind: "NEW" } });
     const second = runRealSeason({
       seed, season, players, staff, stopAfter: week(2), resumeFrom: first.run.state,
       resume: { people: first.run.people!, events: first.run.stepEvents!.map((e) => e.envelope), through: first.run.calendar },
+      officiating: { kind: "STANDING", crews: first.run.officiating!.crews, assignments: first.run.officiating!.assignments },
     });
     expect(JSON.stringify(second.run.events)).toBe(JSON.stringify(straight.run.events));
     expect(JSON.stringify(second.run.people)).toBe(JSON.stringify(straight.run.people));
+    // ADR-093 step 1: the crews too, and every game of the two weeks has one (16 a week).
+    expect(JSON.stringify(second.run.officiating)).toBe(JSON.stringify(straight.run.officiating));
+    expect(first.run.officiating!.assignments).toHaveLength(16);
+    expect(straight.run.officiating!.assignments).toHaveLength(32);
   });
 
   it("plays the same weeks with the whole coaching world (ADR-084 step 1), its views seated and still", () => {
