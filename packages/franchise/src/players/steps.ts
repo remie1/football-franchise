@@ -28,7 +28,7 @@ import type { DayStep, DayStepContext, LeaguePeople } from "../season/people.js"
 import { currentJob, seatOf } from "../staff/world.js";
 import { nextDay } from "../calendar/clock.js";
 import { depthChartWeek, readBlur } from "./depthChart.js";
-import { developmentWeek } from "./development.js";
+import { PRACTICE_PHASES, developmentWeek } from "./development.js";
 import { gameInjuries, healWeek, isAvailable, weekInjuries } from "./injuries.js";
 import { emptyMemory, type PlayerMemory, type PlayerWeek } from "./types.js";
 import { unsignedDay } from "./unsigned.js";
@@ -65,8 +65,6 @@ export interface PlayerGameExtras {
   readonly participation: readonly GameParticipation[];
 }
 
-/** Phases in which a team still in its year practises (§3's table). */
-const PRACTICE_PHASES: ReadonlySet<CalendarPhase> = new Set(["TRAINING_CAMP", "PRESEASON", "REGULAR_SEASON", "PLAYOFFS", "OFF_ROOKIES_OTAS"]);
 
 const OFFENSE: ReadonlySet<Position> = new Set(["QB", "RB", "FB", "WR", "TE", "LT", "LG", "C", "RG", "RT"]);
 const SPECIAL: ReadonlySet<Position> = new Set(["K", "P", "LS"]);

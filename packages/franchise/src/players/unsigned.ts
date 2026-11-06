@@ -111,9 +111,11 @@ function patienceRunOut(since: CalendarStamp, at: CalendarStamp, patience: numbe
 export function unsignedDay(input: UnsignedInput): UnsignedResult {
   const { at, rules, seed } = input;
   const byId = new Map(input.players.map((p) => [String(p.bio.id), p]));
+  // A man on a team is not waiting to be signed, even if a free-agent list still names him: he never
+  // retires unsigned (so a roster can never be left naming a retired man).
   const isFree = (id: PlayerId) => {
     const p = byId.get(String(id));
-    return p !== undefined && p.bio.draft !== "PROSPECT";
+    return p !== undefined && p.bio.draft !== "PROSPECT" && p.teamId === undefined;
   };
   const free = input.freeAgents.filter(isFree);
   const freeIds = new Set(free.map(String));
