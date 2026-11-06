@@ -147,6 +147,55 @@ export function pocketTables(pf: PocketFold): {
   };
 }
 
+/**
+ * One reading of the miss rule's split (ADR-089:1174), in percent, `null` where its population is
+ * empty. "Free runner" is the reading's: a threat of an origin other than WON_REP (step 0's, the
+ * origin-keyed figures), or a man on the free-run clock under the arm's own reading (AM-2's key).
+ */
+export interface MissSplitFigures {
+  /** n: the pressured share of 2.0-2.5 s attempts on dropbacks with no free runner. */
+  readonly bin20NoFreeRunner: number | null;
+  /** f: the share of 2.0-2.5 s attempts on dropbacks with a free runner. */
+  readonly freeRunnerShareOf20: number | null;
+  /** p(pressured given a free runner on a 2.0-2.5 s attempt): the supply threshold assumes 1 (critique 4 S4-6). */
+  readonly pressuredGivenFreeRunner20: number | null;
+  /** The quick-pressure share on pressured dropbacks with no free runner (the quick split). */
+  readonly quickNoFreeRunner: number | null;
+  /** The quick share by the first pressure's cause, as this reading keys it (the quick share's origin). */
+  readonly quickShareByCause: Record<string, number | null>;
+}
+
+/**
+ * The miss rule's split on one fold, both ways (ADR-089 step 3, AM-2's `freeRunKey`): `byClock`,
+ * keyed by the arm's own reading (n, f, the quick split and the quick share's origin, with p beside),
+ * and `byOrigin`, step 0's origin-keyed figures, printed beside it. `quick` is the quick-pressure
+ * share on every pressured dropback. The fold must be one arm's (its tunables give the reading).
+ */
+export function missSplitFigures(pf: PocketFold): { readonly quick: number | null; readonly byClock: MissSplitFigures; readonly byOrigin: MissSplitFigures } {
+  const pct = (k: number, n: number): number | null => (n === 0 ? null : (100 * k) / n);
+  const bin = pf.releaseBins[TWO_SECOND_BIN];
+  const attempts = bin?.attempts ?? 0;
+  const pressured = bin?.pressuredAttempts ?? 0;
+  const figures = (noAttempts: number, noPressured: number, noPressuredDropbacks: number, noQuick: number, first: Record<string, number>, quickFirst: Record<string, number>): MissSplitFigures => {
+    const quickShareByCause: Record<string, number | null> = {};
+    for (const [key, units] of Object.entries(first)) quickShareByCause[key] = pct(quickFirst[key] ?? 0, units);
+    return {
+      bin20NoFreeRunner: pct(noPressured, noAttempts),
+      freeRunnerShareOf20: pct(attempts - noAttempts, attempts),
+      pressuredGivenFreeRunner20: pct(pressured - noPressured, attempts - noAttempts),
+      quickNoFreeRunner: pct(noQuick, noPressuredDropbacks),
+      quickShareByCause,
+    };
+  };
+  const ck = pf.clockKey;
+  const cb = ck.releaseBins[TWO_SECOND_BIN];
+  return {
+    quick: pct(pf.quickFirstPressures, pf.firstPressureSeconds.length),
+    byClock: figures(cb?.attemptsNoClockRunner ?? 0, cb?.pressuredNoClockRunner ?? 0, ck.noClockRunnerPressured, ck.noClockRunnerQuick, ck.firstPressureByClock, ck.quickFirstPressureByClock),
+    byOrigin: figures(bin?.attemptsNoFreeRunner ?? 0, bin?.pressuredNoFreeRunner ?? 0, pf.noFreeRunnerPressured, pf.noFreeRunnerQuick, pf.firstPressureOrigin, pf.quickFirstPressureByOrigin),
+  };
+}
+
 const STAND_IN =
   "Under legacy the stream has no QB_HIT event: a threat published ARRIVED with the ball still in his hand stands in for it (plan §5; measured equal to the strict reading, plan §0).";
 
@@ -584,7 +633,7 @@ export const unblockedPressuresPer100: Metric = registerMetric({
   id: "unblocked_pressures_per_100",
   tier: 1,
   definition:
-    `${FREE_RUN}. Counted once per play when his own arrival floor (\`DEFAULT_TUNABLES.arrival\`'s ` +
+    `${FREE_RUN}. Counted once per play when his own arrival floor (the played tunables' \`arrival\` ` +
     "horizons on his tenth-rounded time to arrival) reached PRESSURE or worse at a POCKET_STATUS with the ball in his hand, per 100 dropbacks.",
   unit: "per 100 dropbacks",
   toleranceBand: OBSERVATION(),

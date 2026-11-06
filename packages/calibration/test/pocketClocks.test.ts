@@ -28,6 +28,7 @@ import {
   tickJitter,
   ticksOf,
 } from "../src/pocket/clocks.js";
+import { lateLMarginExact } from "../src/pocket/s1Stream.js";
 
 const T = DEFAULT_TUNABLES;
 const clock = clockOf(T);
@@ -199,7 +200,10 @@ describe("the late block on both shapes (ADR-089 §4.4.2)", () => {
     expect(() => lateBreakingTimeS(m, 0.5, 1, 0)).toThrow(RangeError);
   });
 
-  it("L: round(min(1, (t - t_e)/(w R)) * (m + jitter)), from t_e on", () => {
+  it("L: round(min(t - t_e, w R) * (m + jitter) / (w R)), AM-2's float form, from t_e on", () => {
+    // Review CT-F5: the tie where min(1, (t - t_e)/(w R)) * x rounds the other way (-26).
+    expect(lateMarginL(0.8, 0.5, 0.1, 4, -30, -4)).toBe(-25);
+    expect(lateMarginL(0.8, 0.5, 0.1, 4, -30, -4)).toBe(lateLMarginExact(0.8, 0.5, 0.1, 4, -34));
     expect(lateMarginL(1.0, 1.0, 2, 5, 9, 3)).toBe(0);
     expect(lateMarginL(6.0, 1.0, 2, 5, 9, 3)).toBe(6); // 0.5 * 12
     expect(lateMarginL(11.0, 1.0, 2, 5, 9, 3)).toBe(12);

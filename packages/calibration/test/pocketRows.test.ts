@@ -426,6 +426,27 @@ const freeGame = (): SimGameObservation =>
     .snap(SACK, [...at(0.5, status("CLEAN"), threat("w1", "WON_REP", 1.0)), ...at(1.0, status("COLLAPSING"), threat("w1", "WON_REP", 1.0, "ARRIVED"))])
     .observe();
 
+/**
+ * AM-2's untouched exchange against D19's band test (review MEAS-S4, MEAS-N1):
+ * 1. u1, STUNT_LOOPER banded LATE_EXCHANGE with nobody's hand on him (the CHECK names only the pair):
+ *    COLLAPSING floor at 1.0, ARRIVED, a sack. Not D19's (the band is not LOOPER_FREE); on the clock
+ *    under D19's key as AM-2 reads it (no hand): a man, a pressure, his hit-or-sack.
+ * 2. h1, the same band with lg's hand on him: on neither.
+ */
+const exchangeGame = (): SimGameObservation =>
+  new Game("exchange")
+    .snap(SACK, [
+      check("stunt_communication", "presnap/stunt/u1", { band: "LATE_EXCHANGE", actors: ["dt1", "u1"] }),
+      ...at(0.5, status("CLEAN"), threat("u1", "STUNT_LOOPER", 1.5, "TRAVELLING", "presnap/stunt/u1")),
+      ...at(1.0, status("COLLAPSING"), threat("u1", "STUNT_LOOPER", 1.5, "ARRIVED", "presnap/stunt/u1")),
+    ])
+    .snap({}, [
+      check("stunt_communication", "presnap/stunt/h1", { band: "LATE_EXCHANGE", actors: ["lg", "dt2", "h1"] }),
+      ...at(0.5, status("CLEAN"), threat("h1", "STUNT_LOOPER", 1.5, "TRAVELLING", "presnap/stunt/h1")),
+      ...at(1.0, status("COLLAPSING"), thrown(), caught()),
+    ])
+    .observe();
+
 /** No free runner at 2.0 s: pressured by a won rep only; clean; pressured with an unblocked man; pressured, released at 1.0. */
 const noFree2Game = (): SimGameObservation =>
   new Game("nofree2")
@@ -668,6 +689,17 @@ describe("ADR-089 step 0: the tables beside the rows", () => {
     expect(pf.freeRunMen).toBe(3);
     expect(pf.freeRunPressures).toBe(2);
     expect(pf.unblockedHitOrSack).toBe(1);
+  });
+
+  it("review MEAS-S4, MEAS-N1: the clock-keyed unblocked counts take AM-2's untouched exchange, which D19's band test leaves out", () => {
+    const pf = collectGames([exchangeGame()]).play.pocket;
+    expect([pf.freeRunMen, pf.freeRunPressures, pf.unblockedHitOrSack, pf.hitOrSackDropbacks]).toEqual([0, 0, 0, 1]);
+    expect([pf.clockKey.clockMen, pf.clockKey.clockPressures, pf.clockKey.clockHitOrSack]).toEqual([1, 1, 1]);
+    // On D19's own men the two keys agree (no exchange in freeGame is untouched; its pickups name no back, so l1 is on the clock and never pressures).
+    const free = collectGames([freeGame()]).play.pocket;
+    expect([free.clockKey.clockPressures, free.clockKey.clockHitOrSack]).toEqual([free.freeRunPressures, free.unblockedHitOrSack]);
+    const merged = mergeAccumulators(collectGames([exchangeGame()]), collectGames([exchangeGame(), freeGame()])).play.pocket.clockKey;
+    expect([merged.clockPressures, merged.clockHitOrSack]).toEqual([2 + free.clockKey.clockPressures, 2 + free.clockKey.clockHitOrSack]);
   });
 
   it("windows each snap by its period, its published clock and the offence's margin", () => {

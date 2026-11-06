@@ -21,7 +21,8 @@ import { isGameScoped } from "../src/game/events.js";
 import { TUNABLES } from "../src/tunables.js";
 import { buildGameFixture } from "./gameFixtures.js";
 import type { Tunables } from "../src/tunables.js";
-import { PASS_FIXTURES, RULE_SETS, STEP1_RULE_SET_NAMES, isShapeS } from "./pocketTunables.js";
+import { PASS_FIXTURES, RULE_SETS, STEP1_RULE_SET_NAMES, isShapeS, isStep3 } from "./pocketTunables.js";
+import { callsUnder } from "./snapFixtures.js";
 import {
   buildMixedCoverageScenario,
   buildScenario,
@@ -48,7 +49,7 @@ function sweep(
     out.push([
       ...(tunables === undefined
         ? simulatePassPlay(state, calls, `${prefix}-${i}`)
-        : simulatePassPlay(state, calls, `${prefix}-${i}`, tunables)
+        : simulatePassPlay(state, callsUnder(tunables, state, calls), `${prefix}-${i}`, tunables)
       ).events,
     ]);
   }
@@ -204,13 +205,18 @@ describe("ADR-007 #4 — RUSH_THREAT", () => {
           const start = events[0]?.event;
           if (start?.type !== "PLAY_START") throw new Error("no PLAY_START");
           const keys = Object.keys(start.payload as object);
-          expect(keys).toEqual(["kind", "offense", "defense", "situation", "rules"]);
+          // ADR-090 S2: calls that carry the snap picture put it on PLAY_START after `rules`; an s3
+          // set's pass play always carries one (plan §2.3), every other set's plays here none.
+          expect(keys).toEqual(["kind", "offense", "defense", "situation", "rules", ...(isStep3(name) ? ["snap"] : [])]);
           const rules = (start.payload as { rules: { name: string; overlayDigest: string } }).rules;
           expect(rules).toEqual(tunables.engineRules);
           expect(Object.keys(rules)).toEqual(["name", "overlayDigest"]);
           for (const t of threats(events)) {
             published += 1;
-            expect(Object.keys(t.payload)).toEqual(["rusher", "alignment", "origin", "rollRef", "etaTick", "state", "approach"]);
+            // ADR-089 P5 (E6b): an s3 set with the free-run block publishes the threat's distance
+            // and closing speed after `approach`, both or neither; every other set neither.
+            const pair = isStep3(name) && "distanceYards" in t.payload ? ["distanceYards", "closingSpeed"] : [];
+            expect(Object.keys(t.payload)).toEqual(["rusher", "alignment", "origin", "rollRef", "etaTick", "state", "approach", ...pair]);
             expect(["FREE", "ARC", "THROUGH", "PUSH"]).toContain(t.payload.approach);
           }
         }
@@ -805,7 +811,7 @@ describe("ADR-089 step 2 — must act adds no event, CHECK kind, choice or cause
       for (let i = 0; i < 40; i++) {
         for (const { name, tunables } of RULE_SETS) {
           const { state, calls } = build();
-          const { events } = simulatePassPlay(state, calls, `vocabulary-s2-${fixture}-${i}`, tunables);
+          const { events } = simulatePassPlay(state, callsUnder(tunables, state, calls), `vocabulary-s2-${fixture}-${i}`, tunables);
           if (STEP1_RULE_SET_NAMES.includes(name)) words(events, step1);
           const into = step2.get(name);
           if (into !== undefined) words(events, into);

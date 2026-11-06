@@ -311,3 +311,344 @@ describe("the block clock on the play detail (ADR-089 step 1)", () => {
     expect(line(unknown)).toBe("Dez Edge (edge): travelling, due tick 3 [won rep; spin back]");
   });
 });
+
+// ADR-089 step 3 (stream V; §9's no-crash rule; critique 1 S9): under `pocket-1.s3` a man somebody
+// got a hand on before the snap is blocked late and weakly, and a man nobody touched runs on his
+// own clock. One pass play written as the engine writes it (build-eb §1), typed against contracts
+// so the compiler holds every event to what the engine may write: the back's `blitz_pickup` (he was
+// run through) and the line's `stunt_communication` (the exchange was late); then each touched man's
+// late beat, a `pass_rush_beat` on a uniform whose `rollRef` names that touching CHECK, its margin
+// the CHECK's turned round, `[rusher, toucher]`; a free runner published at the snap; nothing late
+// before the late block engages (tick 1); from then a dieless `pass_rush_tick` a tick naming the
+// beat; and each beaten late block's `RUSH_THREAT` on its tick, keeping his own origin (PICKUP_LOST,
+// STUNT_LOOPER) and naming the touching CHECK. A step-1 blocked rep (its beat names its
+// `pass_rush_rep`) rides along to show it is not mistaken for a late block. The viewer words each
+// event and follows `rollRef`s; it times and decides nothing.
+describe("the late block and free runners on the play detail (ADR-089 step 3)", () => {
+  const G = FIXTURE.events[0]!.event.gameId as GameId;
+  const PLAY = "s3" as PlayId;
+  const [rb2, lb, lt, dt, de, cb, lg] = ["rb2", "lb", "lt", "dt", "de", "cb", "lg"].map((p) => p as PlayerId) as [
+    PlayerId, PlayerId, PlayerId, PlayerId, PlayerId, PlayerId, PlayerId,
+  ];
+  const PICKUP = "game:g/play:s3/presnap/pickup/rb2:pickup";
+  const STUNT = "game:g/play:s3/presnap/stunt/de:stunt";
+  const RECOGNITION = "game:g/play:s3/presnap/blitzRecognition";
+  const REP = "game:g/play:s3/rush/dt:rep/dt:rush";
+  const beatOf = (ref: string): string => `game:g/play:s3/rush/beat/${ref}`;
+  const d100 = (raw: number, total: number, rngLabel: string, modifiers: { source: string; value: number }[] = []): RollDetail => ({
+    die: "d100",
+    raw,
+    total,
+    modifiers,
+    rngLabel,
+  });
+
+  const check = (payload: Extract<MatchEvent, { type: "CHECK" }>["payload"], tick?: number): MatchEvent => ({
+    type: "CHECK",
+    gameId: G,
+    playId: PLAY,
+    ...(tick === undefined ? {} : { tick }),
+    payload,
+  });
+  const tickAt = (tick: number): MatchEvent => ({ type: "TICK", gameId: G, playId: PLAY, tick, payload: { tick } });
+  const threat = (payload: Extract<MatchEvent, { type: "RUSH_THREAT" }>["payload"], tick?: number): MatchEvent => ({
+    type: "RUSH_THREAT",
+    gameId: G,
+    playId: PLAY,
+    ...(tick === undefined ? {} : { tick }),
+    payload,
+  });
+  /** A step-1 or late beat: one uniform, the margin it reads, no band (P2). */
+  const beat = (actors: PlayerId[], raw: number, margin: number, tier: ResultTier, rollRef: string, tick?: number): MatchEvent =>
+    check({ checkKind: "pass_rush_beat", actors, roll: { die: "uniform", raw, modifiers: [], total: raw, rngLabel: beatOf(rollRef) }, tier, margin, testsAttrs: [], rollRef }, tick);
+  /** A dieless tick naming its beat (P3). */
+  const dieless = (actors: PlayerId[], margin: number, tier: ResultTier, band: string, beatLabel: string, tick: number): MatchEvent =>
+    check({ checkKind: "pass_rush_tick", actors, tier, band, margin, testsAttrs: [], rollRef: beatLabel }, tick);
+
+  const pickup = check({
+    checkKind: "blitz_pickup",
+    actors: [rb2, lb],
+    roll: d100(35, 41, PICKUP, [{ source: "RB Pass Block (pickup)", value: 6 }]),
+    opposedRoll: d100(40, 52, "game:g/play:s3/presnap/pickup/lb:blitz", [{ source: "LB Pass Rush (blitz)", value: 12 }]),
+    tier: "MARGINAL_FAILURE",
+    band: "RAN_THROUGH",
+    margin: -11,
+    testsAttrs: [],
+  });
+  const stunt = check({
+    checkKind: "stunt_communication",
+    actors: [lt, dt, de],
+    roll: d100(20, 26, STUNT, [{ source: "LT Awareness (exchange)", value: 6 }]),
+    target: 34,
+    tier: "MARGINAL_FAILURE",
+    band: "LATE_EXCHANGE",
+    margin: -8,
+    testsAttrs: [],
+  });
+  const free: Extract<MatchEvent, { type: "RUSH_THREAT" }>["payload"] = {
+    rusher: cb,
+    alignment: "EDGE",
+    origin: "UNBLOCKED",
+    rollRef: RECOGNITION,
+    etaTick: 1.6,
+    state: "TRAVELLING",
+    approach: "FREE",
+  };
+  const lbBeaten: Extract<MatchEvent, { type: "RUSH_THREAT" }>["payload"] = {
+    rusher: lb,
+    alignment: "INTERIOR",
+    origin: "PICKUP_LOST",
+    rollRef: PICKUP,
+    etaTick: 2.5,
+    state: "TRAVELLING",
+    approach: "THROUGH",
+  };
+  const deBeaten: Extract<MatchEvent, { type: "RUSH_THREAT" }>["payload"] = {
+    rusher: de,
+    alignment: "EDGE",
+    origin: "STUNT_LOOPER",
+    rollRef: STUNT,
+    etaTick: 3.5,
+    state: "TRAVELLING",
+    approach: "ARC",
+  };
+  const rep = check(
+    {
+      checkKind: "pass_rush_rep",
+      actors: [dt, lg],
+      roll: d100(25, 31, REP),
+      opposedRoll: d100(60, 66, "game:g/play:s3/rush/dt:rep/lg:block"),
+      tier: "DECISIVE_FAILURE",
+      band: "BLOCKER_RESETS",
+      margin: -35,
+      testsAttrs: [],
+    },
+    0.5,
+  );
+
+  /** Shape S, as the engine writes it under `pocket-1.s3` (build-eb §1.2 to §1.5). */
+  const SHAPE_S: readonly MatchEvent[] = [
+    pickup,
+    stunt,
+    beat([lb, rb2], 0.77792, 11, "MARGINAL_SUCCESS", PICKUP),
+    beat([de, lt], 0.21384, 8, "MARGINAL_SUCCESS", STUNT),
+    threat(free),
+    tickAt(0.5),
+    rep,
+    beat([dt, lg], 0.51493, -35, "DECISIVE_FAILURE", REP, 0.5),
+    dieless([dt, lg], -35, "DECISIVE_FAILURE", "BLOCKER_RESETS", beatOf(REP), 0.5),
+    tickAt(1),
+    dieless([lb, rb2], 0, "TIE", "STALEMATE", beatOf(PICKUP), 1),
+    dieless([de, lt], 0, "TIE", "STALEMATE", beatOf(STUNT), 1),
+    tickAt(1.5),
+    dieless([lb, rb2], 15, "STRONG_SUCCESS", "RUSHER_WINS_REP", beatOf(PICKUP), 1.5),
+    threat(lbBeaten, 1.5),
+    dieless([de, lt], 0, "TIE", "STALEMATE", beatOf(STUNT), 1.5),
+    tickAt(2),
+    threat({ ...free, state: "ARRIVED" }, 2),
+    dieless([lb, rb2], 15, "STRONG_SUCCESS", "RUSHER_WINS_REP", beatOf(PICKUP), 2),
+    dieless([de, lt], 15, "STRONG_SUCCESS", "RUSHER_WINS_REP", beatOf(STUNT), 2),
+    threat(deBeaten, 2),
+    tickAt(2.5),
+    threat({ ...lbBeaten, state: "ARRIVED" }, 2.5),
+  ];
+
+  /** The fixture with a step-3 pass play appended, and the three men it adds to the roster. */
+  function withPlay(events: readonly MatchEvent[]): GameFile {
+    const start = { type: "PLAY_START", gameId: G, playId: PLAY, payload: { kind: "PASS_PLAY_V1", rules: { name: "pocket-1.s3", overlayDigest: "fnv1a:5f000030" } } } as unknown as MatchEvent;
+    const at = FIXTURE.events[0]!.at;
+    const added = [start, ...events].map((event, i) => ({ seq: FIXTURE.events.length + i, at, event }));
+    return {
+      ...FIXTURE,
+      players: {
+        ...FIXTURE.players,
+        lb: { name: "Lee Banks", position: "LB", team: "t:00" },
+        dt: { name: "Don Tull", position: "DT", team: "t:00" },
+        lg: { name: "Lars Gill", position: "LG", team: "t:01" },
+      },
+      events: [...FIXTURE.events, ...added],
+    };
+  }
+  /** Every RUSH_THREAT with ADR-089 P5's pair on it, as a `pocket-1.s3` file with the free-run block carries it. */
+  function withGeometry(events: readonly MatchEvent[]): MatchEvent[] {
+    return events.map((e) => (e.type === "RUSH_THREAT" ? { ...e, payload: { ...e.payload, distanceYards: 7.5, closingSpeed: 6.8 } } : e));
+  }
+
+  const LATE_TIMELINE = [
+    { tick: "snap", text: "Cal Burke (edge): travelling, due tick 1.6 [unblocked; free]" },
+    { tick: "1.5", text: "Lee Banks (interior): beats Rob Bell's late block, travelling, due tick 2.5 [pickup lost; straight through]" },
+    { tick: "2", text: "Cal Burke (edge): arrived [unblocked; free]" },
+    { tick: "2", text: "Dez Edge (edge): beats Lou Tate's late block, travelling, due tick 3.5 [stunt looper; round the corner]" },
+    { tick: "2.5", text: "Lee Banks (interior): arrived [pickup lost; straight through]" },
+  ];
+  const lateTick = (who: string, margin: number, tier: string, band: string) => ({
+    kind: "Pass rush tick (late block)",
+    who,
+    roll: "no die",
+    modifiers: "",
+    against: "",
+    margin,
+    tier,
+    band,
+  });
+
+  it("renders shape S without throwing: each late beat and late tick says it is a late block", () => {
+    expect(() => buildPlayDetail(withPlay(SHAPE_S), "s3")).not.toThrow();
+    const d = buildPlayDetail(withPlay(SHAPE_S), "s3");
+    expect(d.dice).toEqual([
+      {
+        kind: "Blitz pickup",
+        who: "Rob Bell vs Lee Banks",
+        roll: "35 → 41",
+        modifiers: "RB Pass Block (pickup) +6; against: LB Pass Rush (blitz) +12",
+        against: "vs 40 → 52",
+        margin: -11,
+        tier: "Marginal failure",
+        band: "Ran through",
+      },
+      { kind: "Stunt communication", who: "Lou Tate vs Don Tull vs Dez Edge", roll: "20 → 26", modifiers: "LT Awareness (exchange) +6", against: "needs 34", margin: -8, tier: "Marginal failure", band: "Late exchange" },
+      { kind: "Pass rush beat (late block)", who: "Lee Banks vs Rob Bell", roll: "uniform 0.778", modifiers: "", against: "", margin: 11, tier: "Marginal success", band: "" },
+      { kind: "Pass rush beat (late block)", who: "Dez Edge vs Lou Tate", roll: "uniform 0.214", modifiers: "", against: "", margin: 8, tier: "Marginal success", band: "" },
+      // The step-1 blocked rep, its beat and its tick: not a late block.
+      { kind: "Pass rush rep", who: "Don Tull vs Lars Gill", roll: "25 → 31", modifiers: "", against: "vs 60 → 66", margin: -35, tier: "Decisive failure", band: "Blocker resets" },
+      { kind: "Pass rush beat", who: "Don Tull vs Lars Gill", roll: "uniform 0.515", modifiers: "", against: "", margin: -35, tier: "Decisive failure", band: "" },
+      { kind: "Pass rush tick", who: "Don Tull vs Lars Gill", roll: "no die", modifiers: "", against: "", margin: -35, tier: "Decisive failure", band: "Blocker resets" },
+      lateTick("Lee Banks vs Rob Bell", 0, "Tie", "Stalemate"),
+      lateTick("Dez Edge vs Lou Tate", 0, "Tie", "Stalemate"),
+      lateTick("Lee Banks vs Rob Bell", 15, "Strong success", "Rusher wins rep"),
+      lateTick("Dez Edge vs Lou Tate", 0, "Tie", "Stalemate"),
+      lateTick("Lee Banks vs Rob Bell", 15, "Strong success", "Rusher wins rep"),
+      lateTick("Dez Edge vs Lou Tate", 15, "Strong success", "Rusher wins rep"),
+    ]);
+  });
+
+  it("puts the free runner at the snap and each beaten late block on its tick, naming who blocked him", () => {
+    const d = buildPlayDetail(withPlay(SHAPE_S), "s3");
+    expect(d.timeline).toEqual(LATE_TIMELINE);
+    for (const row of d.timeline) expect(row.text).not.toMatch(/undefined|NaN|\?/);
+  });
+
+  it("reads the same with ADR-089 P5's distance and closing speed on every threat, and without them", () => {
+    const plain = buildPlayDetail(withPlay(SHAPE_S), "s3");
+    expect(() => buildPlayDetail(withPlay(withGeometry(SHAPE_S)), "s3")).not.toThrow();
+    const geometry = buildPlayDetail(withPlay(withGeometry(SHAPE_S)), "s3");
+    // The pair is on the stream (a `pocket-1.s3` file with the free-run block carries it, E6b) and
+    // the detail does not show it yet: a "from N yd at M yd/s" line is the viewer's to add (plan §2.12).
+    const threats = eventsOfPlay(withPlay(withGeometry(SHAPE_S)), "s3").filter((e) => e.type === "RUSH_THREAT");
+    expect(threats).toHaveLength(5);
+    for (const t of threats) expect("distanceYards" in t.payload && "closingSpeed" in t.payload).toBe(true);
+    expect(geometry).toEqual(plain);
+    expect(geometry.timeline).toEqual(LATE_TIMELINE);
+  });
+
+  it("renders shape L's rolled late ticks, which name the touching CHECK, as a late block's (P17)", () => {
+    // Shape L has no beat: from the late block's engagement each tick rolls the rusher's d100 against
+    // the toucher's, on `<rusher>:late` and `<toucher>:late:<rusher>` (CT-F7), and names the
+    // touching CHECK (build-eb §1.4; P17, E4b).
+    const rolled = (actors: PlayerId[], raw: number, opposed: number, margin: number, tier: ResultTier, band: string, rollRef: string, tick: number): MatchEvent =>
+      check(
+        {
+          checkKind: "pass_rush_tick",
+          actors,
+          roll: d100(raw, raw, `game:g/play:s3/rush/t${tick}/${String(actors[0])}:late`),
+          opposedRoll: d100(opposed, opposed, `game:g/play:s3/rush/t${tick}/${String(actors[1])}:late:${String(actors[0])}`),
+          tier,
+          band,
+          margin,
+          testsAttrs: [],
+          rollRef,
+        },
+        tick,
+      );
+    const shapeL: MatchEvent[] = [
+      pickup,
+      stunt,
+      threat(free),
+      tickAt(1),
+      rolled([lb, rb2], 44, 51, 0, "TIE", "STALEMATE", PICKUP, 1),
+      rolled([de, lt], 30, 62, -2, "MARGINAL_FAILURE", "STALEMATE", STUNT, 1),
+      tickAt(1.5),
+      rolled([lb, rb2], 88, 20, 16, "STRONG_SUCCESS", "RUSHER_WINS_REP", PICKUP, 1.5),
+      threat(lbBeaten, 1.5),
+    ];
+    for (const events of [shapeL, withGeometry(shapeL)]) {
+      expect(() => buildPlayDetail(withPlay(events), "s3")).not.toThrow();
+      const d = buildPlayDetail(withPlay(events), "s3");
+      expect(d.dice.slice(2)).toEqual([
+        { kind: "Pass rush tick (late block)", who: "Lee Banks vs Rob Bell", roll: "44", modifiers: "", against: "vs 51", margin: 0, tier: "Tie", band: "Stalemate" },
+        { kind: "Pass rush tick (late block)", who: "Dez Edge vs Lou Tate", roll: "30", modifiers: "", against: "vs 62", margin: -2, tier: "Marginal failure", band: "Stalemate" },
+        { kind: "Pass rush tick (late block)", who: "Lee Banks vs Rob Bell", roll: "88", modifiers: "", against: "vs 20", margin: 16, tier: "Strong success", band: "Rusher wins rep" },
+      ]);
+      expect(d.timeline).toEqual(LATE_TIMELINE.slice(0, 2));
+    }
+  });
+
+  it("keeps a passed-off twist's carrier as the late block's rusher", () => {
+    // A carried record's late beat is [carrier, toucher] while the touching CHECK's actors are the
+    // toucher and the original rusher; the beaten threat names the carrier (build-eb §1.2, §1.5).
+    const carried: MatchEvent[] = [
+      stunt,
+      beat([dt, lt], 0.6, 8, "MARGINAL_SUCCESS", STUNT),
+      tickAt(1),
+      dieless([dt, lt], 15, "STRONG_SUCCESS", "RUSHER_WINS_REP", beatOf(STUNT), 1),
+      threat({ ...deBeaten, rusher: dt, alignment: "INTERIOR", approach: "THROUGH" }, 1),
+    ];
+    const d = buildPlayDetail(withPlay(carried), "s3");
+    expect(d.dice.map((r) => [r.kind, r.who])).toEqual([
+      ["Stunt communication", "Lou Tate vs Don Tull vs Dez Edge"],
+      ["Pass rush beat (late block)", "Don Tull vs Lou Tate"],
+      ["Pass rush tick (late block)", "Don Tull vs Lou Tate"],
+    ]);
+    expect(d.timeline).toEqual([
+      { tick: "1", text: "Don Tull (interior): beats Lou Tate's late block, travelling, due tick 3.5 [stunt looper; straight through]" },
+    ]);
+  });
+
+  it("words a pickup or stunt threat with no late block as before: a free runner, or a threat on its tick", () => {
+    // Under legacy, pocket-1.s1 and pocket-1.s2 (and for a man the free-run clock timed under s3) a
+    // touched man is a free runner published at the snap; no beat or tick names his CHECK.
+    const before: MatchEvent[] = [pickup, stunt, threat({ ...lbBeaten, etaTick: 2 }), tickAt(1), threat({ ...deBeaten, etaTick: 2.5 }, 1)];
+    for (const events of [before, withGeometry(before)]) {
+      const d = buildPlayDetail(withPlay(events), "s3");
+      expect(d.timeline).toEqual([
+        { tick: "snap", text: "Lee Banks (interior): travelling, due tick 2 [pickup lost; straight through]" },
+        { tick: "1", text: "Dez Edge (edge): travelling, due tick 2.5 [stunt looper; round the corner]" },
+      ]);
+      expect(d.dice.map((r) => r.kind)).toEqual(["Blitz pickup", "Stunt communication"]);
+    }
+  });
+
+  it("does not take a beat or tick for a late block on a look-alike reference", () => {
+    // A beat naming a CHECK this play does not have, a dieless tick naming the touching CHECK rather
+    // than a beat, a rolled tick naming a late beat, and a late block of another rusher: none is a
+    // late block, and the threat of a man whose late block names another CHECK is not said beaten.
+    const events: MatchEvent[] = [
+      pickup,
+      beat([lb, rb2], 0.5, 11, "MARGINAL_SUCCESS", "game:g/play:s3/presnap/pickup/rb9:pickup"),
+      beat([de, lt], 0.25, 8, "MARGINAL_SUCCESS", PICKUP),
+      tickAt(1),
+      dieless([lb, rb2], 0, "TIE", "STALEMATE", PICKUP, 1),
+      check({ checkKind: "pass_rush_tick", actors: [lb, rb2], roll: d100(50, 50, "x"), opposedRoll: d100(40, 40, "y"), tier: "SUCCESS", band: "STALEMATE", margin: 2, testsAttrs: [], rollRef: beatOf(PICKUP) }, 1),
+      threat({ ...lbBeaten, etaTick: 2 }, 1),
+    ];
+    expect(() => buildPlayDetail(withPlay(events), "s3")).not.toThrow();
+    const d = buildPlayDetail(withPlay(events), "s3");
+    expect(d.dice.map((r) => r.kind)).toEqual(["Blitz pickup", "Pass rush beat", "Pass rush beat (late block)", "Pass rush tick", "Pass rush tick"]);
+    expect(d.timeline).toEqual([{ tick: "1", text: "Lee Banks (interior): travelling, due tick 2 [pickup lost; straight through]" }]);
+  });
+
+  it("leaves an opposed roll with no modifiers out of the hover, and keeps one that has them", () => {
+    // Shape L's `:late` dice and a tick's jitter dice are bare d100s: the hover used to read
+    // "against: " with nothing after it.
+    const bare = check({ checkKind: "pass_rush_tick", actors: [lb, rb2], roll: d100(44, 44, "x"), opposedRoll: d100(51, 51, "y"), tier: "TIE", band: "STALEMATE", margin: 0, testsAttrs: [], rollRef: PICKUP }, 1);
+    const one = check({ checkKind: "pass_rush_tick", actors: [lb, rb2], roll: d100(44, 44, "x"), opposedRoll: d100(51, 49, "y", [{ source: "RB Pass Block", value: -2 }]), tier: "TIE", band: "STALEMATE", margin: 0, testsAttrs: [], rollRef: PICKUP }, 1);
+    const d = buildPlayDetail(withPlay([pickup, tickAt(1), bare, one]), "s3");
+    expect(d.dice.slice(1).map((r) => r.modifiers)).toEqual(["", "against: RB Pass Block −2"]);
+  });
+
+  it("leaves every play of a file with no late block exactly as it was", () => {
+    for (const playId of ["p1", "p2", "p3", "p4", "p5", "x1", "k1"]) {
+      expect(buildPlayDetail(withPlay(SHAPE_S), playId)).toEqual(buildPlayDetail(FIXTURE, playId));
+    }
+  });
+});

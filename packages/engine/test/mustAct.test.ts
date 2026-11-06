@@ -40,6 +40,7 @@ import {
   pocketTicks,
   tickOf,
 } from "./pocketTunables.js";
+import { callsUnder } from "./snapFixtures.js";
 import type { PocketTick } from "./pocketTunables.js";
 
 function patch(t: Tunables, tunableId: string, currentValue: number, proposedValue: number): Tunables {
@@ -48,7 +49,8 @@ function patch(t: Tunables, tunableId: string, currentValue: number, proposedVal
 
 function play(build: () => Scenario, seed: string, tunables: Tunables): readonly MatchEventEnvelope[] {
   const { state, calls } = build();
-  return simulatePassPlay(state, calls, seed, tunables).events;
+  // ADR-089 step 3: an s3 bundle's pass play carries the snap picture; every other plays as it came.
+  return simulatePassPlay(state, callsUnder(tunables, state, calls), seed, tunables).events;
 }
 
 /** The threat part on a stream tick: every threat counts as registered until step 7, so both minima are the tick's. */

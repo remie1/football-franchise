@@ -28,6 +28,7 @@ import { DEFAULT_TUNABLES } from "@ff/engine";
 import type { GameSummary, StatLine, Tunables } from "@ff/engine";
 import { COVERAGE_MASKS, FRONT_LOOKS, shownRushDiffers } from "@ff/playbook";
 import { approachesOfPlay, LOOPER_FREE_BAND, PICKUP_FREE_BAND } from "../pocket/approach.js";
+import { centerOfPlayStart, clockKeyOf, onClockUnder, touchOfCheck, type ClockKey, type Touch } from "../pocket/freeRunKey.js";
 
 /** One simulated game, as it comes back from a worker. */
 export interface SimGameObservation {
@@ -422,6 +423,48 @@ export interface ClockCheckFold {
   snapsWithoutPublishedClock: number;
 }
 
+/** One release bin of the miss rule's split read with the arm's own free-run reading (ADR-089 step 3, AM-2). */
+export interface ClockKeyBinFold {
+  /** Pass attempts released in the bin on dropbacks with no man on the free-run clock under the arm's reading. */
+  attemptsNoClockRunner: number;
+  pressuredNoClockRunner: number;
+}
+
+/**
+ * ADR-089 step 3, AM-2's `freeRunKey` (plan §2.7): the miss rule's split (n, f, the quick split, the
+ * quick share's origin) with "free runner" read as a man on the free-run clock under the arm's own
+ * reading (`pocket/freeRunKey.ts`: D19 on the design and on an arm with no free-run block; every
+ * free runner under reading C; UNBLOCKED and a looper with no blocker under reading A). The
+ * origin-keyed figures beside it are `PocketFold`'s own (`attemptsNoFreeRunner`,
+ * `noFreeRunnerPressured`, `quickFirstPressureByOrigin`), unchanged. Read off the tunables the fold
+ * is handed, which are the arm's own.
+ */
+export interface ClockKeyFold {
+  /** Keyed by `RELEASE_BINS`' labels, beside `PocketFold.releaseBins` (whose attempts and pressured attempts it reads). */
+  releaseBins: Record<string, ClockKeyBinFold>;
+  /** Pressured dropbacks with no man on the clock, and those whose first pressure came before 2.5 s. */
+  noClockRunnerPressured: number;
+  noClockRunnerQuick: number;
+  /**
+   * Each first non-CLEAN tick, split evenly among its causes as `firstPressureOrigin` is, keyed
+   * `CLOCK_RUNNER` (a threat on the clock under the arm's reading), `FREE_RUNNER` (any other threat
+   * whose origin is not WON_REP), `WON_REP` and `COUNTER` (the band floor and the counter).
+   */
+  firstPressureByClock: Record<string, number>;
+  quickFirstPressureByClock: Record<string, number>;
+  /** (play, man) pairs on the clock under the arm's reading, and dropbacks with at least one. */
+  clockMen: number;
+  clockRunnerDropbacks: number;
+  /**
+   * The unblocked rows' counts with the arm's reading in place of D19's band test (review MEAS-S4,
+   * MEAS-N1): men on the clock whose own arrival floor reached PRESSURE or worse with the ball in his
+   * hand (`freeRunPressures`' test), and hit-or-sack dropbacks whose contact man was on the clock
+   * (`unblockedHitOrSack`'s). Reported beside the filed D19 rows, never in their place.
+   */
+  clockPressures: number;
+  clockHitOrSack: number;
+}
+
 export interface PocketFold {
   /**
    * `hit_or_sack_rate`'s numerator (ADR-089 §4.5, `ADR:692`): a sack, or a hit on a play that ends
@@ -508,6 +551,8 @@ export interface PocketFold {
   /** Sacks whose last POCKET_STATUS before the sack was CLEAN (`coverage_sack_rows`), and each sack's tick. */
   sacksCleanAtSack: number;
   sackSeconds: number[];
+  /** ADR-089 step 3: the miss rule's split under the arm's own free-run reading (AM-2's key). */
+  clockKey: ClockKeyFold;
 }
 
 /** `pressured_share_by_release_bin`'s bins (`ADR:161-198`): lower bound inclusive, upper exclusive. */
@@ -612,6 +657,21 @@ function emptyPocketFold(): PocketFold {
     sacksOut: 0,
     sacksCleanAtSack: 0,
     sackSeconds: [],
+    clockKey: emptyClockKeyFold(),
+  };
+}
+
+function emptyClockKeyFold(): ClockKeyFold {
+  return {
+    releaseBins: {},
+    noClockRunnerPressured: 0,
+    noClockRunnerQuick: 0,
+    firstPressureByClock: {},
+    quickFirstPressureByClock: {},
+    clockMen: 0,
+    clockRunnerDropbacks: 0,
+    clockPressures: 0,
+    clockHitOrSack: 0,
   };
 }
 
@@ -837,6 +897,8 @@ interface FoldTables {
   readonly escapeCaughtBands: ReadonlySet<string>;
   readonly rusherWinsRepFloor: number;
   readonly rusherWonBands: ReadonlySet<string>;
+  /** ADR-089 step 3: whom the free-run clock times under the arm's own reading (AM-2's key). */
+  readonly clockKey: ClockKey;
 }
 
 const FOLD_TABLES = new WeakMap<Tunables, FoldTables>();
@@ -866,6 +928,7 @@ function foldTablesOf(tunables: Tunables): FoldTables {
     rusherWinsRepFloor,
     // The band labels at or above that floor — DERIVED from the table, never listed.
     rusherWonBands: new Set(tunables.passRush.bands.filter((b) => b.minMargin >= rusherWinsRepFloor).map((b) => b.label)),
+    clockKey: clockKeyOf(tunables),
   };
   FOLD_TABLES.set(tunables, tables);
   return tables;
@@ -918,6 +981,8 @@ interface PocketThreat {
   state: string;
   /** On the free-run clock: D19's three origins (UNBLOCKED, PICKUP_LOST BLOWN_UP, STUNT_LOOPER LOOPER_FREE). */
   freeRun: boolean;
+  /** ADR-089 step 3: on the free-run clock under the arm's own reading (AM-2's key, `pocket/freeRunKey.ts`). */
+  clock: boolean;
 }
 
 /** The pocket rows' per-play state. Everything is read off this play's own events. */
@@ -935,6 +1000,8 @@ interface PocketPlayState {
   events: MatchEventEnvelope[];
   /** Pre-snap pickup and stunt CHECK bands by roll label: D19's free-run test reads them. */
   checkBands: Map<string, string | undefined>;
+  /** ADR-089 step 3: the same CHECKs' touch (band and hand) by roll label, for AM-2's key. */
+  checkTouches: Map<string, Touch>;
   /** Each rusher's latest `pass_rush_tick` band (at a POCKET_STATUS, last tick's: the band floor's input). */
   lastBands: Map<string, string>;
   threats: Map<string, PocketThreat>;
@@ -942,6 +1009,12 @@ interface PocketPlayState {
   freeRunner: boolean;
   freeRunMen: Set<string>;
   freeRunPressured: Set<string>;
+  /** ADR-089 step 3: the men on the clock under the arm's own reading (AM-2's key). */
+  clockMen: Set<string>;
+  /** Those of them `freeRunPressured`'s test finds pressuring (review MEAS-S4). */
+  clockPressured: Set<string>;
+  /** `PLAY_START.offense.protectionScheme.center`: the man a stunt CHECK names first, never its hand (`touchOfCheck`). */
+  center: string | undefined;
   released: boolean;
   /** `THROW.releaseSeconds` when the stream carries it (P8; absent under legacy). */
   releaseSeconds: number | null;
@@ -954,6 +1027,8 @@ interface PocketPlayState {
   /** The first non-CLEAN tick's causes, split evenly, by origin and by cause. */
   firstOrigin: Record<string, number> | null;
   firstCause: Record<string, number> | null;
+  /** The same split keyed by AM-2's key (`ClockKeyFold.firstPressureByClock`). */
+  firstClock: Record<string, number> | null;
   cleanLiveTicks: number;
   /** Per clean-live tick, the WON_REP rushers live at it, for the PUSH count at flush. */
   cleanLiveRushers: string[][];
@@ -981,11 +1056,15 @@ function blankPocketPlay(period: number, clockSeconds: number): PocketPlayState 
     defenceTeam: null,
     events: [],
     checkBands: new Map<string, string | undefined>(),
+    checkTouches: new Map<string, Touch>(),
     lastBands: new Map<string, string>(),
     threats: new Map<string, PocketThreat>(),
     freeRunner: false,
     freeRunMen: new Set<string>(),
     freeRunPressured: new Set<string>(),
+    clockMen: new Set<string>(),
+    clockPressured: new Set<string>(),
+    center: undefined,
     released: false,
     releaseSeconds: null,
     hit: false,
@@ -995,6 +1074,7 @@ function blankPocketPlay(period: number, clockSeconds: number): PocketPlayState 
     firstArrival: null,
     firstOrigin: null,
     firstCause: null,
+    firstClock: null,
     cleanLiveTicks: 0,
     cleanLiveRushers: [],
     worstSeverity: -1,
@@ -1051,31 +1131,34 @@ function onFreeRunClock(origin: string, band: string | undefined): boolean {
  * is `PRESSURE_ORIGINS`': WON_REP; FREE_RUNNER for every other origin; COUNTER for the band floor
  * and the counter together (`TM`'s type (d), "no real state").
  */
-function causesOf(pk: PocketPlayState, status: string, tick: number, tb: FoldTables): { origin: Record<string, number>; cause: Record<string, number> } {
+function causesOf(pk: PocketPlayState, status: string, tick: number, tb: FoldTables): { origin: Record<string, number>; cause: Record<string, number>; clock: Record<string, number> } {
   const need = severityOf(tb, status);
-  const found: { cause: string; origin: string }[] = [];
+  const found: { cause: string; origin: string; clock: string }[] = [];
   const rushers = new Set<string>([...pk.threats.keys(), ...pk.lastBands.keys()]);
   for (const rusher of rushers) {
     const threat = pk.threats.get(rusher);
     const live = threat !== undefined && isLiveThreat(threat);
     if (live && severityOf(tb, arrivalFloorOf(tb, threat.etaTick, tick)) >= need) {
-      found.push({ cause: threat.origin, origin: threat.origin === "WON_REP" ? "WON_REP" : "FREE_RUNNER" });
+      const origin = threat.origin === "WON_REP" ? "WON_REP" : "FREE_RUNNER";
+      found.push({ cause: threat.origin, origin, clock: threat.clock ? "CLOCK_RUNNER" : origin });
       continue;
     }
     const band = pk.lastBands.get(rusher);
     if (band === undefined || (live && tb.rusherWonBands.has(band))) continue;
     const floor = tb.minimumStatusByBand[band];
-    if (floor !== undefined && severityOf(tb, floor) >= need) found.push({ cause: "BAND", origin: "COUNTER" });
+    if (floor !== undefined && severityOf(tb, floor) >= need) found.push({ cause: "BAND", origin: "COUNTER", clock: "COUNTER" });
   }
-  if (found.length === 0) found.push({ cause: "COUNTER", origin: "COUNTER" });
+  if (found.length === 0) found.push({ cause: "COUNTER", origin: "COUNTER", clock: "COUNTER" });
   const share = CAUSE_SPLIT_UNITS / found.length;
   const origin: Record<string, number> = {};
   const cause: Record<string, number> = {};
+  const clock: Record<string, number> = {};
   for (const f of found) {
     bumpKey(origin, f.origin, share);
     bumpKey(cause, f.cause, share);
+    bumpKey(clock, f.clock, share);
   }
-  return { origin, cause };
+  return { origin, cause, clock };
 }
 
 function emptyReleaseBin(): ReleaseBinFold {
@@ -1105,14 +1188,20 @@ type StreamEvent = MatchEventEnvelope["event"];
 type RushThreatPayload = Extract<StreamEvent, { type: "RUSH_THREAT" }>["payload"];
 type CheckPayload = Extract<StreamEvent, { type: "CHECK" }>["payload"];
 
-/** A RUSH_THREAT publication, into the pocket rows' per-play state. */
-function rushThreatSeen(pk: PocketPlayState, t: RushThreatPayload, tick: number): void {
+/**
+ * A RUSH_THREAT publication, into the pocket rows' per-play state. Whether he is on the clock under
+ * the arm's own reading (AM-2's key) is read once, at his first publication, from the CHECK his
+ * record names, as D19's flag is.
+ */
+function rushThreatSeen(pk: PocketPlayState, t: RushThreatPayload, tick: number, tb: FoldTables): void {
   const rusher = String(t.rusher);
   const previous = pk.threats.get(rusher);
   const freeRun = previous?.freeRun ?? onFreeRunClock(t.origin, pk.checkBands.get(t.rollRef));
-  pk.threats.set(rusher, { origin: t.origin, etaTick: t.etaTick, state: t.state, freeRun });
+  const clock = previous?.clock ?? onClockUnder(tb.clockKey, t.origin, pk.checkTouches.get(t.rollRef));
+  pk.threats.set(rusher, { origin: t.origin, etaTick: t.etaTick, state: t.state, freeRun, clock });
   if (t.origin !== "WON_REP") pk.freeRunner = true;
   if (freeRun) pk.freeRunMen.add(rusher);
+  if (clock) pk.clockMen.add(rusher);
   if (t.state === "ARRIVED") {
     if (pk.firstArrival === null) pk.firstArrival = tick;
     if (!pk.released) {
@@ -1135,9 +1224,9 @@ function pocketStatusSeen(pk: PocketPlayState, status: string, tick: number, tb:
   pk.lastStatusTick = tick;
   if (!pk.released) {
     for (const [rusher, t] of pk.threats) {
-      if (t.freeRun && isLiveThreat(t) && severityOf(tb, arrivalFloorOf(tb, t.etaTick, tick)) >= tb.pressureSeverity) {
-        pk.freeRunPressured.add(rusher);
-      }
+      if (!(t.freeRun || t.clock) || !isLiveThreat(t) || severityOf(tb, arrivalFloorOf(tb, t.etaTick, tick)) < tb.pressureSeverity) continue;
+      if (t.freeRun) pk.freeRunPressured.add(rusher);
+      if (t.clock) pk.clockPressured.add(rusher);
     }
   }
   if (status === "CLEAN") {
@@ -1154,6 +1243,7 @@ function pocketStatusSeen(pk: PocketPlayState, status: string, tick: number, tb:
     const causes = causesOf(pk, status, tick, tb);
     pk.firstOrigin = causes.origin;
     pk.firstCause = causes.cause;
+    pk.firstClock = causes.clock;
   }
   if (pk.firstForcing === null && tb.forcesDecision.has(status)) pk.firstForcing = tick;
 }
@@ -1165,6 +1255,8 @@ function pocketCheckSeen(pk: PocketPlayState, c: CheckPayload, tb: FoldTables): 
     if (rusher !== undefined && c.band !== undefined) pk.lastBands.set(String(rusher), c.band);
   } else if (c.checkKind === "blitz_pickup" || c.checkKind === "stunt_communication") {
     pk.checkBands.set(c.roll.rngLabel, c.band);
+    const touch = touchOfCheck(c, pk.center);
+    if (touch !== undefined) pk.checkTouches.set(c.roll.rngLabel, touch);
   } else if (c.checkKind === "scramble" && c.band !== undefined && tb.escapeCaughtBands.has(c.band) && !pk.released) {
     if (pk.escaped) pk.contactOut = true;
     else pk.contactIn = true;
@@ -1298,6 +1390,29 @@ function foldPocketPlay(pf: PocketFold, play: PlayState): void {
   pf.freeRunMen += k.freeRunMen.size;
   pf.freeRunPressures += k.freeRunPressured.size;
   if (hitOrSack && k.lastArrivedRusher !== null && k.threats.get(k.lastArrivedRusher)?.freeRun === true) pf.unblockedHitOrSack++;
+
+  // ADR-089 step 3, AM-2's key: the miss rule's split with the arm's own reading.
+  const ck = pf.clockKey;
+  const clockRunner = k.clockMen.size > 0;
+  ck.clockMen += k.clockMen.size;
+  if (clockRunner) ck.clockRunnerDropbacks++;
+  if (release !== null && !clockRunner) {
+    const bin = slot(ck.releaseBins, releaseBinOf(release), () => ({ attemptsNoClockRunner: 0, pressuredNoClockRunner: 0 }));
+    bin.attemptsNoClockRunner++;
+    if (pressured) bin.pressuredNoClockRunner++;
+  }
+  if (k.firstClock !== null) {
+    for (const [key, units] of Object.entries(k.firstClock)) {
+      bumpKey(ck.firstPressureByClock, key, units);
+      if (quick) bumpKey(ck.quickFirstPressureByClock, key, units);
+    }
+  }
+  if (pressured && !clockRunner) {
+    ck.noClockRunnerPressured++;
+    if (quick) ck.noClockRunnerQuick++;
+  }
+  ck.clockPressures += k.clockPressured.size;
+  if (hitOrSack && k.lastArrivedRusher !== null && k.threats.get(k.lastArrivedRusher)?.clock === true) ck.clockHitOrSack++;
 
   if (!pressured) {
     if (k.escaped) pf.cleanEscapes++;
@@ -1570,6 +1685,7 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation, tunables
         const start = asPlayStart(event.payload);
         current = blankPlay();
         current.pk = blankPocketPlay(period, rebuiltClock);
+        current.pk.center = centerOfPlayStart(event.payload);
         tick = 0;
         pocket.clockCheck.snaps++;
         if (start !== null) {
@@ -1654,7 +1770,7 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation, tunables
           // above: a run play's RUSH_THREAT (if any) is harmless to record since `flush()` only
           // reads `threatArrived` inside the `isPass` branch.
           if (event.payload.state === "ARRIVED") current.threatArrived = true;
-          rushThreatSeen(current.pk, event.payload, tick);
+          rushThreatSeen(current.pk, event.payload, tick, tb);
         }
         break;
       case "THROW":
@@ -2060,6 +2176,17 @@ function mergePocketFold(a: PocketFold, b: PocketFold): PocketFold {
     sacksOut: a.sacksOut + b.sacksOut,
     sacksCleanAtSack: a.sacksCleanAtSack + b.sacksCleanAtSack,
     sackSeconds: sortedConcat(a.sackSeconds, b.sackSeconds),
+    clockKey: {
+      releaseBins: mergeTallies(a.clockKey.releaseBins, b.clockKey.releaseBins),
+      noClockRunnerPressured: a.clockKey.noClockRunnerPressured + b.clockKey.noClockRunnerPressured,
+      noClockRunnerQuick: a.clockKey.noClockRunnerQuick + b.clockKey.noClockRunnerQuick,
+      firstPressureByClock: mergeCounters(a.clockKey.firstPressureByClock, b.clockKey.firstPressureByClock),
+      quickFirstPressureByClock: mergeCounters(a.clockKey.quickFirstPressureByClock, b.clockKey.quickFirstPressureByClock),
+      clockMen: a.clockKey.clockMen + b.clockKey.clockMen,
+      clockRunnerDropbacks: a.clockKey.clockRunnerDropbacks + b.clockKey.clockRunnerDropbacks,
+      clockPressures: a.clockKey.clockPressures + b.clockKey.clockPressures,
+      clockHitOrSack: a.clockKey.clockHitOrSack + b.clockKey.clockHitOrSack,
+    },
   };
 }
 

@@ -1,4 +1,4 @@
-import { gameId, playId } from "@ff/contracts";
+import { gameId, playId, playerId } from "@ff/contracts";
 import type { MatchEventEnvelope, PlayerId, RollDetail } from "@ff/contracts";
 import { describe, expect, it } from "vitest";
 import { renderPlay, simulatePassPlay, simulateRunPlay } from "../src/index.js";
@@ -18,7 +18,8 @@ import {
   withReadOrder,
   withReadSystem,
 } from "./fixtures.js";
-import { SW_TUNABLES } from "./pocketTunables.js";
+import { S3_TUNABLES, SW_TUNABLES } from "./pocketTunables.js";
+import { frontWithPicture } from "./snapFixtures.js";
 
 describe("§17.1 debug renderer", () => {
   it("renders the in-scope sections from the event stream", () => {
@@ -800,5 +801,36 @@ describe("ADR-073 §2.8 — the protection, the picture and the adjustment", () 
       seen += 1;
     }
     expect(seen).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * ADR-089 step 3 (E6; critique 1 S9): a late block's beat names the pickup or stunt CHECK in which
+ * his toucher got a hand on him, not a rep, so it is printed as a late block and never "on rep
+ * margin"; a beaten late block's threat is printed on its tick, not as a pre-snap free runner.
+ */
+describe("§17.1 debug renderer — pocket-1.s3's late block", () => {
+  it("prints a late beat as a late block and its beaten threat on its tick", () => {
+    let lateLines = 0;
+    let beatenLines = 0;
+    for (let i = 0; i < 300 && (lateLines < 3 || beatenLines < 1); i++) {
+      const f = frontWithPicture({ extras: 2, stunts: [{ penetrator: playerId("dt1"), looper: playerId("de1"), complexity: "TRIPLE" }] });
+      const { events } = simulatePassPlay(f.scenario.state, f.calls, `render-late-${i}`, S3_TUNABLES);
+      const text = renderPlay(events, f.scenario.names);
+      const lateBeats = events.filter(
+        (e) => e.event.type === "CHECK" && e.event.payload.checkKind === "pass_rush_beat" && String(e.event.payload.rollRef).includes("/presnap/"),
+      );
+      const late = text.split("\n").filter((l) => l.includes("Late block (touched pre-snap"));
+      expect(late.length, `render-late-${i}`).toBe(lateBeats.length);
+      for (const l of late) expect(l).not.toContain("on rep margin");
+      const repBeats = events.filter((e) => e.event.type === "CHECK" && e.event.payload.checkKind === "pass_rush_beat").length - lateBeats.length;
+      expect(text.split("\n").filter((l) => l.includes("on rep margin")).length).toBe(repBeats);
+      lateLines += late.length;
+      const beaten = events.filter((e) => e.event.type === "RUSH_THREAT" && e.event.payload.state === "TRAVELLING" && e.event.payload.origin !== "WON_REP" && e.event.tick !== undefined);
+      expect(text.split("\n").filter((l) => l.includes("beats his late block")).length).toBe(beaten.length);
+      beatenLines += beaten.length;
+    }
+    expect(lateLines).toBeGreaterThanOrEqual(3);
+    expect(beatenLines).toBeGreaterThanOrEqual(1);
   });
 });

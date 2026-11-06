@@ -35,15 +35,32 @@
  *
  * `foldAffectedGame` counts each arm's exclusive affected plays against its base (ADR-089:927), by
  * mechanism (`arms.ts`'s `exclusiveMechanisms`); step 2's four (plan §4.3) read the live threat set
- * `s2Stream.ts` rebuilds, and only when one of them is asked for, so a step-1 count is unchanged.
+ * `s2Stream.ts` rebuilds, and only when one of them is asked for, so a step-1 count is unchanged;
+ * step 3's five (`step3Hits`) likewise.
+ *
+ * **Step 3's late block** (ADR-089 step 3, plan §2.7; AM-2's `lateBlock`). On a play whose
+ * `PLAY_START.rules` names `pocket-1.s3`, and on no other, a touched man's late block is read as
+ * its own: its `pass_rush_beat` (shape S) names the touching `blitz_pickup` or `stunt_communication`
+ * CHECK, not a rep, and its ticks name the beat (S, dieless) or the CHECK (L, two `:late` rolls).
+ * `readS1Play` puts them in `lateBlocks`, not among the orphans; `beatAccounting` checks them (the
+ * beat's uniform on `rush/beat/<touching label>`, margin the CHECK's turned round, its tier, no
+ * attributes, its second actor the CHECK's first (a pickup's back) or the looper's blocker (a
+ * stunt's), its first a rusher of the play; every S tick dieless with exactly the P3 keys naming
+ * the beat, with the beat's actors; every L tick two rolls naming the CHECK) and counts them in its
+ * own counters; `reproduceMargins` rebuilds every late tick's margin, band and tier (S from the
+ * beat by `clocks.ts`'s `lateBreakingTimeS`; L by AM-2's form) into its S and L counts. Legacy, s1
+ * and s2 plays are read exactly as strictly as before: a beat or tick naming a CHECK is an orphan
+ * there, and no fold gains a field.
  */
-import type { MatchEventEnvelope } from "@ff/contracts";
+import type { MatchEventEnvelope, RushAlignment, RushApproach } from "@ff/contracts";
 import type { Tunables } from "@ff/engine";
-import { approachesOfPlay, pushMarginOf } from "./approach.js";
-import { armOfDigest, FOLLOWS, HALF, MECHANISMS, type Mechanism } from "./arms.js";
+import { approachesOfPlay, fromOfApproach, pushMarginOf } from "./approach.js";
+import { armOfDigest, BAND_EDGES, FOLLOWS, HALF, MECHANISMS, type Mechanism } from "./arms.js";
 import {
   beatTickOf,
   clockOf,
+  lateBreakingTimeS,
+  lateRepMargin,
   passRushBandOf,
   PUSH_WINDOW,
   pushWindowApplies,
@@ -55,7 +72,8 @@ import {
   type ClockGrid,
   type ShapeS,
 } from "./clocks.js";
-import { overlayDigestOf, rulesOnPlayStart, type PlayStartRules } from "./rules.js";
+import { centerOfEvents, clockKeyOf, onClockUnder, touchOfCheck, type Touch } from "./freeRunKey.js";
+import { overlayDigestOf, POCKET_1_S3_RULES, rulesOnPlayStart, type PlayStartRules } from "./rules.js";
 import { readS2Play, threatPartAt } from "./s2Stream.js";
 import { playsOf } from "./throwClass.js";
 
@@ -66,7 +84,7 @@ const TOLERANCE = 1e-9;
 
 // --- one play, read once --------------------------------------------------------------------------
 
-interface RawRoll {
+export interface RawRoll {
   readonly die: string;
   readonly raw: number;
   readonly modifiers: readonly unknown[];
@@ -74,7 +92,7 @@ interface RawRoll {
   readonly rngLabel: string;
 }
 
-interface RawCheck {
+export interface RawCheck {
   readonly checkKind: string;
   readonly actors: readonly string[];
   readonly roll?: RawRoll;
@@ -86,7 +104,7 @@ interface RawCheck {
   readonly rollRef?: string;
 }
 
-interface CheckAt {
+export interface CheckAt {
   /** The envelope's index within the play. */
   readonly index: number;
   readonly tick: number;
@@ -112,6 +130,16 @@ interface Matchup {
   readonly ticks: readonly CheckAt[];
 }
 
+/**
+ * Step 3's late block on one s3 play (plan §2.7): the touching CHECK, its beat (shape S) and its
+ * ticks in order, S's dieless ones naming the beat, L's rolled ones naming the CHECK.
+ */
+export interface LateBlockAt {
+  readonly touching: CheckAt;
+  readonly beat: CheckAt | undefined;
+  readonly ticks: readonly CheckAt[];
+}
+
 /** One PASS play's facts for the step-1 checks. */
 export interface S1Play {
   readonly playId: string;
@@ -125,6 +153,25 @@ export interface S1Play {
   readonly orphanTicks: readonly CheckAt[];
   /** Beats whose `rollRef` names no rep of the play, or a rep that already has a beat. */
   readonly orphanBeats: readonly CheckAt[];
+  /** Step 3's late blocks, read only on a play whose rules name `pocket-1.s3` (empty on every other). */
+  readonly lateBlocks: readonly LateBlockAt[];
+  /** The play's rusher ids (`PLAY_START.defense.rush`). */
+  readonly rushers: readonly string[];
+}
+
+/** Whether a play's `PLAY_START.rules` names `pocket-1.s3` (step 3's readers widen only there). */
+export function isS3Play(play: Pick<S1Play, "rules">): boolean {
+  return play.rules?.name === POCKET_1_S3_RULES;
+}
+
+/**
+ * The late beat's fork label for a touching CHECK: `<play>/rush/beat/<touching label>`, where the
+ * touching CHECK's own label is `<play>/presnap/...` (`resolve/lateBlock.ts`'s `beat/<touchRollRef>`
+ * on the play's rush bucket).
+ */
+export function lateBeatLabelOf(touchingLabel: string): string | undefined {
+  const cut = touchingLabel.indexOf("/presnap/");
+  return cut < 0 ? undefined : `${touchingLabel.slice(0, cut)}/rush/beat/${touchingLabel}`;
 }
 
 /** Every PASS play of a game (`PLAY_START.payload.kind` `PASS_PLAY_V1`), read for the step-1 checks. */
@@ -177,17 +224,36 @@ function readS1Play(playId: string, events: readonly MatchEventEnvelope[]): S1Pl
   });
   if (!pass) return undefined;
 
+  const s3 = rules?.name === POCKET_1_S3_RULES;
   const reps = new Map<string, CheckAt>();
   const beats = new Map<string, CheckAt>();
   const beatOfRep = new Map<string, CheckAt>();
   const orphanBeats: CheckAt[] = [];
+  // Step 3 (s3 plays only): the touching CHECKs a late block may name, and the late blocks by touching label.
+  const touching = new Map<string, CheckAt>();
+  const late = new Map<string, { touching: CheckAt; beat: CheckAt | undefined; ticks: CheckAt[] }>();
+  const lateOfBeat = new Map<string, string>();
   for (const k of checks) {
     if (k.c.checkKind === "pass_rush_rep" && k.c.roll !== undefined) reps.set(k.c.roll.rngLabel, k);
+    if (s3 && (k.c.checkKind === "blitz_pickup" || k.c.checkKind === "stunt_communication") && k.c.roll !== undefined) touching.set(k.c.roll.rngLabel, k);
   }
+  const lateOf = (label: string): { touching: CheckAt; beat: CheckAt | undefined; ticks: CheckAt[] } => {
+    let entry = late.get(label);
+    if (entry === undefined) {
+      entry = { touching: touching.get(label)!, beat: undefined, ticks: [] };
+      late.set(label, entry);
+    }
+    return entry;
+  };
   for (const k of checks) {
     if (k.c.checkKind !== "pass_rush_beat") continue;
-    if (k.c.roll !== undefined) beats.set(k.c.roll.rngLabel, k);
     const ref = k.c.rollRef;
+    if (s3 && ref !== undefined && touching.has(ref) && k.c.roll !== undefined && late.get(ref)?.beat === undefined) {
+      lateOf(ref).beat = k;
+      lateOfBeat.set(k.c.roll.rngLabel, ref);
+      continue;
+    }
+    if (k.c.roll !== undefined) beats.set(k.c.roll.rngLabel, k);
     if (ref === undefined || !reps.has(ref) || beatOfRep.has(ref)) orphanBeats.push(k);
     else beatOfRep.set(ref, k);
   }
@@ -196,6 +262,16 @@ function readS1Play(playId: string, events: readonly MatchEventEnvelope[]): S1Pl
   for (const k of checks) {
     if (k.c.checkKind !== "pass_rush_tick") continue;
     const ref = k.c.rollRef;
+    if (s3 && ref !== undefined) {
+      // S: a dieless tick naming a late beat; L: a rolled tick naming the touching CHECK.
+      const viaBeat = k.c.roll === undefined ? lateOfBeat.get(ref) : undefined;
+      const direct = k.c.roll !== undefined && touching.has(ref) ? ref : undefined;
+      const label = viaBeat ?? direct;
+      if (label !== undefined) {
+        lateOf(label).ticks.push(k);
+        continue;
+      }
+    }
     let repLabel: string | undefined;
     if (ref !== undefined && reps.has(ref)) repLabel = ref;
     else if (ref !== undefined && beats.has(ref)) repLabel = beats.get(ref)!.c.rollRef;
@@ -212,7 +288,8 @@ function readS1Play(playId: string, events: readonly MatchEventEnvelope[]): S1Pl
     const rusher = String(rep.c.actors[0]);
     matchups.push({ rusher, move: moves.get(rusher) ?? "", rep, beat: beatOfRep.get(label), ticks: ticksOfRep.get(label) ?? [] });
   }
-  return { playId, events, rules, checks, threats, statuses, matchups, orphanTicks, orphanBeats };
+  const lateBlocks: LateBlockAt[] = [...late.values()].map((b) => ({ touching: b.touching, beat: b.beat, ticks: b.ticks }));
+  return { playId, events, rules, checks, threats, statuses, matchups, orphanTicks, orphanBeats, lateBlocks, rushers: [...moves.keys()] };
 }
 
 // --- the dials -------------------------------------------------------------------------------------
@@ -287,6 +364,21 @@ export function reportedMarginWithDials(tick: number, rep: { readonly m: number;
 /** Shape L's margin, the engine's exact form (N3): `round(min(t, R) * x / R) + 0`. */
 export function lMarginExact(tick: number, R: number, x: number): number {
   return Math.round((Math.min(tick, R) * x) / R) + 0;
+}
+
+/**
+ * Step 3's late block on shape L, the engine's exact form (`resolve/lateBlock.ts`; AM-2 binds it):
+ * `round(min(t - t_e, w * R) * x / (w * R)) + 0`, `x` the late m plus the tick's jitter.
+ */
+export function lateLMarginExact(tick: number, te: number, w: number, R: number, x: number): number {
+  const wR = w * R;
+  return Math.round((Math.min(tick - te, wR) * x) / wR) + 0;
+}
+
+/** Step 3's late block on shape S: `min(0, m)` before the beat tick, `max(win, m)` from it (no push window, whatever his move). */
+export function lateReportedMarginS(tick: number, m: number, beatTick: number | undefined, win: number): number {
+  if (beatTick !== undefined && tick >= beatTick - TOLERANCE) return Math.max(win, m);
+  return Math.min(0, m);
 }
 
 /** The beat tick a rep's beat CHECK names, by `clocks.ts`'s closed form on the bundle's dials. */
@@ -502,6 +594,61 @@ export function reproduceMargins(fold: ReproduceFold, play: S1Play, d: Dials): v
       }
     }
   }
+  if (play.lateBlocks.length > 0) reproduceLateMargins(fold, play, own);
+}
+
+/**
+ * Step 3 (s3 plays only; `lateBlocks` is empty on every other): every late tick's margin, band and
+ * tier rebuilt with the dials the stamp names, `m` the touching CHECK's margin turned round. S: the
+ * beat tick from the late beat's U by `clocks.ts`'s `lateBreakingTimeS`, then `min(0, m)` before it
+ * and `max(win, m)` from it; L: AM-2's form on the tick's two `:late` rolls. Counted into the S and
+ * L counts; nothing is written for him before `t_e`.
+ */
+function reproduceLateMargins(fold: ReproduceFold, play: S1Play, own: Dials): void {
+  const late = own.tunables.blitzPickup.lateBlock;
+  if (late === undefined) {
+    fail(fold, at(play), "late blocks on a play whose bundle carries no late block (blitzPickup.lateBlock)");
+    return;
+  }
+  const te = late.engageSeconds;
+  const w = late.weakMultiplier;
+  for (const b of play.lateBlocks) {
+    const m = lateRepMargin(b.touching.c.margin);
+    let beatTick: number | undefined;
+    if (own.shape === "S") {
+      const u = b.beat?.c.roll?.raw;
+      if (own.s === undefined || u === undefined || !(u > 0 && u <= 1)) {
+        fail(fold, at(play, b.touching), "a late block under S without its beat's uniform");
+        continue;
+      }
+      beatTick = beatTickOf(lateBreakingTimeS(m, u, te, w, own.s), own.clock);
+    }
+    for (const k of b.ticks) {
+      if (k.tick < te - TOLERANCE) {
+        fail(fold, at(play, k), `a late tick at ${String(k.tick)}, before t_e ${String(te)}`);
+        continue;
+      }
+      let expected: number;
+      if (own.shape === "S") expected = lateReportedMarginS(k.tick, m, beatTick, own.bands.win);
+      else if (own.shape === "L") {
+        const x = legacyMarginOf(k, 0, own.tunables);
+        if (x === undefined || own.R === undefined) {
+          fail(fold, at(play, k), "a late tick under L without both rolls");
+          continue;
+        }
+        expected = lateLMarginExact(k.tick, te, w, own.R, m + x);
+      } else {
+        fail(fold, at(play, k), "a late tick under legacy");
+        continue;
+      }
+      fold.ticks[own.shape] += 1;
+      const band = passRushBandOf(own.tunables, expected);
+      const tier = tierOf(own.tunables, expected);
+      if (k.c.margin !== expected || k.c.band !== band || k.c.tier !== tier) {
+        fail(fold, at(play, k), `late ${own.shape}: margin ${String(k.c.margin)} ${String(k.c.band)} ${k.c.tier}, rebuilt ${String(expected)} ${band} ${tier}`);
+      }
+    }
+  }
 }
 
 // --- S-3 and S-7: the dice ------------------------------------------------------------------------
@@ -571,6 +718,7 @@ export function beatAccounting(fold: BeatAccountingFold, play: S1Play, d: Dials)
   }
   for (const k of play.orphanTicks) fail(fold, at(play, k), `the tick's rollRef ${String(k.c.rollRef)} names no ${S ? "beat" : "rep"} of the play`);
   for (const k of play.orphanBeats) fail(fold, at(play, k), `the beat's rollRef ${String(k.c.rollRef)} names no rep of the play, or a rep with another beat`);
+  if (play.lateBlocks.length > 0) lateBlockAccounting(fold, play, d);
   if (!S) return;
   for (const m of play.matchups) {
     const rep = m.rep;
@@ -602,6 +750,80 @@ export function beatAccounting(fold: BeatAccountingFold, play: S1Play, d: Dials)
     for (const k of m.ticks) {
       if (k.c.rollRef !== r?.rngLabel) fail(fold, at(play, k), "a tick under S does not name its beat");
       if (!sameList(k.c.actors, beat.c.actors)) fail(fold, at(play, k), "a tick's actors are not its beat's");
+    }
+  }
+}
+
+/**
+ * Step 3's late blocks on one s3 play (plan §2.7): the beat (S) is a uniform in (0, 1] on
+ * `<play>/rush/beat/<touching label>`, names the touching CHECK, carries its margin turned round
+ * and that margin's tier, no attributes and no opposed roll, and comes after its CHECK; its second
+ * actor is the toucher (`freeRunKey.ts`'s `touchOfCheck`: a pickup's back, a stunt's looper
+ * blocker) and its first a rusher of the play (the carrier, on a passed-off record). Its ticks name
+ * the beat with the beat's actors (S; dieless, which the loop above checks key by key) or carry
+ * both `:late` rolls, each drawn under its own tick (`rush/t<tick>/`), and name the CHECK (L).
+ * The counts are the loop's: a late beat is a beat, a late tick a dieless or rolled tick.
+ */
+function lateBlockAccounting(fold: BeatAccountingFold, play: S1Play, d: Dials): void {
+  const rushers = new Set(play.rushers);
+  const center = centerOfEvents(play.events);
+  for (const b of play.lateBlocks) {
+    const touching = b.touching;
+    const tLabel = touching.c.roll?.rngLabel ?? "";
+    const hand = touchOfCheck(touching.c, center)?.hand;
+    if (hand === undefined) fail(fold, at(play, touching), "a late block whose touching CHECK names no toucher");
+    if (d.shape === "S") {
+      const beat = b.beat;
+      if (beat === undefined) {
+        fail(fold, at(play, touching), "a late block under S has no beat");
+        continue;
+      }
+      const m = lateRepMargin(touching.c.margin);
+      const r = beat.c.roll;
+      const wrong: string[] = [];
+      if (r === undefined) wrong.push("no roll");
+      else {
+        if (r.die !== "uniform") wrong.push(`die ${r.die}`);
+        if (!(r.raw > 0 && r.raw <= 1)) wrong.push(`U ${String(r.raw)} outside (0, 1]`);
+        if (r.total !== r.raw) wrong.push("total is not raw");
+        if (r.modifiers.length !== 0) wrong.push("modifiers");
+        if (r.rngLabel !== lateBeatLabelOf(tLabel)) wrong.push(`label ${r.rngLabel}, not rush/beat/<touching label>`);
+      }
+      if (beat.c.opposedRoll !== undefined) wrong.push("an opposed roll");
+      if (beat.c.rollRef !== tLabel) wrong.push("rollRef is not the touching CHECK's label");
+      if (beat.c.margin !== m) wrong.push(`margin ${String(beat.c.margin)} is not the CHECK's turned round, ${String(m)}`);
+      if (beat.c.tier !== tierOf(d.tunables, m)) wrong.push(`tier ${beat.c.tier}`);
+      if (beat.c.testsAttrs.length !== 0) wrong.push("testsAttrs is not empty");
+      if (beat.c.actors.length !== 2) wrong.push(`${String(beat.c.actors.length)} actors, not two`);
+      if (hand !== undefined && beat.c.actors[1] !== hand) wrong.push(`second actor ${String(beat.c.actors[1])} is not the toucher ${hand}`);
+      if (!rushers.has(String(beat.c.actors[0]))) wrong.push(`first actor ${String(beat.c.actors[0])} is not a rusher of the play`);
+      if (beat.index < touching.index) wrong.push("the beat comes before its CHECK");
+      if (wrong.length > 0) fail(fold, at(play, beat), `late beat: ${wrong.join("; ")}`);
+      for (const k of b.ticks) {
+        if (k.c.roll !== undefined || k.c.opposedRoll !== undefined) fail(fold, at(play, k), "a late tick under S carries a roll");
+        if (k.c.rollRef !== r?.rngLabel) fail(fold, at(play, k), "a late tick under S does not name its beat");
+        if (!sameList(k.c.actors, beat.c.actors)) fail(fold, at(play, k), "a late tick's actors are not its beat's");
+      }
+    } else if (d.shape === "L") {
+      if (b.beat !== undefined) fail(fold, at(play, b.beat), "a late beat under L");
+      for (const k of b.ticks) {
+        const wrong: string[] = [];
+        if (k.c.roll === undefined || k.c.opposedRoll === undefined) wrong.push("not both rolls");
+        if (k.c.rollRef !== tLabel) wrong.push("rollRef is not the touching CHECK's label");
+        if (k.c.actors.length !== 2) wrong.push(`${String(k.c.actors.length)} actors, not two`);
+        if (hand !== undefined && k.c.actors[1] !== hand) wrong.push(`second actor ${String(k.c.actors[1])} is not the toucher ${hand}`);
+        if (!rushers.has(String(k.c.actors[0]))) wrong.push(`first actor ${String(k.c.actors[0])} is not a rusher of the play`);
+        // Both dice are drawn under the tick they are published on, `rush/t<tick>/` (check-bugs N4).
+        const onTick = `/rush/t${k.tick.toFixed(1)}/`;
+        if (k.c.roll !== undefined && !k.c.roll.rngLabel.endsWith(`${onTick}${String(k.c.actors[0])}:late`)) wrong.push(`roll label ${k.c.roll.rngLabel}`);
+        // CT-F7: the toucher's die names the man he blocks, `<toucherId>:late:<rusherId>`.
+        if (k.c.opposedRoll !== undefined && !k.c.opposedRoll.rngLabel.endsWith(`${onTick}${String(k.c.actors[1])}:late:${String(k.c.actors[0])}`)) {
+          wrong.push(`opposed roll label ${k.c.opposedRoll.rngLabel}`);
+        }
+        if (wrong.length > 0) fail(fold, at(play, k), `late tick under L: ${wrong.join("; ")}`);
+      }
+    } else {
+      fail(fold, at(play, touching), "a late block under legacy");
     }
   }
 }
@@ -751,17 +973,102 @@ function step2Hits(hit: Set<Mechanism>, play: S1Play, tunables: Tunables): void 
   }
 }
 
+/** Step 3's five (plan §5.1's exclusive mechanisms), read off the play's own events; any other leaves the play unread. */
+const STEP3_MECHANISMS: ReadonlySet<Mechanism> = new Set(["FREE_RUN", "LATE_BLOCK", "CLIMB_FRONT", "MUG_HEAD_ONLY", "BAND_EDGES"]);
+
+/** A margin's band through a band table (the engine's `bandFor`: the first `minMargin` reached, else the last). */
+function bandThrough(bands: readonly { readonly label: string; readonly minMargin: number }[], margin: number): string | undefined {
+  for (const b of bands) if (margin >= b.minMargin) return b.label;
+  return bands[bands.length - 1]?.label;
+}
+
+/** A band table with `BAND_EDGES`' patched edges put back at their current values (`<prefix>.bands.<i>.minMargin`). */
+function unshiftedBands(bands: readonly { readonly label: string; readonly minMargin: number }[], prefix: string): readonly { readonly label: string; readonly minMargin: number }[] {
+  return bands.map((b, i) => {
+    const p = BAND_EDGES.find((x) => x.tunableId === `${prefix}.bands.${String(i)}.minMargin`);
+    return p === undefined || typeof p.currentValue !== "number" ? b : { label: b.label, minMargin: p.currentValue };
+  });
+}
+
+/**
+ * Step 3's five on one play (plan §5.1): FREE_RUN, a threat on the free-run clock under the arm's own
+ * reading (`freeRunKey.ts`, AM-2's key); LATE_BLOCK, a late block (a late beat or a late tick;
+ * `readS1Play` reads them on s3 plays only); CLIMB_FRONT, a `pocket_movement` CHECK with a step-up
+ * left whose live threats close the climb lane under one rule and not the other (FRONT: a threat
+ * whose from-class is FRONT, `fromOfApproach` on his latest published approach; INTERIOR: an
+ * INTERIOR-aligned threat); MUG_HEAD_ONLY, every dropback (the picture is drawn on each); BAND_EDGES,
+ * a pickup or stunt CHECK whose published band is not the one its margin gets with `BAND_EDGES`'
+ * edges put back.
+ */
+function step3Hits(hit: Set<Mechanism>, play: S1Play, tunables: Tunables, mechanisms: readonly Mechanism[]): void {
+  const wants = (m: Mechanism): boolean => mechanisms.includes(m);
+  if (wants("FREE_RUN")) {
+    const key = clockKeyOf(tunables);
+    const touches = new Map<string, Touch>();
+    const center = centerOfEvents(play.events);
+    for (const k of play.checks) {
+      const touch = touchOfCheck(k.c, center);
+      if (touch !== undefined && k.c.roll !== undefined) touches.set(k.c.roll.rngLabel, touch);
+    }
+    for (const { event } of play.events) {
+      if (event.type !== "RUSH_THREAT") continue;
+      if (onClockUnder(key, event.payload.origin, touches.get(event.payload.rollRef))) {
+        hit.add("FREE_RUN");
+        break;
+      }
+    }
+  }
+  if (wants("LATE_BLOCK") && play.lateBlocks.length > 0) hit.add("LATE_BLOCK");
+  if (wants("CLIMB_FRONT")) {
+    const maxStepUps = tunables.pocketMovement.stepUp.maxPerPlay;
+    const live = new Map<string, { readonly alignment: RushAlignment; readonly approach: unknown }>();
+    let stepUps = 0;
+    for (const { event } of play.events) {
+      if (event.type === "RUSH_THREAT") {
+        const t = event.payload as unknown as { readonly rusher: unknown; readonly state: string; readonly alignment: RushAlignment; readonly approach?: unknown };
+        if (t.state === "RESET") live.delete(String(t.rusher));
+        else live.set(String(t.rusher), { alignment: t.alignment, approach: t.approach });
+      } else if (event.type === "QB_PURSUIT") live.clear();
+      else if (event.type === "QB_DECISION" && event.payload.choice === "STEP_UP") stepUps += 1;
+      else if (event.type === "CHECK" && event.payload.checkKind === "pocket_movement" && stepUps < maxStepUps) {
+        const set = [...live.values()];
+        const interior = set.some((x) => x.alignment === "INTERIOR");
+        const front = set.some((x) => typeof x.approach === "string" && x.approach !== "BLOCKED" && fromOfApproach(x.approach as Exclude<RushApproach, "BLOCKED">, x.alignment) === "FRONT");
+        if (interior !== front) {
+          hit.add("CLIMB_FRONT");
+          break;
+        }
+      }
+    }
+  }
+  if (wants("MUG_HEAD_ONLY")) hit.add("MUG_HEAD_ONLY");
+  if (wants("BAND_EDGES")) {
+    const pickup = unshiftedBands(tunables.blitzPickup.bands, "blitzPickup");
+    const stunt = unshiftedBands(tunables.stunt.bands, "stunt");
+    for (const k of play.checks) {
+      const table = k.c.checkKind === "blitz_pickup" ? pickup : k.c.checkKind === "stunt_communication" ? stunt : undefined;
+      if (table === undefined || k.c.band === undefined) continue;
+      if (bandThrough(table, k.c.margin) !== k.c.band) {
+        hit.add("BAND_EDGES");
+        break;
+      }
+    }
+  }
+}
+
 /**
  * Counts the dropbacks each of `mechanisms` touched, on one game of the arm (`tunables` is the arm's):
  * S, a blocked dropback whose beat fell within the ticks played; the window, a dropback with a window
  * tick played (and apart, those whose only non-CLEAN statuses followed one, before any threat); L, a
  * dropback with a tick before R whose band differs from the unscaled band of its own rolls; Heels and
  * Past only, a dropback with a BLOCKER_BEATEN or RUSHER_GAINING tick; the hold, the horizons and the
- * late free rushers, every dropback; step 2's four as `step2Hits` reads them.
+ * late free rushers, every dropback; step 2's four as `step2Hits` reads them; step 3's five as
+ * `step3Hits` reads them.
  */
 export function foldAffectedGame(fold: AffectedFold, events: readonly MatchEventEnvelope[], tunables: Tunables, mechanisms: readonly Mechanism[]): void {
   const d = dialsOf(tunables);
   const step2 = mechanisms.some((m) => STEP2_MECHANISMS.has(m));
+  const step3 = mechanisms.some((m) => STEP3_MECHANISMS.has(m));
   for (const play of s1PlaysOf(events)) {
     fold.dropbacks += 1;
     const hit = new Set<Mechanism>();
@@ -796,6 +1103,7 @@ export function foldAffectedGame(fold: AffectedFold, events: readonly MatchEvent
     hit.add("HORIZONS");
     hit.add("LATE");
     if (step2) step2Hits(hit, play, tunables);
+    if (step3) step3Hits(hit, play, tunables, mechanisms);
     let any = false;
     for (const mech of mechanisms) {
       if (!hit.has(mech)) continue;
