@@ -5,7 +5,9 @@
   depth chart) and `narrative` (the news beat). Thread "Design coach and GM win-now clashes".
 - **Status:** parts 1-7 and Q1-Q6 ruled by the owner (2026-11-06 23:07Z). Parts 8 (GM hiring and
   firing) and 9 (the coach's lineup choices) were added by that ruling and are proposed, with
-  questions Q7-Q12 open. Contracts edits W1-W3 wait for the owner's typed yes. Nothing is built.
+  questions Q7-Q12 ruled 2026-11-06 23:16Z (all a; Q7 and Q9 with notes, §8). Part 10 (ex-players
+  come back as coaches and GMs) and Q13-Q15 proposed from those notes. Contracts edits W1-W4 wait for
+  the owner's typed yes. Nothing is built.
 - **Proposal doc (plain words, the questions as put to the owner):**
   https://claude.ai/artifact/KXX3prGXYBRY2dNph4dfgm
 - **Origin:** the owner's question in thread "Salary cap and contracts" (2026-11-06 22:36Z): can a GM
@@ -36,6 +38,10 @@
 | Playoff rates by early record since 2002: 5-3 → 57 of 99; 4-2 → 63 of 103; 3-3 → 39 of 112 | [Blogging The Boys 2019](https://www.bloggingtheboys.com/2019/11/7/20951554/nfl-playoff-tracker-cowboys-remain-on-track-for-playoffs-and-division-title), [2016](https://www.bloggingtheboys.com/2016/10/17/13304032/nfl-playoff-tracker-week-7-dallas-cowboys-odds-looking-good-for-postseason) | REPORTED (search summaries) |
 | 23 GM firings over five years (about 4-5 a year; the per-year figure is my arithmetic) | Sportsology, as reported by [Sportico 2023](https://www.sportico.com/leagues/football/2023/nfl-owners-front-office-hiring-1234699871/) | REPORTED |
 | Median tenure of active NFL GMs about 3 years | [ESPN](https://africa.espn.com/nfl/story/_/id/40492244/howie-roseman-eagles-influence-nfl-why-evaluating-gms-hard-super-bowl-analytics) | REPORTED |
+| 36 new GMs over the 2018-2026 seasons (4, 4, 2, 7, 5, 2, 5, 4, 3 by season from 2018; about 4.0 a year); 10 of them replaced a man fired in midseason, and an 11th GM was fired in October 2026 | Appendix A: every team's Wikipedia season pages 2017-2026, infobox `general_manager`, read 2026-11-06 | COMPUTED (counted by me from the pages) |
+| Of those 36: 28 came up through a front office, 5 were former GMs, 2 were head coaches given GM power, 1 came from television | Appendix A, each man's Wikipedia page | COMPUTED (my classification) |
+| Of those 36: 5 played real NFL seasons and 5 more only reached an NFL camp or practice squad; of today's 32 GMs, 2 played real NFL seasons (Lynch, Morgan) | Appendix A, `past_teams` in each infobox (an asterisk = offseason or practice squad only) | COMPUTED |
+| Of today's 32 head coaches, 9 played in NFL games (one, Payton, only as a 1987 strike replacement) and 1 more only reached a camp | Wikipedia "List of current NFL head coaches" and each coach's infobox, read 2026-11-06 | COMPUTED |
 | Our head-coach changes 7.6 a year | ADR-080 C5 staff-check | COMPUTED (earlier run, not re-run) |
 | Our league's win spread 2.4 against about 2.75 real | aging thread's ADR-087 D5b first look | REPORTED (other thread) |
 | Every lean center, spread, bar, push and threshold below | none | CHOSEN (judgment, tuned at the many-season check) |
@@ -115,18 +121,31 @@ rebuild (CHOSEN). They argue as in §5 and the GM's final call sets `Team.direct
 moment as today. Agreed with the cap thread: the GM's lean reaches contract calls only through
 `Team.direction`, never as a second look-ahead input.
 
-## 8. GMs are hired and fired (owner's addition; proposed, Q7-Q10)
+## 8. GMs are hired and fired (owner's addition; ruled Q7 a, Q8 a, Q9 a, Q10 a)
+
+Owner's notes (23:16Z): Q7 *"please base the system off of how many GM's are replaced in real life
+every season"*; Q9 *"Leaning towards A but please review the backgrounds of GM's from real life over
+the past couple of years. For example, the 49ers GM is an ex-player"* (that is §10).
+
+Real numbers, counted (Appendix A): 36 new GMs over the nine seasons 2018-2026, about 4 a year
+(fewest 2, most 7). Of those, 28 came up through a front office, 5 were former GMs given another
+job, 2 were head coaches handed GM power, and 1 came from television. 10 of the 36 replaced a man
+fired in midseason, with an interim GM finishing the year, and an 11th GM (Indianapolis) was fired
+in October 2026. Our carousel fires only in the offseason; whether presidents also fire in midseason
+is Q13. These replace the reported 4-5 a
+year as the target.
 
 Built the way ADR-080 runs the coaching carousel, as its own step before the head-coach step.
 
 - **Judged by the president** once a year after the playoffs, on results against what the president
   expected over the GM's whole tenure (a GM is judged slower than a coach: a longer honeymoon, more
-  weight on earlier seasons). Target about 4-5 GM firings a year (reported real figure above), below
-  our head-coach changes. A clean sweep, GM and coach out together, happens when both are judged
+  weight on earlier seasons). Target about 4 GM changes a year, counting retirements, between 2 and 7
+  in a season (counted, Appendix A), below our head-coach changes. A clean sweep, GM and coach out together, happens when both are judged
   short. Pressure (§2) reads this chance in-season.
 - **The pool.** A front-office ladder made like the coach pool: scouting directors and cap managers
   (existing roles) on every team, the league's best of them candidates each year, plus fired GMs
-  (retreads), plus a few coordinators and head coaches who move upstairs (rare; Q9). Each carries
+  (retreads), plus a few head coaches who move upstairs, plus former players (§10). Hires are tuned to
+  the counted mix: about 78% front office, 14% former GMs, 5-6% coaches, the rest from outside. Each carries
   the meeting skills (talent evaluation, performance analysis, forecasting, cap management, market
   sense, nuance, politics), a personality type and a lean. The pool is topped up every year so
   there are always GMs to hire.
@@ -137,7 +156,7 @@ Built the way ADR-080 runs the coaching carousel, as its own step before the hea
   is Q10. The owner sees the same candidate report as the president does.
 - **Views.** Hire +10, firing a friend stings (ADR-084's existing moves).
 
-## 9. The coach's lineup choices (owner's addition; proposed, Q11, Q12)
+## 9. The coach's lineup choices (owner's addition; ruled Q11 a, Q12 a)
 
 Owner (23:07Z): *"some behavior that a coach might change based on how he sizes his team's hopes up
 is to play younger players if he thinks they won't make it. But that would take into consideration
@@ -161,24 +180,43 @@ With growth on, snaps drive how fast young players grow (ADR-087) and injury exp
 so this sits behind its own switch (`--lineup-hopes`, off by default), and the aging thread re-runs
 its 20-season check before it lands (agreed 2026-11-06 22:46Z).
 
-## 10. Contracts edits (each needs the owner's typed yes)
+## 10. Former players come back as coaches and GMs (owner's note on Q9; proposed, Q14, Q15)
+
+Today nobody comes back: a retired player leaves the game (`PLAYER_RETIRED`), and every coach is made
+fresh from a cohort (seat holder, president, young NFL position coach, college coach;
+`staff/makeCoach.ts`). Proposed: when a player retires, a few go into coaching (they enter as a young
+position coach on some team's staff) or into scouting (they enter the front-office ladder). Who goes
+leans on what he is, never on his position: his smarts and leadership ratings and his discipline
+raise the chance; a long career raises it for coaching. From there they climb like anyone else, so
+how many reach the top is set by the hiring, not forced.
+
+Targets, counted: about 28% of head coaches played in NFL games (9 of 32 today); about 14% of new GMs
+had real NFL seasons and another 14% only an NFL camp or practice squad (Appendix A). Coordinators are
+not counted yet; counting them is part of the build. A former player's coaching ratings are drawn as
+anyone's, nudged a little by his football smarts (CHOSEN, Q14), and his playing record shows on his
+résumé, where it adds a little to his name when he is hired (Q15).
+
+## 11. Contracts edits (each needs the owner's typed yes)
 
 - **W1** `Team.stance?: "BUY" | "HOLD" | "SELL"` and event `TEAM_STANCE_SET { team, season, week,
   stance, authority: "GM" }`.
 - **W2** event `COURSE_ARGUED { team, season, week, gm, coach, gmStance, coachStance, heat, winner?,
   outcome }` (the news reads it; the views move through `RELATIONSHIP_CHANGED` as today).
 - **W3** `DepthChartSituation` gains `"YOUTH_LOOK"` and `"SHAKE_UP"`.
+- **W4** `StaffState.formerPlayer?: PlayerId`, linking a coach or GM to his playing career (§10).
 - No edit for leans (rating keys), the new move (a free string), the coach's meeting claims (the
   meeting's shape fits), or GM hiring and firing (`STAFF_HIRED` and `STAFF_DEPARTED` carry any role;
   `StaffRole` already has `GM`, `SCOUTING_DIRECTOR` and `CAP_MANAGER`). A saved GM pool rides in the
   staff list saves already carry.
 
-## 11. Build steps
+## 12. Build steps
 
 1. Leans and pressure; GM and head coach views of each other. Tests: same seed, same leans; pressure
    reads the firing formula.
-2. GM hiring and firing (§8) with the front-office pool. Many-season check against about 4-5 firings
-   a year and a median tenure near 3 years (both reported).
+2. GM hiring and firing (§8) with the front-office pool, and in-season firings if Q13 says so.
+   Many-season check against about 4 GM changes a year (2 to 7), the counted hire mix, and a median
+   tenure near 3 years (reported).
+3b. Former players into coaching and scouting (§10); many-season check against the counted shares.
 3. The weekly read, stance and argument (§3-§6), after each week's games. Measure the playoff-chance
    table from our own seasons first.
 4. The head coach in the meeting (§7).
@@ -187,9 +225,35 @@ its 20-season check before it lands (agreed 2026-11-06 22:46Z).
 7. A many-season check: splits at the deadline, rifts per season, how often the meeting's course
    follows the coach. No real count exists for these, so the targets are judgment, labeled so.
 
-## 12. Rulings
+## 13. Rulings
 
 - 2026-11-06 23:07Z, the owner on parts 1-7: "1. Yes 2. Yes, but let's also make GMs hireable and
   fireable ... 3. Yes. And some behavior ... 4. Yes 5. Yes 6. Yes 7. Yes"; on Q1-Q6: "1. A 2. A 3. B
   4. A 5. A 6. A".
-- Q7-Q12 open (see the proposal doc).
+- 2026-11-06 23:16Z, the owner on Q7-Q12: "7. A. (please base the system off of how many GM's are
+  replaced in real life every season) 8. A 9. Leaning towards A but please review the backgrounds of
+  GM's from real life over the past couple of years. ... It should happen for GM's too (though less
+  frequently, again, based on real life). 10. A 11. A 12. A".
+- Q13-Q15 open (see the proposal doc).
+
+## Appendix A: new GMs by season, 2018-2026 (counted from Wikipedia season pages)
+
+Background: FO = came up through a front office; Re = former GM; HC = head coach given GM power;
+TV = broadcaster. Played: N = real NFL seasons; c = NFL camp or practice squad only.
+
+| Season | New GMs (team, background, played) |
+|---|---|
+| 2018 | Browns Dorsey (Re, N), Packers Gutekunst (FO), Texans Gaine (FO, c), Giants Gettleman (Re) |
+| 2019 | Ravens DeCosta (FO), Texans O'Brien (HC), Raiders Mayock (TV, N), Jets Douglas (FO) |
+| 2020 | Browns Berry (FO), Washington Rivera (HC, N) |
+| 2021 | Falcons Fontenot (FO), Panthers Fitterer (FO), Broncos Paton (FO), Lions Holmes (FO), Texans Caserio (FO), Jaguars Baalke (Re), Washington Mayhew (Re, N) |
+| 2022 | Bears Poles (FO, c), Raiders Ziegler (FO), Vikings Adofo-Mensah (FO), Giants Schoen (FO), Steelers Khan (FO) |
+| 2023 | Cardinals Ossenfort (FO), Titans Carthon (FO, c) |
+| 2024 | Panthers Morgan (FO, N), Raiders Telesco (Re), Chargers Hortiz (FO), Patriots Wolf (FO), Washington Peters (FO) |
+| 2025 | Jaguars Gladstone (FO), Raiders Spytek (FO), Jets Mougey (FO, c), Titans Borgonzi (FO) |
+| 2026 | Falcons Cunningham (FO, c), Dolphins Sullivan (FO), Vikings Teasley (FO) |
+
+Fired in midseason (an interim finished the year): 2020 Dimitroff, Hurney, Quinn, O'Brien, Caldwell;
+2022 Robinson; 2023 Ziegler, Telesco; 2024 Douglas; 2025 Grier; 2026 Ballard (not yet replaced).
+Cincinnati and Dallas have no separate GM in these years and count as no change. The 2018 column is
+set against 2017; 2017 and earlier are not counted.
