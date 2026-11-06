@@ -1060,7 +1060,36 @@
           }
         }
       }
-    ]
+    ],
+    "rookieAge": {
+      "n": 1891,
+      "noBirthDate": 0,
+      "meanWhole": 22.6705,
+      "meanFractional": 23.1577,
+      "sd": 1.018,
+      "shareByWholeYear": {
+        "upTo20": 0.0016,
+        "age21": 0.128,
+        "age22": 0.3152,
+        "age23": 0.3543,
+        "age24": 0.166,
+        "age25": 0.0286,
+        "from26": 0.0063
+      },
+      "draftedN": 1442,
+      "draftedMeanFractional": 23.0099,
+      "undraftedN": 449,
+      "undraftedMeanFractional": 23.6325,
+      "perSeason": [
+        {"season": 2018, "n": 286, "meanWhole": 22.493, "meanFractional": 22.9777},
+        {"season": 2019, "n": 271, "meanWhole": 22.5646, "meanFractional": 23.0295},
+        {"season": 2020, "n": 271, "meanWhole": 22.4096, "meanFractional": 22.9026},
+        {"season": 2021, "n": 238, "meanWhole": 22.4496, "meanFractional": 22.935},
+        {"season": 2022, "n": 277, "meanWhole": 22.8953, "meanFractional": 23.3922},
+        {"season": 2023, "n": 276, "meanWhole": 22.9058, "meanFractional": 23.3971},
+        {"season": 2024, "n": 272, "meanWhole": 22.9485, "meanFractional": 23.442}
+      ]
+    }
   },
   "peakUsage": {
     "minPairsPerAge": 20,
@@ -1684,6 +1713,60 @@
         {"season": 2024, "sd": 3.6486}
       ],
       "spread": {"value": 3.0486, "se": 0.2093, "n": 4}
+    }
+  },
+  "retiredList": {
+    "seasons": [2021, 2024],
+    "byAge": {
+      "upTo25": {"n": 3532, "count": 7, "share": {"value": 0.002, "se": 0.0007, "n": 3532}},
+      "age26To28": {"n": 2011, "count": 10, "share": {"value": 0.005, "se": 0.0015, "n": 2011}},
+      "age29To30": {"n": 702, "count": 9, "share": {"value": 0.0128, "se": 0.0041, "n": 702}},
+      "age31To32": {"n": 388, "count": 9, "share": {"value": 0.0232, "se": 0.0067, "n": 388}},
+      "from33": {"n": 305, "count": 9, "share": {"value": 0.0295, "se": 0.0093, "n": 305}}
+    },
+    "byYearsInLeague": {
+      "exp0": {"n": 1152, "count": 1, "share": {"value": 0.0009, "se": 0.0009, "n": 1152}},
+      "exp1To2": {"n": 1993, "count": 4, "share": {"value": 0.002, "se": 0.0011, "n": 1993}},
+      "exp3To5": {"n": 2189, "count": 9, "share": {"value": 0.0041, "se": 0.0013, "n": 2189}},
+      "exp6To9": {"n": 1237, "count": 17, "share": {"value": 0.0137, "se": 0.0031, "n": 1237}},
+      "exp10Plus": {"n": 367, "count": 13, "share": {"value": 0.0354, "se": 0.0086, "n": 367}}
+    },
+    "all": {"n": 6938, "count": 44, "share": {"value": 0.0063, "se": 0.001, "n": 6938}},
+    "noBirthDate": 0,
+    "noYearsInLeague": 0,
+    "placements": {
+      "total": 102,
+      "byAge": {"upTo25": 14, "age26To28": 25, "age29To30": 13, "age31To32": 14, "from33": 28},
+      "noBirthDate": 8,
+      "byYearsInLeague": {"exp0": 8, "exp1To2": 16, "exp3To5": 17, "exp6To9": 32, "exp10Plus": 29},
+      "noYearsInLeague": 0
+    },
+    "note": "Most retirements are invisible in these files: only a man under contract is placed on the reserve/retired list (code R02), so a man who retires unsigned, or after his release, gets no code. These are lower bounds on retirement by age, not retirement rates."
+  },
+  "exitsByAge": {
+    "seasons": [2016, 2022],
+    "backOnA53": {
+      "byAge": {
+        "upTo26": {"n": 7635, "count": 6728, "share": {"value": 0.8812, "se": 0.0039, "n": 7635}},
+        "age27To28": {"n": 2026, "count": 1729, "share": {"value": 0.8534, "se": 0.0078, "n": 2026}},
+        "age29To30": {"n": 1201, "count": 965, "share": {"value": 0.8035, "se": 0.012, "n": 1201}},
+        "age31To32": {"n": 625, "count": 463, "share": {"value": 0.7408, "se": 0.0176, "n": 625}},
+        "from33": {"n": 536, "count": 388, "share": {"value": 0.7239, "se": 0.0191, "n": 536}}
+      },
+      "all": {"n": 12023, "count": 10273, "share": {"value": 0.8544, "se": 0.0032, "n": 12023}},
+      "noBirthDate": 0
+    },
+    "startersGone": {
+      "minShare": 0.5,
+      "byAge": {
+        "upTo25": {"n": 1766, "count": 12, "share": {"value": 0.0068, "se": 0.002, "n": 1766}},
+        "age26To28": {"n": 1319, "count": 23, "share": {"value": 0.0174, "se": 0.0036, "n": 1319}},
+        "age29To30": {"n": 532, "count": 43, "share": {"value": 0.0808, "se": 0.0121, "n": 532}},
+        "age31To32": {"n": 250, "count": 29, "share": {"value": 0.116, "se": 0.0207, "n": 250}},
+        "from33": {"n": 203, "count": 43, "share": {"value": 0.2118, "se": 0.0267, "n": 203}}
+      },
+      "all": {"n": 4070, "count": 150, "share": {"value": 0.0369, "se": 0.0028, "n": 4070}},
+      "noBirthDate": 0
     }
   },
   "coverage": {

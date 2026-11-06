@@ -5,9 +5,12 @@
 
 import { compactJson } from "../injuries/report.js";
 import type { CareerRow, ComebackRow, CrossRow, NflCareersReport, PeakRow, UsageGroup } from "./baseline.js";
-import { CAREER_GROUPS, USAGE_GROUPS } from "./groups.js";
+import { CAREER_GROUPS, USAGE_GROUPS, type CareerGroup } from "./groups.js";
 import type { CrossValues } from "./measure.js";
-import { CAREER_FAMILIES, CAREER_FAMILY_KEYS } from "./nflCareers.js";
+import {
+  BY_GROUP_BY_SEASON_SEASONS, CAREER_FAMILIES, CAREER_FAMILY_KEYS, EXIT_AGE_BANDS, OTC_SIGNED_AGAIN, ROOKIE_AGE_BINS, SIGNING_AGE_BANDS,
+  YEARS_IN_LEAGUE_BANDS, type AgeBand, type NflRateRow, type NflRatesByAge, type RookieAgeBin,
+} from "./nflCareers.js";
 import type { Estimate } from "./stats.js";
 
 export function renderJson(r: NflCareersReport): string {
@@ -28,6 +31,10 @@ export const DEFINITIONS: readonly { readonly term: string; readonly text: strin
   { term: "Peak usage age", text: "For seasons Y, Y+1 (2013-2024) with at least one snap of any kind in both, delta = share(Y+1) − share(Y), at his age in Y. Mean delta by age per group over ages with at least the minimum pairs, smoothed with a centered 3-age moving average; peak = the first age whose smoothed delta is ≤ 0 after an earlier age's was > 0. 'With exits' also counts Y+1 with no snaps as share 0. SE: bootstrap over players; 'resolved' is the share of replicates that found a peak." },
   { term: "Comebacks", text: "P(credited again in Y+2 | credited in Y and on no team's list in any week of Y+1), Y = 2016-2022: practice squads are listed in the weekly rosters only from 2017. Reported only. SE: bootstrap over players." },
   { term: "Wins", text: "Year-over-year win r: Pearson r of team wins in Y and Y+1 for 2020→21, 21→22, 22→23, 23→24; their mean, SE = their sample SD / √4. Win spread: the population SD of team wins each season 2021-2024 (as the season checks compute it), their mean, SE = sample SD / √4. A tie is half a win." },
+  { term: "Rookies' ages", text: "Rookies (years_exp 0, as for the rookie share) on the week-8 53s, 2018-2024, pooled over the seasons' men (not the mean of the season values). Age on 23 October in whole years, and with the fraction kept (days lived / 365.2425); SD = the sample SD of the fractional ages. Drafted = a draft pick on his row. Rookies with no birth date are left out of every age." },
+  { term: "Retired list", text: "A row with code R02 (Reserve/Retired) and status RET (2021-2024) or RES (2020, its first season) in some regular-season week. Cases: men credited in Y-1, Y = 2021-2024; a case is on the list when he has such a row in season Y. Age and years in the league (years_exp) in Y-1. 'Every man on the list' counts each man once per season he is on it, credited the year before or not, with age and years in Y. SE: bootstrap over players." },
+  { term: "Back on a 53", text: "Cases: men credited in Y, Y = 2016-2022; a case is back when he is on a 53 (the 53 as above) in some regular-season week of Y+1 or Y+2. Age in Y. A man under contract counts whether or not he signed again. SE: bootstrap over players." },
+  { term: "Starters gone", text: "Cases: starters credited in Y, Y = 2016-2022. A starter has at least 50% of his main team's snaps on his side that season (the snap share above); kickers, punters and snappers never are. A case is gone when he is on no team's list (any status) in any regular-season week of Y+1 and of Y+2; a man on the retired list is on no list. Age in Y. SE: bootstrap over players." },
 ];
 
 /** Where the measurement had to depart from the written shared definitions, and why. */
@@ -47,6 +54,9 @@ export const LIMITS: readonly string[] = [
   "Weekly rosters before 2016 under-list week 8 (about 47 a team); the week-8 rows start in 2018. Final-week rosters are whole in every season.",
   "Snap counts are PFR's per game; a man traded in season is counted with the team he played most for, so his share understates his season.",
   "2016-2019 rosters list some linebackers and defensive backs by group only (LB, DB); the importer's rule reads them as outside linebackers (EDGE) and corners, which moves some inside linebackers and safeties into EDGE and CB in those seasons.",
+  "Rookies' ages count only rookies still on a 53 at week 8: men cut in camp, on reserve lists or on practice squads are not in them.",
+  "The retired list exists in these files only from 2020, and it holds only men under contract: a man who retires unsigned, or after his release, gets no code. Its rates are lower bounds on retiring by age, not retirement rates.",
+  "Exits by age read survivors: the men still on a 53 at 33 are the durable and the wanted. Back on a 53 counts men still under contract, so it is looser than signed again; starters gone also holds injuries, suspensions and men cut in camp.",
 ];
 
 // ---------------------------------------------------------------- formatting
@@ -67,6 +77,126 @@ const valueCells = (c: CrossValues): string[] => [int(c.n), fix(c.meanAge), pct(
 const peakCell = (p: PeakRow): string => (p.peakAge === null ? `none (${pct(p.resolved, 0)} of replicates found one)` : `${p.peakAge.value} ± ${fix(p.peakAge.se, 2)} (${pct(p.resolved, 0)})`);
 const careerCells = (c: CareerRow): string[] => [int(c.entrants), int(c.censored), fe(c.expectedCareer), pe(c.reach5), pe(c.reach10)];
 const comebackCells = (c: ComebackRow): string[] => [int(c.cases), int(c.back), c.cases === 0 ? "-" : pe(c.share)];
+
+// ---------------------------------------------------------------- 2026-11-06 sections
+
+const BIN_LABEL: Readonly<Record<RookieAgeBin, string>> = {
+  upTo20: "20 or under", age21: "21", age22: "22", age23: "23", age24: "24", age25: "25", from26: "26 or older",
+};
+const BAND_LABEL: Readonly<Record<string, string>> = {
+  upTo25: "25 and under", upTo26: "26 and under", age26To28: "26-28", age27To28: "27-28", age29To30: "29-30", age31To32: "31-32", from33: "33 and over",
+  exp0: "0", exp1To2: "1-2", exp3To5: "3-5", exp6To9: "6-9", exp10Plus: "10 and more",
+};
+const rateCells = (x: NflRateRow): string[] => [int(x.n), int(x.count), x.n === 0 ? "-" : pe(x.share, 2)];
+const bandRows = <K extends string>(bands: readonly AgeBand<K>[], rows: Readonly<Record<K, NflRateRow>>): string[][] =>
+  bands.map((b) => [BAND_LABEL[b.key] ?? b.key, ...rateCells(rows[b.key])]);
+const allRow = <K extends string>(rates: NflRatesByAge<K>): string[] => [`All (${int(rates.noBirthDate)} with no birth date among them)`, ...rateCells(rates.all)];
+
+function rookieSections(r: NflCareersReport, w8span: string): string[] {
+  const a = r.weekEight.rookieAge;
+  const out: string[] = [];
+  out.push(`## Rookies' ages at week 8, ${w8span} (REAL)`);
+  out.push("");
+  out.push(
+    `REAL, counted from the weekly rosters: rookies (years_exp 0) on the week-8 53s, pooled over the ${r.weekEight.perSeason.length} seasons' men. ` +
+      `Ages on 23 October; rookies with no birth date are left out (${int(a.noBirthDate)} of them). Survivors only: rookies cut in camp, on reserve lists or on practice squads are not here.`,
+  );
+  out.push("");
+  out.push(table(["", "Rookies", "Mean age (whole years)", "Mean age (fractional)", "SD (fractional)"], [
+    ["All", int(a.n), fix(a.meanWhole), fix(a.meanFractional), fix(a.sd)],
+    ["Drafted", int(a.draftedN), "", fix(a.draftedMeanFractional), ""],
+    ["Undrafted", int(a.undraftedN), "", fix(a.undraftedMeanFractional), ""],
+  ]));
+  out.push("");
+  out.push("Share of the rookies by whole years on 23 October:");
+  out.push("");
+  out.push(table(ROOKIE_AGE_BINS.map((b) => BIN_LABEL[b]), [ROOKIE_AGE_BINS.map((b) => pct(a.shareByWholeYear[b]))]));
+  out.push("");
+  out.push("By season:");
+  out.push("");
+  out.push(table(["Season", "Rookies", "Mean age (whole years)", "Mean age (fractional)"],
+    a.perSeason.map((s) => [String(s.season), int(s.n), fix(s.meanWhole), fix(s.meanFractional)])));
+  out.push("");
+
+  const seasons = r.weekEight.perSeason.filter((s) => BY_GROUP_BY_SEASON_SEASONS.includes(s.season));
+  if (seasons.length > 0) {
+    const label = seasons.map((s) => String(s.season)).join(" / ");
+    out.push(`## Week 8 by group, season by season, ${seasons[0]!.season}-${seasons[seasons.length - 1]!.season} (REAL)`);
+    out.push("");
+    out.push(
+      `REAL: the by-group values of the seasons the league's week-8 rows are graded on, copied into \`NFL_CAREERS\` as \`weekEight.byGroupBySeason\`. Each cell reads ${label}. ` +
+        "Kickers, punters and long snappers are about 32 men a season, so one season's share moves by several points by chance.",
+    );
+    out.push("");
+    const cell = (f: (v: CrossValues) => number, show: (x: number) => string) => (g: CareerGroup) => seasons.map((s) => show(f(s.byGroup[g]))).join(" / ");
+    out.push(table(["Group", "Men", "22 or under", "31 or over", "34 or over"], CAREER_GROUPS.map((g) => [
+      g, cell((v) => v.n, int)(g), cell((v) => v.age22OrUnder, pct)(g), cell((v) => v.age31Plus, pct)(g), cell((v) => v.age34Plus, pct)(g),
+    ])));
+    out.push("");
+  }
+  return out;
+}
+
+function exitSections(r: NflCareersReport): string[] {
+  const out: string[] = [];
+  const t = r.retiredList;
+  out.push(`## The reserve/retired list, Y = ${t.seasons[0]}-${t.seasons[1]} (REAL, a lower bound)`);
+  out.push("");
+  out.push(
+    "REAL, counted from the weekly rosters. Of men credited in Y-1 (on a final-week 53), the share with a reserve/retired row (code R02) in some regular-season week of Y. " +
+      `The code is in these files only from 2020 (RES with R02 that season, RET with R02 from 2021), so Y starts in ${t.seasons[0]}. ${t.note}`,
+  );
+  out.push("");
+  out.push(table(["Age in Y-1", "Credited in Y-1", "On the retired list in Y", "Share"], [
+    ...bandRows(EXIT_AGE_BANDS, t.byAge),
+    [`All (${int(t.noBirthDate)} with no birth date among them)`, ...rateCells(t.all)],
+  ]));
+  out.push("");
+  out.push(table(["Years in the league in Y-1", "Credited in Y-1", "On the retired list in Y", "Share"], [
+    ...bandRows(YEARS_IN_LEAGUE_BANDS, t.byYearsInLeague),
+    [`Unknown`, int(t.noYearsInLeague), "", ""],
+  ]));
+  out.push("");
+  const p = t.placements;
+  out.push(`Every man on the retired list in Y, ${t.seasons[0]}-${t.seasons[1]}, once per man and season, credited the year before or not: ${int(p.total)}. By age and by years in the league in Y:`);
+  out.push("");
+  out.push(table([...EXIT_AGE_BANDS.map((b) => BAND_LABEL[b.key]!), "No birth date"], [[...EXIT_AGE_BANDS.map((b) => int(p.byAge[b.key])), int(p.noBirthDate)]]));
+  out.push("");
+  out.push(table([...YEARS_IN_LEAGUE_BANDS.map((b) => `${BAND_LABEL[b.key]!} years`), "Unknown"], [[...YEARS_IN_LEAGUE_BANDS.map((b) => int(p.byYearsInLeague[b.key])), int(p.noYearsInLeague)]]));
+  out.push("");
+
+  const e = r.exitsByAge;
+  out.push(`## Exits by age, Y = ${e.seasons[0]}-${e.seasons[1]} (REAL)`);
+  out.push("");
+  out.push(
+    "REAL, counted from the weekly rosters and snap counts; ages in Y; Y+2 is at most 2024, so 2025 is never read. " +
+      "Survivors: the men still on a 53 at 33 are the durable and the wanted.",
+  );
+  out.push("");
+  const otc = OTC_SIGNED_AGAIN;
+  out.push(
+    "Back on a 53: of men credited in Y, the share on a 53 in some regular-season week of Y+1 or Y+2. This counts men still under contract, so it is looser than \"signed again\". " +
+      `Beside it, REPORTED and not measured by this command: of expiring deals of at least ${pct(otc.minCapShare)} of the cap that ran out in ${otc.seasons[0]}-${otc.seasons[1]}, ` +
+      `the share signed again within ${otc.withinYears} years (OverTheCap data via nflverse, counted by the salary-cap thread, ADR-085 step 12; n = ${int(otc.n)} deals, no count by age; about half of the next deals were for one year).`,
+  );
+  out.push("");
+  out.push(table(["Age in Y", "Credited in Y", "On a 53 in Y+1 or Y+2", "Share", "Signed again within two years (OverTheCap, REPORTED)"], [
+    ...SIGNING_AGE_BANDS.map((b) => [BAND_LABEL[b.key]!, ...rateCells(e.backOnA53.byAge[b.key]), pct(otc.byAge[b.key], 0)]),
+    [...allRow(e.backOnA53), ""],
+  ]));
+  out.push("");
+  out.push(
+    `Starters gone: of starters (at least ${pct(e.startersGone.minShare, 0)} of his main team's snaps on his side) credited in Y, the share on no team's list in any regular-season week of Y+1 and of Y+2. ` +
+      "A proxy for leaving while still wanted; it also holds injuries, suspensions and men cut in camp.",
+  );
+  out.push("");
+  out.push(table(["Age in Y", "Starters credited in Y", "On no list in Y+1 or Y+2", "Share"], [
+    ...bandRows(EXIT_AGE_BANDS, e.startersGone.byAge),
+    allRow(e.startersGone),
+  ]));
+  out.push("");
+  return out;
+}
 
 export function renderMarkdown(r: NflCareersReport): string {
   const out: string[] = [];
@@ -96,6 +226,7 @@ export function renderMarkdown(r: NflCareersReport): string {
   out.push(table(["Season", "Men", "Mean age", "22 or under", "31 or over", "34 or over", "Rookies", "Undrafted", "Bye teams from week 7"],
     r.weekEight.perSeason.map((s) => [String(s.season), ...valueCells(s.league), String(s.byeFilled)])));
   out.push("");
+  out.push(...rookieSections(r, w8span));
 
   out.push(`## Peak usage age, ${r.seasons.usage[0]}-${r.seasons.usage[1]}`);
   out.push("");
@@ -138,6 +269,7 @@ export function renderMarkdown(r: NflCareersReport): string {
     ...CAREER_GROUPS.map((g) => [g, ...comebackCells(r.comebacks.byGroup[g])]),
   ]));
   out.push("");
+  out.push(...exitSections(r));
 
   out.push("## Team wins");
   out.push("");
