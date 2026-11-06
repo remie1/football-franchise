@@ -176,6 +176,47 @@ The fix: there is no extension on the day a team tenders, tags or re-signs a pla
 
 New-team deals of $5M+ are now inside the real range. Own-team multi-year deals are now the larger gap: 119 a year against 210 to 290.
 
+## Step 12: good free agents find teams (2026-11-01)
+
+The aging thread's 20-season runs found that about 100 above-average players a year reached free agency and never signed again. I followed every free agent rated at or above the league's average 53-man player through each market day for three seasons. Of those newly free, 48% signed in the first offseason, 28% in the second and 8% in the third. Teams wanted them (thousands of looks each) but never made an offer, for three reasons:
+
+1. A team bid its own full price for him even when his asking price had already fallen by half late in the market, so its own bid didn't fit its room.
+2. A team with room passed when a longer deal didn't fit next year.
+3. After the first week of March most teams have under $2M of room, so a good player's ask stayed out of reach all summer.
+
+Real (counted from OverTheCap, deals of 1.5%+ of the cap that ran out in 2016 to 2022, n = 1,799): of the veterans whose deal ran out, 94% of those 26 or younger signed again within two years, 89% at 27 to 28, 86% at 29 to 30, 71% at 31 to 32 and 58% at 33 or older. About half of those next deals were for one year.
+
+The changes:
+
+- A team never offers more than the player asks.
+- When a longer deal won't fit next year, the team offers one year.
+- After the draft, a player nobody could fit drops his ask to what the team with the most room that wanted him can pay.
+- A team short of room may let a lesser man at the same position go to sign the better one, as real teams do, if cutting him leaves no more than 2% of the cap in dead money (CHOSEN; about $6M in 2026).
+- Each team now judges players with its own head coach's talent evaluation, as the draft does, instead of a flat 50.
+
+Newly free above-average players who sign that offseason (three-season runs; the cap check has no retirements, so the pool of unsigned players grows every year and the later years read low):
+
+| Version | Year 1 | Year 2 | Year 3 |
+|---|---|---|---|
+| Before | 48% | 28% | 8% |
+| Offers capped at the ask, one-year offers | 59% | 39% | 18% |
+| Plus the swap, no dead-money limit | 97% | 94% | 63% |
+| Plus the swap, 2% limit (kept) | 94% | 87% | 43% |
+
+Without a limit, dead money rose to $37M to $47M a team. A limit of 0.5% kept it low but left only half of them signed after year one; 1% and 2% sat between.
+
+Five-year check with the kept version:
+
+| League year | 2027 | 2028 | 2029 | 2030 | 2031 | Mean | Real |
+|---|---|---|---|---|---|---|---|
+| New-team deals, $2M+ | 187 | 164 | 144 | 194 | 188 | 175 | 180 to 240 |
+| New-team deals, $5M+ | 89 | 88 | 76 | 91 | 89 | 87 | 80 to 120 |
+| Own-team deals of 2+ years | 186 | 101 | 57 | 118 | 136 | 120 | 210 to 290 |
+| Dead money, mean a team ($M) | 16.4 | 28.5 | 34.2 | 33.3 | 34.8 | 29.4 | about 34 |
+| Cap used, median | 97.6% | 97.7% | 98.3% | 98.1% | 98.1% | 98.0% | |
+
+New-team deals of $2M+ rose from 111 a year to 175, close to the real range, and dead money moved from $22M to $29M a team, near the real $34M. Own-team multi-year deals did not change and remain the largest gap. The aging thread's runs, which retire players, are the better measure of how many good players leave the league.
+
 ## What does not match yet
 
 1. **Too few re-signings.** Before step 7, teams signed about a fifth of the real number of own-team multi-year deals, because there were no early extensions. Step 7 raises it to under half the real number; cap room is now the limit.
