@@ -398,7 +398,7 @@ Derived directly from `match-engine.md`; every roll and resolution the debug pri
 | `SIDELINE_ADJUSTMENT` | what moved one defense's read of one offense's snap count between snaps (ADR-092 R3, `stem.ts`): the film read at the offense's first snap (ceiling, share, read), the halftime step, or the offensive coordinator's change of count (his notice, the new word and whether the defensive coordinator read it, the hard counts, the habit), each with the read before and after; play-scoped, right after `PLAY_START` of the snap where it first counts |
 | `STEM` | the stem at the line (ADR-091 M4, ADR-092 R2, `stem.ts`): the Mike who called it, the linemen it moves, the quarterback's count, the count read at that snap, the Mike's timing, where the moved men are at the snap, snapped on movement and re-called when they were asked, who was caught moving, and the timing roll's `rollRef`; one per snap whose defense's call carries `stem` (M2), after the play's sideline adjustments |
 | `TICK` | tick number (marks time advancing) |
-| `CHECK` | **the workhorse**: `{ checkKind, actors, roll: RollDetail, target, opposedRoll?, resultTier, marginOfSuccess }`. ADR-091 M3 adds `stem_timing`, `stem_shift` and `snap_on_movement` and gives `communication` its first producer (the center's re-call); ADR-092 R4 adds `adjustment_notice`, `adjustment_read` and `habit_drop` |
+| `CHECK` | **the workhorse**: `{ checkKind, actors, roll: RollDetail, target, opposedRoll?, resultTier, marginOfSuccess }`. ADR-091 M3 adds `stem_timing`, `stem_shift` and `snap_on_movement` and gives `communication` its first producer (the center's re-call); ADR-092 R4 adds `adjustment_notice`, `adjustment_read` and `habit_drop`; ADR-093 F4 adds the officials' `official_sees` and `phantom_flag`, which always carry `rollRef` (the `penalty_check` they judge) and `target`, never `opposedRoll`, and are never a `PRESNAP_READ`, nor is any `penalty_check` |
 | `POCKET_STATUS` | clean / pressure / collapsing / immediate / sack |
 | `ROUTE_STATUS` | receiver, route, phase (jammed / developing / open / decaying), opennessBase |
 | `QB_READ` | target read, perceivedOpenness, effectiveOpenness, varianceRoll |
@@ -410,7 +410,8 @@ Derived directly from `match-engine.md`; every roll and resolution the debug pri
 | `RUN_RESOLUTION` | gap battles[], rbVisionCheck, secondLevel[], tackleAttempts[] |
 | `ENV_APPLIED` | which weather/stamina/noise modifiers actually fired this play |
 | `STAMINA_DELTA` | per-player drain/recovery |
-| `PENALTY` | kind, player, accepted? |
+| `FOUL` | a foul a player committed, flagged or not (ADR-093 F2): kind, player, team, when (`FoulTiming`: before the snap, at it, during the play, after it), yard line (`yardLine`, yards from the snapping team's own goal line), its `penalty_check` roll, flagged or not. Written inside its play, before `PLAY_RESULT` |
+| `PENALTY` | a flag (ADR-093 F3): the foul called (`FoulKind`), the man flagged and his team, the `penalty_check` roll of the moment flagged (`rollRef`), free play or not; what became of it (enforced, declined, offset, superseded) and, when enforced, how (`PenaltyEnforcement`: spot, yards, half the distance, and what it did to the down, `PenaltyDown`: an automatic first down, a loss of down, or yards only; or a safety, with its spot and yards only). Written inside its play, before `PLAY_RESULT`, whose yards it never changes |
 | `PLAY_RESULT` | yards, clock runoff, turnover?, score?, newDown/Distance |
 | `GAME_END` | final score, per-player statlines (aggregated by engine from its own events) |
 
@@ -524,6 +525,7 @@ export interface SaveFile {
     perceptions: PerceivedAttributes[];   // per observer×subject
     league: LeagueStructure;               // ADR-078 C7
     season: SeasonState | null;            // ADR-078 C7 (was `standings: unknown`)
+    officiating?: { crews: OfficiatingCrew[]; assignments: { game: GameId; crew: OfficiatingCrewId }[] };  // ADR-093 F7: the league's crews this season, and the crew given each game so far, played or not; optional, as above
     narrativeState: unknown;               // typed in narrative spec v0
   };
   history: {                          // summaries, not raw event streams
