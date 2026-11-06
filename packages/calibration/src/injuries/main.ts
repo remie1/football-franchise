@@ -7,12 +7,19 @@
  * downloads them again. The season before the first one is loaded too, only to tell a week-1
  * absence carried over from last season from a new one.
  *
+ * Beside the headline measurement, the report carries (all seasons pooled, REAL counts) the new
+ * in-season injuries by age band, by body-part class within each band, repeat concussions
+ * (`byAge.ts`), and the group rates recounted by depth-chart spot (`bySpot.ts`): the owner's
+ * rulings of 2026-11-06 (ADR-087).
+ *
  * 2025 and later are refused: 2025 is the held-out season (`calibration.md` §7).
  */
 
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { httpFetcher } from "../ingest/fetcher.js";
+import { birthDates, summariseByAge, summariseByAgeClass, summariseRepeatConcussion } from "./byAge.js";
+import { summariseBySpot } from "./bySpot.js";
 import { GAMES_ASSET, loadAsset, seasonAssets, type AssetManifest } from "./data.js";
 import { derive, summarise } from "./measure.js";
 import { renderJson, renderMarkdown, type InjuryRatesReport } from "./report.js";
@@ -82,6 +89,8 @@ async function main(argv: readonly string[]): Promise<void> {
   const timelines = buildTimelines({ games: parseGames(games.text, loadSeasons), rosters, reports, snaps });
   const d = derive(timelines);
   const recent = RECENT.filter((s) => seasons.includes(s));
+  // rosters are in load order (lookback season first), so each player's first birth date is his oldest row's
+  const births = birthDates(rosters);
   const report: InjuryRatesReport = {
     seasons,
     lookbackSeason: loadSeasons[0] === lookback ? lookback : null,
@@ -90,6 +99,10 @@ async function main(argv: readonly string[]): Promise<void> {
     pooled: summarise(d, seasons),
     recent: recent.length > 0 ? summarise(d, recent) : null,
     perSeason: seasons.map((s) => summarise(d, [s])),
+    byAge: summariseByAge(d, seasons, births),
+    byAgeClass: summariseByAgeClass(d, seasons, births),
+    repeatConcussion: summariseRepeatConcussion(d, seasons),
+    byDepthChartGroup: summariseBySpot(d, seasons),
   };
   await mkdir(dirname(out), { recursive: true });
   await writeFile(`${out}.json`, renderJson(report), "utf8");

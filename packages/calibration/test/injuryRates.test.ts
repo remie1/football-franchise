@@ -5,6 +5,8 @@
  */
 import { describe, expect, it } from "vitest";
 import type { InjuryGameStatus, PracticeStatus } from "../src/ingest/sources/injuries.js";
+import { birthDates, summariseByAge, summariseByAgeClass, summariseRepeatConcussion } from "../src/injuries/byAge.js";
+import { summariseBySpot } from "../src/injuries/bySpot.js";
 import { bodyPart, positionGroup, reportTextKind, rosterKind } from "../src/injuries/classify.js";
 import { bandsFromSurvival, derive, medianFromSurvival, naiveBands, summarise, survival } from "../src/injuries/measure.js";
 import { renderJson, renderMarkdown } from "../src/injuries/report.js";
@@ -325,9 +327,12 @@ describe("the season summary on the fixture", () => {
   });
 
   it("renders a report that states its definitions", () => {
+    const births = birthDates(rows.rosters);
     const report = {
       seasons: [SEASON], lookbackSeason: SEASON - 1, sources: [], coverage: timelines.coverage,
       pooled: s, recent: null, perSeason: [s],
+      byAge: summariseByAge(derived, [SEASON], births), byAgeClass: summariseByAgeClass(derived, [SEASON], births),
+      repeatConcussion: summariseRepeatConcussion(derived, [SEASON]), byDepthChartGroup: summariseBySpot(derived, [SEASON]),
     };
     const md = renderMarkdown(report);
     expect(md).toContain("## Definitions");
@@ -347,12 +352,17 @@ describe("parsers", () => {
     );
     expect(games).toEqual([{ season: 2023, week: 1, gameId: "2023_01_A_B", home: "B", away: "A" }]);
 
+    // birth_date and depth_chart_position are kept for the measurements by age and by spot (byAge.ts, bySpot.ts)
     const rosters = parseRosters(
-      "season,week,team,gsis_id,full_name,position,status,status_description_abbr,pfr_id,game_type\n" +
-        "2023,1,AAA,00-1,One,WR,RES,R01,OneX00,REG\n2023,19,AAA,00-1,One,WR,ACT,A01,OneX00,WC\n2023,1,AAA,,NoId,WR,ACT,A01,,REG\n",
+      "season,week,team,gsis_id,full_name,position,depth_chart_position,birth_date,status,status_description_abbr,pfr_id,game_type\n" +
+        "2023,1,AAA,00-1,One,WR,WR,2000-01-02,RES,R01,OneX00,REG\n2023,19,AAA,00-1,One,WR,WR,2000-01-02,ACT,A01,OneX00,WC\n2023,1,AAA,,NoId,WR,,,ACT,A01,,REG\n" +
+        "2023,2,AAA,00-2,Two,DB,,,ACT,A01,TwoX00,REG\n",
       2023,
     );
-    expect(rosters).toEqual([{ season: 2023, week: 1, team: "AAA", gsisId: "00-1", name: "One", position: "WR", status: "RES", code: "R01", pfrId: "OneX00" }]);
+    expect(rosters).toEqual([
+      { season: 2023, week: 1, team: "AAA", gsisId: "00-1", name: "One", position: "WR", status: "RES", code: "R01", pfrId: "OneX00", birthDate: "2000-01-02", depthChartPosition: "WR" },
+      { season: 2023, week: 2, team: "AAA", gsisId: "00-2", name: "Two", position: "DB", status: "ACT", code: "A01", pfrId: "TwoX00", birthDate: null, depthChartPosition: null },
+    ]);
 
     const reports = parseReports(
       "season,game_type,team,week,gsis_id,position,full_name,report_primary_injury,report_status,practice_primary_injury,practice_status\n" +

@@ -37,6 +37,16 @@ export interface RosterRow {
   /** NFL description code verbatim: A01, R01, R48, ... (blank in 2019 and early 2020). */
   readonly code: string | null;
   readonly pfrId: string | null;
+  /**
+   * `YYYY-MM-DD` verbatim, for the measurement by age (`byAge.ts`). Optional so hand-made rows may
+   * leave it out; `parseRosters` always sets it (null when blank).
+   */
+  readonly birthDate?: string | null;
+  /**
+   * The roster's `depth_chart_position` verbatim (CB, FS, T, G, DE, OLB, ...), for the measurement
+   * by depth-chart spot (`bySpot.ts`). Optional like `birthDate`; `parseRosters` always sets it.
+   */
+  readonly depthChartPosition?: string | null;
 }
 
 /** One player's line on one team's final injury report of a week (nflverse `injuries_<season>.csv`). */
@@ -112,7 +122,7 @@ export function parseGames(text: string, seasons: readonly number[]): GameRow[] 
 }
 
 export function parseRosters(text: string, season: number): RosterRow[] {
-  return scan(text, ["season", "week", "team", "gsis_id", "status", "game_type"], ["full_name", "position", "status_description_abbr", "pfr_id"], (row) => {
+  return scan(text, ["season", "week", "team", "gsis_id", "status", "game_type"], ["full_name", "position", "status_description_abbr", "pfr_id", "birth_date", "depth_chart_position"], (row) => {
     const gsisId = row.text("gsis_id");
     if (row.int("season") !== season || !isRegular(row) || gsisId === null) return null;
     return {
@@ -125,6 +135,8 @@ export function parseRosters(text: string, season: number): RosterRow[] {
       status: row.text("status"),
       code: row.text("status_description_abbr"),
       pfrId: row.text("pfr_id"),
+      birthDate: row.text("birth_date"),
+      depthChartPosition: row.text("depth_chart_position"),
     };
   });
 }

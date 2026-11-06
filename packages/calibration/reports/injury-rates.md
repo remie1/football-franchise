@@ -126,6 +126,121 @@ The reports say who is hurt, not where. A new injury to a player who played the 
 - Players missing 4+ games: about 15 per team-season as seen in season (the D3 placeholder aims at 18-25 a season, which counts the offseason too and is not cut short by the season's end).
 - Setting split: the reports cannot give it. In season, games dominate: the bye-week estimate puts the extra practice week at about 4% of an interval's injuries, and the players-who-did-not-play contrast caps non-game injuries at about 35%. Before the season, 6.2 new injuries per team keep a player out of week 1 (camp, preseason games, offseason), against 31.6 new in-season ones. Away from football (non-football list and illness) about 1.6 per team-season.
 
+## By age, body-part class and depth-chart spot (REAL)
+
+Added for the owner's rulings of 2026-11-06 (ADR-087): measure injuries by age before adding slower healing, and recount the group rates by the spot a team plays a man at. Every number in this section is REAL (counted) from the same files, timelines and definitions as above, regular seasons 2019-2024 pooled; 2025 is never read. CHOSEN: the age bands, the body-part classes, the reference date, the reading of older spot spellings and the standard error's method.
+
+Age is whole years on 23 October of the season (the stand-in file's snapshot point, the same reading as `nfl-careers`), from the first birth date on the player's weekly-roster rows, oldest season first. One age per player-season. Listed kickers, punters and long snappers (K/P) are left out of the age rows (790 team-season timelines), and so are 23 timelines with no birth date (0 player-games, 0 new injuries).
+
+### Injuries by age
+
+| Age | Player-seasons | Player-games | Injuries (after a game played) | Per 1,000 snaps | Per player-game | Observed / expected, per snap | Observed / expected, per player-game |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 25 and under | 6,122 | 63,653 | 2,826 (2,709) | 1.126 | 0.0444 | 0.99 ± 0.02 | 0.95 ± 0.02 |
+| 26-28 | 3,606 | 39,280 | 1,796 (1,738) | 1.074 | 0.0457 | 0.96 ± 0.02 | 0.99 ± 0.02 |
+| 29-30 | 1,306 | 14,548 | 739 (712) | 1.133 | 0.0508 | 1.04 ± 0.04 | 1.11 ± 0.04 |
+| 31-32 | 649 | 7,056 | 407 (394) | 1.282 | 0.0577 | 1.20 ± 0.06 | 1.26 ± 0.06 |
+| 33 and over | 402 | 4,354 | 209 (202) | 1.035 | 0.0480 | 1.01 ± 0.07 | 1.04 ± 0.07 |
+
+Injuries are new in-season time-loss football injuries; per 1,000 snaps counts those after a game he played. Observed / expected sets the band's injuries against what its own player-games would have at each listed group's rate over all ages, so a band heavy with quarterbacks or linemen is not read as an age effect; ± is one Poisson standard error (√observed / expected).
+
+| Age | Injuries (censored) | Median weeks out | Out 4+ weeks | Out 9+ weeks | Game weeks | Missed for injury | ... football | ... on IR or PUP |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 25 and under | 2,826 (983) | 3 | 42.1% | 21.9% | 97,816 | 19.5% | 18.6% | 14.8% |
+| 26-28 | 1,796 (635) | 3 | 40.1% | 21.7% | 55,889 | 18.3% | 17.8% | 13.6% |
+| 29-30 | 739 (271) | 3 | 43.9% | 25.9% | 20,353 | 17.8% | 17.5% | 12.7% |
+| 31-32 | 407 (153) | 3 | 41.7% | 22.5% | 10,001 | 18.9% | 18.5% | 12.7% |
+| 33 and over | 209 (84) | 2 | 40.7% | 27.4% | 6,172 | 14.7% | 14.6% | 9.8% |
+
+Weeks out are Kaplan-Meier over the band's new in-season time-loss injuries (calendar weeks, byes count). Game weeks are the team game weeks he played, was healthy on the 53 and did not play, or missed for injury of any cause (football, illness, the non-football list); the last three columns are shares of them (availability).
+
+### By body-part class within each age band
+
+Classes (CHOSEN, grouping the keyword classes above): soft tissue = hamstring, groin/hip, calf/shin, quad/thigh, achilles; concussion = concussion/head; joint = knee, ankle, shoulder, foot/toe, hand/wrist, elbow/arm; other = back/neck, chest/ribs/abdomen, other; unknown = no report text near the spell. Elbow/arm also catches biceps and triceps.
+
+| Per 1,000 snaps (injuries) | 25 and under | 26-28 | 29-30 | 31-32 | 33 and over |
+| --- | --- | --- | --- | --- | --- |
+| soft tissue | 0.278 (711) | 0.287 (476) | 0.278 (179) | 0.358 (113) | 0.266 (54) |
+| concussion | 0.118 (285) | 0.080 (131) | 0.094 (62) | 0.088 (28) | 0.128 (26) |
+| joint | 0.518 (1,298) | 0.468 (784) | 0.506 (332) | 0.573 (180) | 0.430 (87) |
+| other | 0.091 (233) | 0.109 (187) | 0.118 (77) | 0.176 (58) | 0.138 (28) |
+| unknown | 0.121 (299) | 0.130 (218) | 0.137 (89) | 0.088 (28) | 0.072 (14) |
+
+| Out 4+ weeks, Kaplan-Meier | 25 and under | 26-28 | 29-30 | 31-32 | 33 and over |
+| --- | --- | --- | --- | --- | --- |
+| soft tissue | 32.4% | 31.3% | 34.0% | 31.3% | 27.1% |
+| concussion | 17.5% | 16.0% | 17.8% | 25.7% | 30.3% |
+| joint | 42.9% | 36.5% | 42.7% | 43.5% | 39.9% |
+| other | 30.4% | 35.7% | 35.4% | 41.8% | 48.1% |
+| unknown | 95.8% | 92.7% | 95.1% | 94.4% | 100.0% |
+
+The count in brackets is the class's new in-season injuries in the band; the per-snap rate counts the ones after a game played, over the band's snaps.
+
+### Repeat concussions
+
+Every football spell with body part concussion/head in 2019-2024 (any onset, any group): 541 spells, 452 men, 78 of them with two or more. Each man's spells are ordered by season and first missed week.
+
+| Concussion | Spells | Median weeks out | Out 2+ weeks | Out 4+ weeks | New in season: spells; out 4+ weeks |
+| --- | --- | --- | --- | --- | --- |
+| First seen in the window | 452 | 1 | 44.0% | 16.0% | 446; 15.7% |
+| Second or later | 89 | 2 | 64.3% | 30.4% | 86; 30.4% |
+
+### By depth-chart spot
+
+The spot is the weekly roster's depth_chart_position, read week by week and folded into the injury groups by the listed position's own rule (DE, DT, NT are DL; OLB, ILB, MLB are LB; CB, FS, SS, S are DB; T, G, C are OL; FB is RB; K, P, LS are K/P). Older spellings OT, OG, HB and SAF read as T, G, RB and S (CHOSEN, as `nfl-careers` reads them). A player-game counts at that week's spot; an injury counts at the spot of the game week its onset follows. A blank or unreadable spot counts at his listed group: 0 player-games, 0 injuries.
+
+The spot group differs from the listed group in 294 of 137,776 player-games (0.21%; 0.20% of snaps) and moves 12 injuries. 2 of those player-games have a spot outside that same week's listed group; the rest come from a listed position that changed during the season (the listed group is the team-season's most common). In these files the column holds the man's position in its fine form (CB, FS, SS; T, G, C; DE, DT, NT; OLB, ILB, MLB), not the game-day depth chart, so the recount moves no group's rate by more than 0.005 per 1,000 snaps or 0.0002 per player-game. Edge rushers stay split the way teams list them (a 4-3 end is DL, a 3-4 outside linebacker LB). The fine spots below are where the spot says more than the group.
+
+| Group | Player-games (listed; spot) | Per player-game (listed; spot; change) | Per 1,000 snaps (listed; spot; change) |
+| --- | --- | --- | --- |
+| QB | 3,744; 3,747 | 0.0499; 0.0502; +0.0002 | 0.872; 0.876; +0.005 |
+| RB | 10,647; 10,657 | 0.0491; 0.0492; +0.0000 | 1.784; 1.785; +0.002 |
+| WR | 15,462; 15,474 | 0.0497; 0.0497; -0.0000 | 1.321; 1.320; -0.000 |
+| TE | 9,122; 9,102 | 0.0408; 0.0406; -0.0001 | 1.123; 1.118; -0.005 |
+| OL | 21,950; 21,950 | 0.0467; 0.0467; +0.0000 | 0.896; 0.896; +0.000 |
+| DL | 20,756; 20,745 | 0.0377; 0.0376; -0.0001 | 1.022; 1.021; -0.001 |
+| LB | 20,021; 20,051 | 0.0417; 0.0417; +0.0000 | 1.035; 1.035; +0.000 |
+| DB | 27,189; 27,166 | 0.0547; 0.0547; +0.0000 | 1.202; 1.203; +0.001 |
+| K/P | 8,885; 8,884 | 0.0096; 0.0096; +0.0000 | 1.039; 1.039; +0.000 |
+
+| Spot | Group | Player-games | Injuries (after a game played) | Per player-game | Per 1,000 snaps |
+| --- | --- | --- | --- | --- | --- |
+| QB | QB | 3,747 | 188 (176) | 0.0502 | 0.876 |
+| RB | RB | 9,542 | 482 (473) | 0.0505 | 1.839 |
+| FB | RB | 1,115 | 42 (42) | 0.0377 | 1.345 |
+| WR | WR | 15,474 | 769 (753) | 0.0497 | 1.320 |
+| TE | TE | 9,102 | 370 (362) | 0.0406 | 1.118 |
+| T | OL | 9,317 | 504 (462) | 0.0541 | 1.039 |
+| G | OL | 8,380 | 345 (319) | 0.0412 | 0.783 |
+| C | OL | 4,253 | 175 (166) | 0.0411 | 0.810 |
+| DE | DL | 9,887 | 391 (374) | 0.0395 | 1.061 |
+| DT | DL | 8,521 | 292 (276) | 0.0343 | 0.924 |
+| NT | DL | 2,258 | 92 (91) | 0.0407 | 1.200 |
+| DL | DL | 79 | 5 (4) | 0.0633 | 1.654 |
+| OLB | LB | 8,755 | 360 (352) | 0.0411 | 1.020 |
+| ILB | LB | 7,079 | 300 (292) | 0.0424 | 1.022 |
+| MLB | LB | 1,872 | 74 (72) | 0.0395 | 0.912 |
+| LB | LB | 2,345 | 102 (97) | 0.0435 | 1.279 |
+| CB | DB | 14,109 | 870 (839) | 0.0617 | 1.372 |
+| FS | DB | 5,778 | 265 (259) | 0.0459 | 0.936 |
+| SS | DB | 5,213 | 255 (253) | 0.0489 | 1.042 |
+| S | DB | 274 | 18 (18) | 0.0657 | 1.488 |
+| DB | DB | 1,792 | 78 (75) | 0.0435 | 1.308 |
+| K | K/P | 2,970 | 50 (48) | 0.0168 | 1.877 |
+| P | K/P | 3,013 | 19 (18) | 0.0063 | 0.645 |
+| LS | K/P | 2,901 | 16 (15) | 0.0055 | 0.613 |
+
+### Caveats for this section
+
+- Survivors: the men still playing at 33 and over are the ones durable and good enough to last, so the oldest band's rates describe them, not what age does to a typical player.
+- Position mix: older men are more often quarterbacks, linemen and specialists, so the raw rates by age mix age with position; the observed / expected columns adjust for the listed group only, not for role (starter or backup) or snaps per game.
+- Injured-reserve rules shape weeks out and availability: 2019's IR was season-ending but for two designated returns a team, 2020-2021 had a 3-week minimum, 2022 on 4 games; teams shut players down late in a lost season, and stash young men on IR to keep them, which lifts the youngest band's share of game weeks missed.
+- Unknown body parts: about 11% of spells have no report text near them, skewed to the longest (players placed straight on IR), so the unknown class holds many of the long injuries and the named classes' out-4+-weeks shares understate theirs.
+- Only these seasons: six regular seasons (2019-2024). The code reads back to 2013, but the older injury files would have to be downloaded; 2025 is held out and never read.
+- Ages are one per player-season, on 23 October: a man who turns 26 in December is 25 all season.
+- First concussion means the first seen in the window (since 2019), not his first ever: a man concussed in 2018 and again in 2020 has his 2020 one counted first.
+- Depth-chart spot: the weekly roster's depth_chart_position is each man's position on the team's list in fine form, not the game-day depth chart's order or formation (nflverse's separate depth-chart table, not cached here, has those). A man who plays outside his listed spot on game day, such as a safety at corner in the nickel, is not seen.
+
 ## Definitions
 
 - **Data.** nflverse public release assets, regular season only: the weekly injury reports (injuries_<season>.csv: one row per player per team per game week, the week's final report, with its game status and the last practice day's participation), the weekly rosters (roster_weekly_<season>.csv: each player's status that game week), PFR snap counts (snap_counts_<season>.csv: every player who took at least one snap) and the schedule (games.csv). 2025 is never read (held out, calibration.md §7).
