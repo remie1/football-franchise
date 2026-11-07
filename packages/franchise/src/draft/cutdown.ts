@@ -18,7 +18,10 @@ import {
 } from "@ff/contracts";
 import type { LeaguePeople } from "../season/people.js";
 import { WANTED, type Rate } from "./board.js";
-import { claimedDeal, flatCap, release, signSquad, type CapForSeason } from "./money.js";
+import { claimedDeal, flatCap, liveContract, release, signSquad, type CapForSeason } from "./money.js";
+import { capNumber, releasePlayer, transactionYear } from "../cap/money.js";
+import { TAG_GROUP } from "../cap/rules.js";
+import { marketCurves, pointPrice } from "../cap/value.js";
 
 export type CoachLean = "INCUMBENT" | "VETERAN" | "FORM";
 /** Rating points a coach's lean is worth in a close call. */
@@ -27,6 +30,13 @@ export const LEAN_POINTS = 1.5;
 export const NEWER_PLAYER_SEASONS = 4;
 /** A claim needs the player to be this much better than the claiming team's weakest at his position. */
 export const CLAIM_MARGIN = 8;
+/**
+ * ADR-085 step 14, §3.2 (owner's "okay", 2026-11-06): in a close call the cheaper man wins. What a cut
+ * would save this season (his cap number less the dead money the cut leaves this season) counts
+ * against keeping him, read in rating points at his market's price of a point (`pointPrice`), up to
+ * this many points (CHOSEN: close calls only).
+ */
+export const SAVING_MOST = 3;
 
 export interface CutdownInput {
   season: number;
@@ -70,12 +80,25 @@ export function runCutdown(people: LeaguePeople, input: CutdownInput): { people:
   const contracts = [...(people.contracts ?? [])];
   const deadMoney = [...(people.deadMoney ?? [])];
   const cut = (player: PlayerId, team: TeamId) => events.push(...release(contracts, deadMoney, player, team, at));
+  // §3.2: what each cut would save this season, in rating points at his market's price of a point.
+  const year = transactionYear(at);
+  const prices = new Map([...marketCurves(contracts, people.players, season, rate, cap)].map(([g, c]) => [g, pointPrice(c)]));
+  const savingPoints = (p: PlayerState, team: TeamId): number => {
+    const c = liveContract(contracts, p.bio.id, at);
+    const price = prices.get(TAG_GROUP[p.bio.position]) ?? 0;
+    if (!c || c.team !== team || price <= 0) return 0;
+    const now = c.years.find((y) => y.season === year);
+    if (!now) return 0;
+    const saved = capNumber(now) - releasePlayer(c, at).charges.filter((x) => x.season === year).reduce((s, x) => s + x.amount, 0);
+    return Math.min(SAVING_MOST, Math.max(0, saved) / price);
+  };
 
   for (const team of people.teams) {
     const roster = team.roster.map((id) => byId.get(String(id))!);
     const lean = input.lean?.(team.id);
     const judged = judge(team.id);
-    const score = (p: PlayerState) => judged(p)
+    const money = new Map(roster.length > limit ? roster.map((p) => [p, savingPoints(p, team.id)]) : []);
+    const score = (p: PlayerState) => judged(p) - (money.get(p) ?? 0)
       + (lean === "VETERAN" && p.bio.age >= 27 ? LEAN_POINTS : 0)
       + (lean === "INCUMBENT" && seasonsIn(p, season) > 0 ? LEAN_POINTS : 0);
     if (roster.length <= limit) { kept.set(team.id, roster); continue; }

@@ -86,6 +86,17 @@ export function quantile(sorted: readonly number[], q: number): number {
   return sorted[lo]! + (sorted[hi]! - sorted[lo]!) * (i - lo);
 }
 
+/**
+ * What a rating point costs on a market (ADR-085 step 14): the rise in a year's pay across the middle
+ * half of the market (its 25th to 75th place), over the rise in grade across it. 0 for no market.
+ */
+export function pointPrice(curve: MarketCurve | undefined, span: readonly [number, number] = [0.25, 0.75]): number {
+  if (!curve || curve.apys.length < 2) return 0;
+  const grades = quantile(curve.grades, span[1]) - quantile(curve.grades, span[0]);
+  const pay = quantile(curve.apys, span[1]) - quantile(curve.apys, span[0]);
+  return grades > 0 && pay > 0 ? pay / grades : 0;
+}
+
 /** Positions whose players last longer: their age curve starts this many years later. */
 const LATE_AGEING: ReadonlySet<Position> = new Set(["QB", "K", "P", "LS"]);
 const AGE_SHIFT = 4;
