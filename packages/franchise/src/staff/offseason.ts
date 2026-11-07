@@ -33,9 +33,10 @@ import {
 } from "./world.js";
 import { applyMove, checkViews, syncViews, type LedgerStep, type RelationshipContext } from "../relationships/ledger.js";
 import {
-  GM_TUNING, LADDER_ROLES, drawGmSource, gmCandidate, gmCandidateReport, gmFireChance, gmSalary, gmVerdict, isCoachId,
+  GM_TUNING, LADDER_ROLES, drawGmSource, gmScore, gmCandidate, gmCandidateReport, gmFireChance, gmSalary, gmVerdict, isCoachId,
   isFrontOfficeId, isFrontOfficeRole, ladderJob, makeLadderMan, makeOutsider, type GmCandidateReport, type GmSource, type GmVerdict,
 } from "./frontOffice.js";
+import { scoutsReady } from "./formerPlayers.js";
 import { applyExtension, applyFiring, applyHire, applySeasonResults } from "../relationships/staffMoves.js";
 import { bossOf, viewKey, wordFor } from "../relationships/ledger.js";
 import { RELATIONSHIP_TUNING } from "../relationships/tables.js";
@@ -423,6 +424,16 @@ export function runStaffOffseason(input: StaffOffseasonInput): StaffOffseasonRes
     }
     for (const team of world.teams) for (const role of LADDER_ROLES) {
       if (held.has(`${String(team.id)}/${role}`)) continue;
+      // ADR-094 §10: a scouting director's chair goes to the team's best long-serving scout, if it has one.
+      const scout = role === "SCOUTING_DIRECTOR" ? scoutsReady(world, team, season, (x) => gmScore(x.attributes))[0] : undefined;
+      if (scout) {
+        const job = currentJob(scout)!;
+        job.lastSeason = season - 1;
+        job.ended = "PROMOTED";
+        scout.role = role;
+        scout.career.push({ level: "NFL", role, team: team.id, employer: team.displayName, firstSeason: season, seasons: [] });
+        continue;
+      }
       const rng = createRng(seed, `franchise:staff/ladder/${played}/${label}/${String(team.id)}/${role}`);
       const s = makeLadderMan(rng, madeFrontOffice++, role, team, season, taken);
       world.staff.push(s);
