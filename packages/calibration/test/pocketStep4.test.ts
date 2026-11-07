@@ -429,6 +429,9 @@ describe("gradeStep4 on hand-built records (pure)", () => {
     ]);
     const text = renderStep4Report(grade, records);
     expect(text).toMatch(/## AM-6's declared prints/);
+    // After the lift the own-clock reading of the declared prints waits for nothing: it is not built, and the waits list names it.
+    expect(text).not.toMatch(/waits with the lift/);
+    expect(text).toMatch(/the own-clock reading of these counts is not built \(named under "Waiting, by name"\)\./);
     expect(text).toMatch(/## The EXT-4 reports, one per base and seed set/);
     expect(text).toMatch(/ADR-089 step 4: the pocket report \(2 arms; both leagues/);
     // A D arm without its affected plays is a structural failure, named, not a thrown report.

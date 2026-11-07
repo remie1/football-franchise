@@ -1656,7 +1656,7 @@ export function renderStep4Sections(s: Step4Sections): readonly string[] {
   if (s.declared !== undefined) {
     out.push("## AM-6's declared prints (interceptions/aimed throws by guard class; never graded)");
     out.push("");
-    out.push("Each throw's class is read once, at the decision instant, as the fold reads it; the own-clock reading of these counts is not built and waits with the lift.");
+    out.push("Each throw's class is read once, at the decision instant, as the fold reads it; the own-clock reading of these counts is not built (named under \"Waiting, by name\").");
     for (const line of s.declared) out.push(`- ${line}`);
     out.push("");
   }
