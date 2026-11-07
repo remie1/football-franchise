@@ -27,6 +27,7 @@ import { runCutdown, seasonsIn, type CoachLean } from "./cutdown.js";
 import { endSquadDeal, flatCap, signFuture, type CapForSeason } from "./money.js";
 import { runDraftDay } from "./draftDay.js";
 import { aheadView, type AheadView } from "../cap/ahead.js";
+import type { PriceList } from "../cap/value.js";
 import { draftOrder, draftPicks, settleConditions } from "./order.js";
 
 export const DRAFT_DAYS = {
@@ -54,6 +55,11 @@ export interface DraftStepsConfig {
   cap?: CapForSeason;
   /** ADR-085 step 13: the view ahead the cut-down judges by, shared with the league year in a season's walk (default: its own over `rate`). */
   ahead?: AheadView;
+  /**
+   * ADR-085 step 14: how the cut-down's market prices a man (default "rank"). A season's walk gives the
+   * league year's (`LeagueYearConfig.priceList`), so the year prices a man alike from re-signing to cut-down.
+   */
+  priceList?: PriceList;
 }
 
 export function headCoachEvaluation(team: TeamId, people: LeaguePeople): number {
@@ -129,7 +135,7 @@ export function draftSteps(config: DraftStepsConfig): DayStep[] {
         ahead.setToday({ at: ctx.day, people, rules: ctx.rules });
         return runCutdown(people, {
           season: ctx.season, rules: ctx.rules, rate: config.rate, rateFor: (t) => ahead.forTeam(t), at: ctx.day, cap: capOf(ctx.rules),
-          ...(config.lean ? { lean: config.lean } : {}),
+          ...(config.lean ? { lean: config.lean } : {}), ...(config.priceList ? { priceList: config.priceList } : {}),
         });
       },
     },

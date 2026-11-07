@@ -4,13 +4,16 @@
  * The market is the league's live veteran deals at his tag group, lowest to highest. A player's
  * price is the deal at the same place in that list as his grade holds among the players on those
  * deals, discounted for age. With the stand-in league these are the real contracts, so prices start
- * where the real market is and move as the league signs new deals.
+ * where the real market is and move as the league signs new deals. Step 14's "typical" list (`PriceList`)
+ * prices him instead at what men rated like him typically earned on the 2026 market, at his place in his
+ * group's ratings, grown with the cap (`TYPICAL_PAY_2026`).
  *
  * Constants are CHOSEN (provenance NONE) unless a comment says otherwise.
  */
 import type { CalendarStamp, ContractKind, ContractYear, PlayerContract, PlayerId, PlayerState, Position, TeamId } from "@ff/contracts";
 import { capNumber, guaranteedOf, liveIn, proration, prorate, withCapHits } from "./money.js";
-import { TAG_GROUP, type TagGroup } from "./rules.js";
+import { BASE_CAP, TAG_GROUP, type TagGroup } from "./rules.js";
+import { TYPICAL_PAY_2026 } from "./typicalPay2026.js";
 
 /** Deals the open market sets. Rookie, practice-squad, tag and tender deals are priced by rule instead. */
 const MARKET_KINDS: ReadonlySet<ContractKind | undefined> = new Set([undefined, "VETERAN", "EXTENSION", "MINIMUM"]);
@@ -45,15 +48,25 @@ export interface MarketCurve {
 export type MarketCurves = ReadonlyMap<TagGroup, MarketCurve>;
 
 /**
+ * How a market prices a man (ADR-085 step 14). "rank": the deal at his place in the market, the pay of the
+ * man rated where he is. "typical": what men rated like him typically earned on the 2026 market
+ * (`TYPICAL_PAY_2026`), at his place in his group's ratings today, grown with the cap. A league year reads
+ * `LeagueYearConfig.priceList`; the cap check sets "typical" with free agency's "offers" prices.
+ */
+export type PriceList = "rank" | "typical";
+
+/**
  * The league's market at each tag group in a season, each deal at its own pay a year (`newPayOf`). With `cap`, each deal counts at its share of the
  * cap in its first season, in this season's dollars (as OverTheCap compares deals across years), so
  * prices keep pace with the cap. Each player counts once, on his latest market deal live this season
  * or last: last season's one-year deals (most of them cheap veterans' deals) stay on the list, so the
- * list holds the backups as well as the starters.
+ * list holds the backups as well as the starters. With the "typical" list, each group's pay is the 2026
+ * typical pay at each place, in this season's cap (the 2026 cap without `cap`); the deals still give the
+ * ratings a man's place is read against.
  */
 export function marketCurves(
   contracts: readonly PlayerContract[], players: readonly PlayerState[], season: number, rate: (p: PlayerState) => number,
-  cap?: (season: number) => number,
+  cap?: (season: number) => number, list: PriceList = "rank",
 ): MarketCurves {
   const byId = new Map(players.map((p) => [String(p.bio.id), p]));
   const latest = new Map<string, PlayerContract>();
@@ -75,6 +88,10 @@ export function marketCurves(
     out.set(g, curve);
   }
   for (const c of out.values()) { c.apys.sort((a, b) => a - b); c.grades.sort((a, b) => a - b); }
+  if (list === "typical") {
+    const capNow = cap ? cap(season) : BASE_CAP;
+    for (const [g, c] of out) c.apys = TYPICAL_PAY_2026[g].map((share) => share * capNow);
+  }
   return out;
 }
 

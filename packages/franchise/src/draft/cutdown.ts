@@ -21,7 +21,7 @@ import { WANTED, type Rate } from "./board.js";
 import { claimedDeal, flatCap, liveContract, release, signSquad, type CapForSeason } from "./money.js";
 import { capNumber, releasePlayer, transactionYear } from "../cap/money.js";
 import { TAG_GROUP } from "../cap/rules.js";
-import { marketCurves, pointPrice } from "../cap/value.js";
+import { marketCurves, pointPrice, type PriceList } from "../cap/value.js";
 
 export type CoachLean = "INCUMBENT" | "VETERAN" | "FORM";
 /** Rating points a coach's lean is worth in a close call. */
@@ -53,6 +53,8 @@ export interface CutdownInput {
   at?: CalendarStamp;
   /** The cap by season, for practice-squad pay (default: flat at the rules' cap). */
   cap?: CapForSeason;
+  /** ADR-085 step 14: how the market prices a man, for a cut's saving in rating points (default "rank"). */
+  priceList?: PriceList;
 }
 
 /** Seasons in the league: credited seasons (ADR-085 K5) when kept, else read from the draft line. */
@@ -82,7 +84,7 @@ export function runCutdown(people: LeaguePeople, input: CutdownInput): { people:
   const cut = (player: PlayerId, team: TeamId) => events.push(...release(contracts, deadMoney, player, team, at));
   // §3.2: what each cut would save this season, in rating points at his market's price of a point.
   const year = transactionYear(at);
-  const prices = new Map([...marketCurves(contracts, people.players, season, rate, cap)].map(([g, c]) => [g, pointPrice(c)]));
+  const prices = new Map([...marketCurves(contracts, people.players, season, rate, cap, input.priceList)].map(([g, c]) => [g, pointPrice(c)]));
   const savingPoints = (p: PlayerState, team: TeamId): number => {
     const c = liveContract(contracts, p.bio.id, at);
     const price = prices.get(TAG_GROUP[p.bio.position]) ?? 0;

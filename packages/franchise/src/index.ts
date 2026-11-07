@@ -109,8 +109,9 @@ export {
 export { signRookie, signSquad, signFuture, release, claimedDeal, liveContract, flatCap, type CapForSeason } from "./draft/money.js";
 export {
   apyOf, newPayOf, marketCurves, percentileOf, pointPrice, quantile, ageFactor, ageFactorAt, legacyRuleAge, termFor, termAt, REAL_STRUCTURE, realStructure, valuePlayer, veteranContract, guaranteedShare, firstYearShareFor, REAL_FIRST_YEAR,
-  type MarketCurve, type MarketCurves, type Valuation, type ValueAhead, type VeteranDeal,
+  type MarketCurve, type MarketCurves, type PriceList, type Valuation, type ValueAhead, type VeteranDeal,
 } from "./cap/value.js";
+export { TYPICAL_PAY_2026 } from "./cap/typicalPay2026.js";
 // ADR-085 step 13: teams judge a man ahead, through their GMs' eyes.
 export {
   aheadView, decisionSeason, outlookPeriod, gmOf, gmEvaluation, outlookSkill, outlookError, AHEAD, type AheadView, type AheadContext,

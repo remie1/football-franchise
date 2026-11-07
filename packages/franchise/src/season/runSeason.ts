@@ -210,7 +210,11 @@ export function runSeason(input: RunSeasonInput): SeasonRun {
   const ahead = input.leagueYear && input.draft && input.leagueYear.rate === input.draft.rate && !input.leagueYear.ahead && !input.draft.ahead
     ? aheadView(input.leagueYear.rate) : undefined;
   const yearConfig = input.leagueYear && (ahead ? { ...input.leagueYear, ahead } : input.leagueYear);
-  const draftConfig = input.draft && { ...input.draft, ...(sharedCap ? { cap: sharedCap } : {}), ...(ahead ? { ahead } : {}) };
+  // ADR-085 step 14: cut-down day prices a man as the league year does, unless the draft brings its own list.
+  const priceList = input.draft?.priceList ?? input.leagueYear?.priceList;
+  const draftConfig = input.draft && {
+    ...input.draft, ...(sharedCap ? { cap: sharedCap } : {}), ...(ahead ? { ahead } : {}), ...(priceList ? { priceList } : {}),
+  };
   const playersConfig = input.players && input.players.cap === undefined && sharedCap ? { ...input.players, cap: sharedCap } : input.players;
   const steps = [
     ...(input.daySteps ?? []), ...(playersConfig ? playerSteps(playersConfig) : []),

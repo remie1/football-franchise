@@ -35,7 +35,7 @@ import { capNumber, designatedIn, expireContract, isAfterJune1, liveIn, prorate,
 import { BASE_CAP, CASH_FLOOR, MAX_PRORATION_YEARS, POST_JUNE_1_DESIGNATIONS, RFA_SEASONS, TAG_GROUP, type TenderLevel } from "./rules.js";
 import { ROOKIE_SCALE_2026 } from "./rookieScale2026.js";
 import { minimumContract, minimumSalary, tagContract, tagPrice, tenderPrice } from "./signings.js";
-import { REAL_STRUCTURE, ageFactorAt, apyOf, firstYearShareFor, guaranteedShare, marketCurves, realStructure, valuePlayer, veteranContract, type MarketCurves } from "./value.js";
+import { REAL_STRUCTURE, ageFactorAt, apyOf, firstYearShareFor, guaranteedShare, marketCurves, realStructure, valuePlayer, veteranContract, type MarketCurves, type PriceList } from "./value.js";
 import { helpOf, pushedOut, valueForMoney } from "./valueForMoney.js";
 import { askingPrice, offerWorth, type MarketWindow } from "./negotiation.js";
 import { floorShortfall, planWithFloor, teamCapPlan, type CapPlan } from "./leaning.js";
@@ -150,6 +150,14 @@ export interface LeagueYearConfig {
    * would pay). Built switched off while the middle class is looked at.
    */
   marketPrices?: "calendar" | "offers";
+  /**
+   * Step 14, how the market prices a man all year (`PriceList`): his re-signing, his extension, his
+   * market, and cut-down day (a season's walk passes it to the draft's). "rank", the default: the pay of
+   * the man at his place in the market. "typical": what men rated like him earned on the 2026 market
+   * (`TYPICAL_PAY_2026`), grown with the cap. The cap check sets it with free agency's "offers" prices,
+   * one switch, built off.
+   */
+  priceList?: PriceList;
 }
 
 /** The year's config with its view ahead. */
@@ -441,7 +449,7 @@ function reSign(
   const book: Book = { contracts: [...(people.contracts ?? [])], dead: [...(people.deadMoney ?? [])], events: [] };
   const byId = new Map(people.players.map((p) => [String(p.bio.id), p]));
   const freeAgents = [...people.freeAgents];
-  const curves = marketCurves(book.contracts, people.players, next, config.rate, config.cap);
+  const curves = marketCurves(book.contracts, people.players, next, config.rate, config.cap, config.priceList);
   const at = ctx.day;
   const plan = (t: TeamId) => teamCapPlan(t, people.staff);
   const reserveFor = (t: TeamId) => rookieReserve(t, next, people, ctx.rules, config.cap) + plan(t).cushion;
@@ -601,7 +609,7 @@ function campExtensions(
   const book: Book = { contracts: [...(people.contracts ?? [])], dead: [...(people.deadMoney ?? [])], events: [] };
   if (book.contracts.length === 0) return undefined;
   const byId = new Map(people.players.map((p) => [String(p.bio.id), p]));
-  const curves = marketCurves(book.contracts, people.players, season, config.rate, config.cap);
+  const curves = marketCurves(book.contracts, people.players, season, config.rate, config.cap, config.priceList);
   const at = ctx.day;
   for (const team of people.teams) {
     const plan = floorPlan(team.id, season, people.staff, people, book, config.cap);
@@ -764,7 +772,7 @@ function newLeagueYear(
     const goneSet = new Set(gone.map(String));
     return withDepth({ ...t, roster: t.roster.filter((id) => !goneSet.has(String(id))) }, byId, config.rate);
   });
-  const curves = marketCurves(book.contracts, people.players, year, config.rate, config.cap);
+  const curves = marketCurves(book.contracts, people.players, year, config.rate, config.cap, config.priceList);
   teams = teams.map((t) => {
     const plan = floorPlan(t.id, year, people.staff, carried, book, config.cap);
     return getUnderCap(t, year, ctx, book, byId, freeAgents, config, skillOf(t.id, people), true, carried, {
@@ -1033,7 +1041,7 @@ function freeAgency(
   const lastSeason = season - 1;
   const book: Book = { contracts: [...(people.contracts ?? [])], dead: [...(people.deadMoney ?? [])], events: [] };
   const byId = new Map(people.players.map((p) => [String(p.bio.id), p]));
-  const curves: MarketCurves = marketCurves(book.contracts, people.players, season, config.rate, config.cap);
+  const curves: MarketCurves = marketCurves(book.contracts, people.players, season, config.rate, config.cap, config.priceList);
   const limit = ctx.rules.offseasonRosterLimit ?? DEFAULT_LEAGUE_RULES.offseasonRosterLimit ?? 90;
   // Until the draft is made, a team keeps room and seats for its class.
   const beforeDraft = ctx.day.phase.startsWith("OFF_") && compareStamps(ctx.day, { ...DRAFT_DAYS.draft, season: ctx.day.season }) < 0;

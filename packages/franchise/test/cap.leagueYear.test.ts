@@ -6,8 +6,10 @@ import {
 import {
   buildLeague, runSeason, leagueYearSteps, marketWindow, teamCapTotal, veteranContract, minimumSalary, capForecast,
   liveIn, countsForComp, adjustedCap, designatedIn, needWeights, offerWorth, valuePlayer, marketCurves, termFor, apyOf, newPayOf, percentileOf, quantile,
+  TYPICAL_PAY_2026,
   type GameResolver, type LeaguePeople,
 } from "../src/index.js";
+import { BASE_CAP, TAG_GROUP } from "../src/cap/rules.js";
 import { LEAGUE_YEAR_DAYS, MARKET } from "../src/cap/leagueYear.js";
 import { WANTED, type Rate } from "../src/draft/board.js";
 import { draftSteps } from "../src/draft/steps.js";
@@ -308,6 +310,34 @@ describe("market pieces", () => {
     expect(termFor(22, "WR", 0.95, 30e6 / 300e6)).toBe(5); // a young star: longer, up to five
     expect(termFor(27, "WR", 0.2, 1e6 / 300e6)).toBe(1); // a depth deal: a year
     expect(termFor(32, "WR", 0.95, 30e6 / 300e6)).toBe(1); // past 31, one year whatever the size
+  });
+
+  it("typical prices read what men rated like him earned on the 2026 market, grown with the cap (step 14)", () => {
+    const ps = [player("a", "WR", 60, 25, 3), player("b", "WR", 70, 25, 3), player("c", "WR", 80, 25, 3)];
+    const signed = (pay: number) => ps.map((p, i) => veteranContract({ player: p.bio.id, team: league.teams[0]!.id, season: 2026, signedAt: at, apy: (i + 1) * pay, years: 3, bonusShare: 0, guaranteedYears: 0, minimum: () => 1e6 }));
+    const grown = (s: number) => (s === 2026 ? 300e6 : 330e6);
+    const rank = marketCurves(signed(10e6), ps, 2027, rate, grown).get("WR")!;
+    const typical = marketCurves(signed(10e6), ps, 2027, rate, grown, "typical").get("WR")!;
+    // The pay is the 2026 list in 2027's cap; the ratings a man is placed among are the market's own.
+    expect(typical.apys).toEqual(TYPICAL_PAY_2026.WR.map((share) => share * 330e6));
+    expect(typical.grades).toEqual(rank.grades);
+    expect(typical.apys).not.toEqual(rank.apys); // "rank" stays the default
+    // The best-rated man is priced at the list's top, whatever the deals pay.
+    const top = valuePlayer(player("d", "WR", 80, 25, 3), 80, new Map([["WR", typical]]), 1e6).apy;
+    expect(top).toBeCloseTo(TYPICAL_PAY_2026.WR[100]! * 330e6, -3);
+    expect(marketCurves(signed(20e6), ps, 2027, rate, grown, "typical").get("WR")!.apys).toEqual(typical.apys);
+    // Without a cap, the 2026 cap.
+    expect(marketCurves(signed(10e6), ps, 2026, rate, undefined, "typical").get("WR")!.apys[100]).toBeCloseTo(TYPICAL_PAY_2026.WR[100]! * BASE_CAP, 0);
+  });
+
+  it("the 2026 typical-pay list has 101 places for every group, never less for a better-rated man", () => {
+    expect(new Set(Object.keys(TYPICAL_PAY_2026))).toEqual(new Set(Object.values(TAG_GROUP)));
+    for (const list of Object.values(TYPICAL_PAY_2026)) {
+      expect(list).toHaveLength(101);
+      for (let i = 1; i < list.length; i++) expect(list[i]!).toBeGreaterThanOrEqual(list[i - 1]!);
+      expect(list[0]!).toBeGreaterThan(0);
+      expect(list[100]!).toBeLessThan(0.25);
+    }
   });
 
   it("an offer is weighed by need: the same money is worth more from a winner, as a starter, at home", () => {

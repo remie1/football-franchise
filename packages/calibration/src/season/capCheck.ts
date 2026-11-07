@@ -115,7 +115,8 @@ export interface CapCheckInput {
   /**
    * ADR-085 step 14: how free agency sets prices (`LeagueYearConfig.marketPrices`). Absent or
    * "calendar", today's market; "offers", the four rules of the design "Free agency: prices from the
-   * offers" (switched off by default while the middle class is looked at).
+   * offers", with every price read from what men rated like him typically earned on the 2026 market
+   * (`LeagueYearConfig.priceList` "typical"; switched off by default while the middle class is looked at).
    */
   readonly marketPrices?: "calendar" | "offers";
 }
@@ -533,7 +534,11 @@ export function runCapCheck(input: CapCheckInput): CapYear[] {
       through: "YEAR",
       // The league file's contracts are as of 23 October, after its own camp: that camp's extensions are
       // already in them, so the walk's first camp extends nobody.
-      leagueYear: { rate, cap, campExtensionsFrom: first + 1, ...(input.marketPrices !== undefined ? { marketPrices: input.marketPrices } : {}) },
+      leagueYear: {
+        rate, cap, campExtensionsFrom: first + 1,
+        ...(input.marketPrices !== undefined ? { marketPrices: input.marketPrices } : {}),
+        ...(input.marketPrices === "offers" ? { priceList: "typical" as const } : {}),
+      },
       draft: { rate, makeClass, cap },
       ...players,
       ...coachingSteps,

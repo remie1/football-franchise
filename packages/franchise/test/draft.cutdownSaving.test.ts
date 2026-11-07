@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { DEFAULT_LEAGUE_RULES, playerId, type CalendarStamp, type PlayerContract, type PlayerState, type Position } from "@ff/contracts";
-import { SAVING_MOST, buildLeague, marketCurves, minimumContract, minimumSalary, pointPrice, runCutdown, veteranContract, type LeaguePeople } from "../src/index.js";
+import { SAVING_MOST, buildLeague, marketCurves, minimumContract, minimumSalary, pointPrice, runCutdown, veteranContract, type LeaguePeople, type PriceList } from "../src/index.js";
 import { WANTED, type Rate } from "../src/draft/board.js";
 import { TAG_GROUP } from "../src/cap/rules.js";
 
@@ -26,19 +26,21 @@ const minimum = (p: PlayerState): PlayerContract =>
   minimumContract({ player: p.bio.id, team: t.id, season: SEASON, signedAt: SIGNED, creditedSeasons: 5, years: 1 });
 
 /** A full roster, each man paid by his rating so the market has a price at every group, plus `extra`. */
-function league(extra: readonly [PlayerState, PlayerContract][]): LeaguePeople {
+function league(extra: readonly [PlayerState, PlayerContract][], flat?: number): LeaguePeople {
   const roster: PlayerState[] = [];
   const contracts: PlayerContract[] = [];
   for (const pos of Object.keys(WANTED) as Position[]) for (let i = 0; i < WANTED[pos]; i++) {
     const p = man(`${pos}${i}`, pos, 74 - 2 * i);
     roster.push(p);
-    contracts.push(deal(p, Math.max(minimumSalary(SEASON, 5), 60_000 * Math.max(0, rate(p) - 55) ** 2), false));
+    contracts.push(deal(p, flat ?? Math.max(minimumSalary(SEASON, 5), 60_000 * Math.max(0, rate(p) - 55) ** 2), false));
   }
   for (const [p, c] of extra) { roster.push(p); contracts.push(c); }
   return { teams: [{ ...t, roster: roster.map((p) => p.bio.id), depthChart: {} }], players: roster, picks: [], classes: [], freeAgents: [], contracts, deadMoney: [] };
 }
-const keeps = (people: LeaguePeople, cuts: number) =>
-  runCutdown(people, { season: SEASON, rules: { ...DEFAULT_LEAGUE_RULES, rosterLimit: people.teams[0]!.roster.length - cuts }, rate }).people.teams[0]!.roster.map(String);
+const keeps = (people: LeaguePeople, cuts: number, priceList?: PriceList) =>
+  runCutdown(people, {
+    season: SEASON, rules: { ...DEFAULT_LEAGUE_RULES, rosterLimit: people.teams[0]!.roster.length - cuts }, rate, ...(priceList ? { priceList } : {}),
+  }).people.teams[0]!.roster.map(String);
 
 describe("cut-down counts the cap a cut saves (§3.2)", () => {
   it("prices a rating point from the middle half of a market", () => {
@@ -63,6 +65,22 @@ describe("cut-down counts the cap a cut saves (§3.2)", () => {
     const kept = keeps(league([[sunk, deal(sunk, 3_000_000, true)], [cheap, deal(cheap, 3_000_000, false)]]), 1);
     expect(kept).toContain("sunk");
     expect(kept).not.toContain("cheap");
+  });
+
+  it("reads the price list it is given (step 14): typical prices count the money where a flat market cannot", () => {
+    const pricey = man("pricey", "WR", 60.5);
+    const sunk = man("sunk", "WR", 60);
+    // Every man is paid alike, so the rank list has no price of a point and the money counts for nothing: the
+    // better man stays.
+    const people = league([[pricey, deal(pricey, 3_000_000, false)], [sunk, deal(sunk, 3_000_000, true)]], 3_000_000);
+    expect(pointPrice(marketCurves(people.contracts!, people.players, SEASON, rate).get(TAG_GROUP.WR))).toBe(0);
+    expect(keeps(people, 1)).toContain("pricey");
+    // On the 2026 typical-pay list a point has a price, so cutting the $3M man, which saves his pay, outweighs
+    // half a point against the man whose cut saves nothing.
+    expect(pointPrice(marketCurves(people.contracts!, people.players, SEASON, rate, undefined, "typical").get(TAG_GROUP.WR))).toBeGreaterThan(0);
+    const kept = keeps(people, 1, "typical");
+    expect(kept).toContain("sunk");
+    expect(kept).not.toContain("pricey");
   });
 
   it("decides only close calls: the money counts for at most SAVING_MOST points", () => {
