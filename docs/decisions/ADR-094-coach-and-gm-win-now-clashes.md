@@ -6,8 +6,9 @@
 - **Status:** parts 1-7 and Q1-Q6 ruled by the owner (2026-11-06 23:07Z). Parts 8 (GM hiring and
   firing) and 9 (the coach's lineup choices) were added by that ruling and are proposed, with
   questions Q7-Q12 ruled 2026-11-06 23:16Z (all a; Q7 and Q9 with notes, §8). Part 10 (ex-players
-  come back as coaches and GMs) and Q13-Q15 proposed from those notes. Contracts edits W1-W4 wait for
-  the owner's typed yes. Nothing is built.
+  come back as coaches and GMs) added from those notes; Q13-Q15 ruled 2026-11-07 00:35Z (13 a, 14 b,
+  15 b). Contracts edit W4 approved by the owner's typed yes (2026-11-07 00:35Z) and made; W1-W3
+  wait for a typed yes at build. The design is fully ruled; nothing else is built.
 - **Proposal doc (plain words, the questions as put to the owner):**
   https://claude.ai/artifact/KXX3prGXYBRY2dNph4dfgm
 - **Origin:** the owner's question in thread "Salary cap and contracts" (2026-11-06 22:36Z): can a GM
@@ -132,7 +133,8 @@ Real numbers, counted (Appendix A): 36 new GMs over the nine seasons 2018-2026, 
 job, 2 were head coaches handed GM power, and 1 came from television. 10 of the 36 replaced a man
 fired in midseason, with an interim GM finishing the year, and an 11th GM (Indianapolis) was fired
 in October 2026. Our carousel fires only in the offseason; whether presidents also fire in midseason
-is Q13. These replace the reported 4-5 a
+is Q13, ruled a: presidents fire GMs and head coaches in midseason too, an interim finishing
+the year (§8). These replace the reported 4-5 a
 year as the target.
 
 Built the way ADR-080 runs the coaching carousel, as its own step before the head-coach step.
@@ -180,7 +182,7 @@ With growth on, snaps drive how fast young players grow (ADR-087) and injury exp
 so this sits behind its own switch (`--lineup-hopes`, off by default), and the aging thread re-runs
 its 20-season check before it lands (agreed 2026-11-06 22:46Z).
 
-## 10. Former players come back as coaches and GMs (owner's note on Q9; proposed, Q14, Q15)
+## 10. Former players come back as coaches and GMs (owner's note on Q9; ruled Q14 b, Q15 b)
 
 Today nobody comes back: a retired player leaves the game (`PLAYER_RETIRED`), and every coach is made
 fresh from a cohort (seat holder, president, young NFL position coach, college coach;
@@ -192,9 +194,11 @@ how many reach the top is set by the hiring, not forced.
 
 Targets, counted: about 28% of head coaches played in NFL games (9 of 32 today); about 14% of new GMs
 had real NFL seasons and another 14% only an NFL camp or practice squad (Appendix A). Coordinators are
-not counted yet; counting them is part of the build. A former player's coaching ratings are drawn as
-anyone's, nudged a little by his football smarts (CHOSEN, Q14), and his playing record shows on his
-résumé, where it adds a little to his name when he is hired (Q15).
+not counted yet; counting them is part of the build. Q14 b: a former player's coaching and scouting
+ratings are drawn exactly as anyone's; having played changes nothing about how good he is. Q15 b: his
+playing record shows on his résumé (W4) but hiring ignores it. So former players reach the top only
+by the ordinary climb, and the counted shares are met by how many retiring players enter the ladders
+and how early, not by any edge.
 
 ## 11. Contracts edits (each needs the owner's typed yes)
 
@@ -204,6 +208,9 @@ résumé, where it adds a little to his name when he is hired (Q15).
   outcome }` (the news reads it; the views move through `RELATIONSHIP_CHANGED` as today).
 - **W3** `DepthChartSituation` gains `"YOUTH_LOOK"` and `"SHAKE_UP"`.
 - **W4** `StaffState.formerPlayer?: PlayerId`, linking a coach or GM to his playing career (§10).
+  APPROVED (owner's typed yes, 2026-11-07 00:35Z: "Yes to editing the W4 contract") and MADE:
+  `packages/contracts/src/players.ts`, `docs/design/contracts.md`, a round-trip test in
+  `packages/contracts/test/staff.test.ts`.
 - No edit for leans (rating keys), the new move (a free string), the coach's meeting claims (the
   meeting's shape fits), or GM hiring and firing (`STAFF_HIRED` and `STAFF_DEPARTED` carry any role;
   `StaffRole` already has `GM`, `SCOUTING_DIRECTOR` and `CAP_MANAGER`). A saved GM pool rides in the
@@ -234,7 +241,10 @@ résumé, where it adds a little to his name when he is hired (Q15).
   replaced in real life every season) 8. A 9. Leaning towards A but please review the backgrounds of
   GM's from real life over the past couple of years. ... It should happen for GM's too (though less
   frequently, again, based on real life). 10. A 11. A 12. A".
-- Q13-Q15 open (see the proposal doc).
+- 2026-11-07 00:35Z, the owner on Q13-Q15: "13. A 14. B 15. B" and "Yes to editing the W4 contract".
+- Midseason firings (Q13 a) extend §2: in-season pressure reads the president's in-season firing
+  chance for both men, tuned to about 1 GM a year in midseason (counted, Appendix A); head coaches'
+  midseason firings are counted at the build.
 
 ## Appendix A: new GMs by season, 2018-2026 (counted from Wikipedia season pages)
 

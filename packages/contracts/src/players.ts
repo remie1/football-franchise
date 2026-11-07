@@ -192,6 +192,11 @@ export interface StaffState {
    * veterans, plays who looks best this week. Drawn from his personality type. Absent = even leanings.
    */
   lineup?: { incumbent: number; veteran: number; form: number };
+  /**
+   * ADR-094 W4: the player he was, when he played in this league before coaching or scouting. His
+   * playing career is read from that player's record. Absent = he never played here.
+   */
+  formerPlayer?: PlayerId;
 }
 
 /**
