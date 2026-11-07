@@ -566,8 +566,12 @@ export interface RookieCut { readonly year: number; readonly byRound: Record<str
  * Class `season` at its first week 1, by round: kept (his drafting team's 53 or reserve lists), moved
  * and kept (another team's 53 or reserve lists, never let go by his drafting team: a trade, counted
  * kept), on his drafting team's practice squad, elsewhere (let go, then on another team's list, or on
- * another team's practice squad), or gone (no team). Not kept = n − kept − movedKept, the real side's
- * "not on his team's week-1 roster or reserve lists". `gaps` holds each not-kept pick's gap, sorted.
+ * another team's practice squad), or gone (no team). Not kept = n − kept − movedKept. That matches
+ * the real side's "not on his team's week-1 roster or reserve lists" only while the walk makes no
+ * trade: the real count puts a pick traded before week 1 under "another team" (not kept), where this
+ * counts him `movedKept`; and a pick traded, then cut by his new team and claimed by a third, also
+ * reads `movedKept`, since `released` looks only at the drafting team. The walk emits no
+ * `TRADE_EXECUTED` today (ADR-087 §12.11 M6, for ADR-095 step 5). `gaps` holds each not-kept pick's gap, sorted.
  * Null when no class of the walk reaches its week 1 that season: no pick has draft year `season` (the
  * walk's first season, whose class was drafted before the walk), or no week 1 was walked (`weekOne` null).
  */

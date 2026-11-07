@@ -607,7 +607,10 @@ export interface CapMoveAges {
  * (`lastTeam`, the cap check's `lastTeams` of the people the season started with) is the signing team,
  * and a move when it is another; a man with no deal before the season is neither, as the cap check's
  * money counts read him. `ageOf` gives a man's age in the season; the steps come from the run's
- * `stepEvents`, as `minimumSignings` reads them. Every split's keys are sorted.
+ * `stepEvents`, as `minimumSignings` reads them. Every split's keys are sorted. `lastTeam` is taken
+ * before the season, and a trade moves a contract's team with no `CONTRACT_SIGNED`, so a re-sign with
+ * his new team in the trade's own season would read as a move; the walk makes no trade today
+ * (ADR-087 §12.11 M6, for ADR-095 step 5).
  */
 export function capMoveAges(
   run: Pick<SeasonRun, "events" | "stepEvents">, lastTeam: ReadonlyMap<string, string>, ageOf: (id: string) => number | undefined,
