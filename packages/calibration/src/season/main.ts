@@ -193,7 +193,7 @@ const season = loaded?.save.calendar.season
 // With the players' switches on, each head coach also gets his depth-chart leanings (ADR-087 C1).
 const staff = loaded ? loaded.staff : { world: buildStaff(base, { firstSeason: season, ...(players ? { lineups: true } : {}) }).world };
 // ADR-084: the news desk's coaching beat starts from who sits where and how the staffs feel today.
-const SEATED = new Set(["HEAD_COACH", "OC", "DC", "STC"]);
+const SEATED = new Set(["HEAD_COACH", "OC", "DC", "STC", "GM"]); // ADR-094 step 5: the GM sits on the beat
 const coaching = staff ? {
   seats: staff.world.staff
     .filter((s) => s.teamId !== undefined && s.retiredAfter === undefined && SEATED.has(s.role))

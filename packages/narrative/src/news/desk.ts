@@ -176,7 +176,7 @@ export function createNewsDesk(input: NewsInput): NewsDesk {
       if (story !== null) candidates.push(story);
     }
     const beat = staff.close(dice.fork(`${week.key}/staff`), records);
-    candidates.push(...beat.always);
+    candidates.push(...beat.always, ...beat.ranked);
     // A week with no games: the coaching carousel, or the week's whispers from around the league.
     const quiet = week.gameDay === null && week.field === null;
     const title = quiet && beat.always.length > 0 ? "Coaching changes" : quiet && beat.fill.length > 0 ? "Around the league" : label(week);
@@ -205,7 +205,7 @@ export function createNewsDesk(input: NewsInput): NewsDesk {
       open = week;
       week.at = envelope.at;
       const e = envelope.event;
-      staff.take(e);
+      staff.take(e, envelope.at);
       if (e.type === "GAME_COMPLETED") {
         finished.set(String(e.payload.result.gameId), e.payload.result);
         week.gameDay ??= envelope.at;
