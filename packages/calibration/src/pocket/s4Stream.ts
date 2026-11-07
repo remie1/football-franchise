@@ -15,17 +15,24 @@
  *
  *  - **Contacts** (`arrival_contest` CHECKs): every rated `:contest` and every `:contest2`, with their
  *    sacks (RUSHER_SACKS); the play's first `:contest` by tilt class (AM-7's population: the class is
- *    read off the stream as the engine's `tiltClassOf` reads it, BEHIND or NEVER over a seen PUSH or
- *    BLOCKED over AM-2's free-run clock) and by the tilt the roll carries (its modifier's `source`);
+ *    read as the engine's `tiltClassOf` reads it, BEHIND or NEVER over a seen PUSH or BLOCKED over
+ *    AM-2's free-run clock, with the approach, `from` and `seen` taken from the `QB_HIT` (SHED or SACK)
+ *    that names the contest, and the clock from the stream) and by the tilt the roll carries (its
+ *    modifier's `source`);
  *    the label-only free-run count beside AM-2's key (AM-7 item 6). A first contest whose roll carries
  *    a tilt other than its class's is a problem: the engine plays one tilt, its class's.
  *  - **The sack share of contacts** is `sacks / contacts` of any of the above.
  *  - **The second arrival:** plays with a shed (QB_SHEDS), and of them plays with a later contact;
  *    `:contest2` sacks over `:contest2` contacts is its rate.
- *  - **`QB_HIT` by phase** (ARRIVAL, THROWING, SHED), and those on plays ending in a scramble (reported,
- *    never counted in the construct).
+ *  - **`QB_HIT` by phase** (ARRIVAL, THROWING, SHED, SACK), and those on plays ending in a scramble
+ *    (reported, never counted in the construct). A SHED or a SACK must name a contest of the play in
+ *    its own band, and every contest must be named by one (contracts-guardian G-6).
  *  - **The V1-42 construct** (plan §2.4): per dropback, a sack, or any `QB_HIT` on a play ending in a
- *    pass attempt (throwaways included), each dropback once.
+ *    pass attempt (throwaways included), each dropback once. A sack's own `QB_HIT` SACK adds nothing:
+ *    a sack play has no pass attempt, and the sack is counted as the sack.
+ *  - **`from` cross-check:** the from-class the stream rebuilds for each contact (§4.0's card, BEHIND
+ *    for an ARC man live at a STEP_UP; `contactFromOf`) against the `from` its `QB_HIT` carries. The
+ *    hit is what the folds read; the rebuild is a check only, and a disagreement is a problem.
  *  - **The hit curve on raw seconds:** aimed throws and aimed throws hit (any `QB_HIT`), by
  *    `releaseBinOf(THROW.releaseSeconds)` (the decision tick when absent).
  *  - **C-1** (plan §2.4): the stand-in's dropbacks (a sack, or an ARRIVED threat before the release on
@@ -64,7 +71,8 @@ export const ARRIVAL_CONTEST = "arrival_contest";
 /** The event P7 adds. */
 export const QB_HIT = "QB_HIT";
 
-export const QB_HIT_PHASES = ["ARRIVAL", "THROWING", "SHED"] as const;
+/** P7's phases, SACK included (contracts-guardian G-6): a SHED or a SACK names its `arrival_contest`. */
+export const QB_HIT_PHASES = ["ARRIVAL", "THROWING", "SHED", "SACK"] as const;
 export type QbHitPhase = (typeof QB_HIT_PHASES)[number];
 
 /** The engine's `TiltClass` (`resolve/contact.ts`), restated: calibration reads it off the stream. */
@@ -98,8 +106,17 @@ export interface ContestAt {
   readonly tilt: TiltClass;
   /** More than one tilt modifier on the contest's rolls (the engine plays one at most). */
   readonly tilts: number;
-  /** The class the stream gives the man at this contact (the engine's `tiltClassOf`), or undefined when his threat carries no approach. */
+  /**
+   * The class of this contact as the engine's `tiltClassOf` reads it: from the approach, `from` and
+   * `seen` of the `QB_HIT` naming the contest, with the stream's free-run clock; when no hit names
+   * it (a stream without one), rebuilt from his threat and the play's STEP_UPs (`contactClassOf`).
+   * Undefined when neither carries an approach.
+   */
   readonly cls: TiltClass | undefined;
+  /** The `QB_HIT` (SHED or SACK) that names this contest by `rollRef`, when the stream carries one. */
+  readonly hit: QbHitAt | undefined;
+  /** The from-class the stream rebuilds for him (`contactFromOf`): the cross-check against `hit.from`. */
+  readonly derivedFrom: string | undefined;
   /** The label-only free-run count's reading: a FREE threat, or a looper freed LOOPER_FREE (AM-7 item 6's print). */
   readonly labelFree: boolean;
 }
@@ -165,6 +182,18 @@ export function contactClassOf(facts: { readonly approach: RushApproach; readonl
   return "NONE";
 }
 
+/**
+ * The class of a contact from what its `QB_HIT` publishes (the engine's `tiltClassOf`, field for
+ * field): BEHIND or never seen; else a seen PUSH or BLOCKED man; else a man on the free-run clock
+ * (the stream's AM-2 key, never on the hit); else none.
+ */
+export function hitClassOf(facts: { readonly approach: RushApproach; readonly from: string; readonly seen: boolean; readonly onFreeRunClock: boolean }): TiltClass {
+  if (facts.from === "BEHIND" || !facts.seen) return "BEHIND_NEVER";
+  if (facts.approach === "PUSH" || facts.approach === "BLOCKED") return "PUSH_BLOCKED";
+  if (facts.onFreeRunClock) return "FREE_RUN";
+  return "NONE";
+}
+
 const isApproach = (v: unknown): v is RushApproach => v === "FREE" || v === "ARC" || v === "THROUGH" || v === "PUSH" || v === "BLOCKED";
 
 /** The from-class the stream gives a contact (P7's `from`): BEHIND for an ARC man live at a STEP_UP, else §4.0's card. */
@@ -188,7 +217,7 @@ export function readS4Play(slice: PlaySlice, key: ClockKey): S4Play | undefined 
   const first = new Map<string, { readonly origin: string; readonly rollRef: string }>();
   const touches = new Map<string, Touch>();
   const liveAtStepUp = new Set<string>();
-  const contests: ContestAt[] = [];
+  const raw: (Omit<ContestAt, "cls" | "hit"> & { readonly approach: RushApproach | undefined; readonly onClock: boolean; readonly rebuilt: TiltClass | undefined })[] = [];
   const hits: QbHitAt[] = [];
   for (const { event } of slice.events) {
     const type: string = event.type;
@@ -237,10 +266,13 @@ export function readS4Play(slice: PlaySlice, key: ClockKey): S4Play | undefined 
         const t = latest.get(rusher);
         const f = first.get(rusher);
         const onClock = f !== undefined && t !== undefined && t.origin !== "WON_REP" && onClockUnder(key, f.origin, touches.get(f.rollRef));
-        const cls = t !== undefined && isApproach(t.approach) ? contactClassOf({ approach: t.approach, liveAtStepUp: liveAtStepUp.has(rusher), seen: true, onFreeRunClock: onClock }) : undefined;
+        const approach = t !== undefined && isApproach(t.approach) ? t.approach : undefined;
+        const live = liveAtStepUp.has(rusher);
+        const rebuilt = approach === undefined ? undefined : contactClassOf({ approach, liveAtStepUp: live, seen: true, onFreeRunClock: onClock });
+        const derivedFrom = approach === undefined || t === undefined ? undefined : contactFromOf(approach, t.alignment, live);
         const firstTouch = f === undefined ? undefined : touches.get(f.rollRef);
         const labelFree = f !== undefined && (clockOriginOf(f.origin) === "UNBLOCKED" || (f.origin === "STUNT_LOOPER" && firstTouch?.band === "LOOPER_FREE"));
-        contests.push({
+        raw.push({
           tick,
           rusher,
           quarterback: actors[1] ?? "",
@@ -250,8 +282,11 @@ export function readS4Play(slice: PlaySlice, key: ClockKey): S4Play | undefined 
           rngLabel: label,
           tilt: tilts[0] ?? "NONE",
           tilts: tilts.length,
-          cls,
           labelFree,
+          derivedFrom,
+          approach,
+          onClock,
+          rebuilt,
         });
         break;
       }
@@ -271,6 +306,19 @@ export function readS4Play(slice: PlaySlice, key: ClockKey): S4Play | undefined 
         break;
     }
   }
+  // Each contest's facts come from the QB_HIT naming it (SHED or SACK, right after it): the engine's
+  // own approach, from and seen. The rebuild stands only where no hit names the contest.
+  const contests: ContestAt[] = raw.map(({ approach, onClock, rebuilt, ...c }) => {
+    const hit = hits.find((h) => h.rollRef === c.rngLabel && (h.phase === "SHED" || h.phase === "SACK"));
+    const hitApproach = hit !== undefined && isApproach(hit.approach) ? hit.approach : undefined;
+    const cls =
+      hit !== undefined && hitApproach !== undefined && typeof hit.from === "string" && typeof hit.seen === "boolean"
+        ? hitClassOf({ approach: hitApproach, from: hit.from, seen: hit.seen, onFreeRunClock: onClock })
+        : hit === undefined && approach !== undefined
+          ? rebuilt
+          : undefined;
+    return { ...c, cls, hit };
+  });
   return { playId: slice.playId, rulesName, s4: isS4Rules(rulesName), dropback, contests, hits, releaseSeconds, standInHit };
 }
 
@@ -340,6 +388,8 @@ export interface S4Fold {
   curve: Record<string, { attempts: number; aimed: number; hit: number }>;
   qbHits: number;
   qbHitsMissingFields: number;
+  /** Contests whose `QB_HIT` carries a `from` other than the one the stream rebuilds (`contactFromOf`): a fold fault. */
+  fromMismatch: number;
   /**
    * `s4.sackCredit`: sacks with a RUSHER_SACKS contact on the play; sacks with none that today's rule
    * makes and the design keeps until step 6 (plan §2.2 item 8): no contact block on the arm
@@ -401,6 +451,7 @@ export function emptyS4Fold(): S4Fold {
     curve: Object.fromEntries(RELEASE_BINS.map((b) => [b.label, { attempts: 0, aimed: 0, hit: 0 }])),
     qbHits: 0,
     qbHitsMissingFields: 0,
+    fromMismatch: 0,
     creditedSacks: 0,
     legacySacks: 0,
     escapeSacks: 0,
@@ -460,6 +511,13 @@ export function foldS4Play(fold: S4Fold, play: S4Play, tunables: Tunables): void
     count(c.second ? fold.contest2 : fold.contest, isSack(c));
     if (c.band !== "RUSHER_SACKS" && c.band !== "QB_SHEDS") fail(fold, where, `an arrival_contest of ${c.rusher} with band ${JSON.stringify(c.band)}`);
     if (c.tilts > 1) fail(fold, where, `the contest of ${c.rusher} carries ${String(c.tilts)} tilts (the engine plays one at most)`);
+    const want = c.band === "RUSHER_SACKS" ? "SACK" : "SHED";
+    if (c.hit === undefined) fail(fold, where, `the ${c.band} contest ${c.rngLabel} of ${c.rusher} has no QB_HIT ${want} naming it`);
+    else if (c.hit.phase !== want) fail(fold, where, `the ${c.band} contest ${c.rngLabel} of ${c.rusher} is named by a QB_HIT ${c.hit.phase}, not ${want}`);
+    if (c.hit !== undefined && c.derivedFrom !== undefined && c.hit.from !== c.derivedFrom) {
+      fold.fromMismatch += 1;
+      fail(fold, where, `the contest ${c.rngLabel} of ${c.rusher}: its QB_HIT says from ${String(c.hit.from)}, the stream rebuilds ${c.derivedFrom}`);
+    }
   }
   const head = rated[0];
   if (head !== undefined) {
@@ -488,13 +546,17 @@ export function foldS4Play(fold: S4Fold, play: S4Play, tunables: Tunables): void
     if (!(QB_HIT_PHASES as readonly string[]).includes(h.phase)) fail(fold, where, `a QB_HIT with phase ${JSON.stringify(h.phase)}`);
     if (h.approach === undefined || h.from === undefined || typeof h.seen !== "boolean") fold.qbHitsMissingFields += 1;
     if (h.phase === "SHED" && !play.contests.some((c) => c.rngLabel === h.rollRef && c.band === "QB_SHEDS")) fail(fold, where, `a QB_HIT SHED of ${h.rusher} names ${String(h.rollRef)}, which is no shed contest of the play`);
+    if (h.phase === "SACK" && !play.contests.some((c) => c.rngLabel === h.rollRef && c.band === "RUSHER_SACKS" && c.rusher === h.rusher)) fail(fold, where, `a QB_HIT SACK of ${h.rusher} names ${String(h.rollRef)}, which is no sacking contest of his on the play`);
+    if (h.phase === "SACK" && !play.dropback.sacked) fail(fold, where, `a QB_HIT SACK of ${h.rusher} on a play that is not a sack`);
   }
-  if (d.scramble) fold.hitsOnScramble += play.hits.length;
+  // A sack's own QB_HIT is the sack, counted below as the sack: the hit figures read the others.
+  const passHits = play.hits.filter((h) => h.phase !== "SACK");
+  if (d.scramble) fold.hitsOnScramble += passHits.length;
 
   // The construct (V1-42), C-1, and the credit.
   const attempt = d.throwTick !== undefined || d.throwawayTick !== undefined;
   const aimed = d.throwTick !== undefined;
-  const hit = play.hits.length > 0;
+  const hit = passHits.length > 0;
   const sack = d.sacked;
   if (sack) {
     fold.sacks += 1;
@@ -584,6 +646,7 @@ export function mergeS4Folds(a: S4Fold, b: S4Fold): S4Fold {
     c1Mismatch: a.c1Mismatch + b.c1Mismatch,
     curve: addMap(a.curve, b.curve, (x, y) => ({ attempts: x.attempts + y.attempts, aimed: x.aimed + y.aimed, hit: x.hit + y.hit }), () => ({ attempts: 0, aimed: 0, hit: 0 })),
     qbHits: a.qbHits + b.qbHits,
+    fromMismatch: a.fromMismatch + b.fromMismatch,
     qbHitsMissingFields: a.qbHitsMissingFields + b.qbHitsMissingFields,
     creditedSacks: a.creditedSacks + b.creditedSacks,
     legacySacks: a.legacySacks + b.legacySacks,
@@ -637,7 +700,8 @@ export const CURVE_MIDPOINTS = BIN_MIDPOINTS;
 export function s4Problems(f: S4Fold): readonly string[] {
   const out: string[] = [];
   if (f.problemCount > 0) out.push(`${String(f.problemCount)} stream problem(s): ${f.problems.join("; ")}`);
-  if (f.qbHitsMissingFields > 0) out.push(`s4.qbHitFields: ${String(f.qbHitsMissingFields)} of ${String(f.qbHits)} QB_HIT(s) miss approach, from or seen`);
+  if (f.fromMismatch > 0) out.push(`s4.from: ${String(f.fromMismatch)} contest(s) whose QB_HIT from differs from the stream's rebuild`);
+  if (f.qbHitsMissingFields > 0) out.push(`s4.qbHitFields:${String(f.qbHitsMissingFields)} of ${String(f.qbHits)} QB_HIT(s) miss approach, from or seen`);
   if (f.uncreditedSacks > 0) out.push(`s4.sackCredit: ${String(f.uncreditedSacks)} of ${String(f.sacks)} sack(s) in the pocket under the contact block hold no RUSHER_SACKS contact`);
   return out;
 }

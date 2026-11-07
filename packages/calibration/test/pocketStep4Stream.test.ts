@@ -99,8 +99,8 @@ const tickAt = (events: readonly Ev[], i: number): number => {
   return t;
 };
 
-/** A play re-stamped and given contact events: after the last ARRIVED threat (a contest and a QB_HIT), before the THROW (a THROWING hit), and `releaseSeconds` on the THROW. */
-function built(slice: PlaySlice, rules: { readonly name: string; readonly overlayDigest: string }, opts: { readonly contest?: "RUSHER_SACKS" | "QB_SHEDS"; readonly throwing?: boolean; readonly release?: number; readonly sacker?: string }): { readonly events: Ev[]; readonly rusher: string } {
+/** A play re-stamped and given contact events: after the last ARRIVED threat (a contest and the QB_HIT SHED or SACK naming it), before the THROW (a THROWING hit), and `releaseSeconds` on the THROW. */
+function built(slice: PlaySlice, rules: { readonly name: string; readonly overlayDigest: string }, opts: { readonly contest?: "RUSHER_SACKS" | "QB_SHEDS"; readonly throwing?: boolean; readonly release?: number; readonly sacker?: string; readonly hit?: Record<string, unknown> }): { readonly events: Ev[]; readonly rusher: string } {
   const events = restamp(slice.events, rules);
   const qb = qbOf(slice);
   const arrived = events.map((e, i) => [e, i] as const).filter(([e]) => e.event.type === "RUSH_THREAT" && payloadOf(e)["state"] === "ARRIVED").pop();
@@ -113,8 +113,8 @@ function built(slice: PlaySlice, rules: { readonly name: string; readonly overla
       const tick = tickAt(events, i);
       const check = contestCheck(e, rusher, qb, tick, opts.contest);
       out.push(check);
-      if (opts.contest === "QB_SHEDS") out.push(qbHit(e, qb, rusher, "SHED", { rollRef: `rush/t${String(tick)}/${rusher}:contest` }));
-      else out.push(qbHit(e, qb, rusher, "ARRIVAL"));
+      // The engine's order: the CHECK, then the QB_HIT naming it (SHED, or SACK: contracts-guardian G-6).
+      out.push(qbHit(e, qb, rusher, opts.contest === "QB_SHEDS" ? "SHED" : "SACK", { rollRef: `rush/t${String(tick)}/${rusher}:contest`, ...(opts.hit ?? {}) }));
     }
   });
   return { events: out, rusher };
@@ -123,18 +123,22 @@ function built(slice: PlaySlice, rules: { readonly name: string; readonly overla
 const sliceOf = (events: readonly Ev[]): PlaySlice => playsOf(events)[0]!;
 
 describe("the s4 stream on hand-built plays (s4Stream.ts)", () => {
-  it("a sack at contact: one rated contest, credited, an ARRIVAL hit, C-1 agrees", () => {
-    const { events } = built(S.sack.slice, S4, { contest: "RUSHER_SACKS" });
+  it("a sack at contact: one rated contest, credited, its QB_HIT SACK, counted once in V1-42, C-1 agrees", () => {
+    const { events, rusher } = built(S.sack.slice, S4, { contest: "RUSHER_SACKS" });
     const play = readS4Play(sliceOf(events), KEY)!;
     expect(play.s4).toBe(true);
     expect(play.contests).toHaveLength(1);
     expect(play.contests[0]).toMatchObject({ band: "RUSHER_SACKS", second: false, tilt: "NONE", tilts: 0 });
+    // The contest reads its QB_HIT SACK (contracts-guardian G-6).
+    expect(play.contests[0]!.hit).toMatchObject({ phase: "SACK", rusher, rollRef: play.contests[0]!.rngLabel });
     const f = emptyS4Fold();
     foldS4Play(f, play, C1);
-    expect(f).toMatchObject({ plays: 1, s4Plays: 1, sacks: 1, creditedSacks: 1, uncreditedSacks: 0, hitOrSack: 1, standIn: 1, arrivalShedOrSack: 1, c1Mismatch: 0, problemCount: 0 });
+    expect(f.problems).toEqual([]);
+    // A sack play has no pass attempt: its SACK hit adds no hit on an attempt, and the dropback counts once.
+    expect(f).toMatchObject({ plays: 1, s4Plays: 1, sacks: 1, creditedSacks: 1, uncreditedSacks: 0, hitOrSack: 1, hitOnAttempt: 0, hitOnAimed: 0, standIn: 1, arrivalShedOrSack: 1, throwingOnly: 0, c1Mismatch: 0, problemCount: 0, qbHits: 1 });
     expect(f.contest).toEqual({ contacts: 1, sacks: 1 });
     expect(f.first).toEqual({ contacts: 1, sacks: 1 });
-    expect(f.hitsByPhase).toEqual({ ARRIVAL: 1, THROWING: 0, SHED: 0 });
+    expect(f.hitsByPhase).toEqual({ ARRIVAL: 0, THROWING: 0, SHED: 0, SACK: 1 });
     expect(sackShareOf(f.contest)).toBe(1);
     expect(s4Problems(f)).toEqual([]);
   });
@@ -147,7 +151,7 @@ describe("the s4 stream on hand-built plays (s4Stream.ts)", () => {
     foldS4Play(f, play, C1);
     expect(f.problemCount).toBe(0);
     expect(f).toMatchObject({ shedPlays: 1, hitOrSack: 1, hitOnAttempt: 1, hitOnAimed: 1, standIn: 1, arrivalShedOrSack: 1, throwingOnly: 0, c1Mismatch: 0, qbHits: 2 });
-    expect(f.hitsByPhase).toEqual({ ARRIVAL: 0, SHED: 1, THROWING: 1 });
+    expect(f.hitsByPhase).toEqual({ ARRIVAL: 0, SHED: 1, THROWING: 1, SACK: 0 });
     expect(f.curve["2.5-3.0"]).toEqual({ attempts: 1, aimed: 1, hit: 1 });
     expect(f.tttAimed).toEqual({ n: 1, sum: 2.7 });
   });
@@ -260,8 +264,20 @@ describe("the s4 stream on hand-built plays (s4Stream.ts)", () => {
 
   it("each build fault is a problem: a stray band, two tilts, a tilt off its class, a :contest2 before a shed, an unknown phase, a SHED naming no shed, C-1", () => {
     const base = readS4Play(sliceOf(built(S.arrivedThrow.slice, S4, {}).events), KEY)!;
-    const c = (over: Partial<ContestAt>): ContestAt => ({ tick: 1, rusher: "r", quarterback: "q", band: "QB_SHEDS", margin: 1, second: false, rngLabel: "rush/t1/r:contest", tilt: "NONE", tilts: 0, cls: "NONE", labelFree: false, ...over });
     const hit = { tick: 1, rusher: "r", contactSeconds: 1, rollRef: undefined, approach: "FREE", from: "FRONT", seen: true };
+    const shedHit = { ...hit, phase: "SHED", rollRef: "rush/t1/r:contest" };
+    const c = (over: Partial<ContestAt>): ContestAt => ({ tick: 1, rusher: "r", quarterback: "q", band: "QB_SHEDS", margin: 1, second: false, rngLabel: "rush/t1/r:contest", tilt: "NONE", tilts: 0, cls: "NONE", hit: shedHit, derivedFrom: "FRONT", labelFree: false, ...over });
+    const sackHit = { ...hit, phase: "SACK", rollRef: "rush/t1/r:contest" };
+    const sacked = { ...base, dropback: { ...base.dropback, sacked: true, throwTick: undefined } };
+    // The well-formed shapes first: a shed named by its SHED, a sack by its SACK.
+    for (const [name, play] of [
+      ["shed", { ...base, contests: [c({})], hits: [shedHit] }],
+      ["sack", { ...sacked, contests: [c({ band: "RUSHER_SACKS", hit: sackHit })], hits: [sackHit] }],
+    ] as const) {
+      const f = emptyS4Fold();
+      foldS4Play(f, play, C1);
+      expect(f.problems, name).toEqual([]);
+    }
     const cases: readonly [string, S4Play][] = [
       ["band", { ...base, contests: [c({ band: "MISSED" })], hits: [{ ...hit, phase: "ARRIVAL" }] }],
       ["tilts", { ...base, contests: [c({ tilts: 2, tilt: "FREE_RUN", cls: "FREE_RUN" })], hits: [{ ...hit, phase: "ARRIVAL" }] }],
@@ -270,6 +286,14 @@ describe("the s4 stream on hand-built plays (s4Stream.ts)", () => {
       ["phase", { ...base, contests: [], hits: [{ ...hit, phase: "LATE" }, { ...hit, phase: "ARRIVAL" }] }],
       ["rollRef", { ...base, contests: [c({})], hits: [{ ...hit, phase: "SHED", rollRef: "rush/t9/x:contest" }] }],
       ["C-1", { ...base, contests: [], hits: [{ ...hit, phase: "THROWING" }] }],
+      // contracts-guardian G-6: every contest is named by its own QB_HIT, a SACK only by a sacking contest of his on a sack.
+      ["no hit", { ...sacked, contests: [c({ band: "RUSHER_SACKS", hit: undefined })], hits: [] }],
+      ["wrong phase", { ...sacked, contests: [c({ band: "RUSHER_SACKS", hit: shedHit })], hits: [shedHit] }],
+      ["SACK names a shed", { ...sacked, contests: [c({})], hits: [shedHit, sackHit] }],
+      ["SACK of another man", { ...sacked, contests: [c({ band: "RUSHER_SACKS", hit: sackHit })], hits: [{ ...sackHit, rusher: "s" }] }],
+      ["SACK on a throw", { ...base, contests: [c({ band: "RUSHER_SACKS", hit: sackHit })], hits: [sackHit] }],
+      // The from cross-check: the hit's from against the stream's rebuild.
+      ["from", { ...base, contests: [c({ derivedFrom: "SIDE" })], hits: [shedHit] }],
     ];
     for (const [name, play] of cases) {
       const f = emptyS4Fold();
@@ -284,10 +308,13 @@ describe("the s4 stream on hand-built plays (s4Stream.ts)", () => {
 
   it("the second arrival: a :contest2 after a shed is counted apart and gives the second-arrival rate", () => {
     const base = readS4Play(sliceOf(built(S.arrivedThrow.slice, S4, {}).events), KEY)!;
-    const c = (over: Partial<ContestAt>): ContestAt => ({ tick: 1, rusher: "r", quarterback: "q", band: "QB_SHEDS", margin: 1, second: false, rngLabel: "rush/t1/r:contest", tilt: "NONE", tilts: 0, cls: "NONE", labelFree: false, ...over });
+    const shed = { tick: 1, rusher: "r", phase: "SHED", contactSeconds: 1, rollRef: "rush/t1/r:contest", approach: "FREE", from: "FRONT", seen: true };
+    const sack = { ...shed, tick: 1.5, phase: "SACK", contactSeconds: 1.5, rollRef: "rush/t1.5/r:contest2" };
+    const c = (over: Partial<ContestAt>): ContestAt => ({ tick: 1, rusher: "r", quarterback: "q", band: "QB_SHEDS", margin: 1, second: false, rngLabel: "rush/t1/r:contest", tilt: "NONE", tilts: 0, cls: "NONE", hit: shed, derivedFrom: "FRONT", labelFree: false, ...over });
     const f = emptyS4Fold();
-    foldS4Play(f, { ...base, contests: [c({}), c({ tick: 1.5, second: true, band: "RUSHER_SACKS", rngLabel: "rush/t1.5/r:contest2" })], hits: [{ tick: 1, rusher: "r", phase: "SHED", contactSeconds: 1, rollRef: "rush/t1/r:contest", approach: "FREE", from: "FRONT", seen: true }] }, C1);
-    expect(f.problemCount).toBe(0);
+    const sacked = { ...base.dropback, sacked: true, throwTick: undefined };
+    foldS4Play(f, { ...base, dropback: sacked, contests: [c({}), c({ tick: 1.5, second: true, band: "RUSHER_SACKS", rngLabel: "rush/t1.5/r:contest2", hit: sack })], hits: [shed, sack] }, C1);
+    expect(f.problems).toEqual([]);
     expect(f).toMatchObject({ shedPlays: 1, laterContactPlays: 1 });
     expect(f.contest2).toEqual({ contacts: 1, sacks: 1 });
     expect(f.first).toEqual({ contacts: 1, sacks: 0 });
@@ -305,6 +332,38 @@ describe("the s4 stream on hand-built plays (s4Stream.ts)", () => {
     const { events } = built(S.sack.slice, S4, { contest: "RUSHER_SACKS" });
     const tilted = events.map((e) => (e.event.type === "CHECK" && payloadOf(e)["checkKind"] === "arrival_contest" ? like(e, "CHECK", { ...payloadOf(e), roll: roll(String((payloadOf(e)["roll"] as Record<string, unknown>)["rngLabel"]), 60, TILT_SOURCES.FREE_RUN) }) : e));
     expect(readS4Play(sliceOf(tilted), KEY)!.contests[0]!.tilt).toBe("FREE_RUN");
+  });
+
+  it("a contest's class reads the approach, from and seen of the QB_HIT naming it; the stream's rebuild is a cross-check only", () => {
+    const plain = readS4Play(sliceOf(built(S.sack.slice, S4, { contest: "RUSHER_SACKS" }).events), KEY)!.contests[0]!;
+    expect(plain.derivedFrom).toBeDefined();
+    expect(plain.hit?.from).toBe("FRONT");
+    // The hand-built hit says FRONT and FREE; the fold reads it, never the rebuild.
+    const agree = readS4Play(sliceOf(built(S.sack.slice, S4, { contest: "RUSHER_SACKS", hit: { from: plain.derivedFrom } }).events), KEY)!;
+    const fa = emptyS4Fold();
+    foldS4Play(fa, agree, C1);
+    expect(fa.fromMismatch).toBe(0);
+    expect(fa.problems).toEqual([]);
+    // Never seen (step 7's case, written here by hand): BEHIND or NEVER, whatever the rebuild says.
+    const unseen = readS4Play(sliceOf(built(S.sack.slice, S4, { contest: "RUSHER_SACKS", hit: { from: plain.derivedFrom, seen: false } }).events), KEY)!;
+    expect(unseen.contests[0]!.cls).toBe("BEHIND_NEVER");
+    // A seen PUSH on the hit is PUSH or BLOCKED, whatever approach the threat carried.
+    const push = readS4Play(sliceOf(built(S.sack.slice, S4, { contest: "RUSHER_SACKS", hit: { from: plain.derivedFrom, approach: "PUSH" } }).events), KEY)!;
+    expect(push.contests[0]!.cls).toBe("PUSH_BLOCKED");
+    // BEHIND on the hit while the stream rebuilds another: the hit's class, and a from problem.
+    const other = plain.derivedFrom === "BEHIND" ? "FRONT" : "BEHIND";
+    const behind = readS4Play(sliceOf(built(S.sack.slice, S4, { contest: "RUSHER_SACKS", hit: { from: other } }).events), KEY)!;
+    expect(behind.contests[0]!.cls).toBe(other === "BEHIND" ? "BEHIND_NEVER" : plain.cls);
+    const fb = emptyS4Fold();
+    foldS4Play(fb, behind, C1);
+    expect(fb.fromMismatch).toBe(1);
+    expect(s4Problems(fb).some((p) => p.startsWith("s4.from: 1 contest(s)"))).toBe(true);
+    expect(mergeS4Folds(fa, fb).fromMismatch).toBe(1);
+    // With no hit naming it (a stream before G-6), the rebuild stands.
+    const bare = readS4Play(sliceOf(built(S.sack.slice, S4, { contest: "RUSHER_SACKS" }).events.filter((e) => (e.event.type as string) !== "QB_HIT")), KEY)!.contests[0]!;
+    expect(bare.hit).toBeUndefined();
+    expect(bare.cls).toBeDefined();
+    expect(bare.derivedFrom).toBe(plain.derivedFrom);
   });
 
   it("merging two folds sums them; the curve's slope weights by aimed throws, attempts beside", () => {
@@ -462,6 +521,35 @@ describe("collect.ts: V1-42 keyed on the stamp; releaseSeconds read on s4 only",
     expect(s4.play.pocket.hitOrSackDropbacks).toBeGreaterThanOrEqual(1);
     // Every other play is still stamped pocket-1.s3, and the re-stamped play had no stand-in hit: one more.
     expect(s4.play.pocket.hitOnAttemptDropbacks).toBe(original.play.pocket.hitOnAttemptDropbacks + 1);
+  });
+
+  it("a sack with its QB_HIT SACK counts once in hit-or-sack and never as a hit on an attempt (V1-42; contracts-guardian G-6)", () => {
+    let base: Parameters<typeof foldGame>[1] | undefined;
+    goldenGames("flat", (o) => {
+      if (base === undefined && o.events.some((e) => (e.event as { readonly playId?: unknown }).playId === S.sack.slice.playId)) base = o;
+    }, { tunables: C1, callerVersion: STEP1_CALLER, first: 6 });
+    expect(base).toBeDefined();
+    const target = S.sack.slice.playId;
+    const injected = (rules: { readonly name: string; readonly overlayDigest: string }): Ev[] => {
+      const replaced = built(S.sack.slice, rules, { contest: "RUSHER_SACKS" }).events;
+      expect(replaced.filter((e) => (e.event.type as string) === "QB_HIT").map((e) => payloadOf(e)["phase"])).toEqual(["SACK"]);
+      const out: Ev[] = [];
+      let done = false;
+      for (const e of base!.events) {
+        if ((e.event as { readonly playId?: unknown }).playId === target) {
+          if (!done) out.push(...replaced);
+          done = true;
+        } else out.push(e);
+      }
+      return out;
+    };
+    const run = (events: readonly Ev[]) => foldGame(emptyAccumulator(), { ...base!, events: events as Ev[] }, C1);
+    const s3 = run(injected(S3));
+    const s4 = run(injected(S4));
+    // The sack play was a hit-or-sack dropback under s3 (the sack); under s4 it stays one, with no hit on an attempt.
+    expect(s4.play.pocket.hitOrSackDropbacks).toBe(s3.play.pocket.hitOrSackDropbacks);
+    expect(s4.play.pocket.hitOnAttemptDropbacks).toBe(s3.play.pocket.hitOnAttemptDropbacks);
+    expect(s4.play.sacks).toBe(s3.play.sacks);
   });
 });
 
