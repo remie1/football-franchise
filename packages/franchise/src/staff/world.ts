@@ -99,3 +99,7 @@ export const offseasonStamp = (season: number, week: number): CalendarStamp =>
 
 export const byId = (world: StaffWorld): Map<string, StaffState> =>
   new Map(world.staff.map((s) => [String(s.id), s]));
+
+/** ADR-094 Q13 a: an interim's contract, signed during a regular season and running to its end. */
+export const isInterimContract = (c: StaffContract): boolean =>
+  c.signedAt.phase === "REGULAR_SEASON" && c.firstSeason === c.signedAt.season && c.lastSeason === c.signedAt.season;

@@ -28,7 +28,7 @@ import { makeCoach, type Cohort } from "./makeCoach.js";
 import { candidateReport, expectedShare, inTree, reputation, type CandidateReport } from "./evaluate.js";
 import { collegeRecord } from "./standIn.js";
 import {
-  clamp, currentJob, isRetired, logistic, offseasonStamp, seasonsOutOfWork, seatOf, sideOf, weightedPick, winShare,
+  clamp, currentJob, isInterimContract, isRetired, logistic, offseasonStamp, seasonsOutOfWork, seatOf, sideOf, weightedPick, winShare,
   type StaffWorld, type TeamSeasonSummary,
 } from "./world.js";
 import { applyMove, checkViews, syncViews, type LedgerStep, type RelationshipContext } from "../relationships/ledger.js";
@@ -39,6 +39,8 @@ import {
 import { applyExtension, applyFiring, applyHire, applySeasonResults } from "../relationships/staffMoves.js";
 import { bossOf, viewKey, wordFor } from "../relationships/ledger.js";
 import { RELATIONSHIP_TUNING } from "../relationships/tables.js";
+/** ADR-094 Q13 a: the share of midseason interims kept on after the season. CHOSEN, against the COUNTED few. */
+export const INTERIM_KEEP = { HEAD_COACH: 0.05, GM: 0.05 };
 import { STYLE_MATCH } from "./tables.js";
 
 export type StaffDecisionType = "HIRE_STAFF" | "FIRE_STAFF" | "EXTEND_STAFF" | "LET_CONTRACT_EXPIRE";
@@ -53,6 +55,8 @@ export interface GmMove {
   kind: "DEPARTED" | "HIRED";
   reason?: StaffDepartureReason;
   source?: GmSource;
+  /** ADR-094 Q13 a: an interim seated in midseason (not a hire the turnover counts). */
+  interim?: boolean;
 }
 
 /** Where a new head coach came from (ADR-080 §8, compared with the REPORTED hiring sources). */
@@ -71,6 +75,8 @@ export interface StaffMove {
   tree?: boolean;
   /** ADR-084 §7.1: he refused a new contract (his contract ran out by his choice, not the team's). */
   walked?: boolean;
+  /** ADR-094 Q13 a: an interim seated in midseason (not a hire the turnover counts). */
+  interim?: boolean;
 }
 
 export interface StaffOffseasonInput {
@@ -473,6 +479,12 @@ export function runStaffOffseason(input: StaffOffseasonInput): StaffOffseasonRes
         politics: rating(gm.attributes, "politics"), ...(r.playoffs ? { playoffs: r.playoffs } : {}),
       });
       const ending = contractOf(gm, team.id)!.lastSeason === played;
+      // An interim GM from midseason (Q13 a) is kept on now and then; otherwise the job is opened.
+      if (isInterimContract(contractOf(gm, team.id)!) && team.id !== userTeam) {
+        if (createRng(seed, `franchise:staff/interim-keep/${played}/GM/${String(team.id)}`).next() < INTERIM_KEEP.GM) extendGm(gm, team);
+        else gmDepart(gm, team, "CONTRACT_EXPIRED");
+        continue;
+      }
       if (team.id === userTeam) {
         if (input.gm?.fire?.(team.id, gm, verdict)) gmDepart(gm, team, ending ? "CONTRACT_EXPIRED" : "FIRED", true);
         else if (ending) extendGm(gm, team);
@@ -547,6 +559,16 @@ export function runStaffOffseason(input: StaffOffseasonInput): StaffOffseasonRes
       p = (p + gmHalf) / 2;
     }
     hcRisk.set(String(team.id), p);
+    // An interim head coach from midseason (Q13 a) is kept on now and then; otherwise the job is opened.
+    const hcContract = contractOf(hc, team.id);
+    if (hcContract && isInterimContract(hcContract)) {
+      if (createRng(seed, `franchise:staff/interim-keep/${played}/HEAD_COACH/${String(team.id)}`).next() < INTERIM_KEEP.HEAD_COACH) {
+        extend(hc, team, "HEAD_COACH");
+      } else {
+        depart(hc, team, "HEAD_COACH", "CONTRACT_EXPIRED");
+      }
+      continue;
+    }
     judge(hc, team, "HEAD_COACH", p, "HEAD_COACH");
   }
 

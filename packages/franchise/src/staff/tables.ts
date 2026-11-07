@@ -95,7 +95,7 @@ export const STAFF_TUNING = {
   newCoachSideShares: [["OFFENSE", 0.45], ["DEFENSE", 0.45], ["SPECIAL_TEAMS", 0.1]] as readonly (readonly [Side, number])[],
 
   // §6 firing: logit = base + slope × shortfall + ...
-  hcFireBase: -1.2,
+  hcFireBase: -1.7,
   hcFireShortfall: 9,
   hcFireTrend: 4,
   hcFireCredit: 3,

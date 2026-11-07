@@ -5,7 +5,8 @@
  * the president's offseason formula (ADR-080 §6, `headCoachFireChance`) fed the season so far as if
  * it were the whole season: his win share to date, his roster's promise, the season before it and
  * the credit of earlier ones. In the last year of his contract it gains `CONTRACT_YEAR_PRESSURE`.
- * A GM's pressure comes with GM firing (ADR-094 §8, build step 2); until then the caller passes 0.
+ * A GM's pressure is the president's GM formula (ADR-094 §8, `gmFireChance`) on his tenure with the
+ * season so far as its last season, the same way.
  *
  * His working lean is his lean pushed toward 100 by his pressure: two thirds of the way when he is
  * sure to be fired, next to nothing when his job is safe.
@@ -15,6 +16,7 @@
 import type { StaffJob, StaffState, WinLossTie } from "@ff/contracts";
 import { headCoachFireChance, headCoachVerdict } from "../staff/offseason.js";
 import { rating } from "../staff/ratings.js";
+import { gmFireChance, gmVerdict } from "../staff/frontOffice.js";
 import { currentJob } from "../staff/world.js";
 
 /** Q2 a: how far toward all-in a man the president would surely fire goes. */
@@ -58,5 +60,19 @@ export function headCoachPressure(coach: StaffState, now: SeasonSoFar): number {
     played: now.season, teamCount: now.teamCount, correction: now.presidentTalent / 100, politics: rating(coach.attributes, "politics"),
   });
   const chance = headCoachFireChance(verdict);
+  return Math.min(1, chance + (now.lastContractYear ? CONTRACT_YEAR_PRESSURE : 0));
+}
+
+/** A GM's pressure in midseason: the president's GM formula on his tenure with the season so far as its last season. */
+export function gmPressure(gm: StaffState, now: SeasonSoFar): number {
+  const job: StaffJob | undefined = currentJob(gm);
+  if (!job) return 0;
+  const games = now.record.wins + now.record.losses + now.record.ties;
+  const record = games > 0 ? now.record : { wins: 1, losses: 1, ties: 0 };
+  const done = job.seasons.filter((s) => s.season < now.season);
+  const soFar = { season: now.season, record, ...(now.rosterRank !== undefined ? { rosterRank: now.rosterRank } : {}) };
+  const chance = gmFireChance(gmVerdict([...done, soFar], {
+    played: now.season, teamCount: now.teamCount, correction: now.presidentTalent / 100, politics: rating(gm.attributes, "politics"),
+  }));
   return Math.min(1, chance + (now.lastContractYear ? CONTRACT_YEAR_PRESSURE : 0));
 }
