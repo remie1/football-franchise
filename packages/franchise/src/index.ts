@@ -175,4 +175,8 @@ export {
   type LeanHolder,
 } from "./winNow/lean.js";
 export { CONTRACT_YEAR_PRESSURE, PRESSURE_PUSH, gmPressure, headCoachPressure, workingLean, type SeasonSoFar } from "./winNow/pressure.js";
+export {
+  PLAYOFF_ODDS, STANCE, guessChance, missSd, playoffChance, readSkill, recordsAfter, stanceFor, stepToward, stepsBetween, weeklyStance,
+  type WeekRead, type WeeklyStanceInput, type WeeklyStanceResult,
+} from "./winNow/stance.js";
 

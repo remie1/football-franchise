@@ -324,6 +324,44 @@ Midseason firings (Q13 a) come in the next PR.
 - Tests: `test/staff.midseason.test.ts` (8); the season-walk tests now read the world as the
   playoffs end for the carousel and count seated GMs.
 
+**Step 3 (2026-11-07, same thread; §3-§6, contracts W1 and W2).** Contracts: `TeamStance`,
+`Team.stance`, `TEAM_STANCE_SET` and `COURSE_ARGUED` (owner's typed yes, 2026-11-07). In
+`packages/franchise`, `src/winNow/stance.ts`:
+- The playoff chance (Q6 a), MEASURED from 45 seasons of our own league (seeds odds-1 to odds-45,
+  `season` command, engine `legacy`; 24,480 team-weeks): a fitted curve rather than a raw table,
+  since the table's corners are thin. A team is on course for its wins so far plus the games left
+  at its pace pulled toward .500 as if it had played 17.6 more games at .500; the chance is a
+  logistic in that against a center of 8.93 wins, its spread sqrt(0.46^2 + 0.11 x games left).
+  Against the measured rows: 5-3 70% (71% measured), 4-2 71% (69%), 3-3 41% (40%), 2-4 17% (17%),
+  every tenth of the chance within 3 points. Beside the real NFL, COUNTED from nflverse's schedules
+  (2021-2025, 14 of 32 make it, 17 games; teams' records after each week): 5-3 71% (31 teams), 4-2
+  75% (44), 3-3 35% (46), 2-4 21% (33), 6-2 86% (35). Over 2002-2025 (12 or 14 made it): 5-3 59%,
+  4-2 65%, 3-3 33%, close to the REPORTED 57, 61 and 35 above. Our records mean a little less
+  than real ones (the real fit pulls toward .500 by about 10 games, ours by 17.6): more luck in our
+  league's results.
+- The read (§3): each man's guess is the truth moved in log-odds by his miss, sd 0.6 at read skill 25
+  and 0.45 at 85 (25% smaller, outlook Q2 b), read skill being the mean of forecasting and
+  performance analysis. One draw per man, team and week, but 0.8 of last week's miss carries into
+  this week's, so a man holds an opinion rather than flipping with each draw; with independent
+  draws and an sd of 1.0, 41% of teams' men called sell after one game. All CHOSEN.
+- Stance (§4), argument (§5) and souring (§6) as ruled; Q4 a's "last week" is worked out again from
+  the season's results and the seated men with the same dice, so nothing new is kept and a stop or a
+  save plays the same. Whether the two split, and how far, comes out exactly; the heat of the weeks
+  compared reads the two men's views as they stand today. A man seated in midseason counts the split
+  from his first week. `OVERRULED_ON_COURSE` (-3) goes on the coach's view of the GM whenever the
+  week's course is not the coach's.
+- `src/staff/steps.ts`: the step `staff:stance` runs after `staff:midseason` on each regular-season
+  week's last day but the season's last, in a league whose teams have a GM, coach and president. The
+  user's team is left out until it has a screen. `Team.direction` is untouched (Q5 a); nothing in
+  play reads the stance yet.
+- Ten stand-in seasons with GMs (made-up results, seeds stats-0 to stats-9): the two split in 23% of
+  team-weeks, about 4 arguments a team-season of which 2.5 cost (POLITE 48%, OPEN 33%, RIFT 19%);
+  the stance changes about 4 times a team-season; after week 9, 42% buy, 19% hold, 39% sell. Head
+  coaches win 3 of 4 arguments that have a winner, because our GMs' politics run lower (mean 46
+  against head coaches' 56); the GM decides all the same, and at ADR-084's rest views no GM thinks
+  well enough of his coach (20) to meet him, so Q3 b's one step waits on warmer views.
+- Tests: `test/winNow.stance.test.ts` (8).
+
 ## Appendix A: new GMs by season, 2018-2026 (counted from Wikipedia season pages)
 
 Background: FO = came up through a front office; Re = former GM; HC = head coach given GM power;

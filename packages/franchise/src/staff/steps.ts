@@ -21,6 +21,7 @@ import { lineupFor } from "../players/lineup.js";
 import { DAYS_PER_WEEK } from "../calendar/clock.js";
 import { runStaffOffseason, type StaffOffseasonInput } from "./offseason.js";
 import { runMidseasonWeek } from "./midseason.js";
+import { weeklyStance } from "../winNow/stance.js";
 import { summariseSeason } from "./summarise.js";
 import { seatOf } from "./world.js";
 
@@ -71,6 +72,25 @@ export function staffSteps(config: StaffStepsConfig = {}): DayStep[] {
         return {
           people: { ...people, staff: world.staff, coaching: { world, ...(r.relationships ? { relationships: r.relationships } : {}) } },
           events: r.events.map((e) => e.event),
+        };
+      },
+    },
+    {
+      // ADR-094 §3-§6: after the week's games (and any firing), each computer team's GM and coach read its chances and set a stance.
+      id: `${STAFF_STEP_PREFIX}stance`,
+      run: (people, day) => {
+        const coaching = people.coaching;
+        if (!coaching || day.day.phase !== "REGULAR_SEASON" || day.day.day !== DAYS_PER_WEEK) return undefined;
+        if (coaching.world.season !== day.season) return undefined;
+        const r = weeklyStance({
+          world: coaching.world, teams: people.teams, state: day.state, season: day.season, week: day.day.week,
+          weeks: day.rules.weeksPerSeason, at: day.day, seed: day.seed, context: ctx,
+          ...(coaching.relationships ? { views: coaching.relationships } : {}),
+        });
+        if (r.events.length === 0) return undefined;
+        return {
+          people: { ...people, teams: r.teams, coaching: { ...coaching, ...(r.views ? { relationships: r.views } : {}) } },
+          events: r.events,
         };
       },
     },
