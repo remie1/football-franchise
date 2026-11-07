@@ -5,10 +5,17 @@
  * offseasons on stand-in results, and prints the turnover next to the REPORTED NFL figures.
  * With `--views`, the staffs' views are carried and read (ADR-084 §7.1). With `--out`, saves the
  * whole report as JSON. With `--gms`, every team has a GM, hired and fired by the carousel (ADR-094
- * §8), and the GM rows print next to the COUNTED NFL figures (ADR-094 Appendix A).
+ * §8), and the GM rows print next to the COUNTED NFL figures (ADR-094 Appendix A). Made-up players retire
+ * each year and a few come back as coaches and scouts (ADR-094 §10); `--no-former-players` leaves them out.
  */
 import { writeFileSync } from "node:fs";
-import { staffTurnoverCheck, type Band } from "./check.js";
+import { FORMER_WARMUP, staffTurnoverCheck, type Band } from "./check.js";
+
+/** ADR-094 §10's real shares, COUNTED (ADR-094 build record, step 3b). */
+const FORMER_NFL = {
+  HEAD_COACH: "24% played (7 of 29 in 2026)", COORDINATOR: "at least 16% played (9 of 56)", POSITION_COACH: "at least 28% played (151 of 532)",
+  NEW_GM: "14% played, 14% camp only (2018-2026)",
+};
 
 function parse(argv: readonly string[]) {
   let seed = "staff-check";
@@ -17,6 +24,7 @@ function parse(argv: readonly string[]) {
   let views = false;
   let gms = false;
   let midseason = true;
+  let formerPlayers = true;
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]!;
     const next = (): string => {
@@ -31,15 +39,16 @@ function parse(argv: readonly string[]) {
     else if (arg === "--views") views = true;
     else if (arg === "--gms") gms = true;
     else if (arg === "--no-midseason") midseason = false;
+    else if (arg === "--no-former-players") formerPlayers = false;
     else throw new SyntaxError(`unknown argument ${arg}`);
   }
   if (!Number.isInteger(seasons) || seasons < 1) throw new SyntaxError("--seasons must be a whole number above 0");
-  return { seed, seasons, out, views, gms, midseason };
+  return { seed, seasons, out, views, gms, midseason, formerPlayers };
 }
 
 const args = parse(process.argv.slice(2));
 const started = Date.now();
-const r = staffTurnoverCheck({ seed: args.seed, seasons: args.seasons, views: args.views, gms: args.gms, midseason: args.midseason });
+const r = staffTurnoverCheck({ seed: args.seed, seasons: args.seasons, views: args.views, gms: args.gms, midseason: args.midseason, formerPlayers: args.formerPlayers });
 const s = r.summary;
 const b = (x: Band) => `${x.mean.toFixed(1)} a year (from ${x.min} to ${x.max})`;
 const pct = (x: number | undefined) => `${Math.round((x ?? 0) * 100)}%`;
@@ -80,6 +89,14 @@ if (s.gm) {
   console.log(`New GMs came from           front offices ${pct(gs.FRONT_OFFICE)} (NFL 78%), former GMs ${pct(gs.RETREAD)} (NFL 14%), head coaches ${pct(gs.COACH)} (NFL 6%), outside ${pct(gs.OUTSIDE)} (NFL 3%)`);
   console.log(`GM tenure                   ${g.tenure.mean.toFixed(1)} seasons on average, median ${g.tenure.median} (${g.tenure.ended} jobs ended); sitting GMs' median ${g.sittingMedian.toFixed(1)} seasons served   NFL: about 3 (reported, 2024); about 4 from Appendix A's hires (2026)`);
   console.log(`Clean sweeps (GM and head coach changed together): ${g.cleanSweepsPerYear.toFixed(1)} a year   NFL: no count on file`);
+}
+if (s.former) {
+  const f = s.former;
+  const row = (x: { men: number; played: number; camp: number }) =>
+    `${pct(x.played / Math.max(1, x.men))} played, ${pct(x.camp / Math.max(1, x.men))} camp only`;
+  console.log(`Former players (after ${FORMER_WARMUP} seasons), seated: head coaches ${row(f.seated.HEAD_COACH)} (NFL ${FORMER_NFL.HEAD_COACH}); ` +
+    `coordinators ${row(f.seated.COORDINATOR)} (NFL ${FORMER_NFL.COORDINATOR}); position coaches ${row(f.seated.POSITION_COACH)} (NFL ${FORMER_NFL.POSITION_COACH})`);
+  if (s.gm) console.log(`                            new GMs ${row(f.hired.GM)} (NFL ${FORMER_NFL.NEW_GM}); seated GMs ${row(f.seated.GM)}`);
 }
 if (args.out) {
   writeFileSync(args.out, JSON.stringify(r, null, 2));

@@ -22,9 +22,9 @@ import { clamp, currentJob, isRetired, logistic, normal, seasonsOutOfWork, weigh
 export const LADDER_ROLES = ["SCOUTING_DIRECTOR", "CAP_MANAGER"] as const;
 export type LadderRole = (typeof LADDER_ROLES)[number];
 
-/** On the front-office track (never a coaching candidate): the GM, his ladder, the president. */
+/** On the front-office track (never a coaching candidate): the GM, his ladder, the president, and scouts (ADR-094 §10). */
 export const isFrontOfficeRole = (role: StaffRole): boolean =>
-  role === "GM" || role === "PRESIDENT" || role === "SCOUTING_DIRECTOR" || role === "CAP_MANAGER";
+  role === "GM" || role === "PRESIDENT" || role === "SCOUTING_DIRECTOR" || role === "CAP_MANAGER" || role === "SCOUT";
 
 /** Where a new GM came from (Appendix A's four kinds). */
 export type GmSource = "FRONT_OFFICE" | "RETREAD" | "COACH" | "OUTSIDE";

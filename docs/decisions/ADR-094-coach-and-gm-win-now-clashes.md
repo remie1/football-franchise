@@ -364,6 +364,40 @@ Midseason firings (Q13 a) come in the next PR.
 - Tests: `test/winNow.stance.test.ts` (8); calibration's real-season test now lets the weekly
   arguments move the views.
 
+**Step 3b (2026-11-07, same thread; §10).** In `packages/franchise`; no contracts change (W4's
+`StaffState.formerPlayer` was made with the design).
+- COUNTED, 2026-11-07, from the 32 teams' Wikipedia staff templates (29 read cleanly; the Vikings',
+  Saints' and Commanders' did not parse), a man counted as having played when his page carries a
+  Pro Football Reference player id (camp-only men cannot be told apart this way, and an unlinked
+  coach is taken as not having played, since a man who played an NFL game has a page): head coaches
+  7 of 29 (24%; 9 of 32, 28%, in the design's count), offensive and defensive coordinators 9 of 56
+  (16%; a lower bound: at least one coordinator who played was missed), special teams coordinators 7
+  of 26, position coaches and their assistants 151 of 532 (28%), quality control 12 of 66.
+- `src/staff/formerPlayers.ts`: when a player retires, he goes into coaching with log-odds -5.2 +
+  0.03 per point of awareness over 50 + 0.02 per point of discipline + 0.3 per credited season (up to
+  10), or into scouting with -4.9 + the same awareness and discipline terms; nobody over 40. The
+  league has no leadership rating, so none is read; his position never is. A coach joins a team
+  drawn by his own dice as a position coach (his side drawn as any new coach's), a scout as a
+  `SCOUT` on its front office, each under his own name and age. Q14 b: his ratings are drawn as
+  anyone's; Q15 b: nothing in hiring reads `formerPlayer`. All CHOSEN.
+- `src/staff/offseason.ts`: a scouting director's empty chair goes first to the team's best scout
+  (by GM skills) with 4 or more seasons scouting, else to a new man as before. Scouts are on the
+  front-office track, never coaching candidates.
+- `src/staff/steps.ts`: the step `staff:former-players` runs on any day a player retires (today only
+  unsigned players do, ADR-087 §6.1, so only with the players' switches on), reading the retiree as
+  he stood that morning. `runSeason` now hands each step the day's people as they started and what
+  the steps before it emitted.
+- `staff-check` retires about 350 made-up players a year (half never credited, the rest 1 to 15
+  seasons), on by default (`--no-former-players` leaves them out). Shares read after 25 seasons,
+  three seeds, 80 seasons, with GMs: head coaches 20-27% played and 5-6% camp only; coordinators
+  24-30% and 5-7%; position coaches 24-30% and 7-9%; new GMs 14-17% played and 14-19% camp only
+  (COUNTED 14% and 14%). Turnover holds (head coach changes 7.7 a year, 7.8 without; GM changes 3.9
+  to 4.5, hire mix within 5 points of the count). The pool grows from about 300 to 356 men and the
+  average head coach is 46 rather than 48, since former players start young.
+- The made-up history and the stand-in league's copied coaches start with no former players (W4
+  needs a player in this league), so the shares build over the first decades of a league.
+- Tests: `test/staff.formerPlayers.test.ts` (6).
+
 ## Appendix A: new GMs by season, 2018-2026 (counted from Wikipedia season pages)
 
 Background: FO = came up through a front office; Re = former GM; HC = head coach given GM power;
