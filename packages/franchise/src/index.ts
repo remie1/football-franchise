@@ -98,9 +98,13 @@ export {
 } from "./draft/steps.js";
 export { signRookie, signSquad, signFuture, release, claimedDeal, liveContract, flatCap, type CapForSeason } from "./draft/money.js";
 export {
-  apyOf, marketCurves, percentileOf, quantile, ageFactor, termFor, structureFor, valuePlayer, veteranContract, guaranteedShare, firstYearShareFor, REAL_FIRST_YEAR,
-  type MarketCurve, type MarketCurves, type Valuation, type VeteranDeal,
+  apyOf, marketCurves, percentileOf, quantile, ageFactor, ageFactorAt, legacyRuleAge, termFor, termAt, structureFor, valuePlayer, veteranContract, guaranteedShare, firstYearShareFor, REAL_FIRST_YEAR,
+  type MarketCurve, type MarketCurves, type Valuation, type ValueAhead, type VeteranDeal,
 } from "./cap/value.js";
+// ADR-085 step 13: teams judge a man ahead, through their GMs' eyes.
+export {
+  aheadView, decisionSeason, outlookPeriod, gmOf, gmEvaluation, outlookSkill, outlookError, AHEAD, type AheadView, type AheadContext,
+} from "./cap/ahead.js";
 export {
   needWeights, offerWorth, askingPrice, NON_MONEY_REACH, WINDOW_ASK, BARGAIN_WEEKLY, AGENT_SPREAD,
   type NegotiationNeed, type OfferTerms, type MarketWindow,

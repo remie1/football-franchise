@@ -90,11 +90,24 @@ export function quantile(sorted: readonly number[], q: number): number {
 const LATE_AGEING: ReadonlySet<Position> = new Set(["QB", "K", "P", "LS"]);
 const AGE_SHIFT = 4;
 
-/** What age takes off a price: nothing to 29, then a steady slide. */
-export function ageFactor(age: number, position: Position): number {
-  const a = age - (LATE_AGEING.has(position) ? AGE_SHIFT : 0);
+/**
+ * His age for the cap's age rules with growth off: his age, four years younger at QB, K, P and LS.
+ * A man with a growth record is read by the age his expected change matches instead, with no
+ * position in it (ADR-085 step 13, `AheadView.ruleAge`; owner, 2026-11-06: nothing is based on position).
+ */
+export function legacyRuleAge(age: number, position: Position): number {
+  return age - (LATE_AGEING.has(position) ? AGE_SHIFT : 0);
+}
+
+/** What age takes off a price, at a rule age: nothing to 29, then a steady slide. */
+export function ageFactorAt(a: number): number {
   if (a <= 29) return 1;
   return Math.max(0.45, 1 - 0.09 * (a - 29));
+}
+
+/** What age takes off a price: nothing to 29, then a steady slide (growth off). */
+export function ageFactor(age: number, position: Position): number {
+  return ageFactorAt(legacyRuleAge(age, position));
 }
 
 /**
@@ -115,7 +128,11 @@ const TERM_PER_AGE = 0.2;
  * a younger man and shorter for an older one, within the age limits.
  */
 export function termFor(age: number, position: Position, percentile: number, capShare?: number): number {
-  const a = age - (LATE_AGEING.has(position) ? AGE_SHIFT : 0);
+  return termAt(legacyRuleAge(age, position), percentile, capShare);
+}
+
+/** `termFor` at a rule age (`legacyRuleAge`, or step 13's age by expected change). */
+export function termAt(a: number, percentile: number, capShare?: number): number {
   let years = a <= 27 ? 4 : a <= 29 ? 3 : a <= 31 ? 2 : 1;
   if (percentile >= 0.9 && a <= 29) years += 1;
   if (capShare !== undefined) {
@@ -143,12 +160,36 @@ export interface Valuation {
   years: number;
 }
 
-/** A player's market price from a grade (the grader's own view of him). With `cap`, the deal's length follows the real lengths for its size. */
-export function valuePlayer(p: PlayerState, grade: number, curves: MarketCurves, minimum: number, cap?: number): Valuation {
+/**
+ * ADR-085 step 13: how a man with a growth record is valued. The grade already looks ahead, so his
+ * age takes nothing off the price; the deal's length comes from the age his expected change matches;
+ * and the price is set on his expected rating across the deal's years.
+ */
+export interface ValueAhead {
+  /** His age for the age rules (`AheadView.ruleAge`). */
+  readonly ruleAge: number;
+  /** What to add to the grade to read his expected rating across a deal of `years` (`AheadView.dealShift`). */
+  readonly shift: (years: number) => number;
+}
+
+/**
+ * A player's market price from a grade (the grader's own view of him). With `cap`, the deal's length
+ * follows the real lengths for its size. With `ahead` (step 13), the length is read first, at the grade,
+ * and the price then at his expected rating across that many years.
+ */
+export function valuePlayer(p: PlayerState, grade: number, curves: MarketCurves, minimum: number, cap?: number, ahead?: ValueAhead): Valuation {
   const curve = curves.get(TAG_GROUP[p.bio.position]);
-  const percentile = curve ? percentileOf(curve.grades, grade) : 0.5;
-  const raw = curve ? quantile(curve.apys, percentile) : minimum;
-  const apy = Math.max(minimum, Math.round(raw * ageFactor(p.bio.age, p.bio.position) / 1000) * 1000);
+  const placeOf = (g: number) => (curve ? percentileOf(curve.grades, g) : 0.5);
+  const priceAt = (percentile: number, factor: number) =>
+    Math.max(minimum, Math.round((curve ? quantile(curve.apys, percentile) : minimum) * factor / 1000) * 1000);
+  if (ahead) {
+    const first = placeOf(grade);
+    const years = termAt(ahead.ruleAge, first, cap ? priceAt(first, 1) / cap : undefined);
+    const percentile = placeOf(grade + ahead.shift(years));
+    return { percentile, apy: priceAt(percentile, 1), years };
+  }
+  const percentile = placeOf(grade);
+  const apy = priceAt(percentile, ageFactor(p.bio.age, p.bio.position));
   return { percentile, apy, years: termFor(p.bio.age, p.bio.position, percentile, cap ? apy / cap : undefined) };
 }
 
