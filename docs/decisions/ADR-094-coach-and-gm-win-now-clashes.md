@@ -351,7 +351,8 @@ Midseason firings (Q13 a) come in the next PR.
   from his first week. `OVERRULED_ON_COURSE` (-3) goes on the coach's view of the GM whenever the
   week's course is not the coach's.
 - `src/staff/steps.ts`: the step `staff:stance` runs after `staff:midseason` on each regular-season
-  week's last day but the season's last, in a league whose teams have a GM, coach and president. The
+  week's last day but the season's last, in a league whose teams have a GM, coach and president
+  (the `season` command's league seats its GMs, ADR-081 G1, so it runs there; play is unchanged). The
   user's team is left out until it has a screen. `Team.direction` is untouched (Q5 a); nothing in
   play reads the stance yet.
 - Ten stand-in seasons with GMs (made-up results, seeds stats-0 to stats-9): the two split in 23% of
@@ -360,7 +361,8 @@ Midseason firings (Q13 a) come in the next PR.
   coaches win 3 of 4 arguments that have a winner, because our GMs' politics run lower (mean 46
   against head coaches' 56); the GM decides all the same, and at ADR-084's rest views no GM thinks
   well enough of his coach (20) to meet him, so Q3 b's one step waits on warmer views.
-- Tests: `test/winNow.stance.test.ts` (8).
+- Tests: `test/winNow.stance.test.ts` (8); calibration's real-season test now lets the weekly
+  arguments move the views.
 
 ## Appendix A: new GMs by season, 2018-2026 (counted from Wikipedia season pages)
 
