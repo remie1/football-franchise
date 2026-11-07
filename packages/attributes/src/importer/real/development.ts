@@ -20,6 +20,10 @@
  *     played by the snapshot (`snapsThrough`), which the run then plays again; nothing reads the
  *     total yet.
  *   - `attributes.development.carry`: `{}`, nothing earned and unshown yet.
+ *   - `attributes.development.fadeShift` (P7, hidden; ADR-087 §12.2.3, from `/2`): his 12 fade
+ *     shifts, drawn (`drawFadeShift`, the made-up players' own body clock and spread), on his own
+ *     stream. No real data shows a man's own clock. Written for every stand-in whatever the
+ *     switches: the calibration loader reads them only with development on and `aging: "ability"`.
  *   - `bio.combine` (P2, public): only the drills he actually ran; absent when he ran none.
  *   - `personality.patience` (P6, hidden): drawn, `drawPatience`, on his own stream.
  *   - `condition.injury` (P3, public), copied (§2.5 "current injuries"): a player on injured reserve
@@ -31,9 +35,11 @@
  *   - `durability`: unchanged (step 2 sets it from his injury history).
  *
  * Every draw comes from `createRng(SEED_LABEL, DEVELOPMENT_STREAM).fork(<stand-in id>)`, split into
- * "growth", "patience" and "injury": no season in the seed, since growth is fixed for life and a
- * stand-in keeps his id from refresh to refresh; and one player's draws never move another's. The
- * ratings' stream (`attributes:real:rate/<id>`) is separate, so no rating moves.
+ * "growth", "patience", "injury" and "aging": no season in the seed, since growth is fixed for life
+ * and a stand-in keeps his id from refresh to refresh; and one player's draws never move another's.
+ * A fork by label takes nothing from the stream it is forked from, so adding "aging" at `/2` moved no
+ * growth, patience or injury draw. The ratings' stream (`attributes:real:rate/<id>`) is separate, so
+ * no rating moves.
  *
  * Pure: the league in, new players out, in the same order; it first takes off any records an
  * earlier run left, so running it on its own output changes nothing. This step owns the four paths
@@ -47,13 +53,17 @@ import {
   type PlayerState,
 } from "@ff/contracts";
 import type { Measurements } from "../../fictional/derive.js";
-import { bodyFrom, drawGrowth, drawPatience, GROWTH, PATIENCE_SEASONS } from "../../fictional/development.js";
+import { bodyFrom, drawFadeShift, drawGrowth, drawPatience, FADE_SHIFT, GROWTH, PATIENCE_SEASONS } from "../../fictional/development.js";
 import type { CareerHistory } from "./history.js";
 import { fillMeasurements } from "./rate.js";
 import type { RosterStatus } from "./standins.js";
 
-/** The records' own version: a change to what this step writes bumps it. */
-export const STARTING_DEVELOPMENT_VERSION = "standin-development/1";
+/**
+ * The records' own version: a change to what this step writes bumps it, so the calibration loader
+ * never reads records it does not know (ADR-087 §12.2.3). `/2` (AB2) adds `fadeShift`; `/3` (AB7) will
+ * add P8's `injuryHistory`.
+ */
+export const STARTING_DEVELOPMENT_VERSION = "standin-development/2";
 
 /** The seed every stand-in's development draws start from. No season in it: growth is fixed for life (P1). */
 export const SEED_LABEL = "standin";
@@ -104,7 +114,7 @@ export function copiedSince(season: number): CalendarStamp {
 
 /** Every constant the records were made with, recorded in the file so a retune shows it is stale. */
 export function startingConstants() {
-  return { growth: GROWTH, patience: PATIENCE_SEASONS, injuryWeeks: INJURY_WEEKS, bandMinWeeks: BAND_MIN_WEEKS };
+  return { growth: GROWTH, patience: PATIENCE_SEASONS, injuryWeeks: INJURY_WEEKS, bandMinWeeks: BAND_MIN_WEEKS, fadeShift: FADE_SHIFT };
 }
 
 export interface PlayerFlags {
@@ -126,7 +136,7 @@ export interface StartingDevelopment {
    * `mostGames` a team (the most any team had played; most had played fewer).
    */
   readonly snapsThrough: { readonly season: number; readonly mostGames: number };
-  readonly basis: Readonly<Record<"body" | "growth" | "snaps" | "patience" | "injury" | "durability", string>>;
+  readonly basis: Readonly<Record<"body" | "growth" | "snaps" | "patience" | "injury" | "durability" | "fadeShift", string>>;
   readonly constants: ReturnType<typeof startingConstants>;
   /**
    * Teams whose latest injury report (the latest week any of its players is listed) has no game
@@ -148,7 +158,10 @@ export interface StandInDevelopmentInput {
   readonly history: Readonly<Record<string, CareerHistory>>;
 }
 
-/** The player without anything this step adds: what an earlier run left, taken off. */
+/**
+ * The player without anything this step adds: what an earlier run left, taken off. The whole
+ * development record goes, so his fade shifts (`/2`) go with it.
+ */
 export function stripStartingDevelopment(p: PlayerState): PlayerState {
   const { development: _d, ...attributes } = p.attributes;
   const { patience: _p, ...personality } = p.personality;
@@ -220,6 +233,8 @@ export function standInDevelopment(input: StandInDevelopmentInput): { players: P
       carry: {},
       // Exactly the drills he was rated from (the one fill): his body and his ratings agree.
       body: bodyFrom(rated.get(id)!.measurements),
+      // ADR-087 §12.2.3 (`/2`): his own fade shifts, on his "aging" fork, whatever the switches.
+      fadeShift: drawFadeShift(rng.fork("aging")),
     };
     const patience = drawPatience(rng.fork("patience"));
     for (const g of h.gamesPlayed) if (g.season === input.season) mostGames = Math.max(mostGames, g.games);
@@ -262,6 +277,7 @@ export function standInDevelopment(input: StandInDevelopmentInput): { players: P
         patience: "drawn (drawPatience)",
         injury: "copied: reserve lists R01, R48, R04, R05, and active players Out or Doubtful on their team's latest report; weeks drawn from injuryWeeks (placeholders)",
         durability: "unchanged (the rating's own draw)",
+        fadeShift: "drawn (drawFadeShift: the body clock and spread of ADR-087 §12.2.3), not estimated; no real data shows a man's own clock",
       },
       constants: startingConstants(),
       teamsWithoutGameStatus: teams.filter((t) => !withStatus.has(t)).map((team) => ({ team, reportWeek: reportWeek.get(team) ?? null })),
