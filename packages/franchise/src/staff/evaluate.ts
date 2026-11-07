@@ -224,6 +224,11 @@ export interface ReportInput {
   teamCount: number;
   players: ReadonlyMap<string, PlayerState>;
   seed: string;
+  /**
+   * ADR-094 §8 (Q8 a): a second evaluator on the same team (the GM) rolls his own interview dice.
+   * Absent: the dice are the team's, as they were before GMs had a say.
+   */
+  diceKey?: string;
 }
 
 /** What the evaluator makes of one candidate for one seat. */
@@ -235,7 +240,7 @@ export function candidateReport(input: ReportInput): CandidateReport {
   const read: CoachRatings = {};
   const out: Record<string, number> = {};
   for (const id of COACH_SKILLS) {
-    const rng = createRng(input.seed, `franchise:staff/interview/${played}/${String(evaluator.team.id)}/${String(c.id)}/${id}`);
+    const rng = createRng(input.seed, `franchise:staff/interview/${played}/${String(evaluator.team.id)}${input.diceKey ? `/${input.diceKey}` : ""}/${String(c.id)}/${id}`);
     const v = Math.round(rating(c.attributes, id) + readError * normal(rng));
     read[id] = v;
     out[id] = v;

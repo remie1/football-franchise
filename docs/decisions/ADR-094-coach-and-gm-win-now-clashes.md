@@ -264,6 +264,37 @@ and how early, not by any edge.
 - Nothing reads a lean or pressure yet; they are read from step 3 (the weekly stance) on.
 - Tests: `test/winNow.test.ts` (12).
 
+**Step 2, offseason part (2026-11-07, same thread).** In `packages/franchise`; no contracts change.
+Midseason firings (Q13 a) come in the next PR.
+- `src/staff/frontOffice.ts`: the front office and the GM chair. Every team keeps a scouting director
+  and a cap manager (the ladder, ids F00001 on, so coaches keep their numbering; they hold no league
+  seat and are never coaching candidates). The president's verdict on his GM averages the whole
+  tenure, each season back counting 0.75 as much; honeymoon 3, 2, 1, 0.4 off the logit in seasons
+  one to four (a head coach's is 1.6, 0.8, 0.25: Q7 a's longer leash). Candidates: every ladder man,
+  GMs out of work up to 6 seasons, head coaches out of work up to 5 seasons and 64 or younger, and a
+  man from outside made on the spot. The kind a team hires is drawn from the COUNTED mix (28, 5, 2, 1
+  of 36), among the kinds it has candidates of; the best of that kind by the president's read is
+  hired (his error falls as his talent evaluation rises). Contracts 4 or 5 years, $1.5M to $6M; the
+  GMs ADR-081 made get a contract with 1 to 4 seasons left the first offseason. Rates and sizes CHOSEN.
+- `src/staff/offseason.ts`: the GM step runs after retirements and before the head coach step, only
+  in a league that has GMs, so a league without them is unchanged (the 50-season `staff-check
+  --views` report is identical to main). GMs and the ladder now retire and age; presidents still do
+  not. Q8 a: with a GM, the head coach's firing chance is half the president's and half the GM's (his
+  own roster read and, with views kept, his view of the coach), and a head coach candidate's
+  judgement is the average of the president's and the GM's interviews (the GM rolls his own dice,
+  `candidateReport`'s new `diceKey`). A new head coach's view of the GM who helped hire him takes
+  ADR-084's HIRED move (+10).
+- Q10 a: the president never judges the user's GM. `StaffOffseasonInput.gm.fire` is the user's call
+  each offseason (absent: he stays) and `gm.choose` picks his successor from the reports (absent:
+  the computer picks); both are decided by the HUMAN under GM authority. `staffSteps` passes them on.
+- `staff-check --gms` (seed staff-check, 50 seasons, the first 10 left out because every GM starts
+  new): 4.3 GM changes a year (1 to 8; COUNTED 4, from 2 to 7); new GMs from front offices 83%,
+  former GMs 11%, head coaches 5%, outside 2% (COUNTED 78, 14, 6, 3); sitting GMs' median 3.9
+  seasons served (REPORTED about 3 in 2024; Appendix A's hires give about 4 in 2026); head coach
+  changes 8.0 a year against 8.1 without GMs; GM and head coach changed together 1.6 times a year (no
+  real count). When midseason firings land, about 1 of the 4 moves to midseason and this is re-tuned.
+- Tests: `test/staff.gm.test.ts` (15).
+
 ## Appendix A: new GMs by season, 2018-2026 (counted from Wikipedia season pages)
 
 Background: FO = came up through a front office; Re = former GM; HC = head coach given GM power;
