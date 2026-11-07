@@ -1,4 +1,4 @@
-# ADR-095: Fans and media have a mood, and a weekly team podcast reads it
+# ADR-096: Fans and media have a mood, and a weekly team podcast reads it
 
 - **Date:** 2026-11-07
 - **Proposed by:** Orchestrator, for `franchise` (mood, the perception system's public side, and its

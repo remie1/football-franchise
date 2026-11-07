@@ -920,7 +920,7 @@ export type FranchiseEvent =
         winner?: StaffId; outcome: TeamStance;
       } }
   /**
-   * ADR-095 M1: a team's fan and media moods after a week's games or an offseason moment (`week`
+   * ADR-096 M1: a team's fan and media moods after a week's games or an offseason moment (`week`
    * absent then). `readings` carries every subject's latest reading, so the newest event is the
    * whole picture. Public.
    */

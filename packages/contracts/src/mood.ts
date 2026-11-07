@@ -1,7 +1,7 @@
 /**
- * ADR-095 M1, M2: fan and media mood, the perception system's public side. Franchise keeps it and
+ * ADR-096 M1, M2: fan and media mood, the perception system's public side. Franchise keeps it and
  * moves it after each week's games and at the offseason's big moments; the news and the team
- * podcast read it. Apart from the president's firing chances (behind a switch, ADR-095 §6),
+ * podcast read it. Apart from the president's firing chances (behind a switch, ADR-096 §6),
  * nothing in the sim reads it.
  */
 import type { PlayerId, StaffId } from "./ids.js";
