@@ -7,8 +7,10 @@
  * 3. The refusals, each named: under legacy (`playsLegacyRules` false for a tree carrying it), on
  *    kind T (`playsTodaysLine` false too), and without its stamp. No petition gates it.
  * 4. The dials' domains: five switches, D23's bar 30, the reset on the tenth, the CHOSEN floor.
- * 5. In this commit nothing reads the block beyond the reader: a play under S or L with the
- *    all-off block gives the stream it gives without the block (same stamp).
+ * 5. The all-off block (every part off, no floor) plays today's count: a play under S or L with it
+ *    gives the stream it gives without the block (same stamp). The checklist reads the block
+ *    (`sim/cleanPocket.ts`, its own tests `pocketS5.*.test.ts`), and with every part off and no
+ *    floor its `mustDecideNow` is today's expression and nothing else of it acts.
  */
 import { describe, expect, it } from "vitest";
 import { simulatePassPlay } from "../src/index.js";
@@ -212,7 +214,7 @@ describe("ADR-089 step 5a: the block's dials", () => {
   });
 });
 
-describe("ADR-089 step 5a: nothing reads the block yet beyond the reader", () => {
+describe("ADR-089 step 5a: the all-off block plays today's count", () => {
   it("under S and L the all-off block gives the stream the bundle gives without it (same stamp)", () => {
     for (const base of [S4S_TUNABLES, S4L_TUNABLES, SW_TUNABLES, withStep4(L5_TUNABLES, {})]) {
       for (let i = 0; i < 12; i++) {

@@ -21,13 +21,20 @@ vi.mock("../src/sim/freeRunTiming.js", async (importOriginal) => {
   return { ...real, timeFreeRunners: vi.fn(real.timeFreeRunners) };
 });
 
+// ADR-089 step 5a (R-4): pass-through spies, so the checklist's pairing reads the ticks on which the
+// clean-expiry predicate held. Nothing is changed; no rule set before s5 calls the module.
+vi.mock("../src/sim/cleanPocket.js", async (importOriginal) => {
+  const real = await importOriginal<typeof import("../src/sim/cleanPocket.js")>();
+  return { ...real, mustDecideNow: vi.fn(real.mustDecideNow), cleanExpiry: vi.fn(real.cleanExpiry) };
+});
+
 import { createRng, playerId } from "@ff/contracts";
 import type { MatchEvent, MatchEventEnvelope, RollDetail } from "@ff/contracts";
 import { defaultPlayCaller, simulateGame, simulatePassPlay, simulateRunPlay } from "../src/index.js";
 import { resolveLateTickL } from "../src/resolve/lateBlock.js";
 import { timeFreeRunners } from "../src/sim/freeRunTiming.js";
 import { buildGameFixture } from "./gameFixtures.js";
-import { DEFAULT_TUNABLES } from "../src/tunables.js";
+import { DEFAULT_TUNABLES, applyTunablePatch } from "../src/tunables.js";
 import type { Tunables } from "../src/tunables.js";
 import { CONTACT_FILED, MOTION_FILED, todaysLine, withStep4 } from "./step4Fixtures.js";
 import {
@@ -46,6 +53,10 @@ import {
 } from "./pocketTunables.js";
 import { callsUnder, frontWithPicture, needsPicture, withLineUp, withPicture } from "./snapFixtures.js";
 import { mustActThreat } from "../src/resolve/pocket.js";
+import { cleanExpiry, mustDecideNow } from "../src/sim/cleanPocket.js";
+import { timeBudgetSeconds } from "../src/resolve/qbRead.js";
+import { S4_TUNABLES } from "./step4Fixtures.js";
+import { CLEAN_POCKET_FILED, DROP_FLOOR_FILED, S5L_TUNABLES, S5S_TUNABLES, S5_TUNABLES, cleanParts, restampS5, withCleanPocket } from "./step5Fixtures.js";
 import {
   RUN_SCHEMES,
   buildDeflectionScenario,
@@ -1117,5 +1128,178 @@ describe("ADR-004 roll accounting", () => {
     }
     expect(tight).toBeGreaterThan(0);
     expect(wide).toBeGreaterThan(0);
+  });
+  /**
+   * ADR-089 step 5a, R-4: ROLL ACCOUNTING BY PART (plan §7.2). Each part of the s5a build is played
+   * alone against `pocket-1.s4` on the league tunables (D1's shape, the picture on both), every pass
+   * fixture and seed:
+   *  22. the checklist alone (every part on, no floor, today's deltas) draws the base's rolls, label
+   *      and value, in order, up to the first tick on which the clean-expiry predicate holds;
+   *  23. the drop floor alone (every part off) draws them up to the base's first throw decision or
+   *      checkdown look before the play's floor (the first roll the floor withholds);
+   *  24. the three read-system deltas alone draw them up to the first tick at or past the smaller of
+   *      the two counts;
+   *  25. after each cut the only family the part adds in the movement bucket is
+   *      `/movement/t#:clean`, and no other family is new over the base's (the carrier's labels
+   *      left out and the rush bucket's men read as one, as step 4's pairing reads them);
+   *  26. under the full s5a build and an s5b-like one (another block-clock point, b 5): no RollDetail
+   *      twice in a play or a game, and no `:deadline`, `:drill:`, `:contact`, `:dodge` or `:alarm`.
+   */
+  describe("step 5a (R-4)", () => {
+    const family = (label: string): string =>
+      label.replace(/(^|[/:])t\d+(\.\d+)?(?=[:/]|$)/g, "$1t#").replace(/:([ra])\d+:/g, ":$1#:").replace(/\/play:\d+\//g, "/play:#/");
+    const ticked = (events: readonly MatchEventEnvelope[]) => {
+      const tickOfSeq = new Map(events.map((e) => [e.seq, (e.event as { tick?: number }).tick]));
+      return allRolls(events).map((r) => ({ label: r.roll.rngLabel, raw: r.roll.raw, seq: r.seq, tick: tickOfSeq.get(r.seq) }));
+    };
+    type Rolls = ReturnType<typeof ticked>;
+    /** The arm's rolls equal the base's, label and value, in order, up to `cut` rolls of the base (all when undefined). */
+    const samePrefix = (base: Rolls, arm: Rolls, cut: number | undefined, at: string): void => {
+      const n = cut ?? Math.max(base.length, arm.length);
+      expect(arm.slice(0, n).map((r) => [r.label, r.raw]), at).toEqual(base.slice(0, n).map((r) => [r.label, r.raw]));
+    };
+    const deltas = (t: Tunables, by: Record<"HALF_FIELD" | "FULL_FIELD" | "CONCEPT", number>): Tunables =>
+      (["HALF_FIELD", "FULL_FIELD", "CONCEPT"] as const).reduce(
+        (acc, system) =>
+          applyTunablePatch(acc, {
+            tunableId: `qb.readSystem.${system}.budgetDeltaSeconds`,
+            currentValue: acc.qb.readSystem[system].budgetDeltaSeconds,
+            proposedValue: by[system],
+            evidence: "R-4 test",
+            expectedEffect: "the count moves",
+          }),
+        t,
+      );
+    const SEEDS = 60;
+
+    it("each part draws s4's rolls up to its own cut, and adds only the clean pick's family (22 to 25)", () => {
+      // E7's parts: every part of the checklist on, no floor (the key left out), today's deltas.
+      const { dropFloor: _floor, ...noFloor } = CLEAN_POCKET_FILED;
+      const checklist = withCleanPocket(restampS5(S4_TUNABLES, "fnv1a:7f5a00e7"), noFloor);
+      const floorOnly = withCleanPocket(
+        restampS5(S4_TUNABLES, "fnv1a:7f5a00e2"),
+        cleanParts({ d23: false, move: false, bump: false, breakOut: false, d23OnRun: false, dropFloor: DROP_FLOOR_FILED }),
+      );
+      // Each system's count moved half a second (the 5a fit sets its own; the cut is what is tested).
+      const shifted = { HALF_FIELD: 0, FULL_FIELD: 1.5, CONCEPT: -0.5 };
+      const deltasOnly = deltas(restampS5(S4_TUNABLES, "fnv1a:7f5a00e1"), shifted);
+      const parts = [
+        { name: "checklist", arm: checklist },
+        { name: "floor", arm: floorOnly },
+        { name: "deltas", arm: deltasOnly },
+      ] as const;
+      for (const { name, arm } of parts) {
+        const baseFamilies = new Set<string>();
+        const armFamilies = new Set<string>();
+        let cutPlays = 0;
+        let whole = 0;
+        let differ = 0;
+        for (const [fixture, build] of step3Fixtures()) {
+          for (let i = 0; i < SEEDS; i++) {
+            const seed = `paired-s5-${name}-${fixture}-${i}`;
+            const { state, calls } = build();
+            vi.mocked(mustDecideNow).mockClear();
+            vi.mocked(cleanExpiry).mockClear();
+            const base = ticked(simulatePassPlay(state, calls, seed, S4_TUNABLES).events);
+            const x = simulatePassPlay(state, calls, seed, arm).events;
+            const armRolls = ticked(x);
+            for (const r of base) baseFamilies.add(family(r.label));
+            for (const r of armRolls) armFamilies.add(family(r.label));
+            let cutTick: number | undefined;
+            let cut: number | undefined;
+            if (name === "checklist") {
+              // (22) the first tick the predicate held: the `mustDecideNow` facts just before its first `true`.
+              const order = vi.mocked(cleanExpiry).mock.results.findIndex((r) => r.type === "return" && r.value === true);
+              if (order >= 0) {
+                const at = vi.mocked(cleanExpiry).mock.invocationCallOrder[order] ?? 0;
+                const must = vi.mocked(mustDecideNow).mock.calls.filter((_, k) => (vi.mocked(mustDecideNow).mock.invocationCallOrder[k] ?? 0) < at);
+                cutTick = must[must.length - 1]?.[0].tick;
+              }
+            } else if (name === "floor") {
+              // (23) the base's first throw decision or checkdown look before the play's floor.
+              const start = x.find((e) => e.event.type === "PLAY_START");
+              const offense = (start?.event.payload as { offense: { readOrder: string[]; routes: { receiver: string; depthClass: keyof typeof DROP_FLOOR_FILED; airYards: number }[] } }).offense;
+              const first = offense.routes.find((r) => r.receiver === offense.readOrder[0]);
+              const floor = first === undefined || first.airYards < 0 ? 0 : DROP_FLOOR_FILED[first.depthClass];
+              const k = base.findIndex((r) => (r.tick ?? 0) < floor && /:decision\/|:checkdown:/.test(r.label));
+              if (k >= 0) cut = k;
+            } else {
+              // (24) the first tick at or past the smaller count.
+              const qb = state.players[state.quarterback as unknown as string];
+              if (qb === undefined) throw new Error("no quarterback");
+              cutTick = Math.min(timeBudgetSeconds(S4_TUNABLES, qb, calls.offense.readSystem), timeBudgetSeconds(arm, qb, calls.offense.readSystem));
+            }
+            if (cutTick !== undefined) {
+              // A base that drew nothing at or past the cut (a clock-expired throwaway, say) is equal in full.
+              const k = base.findIndex((r) => (r.tick ?? 0) >= (cutTick as number));
+              cut = k < 0 ? base.length : k;
+            }
+            if (cut === undefined && cutTick === undefined) whole += 1;
+            else cutPlays += 1;
+            samePrefix(base, armRolls, cut, `${name} ${seed}`);
+            if (JSON.stringify(armRolls.map((r) => [r.label, r.raw])) !== JSON.stringify(base.map((r) => [r.label, r.raw]))) differ += 1;
+          }
+        }
+        // (25) the families the part adds: the clean pick's alone (the checklist), none for the others.
+        // As in step 4's pairing, a carrier's or a tackle's labels name the zone and the man a play
+        // happened to reach, and a contest's the rusher who got there, so a play that goes on longer
+        // draws names the base did not: the carrier's labels are left out and the rush bucket's men
+        // are read as one.
+        const kind = (f: string): string => f.replace(/\/rush\/t#\/[^/:]+/, "/rush/t#/*").replace(/:contest:[^/:]+$/, ":contest:*");
+        const baseKinds = new Set([...baseFamilies].map(kind));
+        const added = [...armFamilies].filter((f) => !f.includes("/carrier/") && !baseKinds.has(kind(f)));
+        const movementAdded = added.filter((f) => f.includes("/movement/"));
+        if (name === "checklist") expect(movementAdded, name).toEqual([expect.stringMatching(/\/movement\/t#:clean$/)]);
+        else expect(movementAdded, name).toEqual([]);
+        expect(added.filter((f) => !/\/movement\/t#:clean$/.test(f)), `${name}: ${JSON.stringify(added)}`).toEqual([]);
+        expect(cutPlays, name).toBeGreaterThan(50);
+        // The part acts: some plays part from the base after their cut.
+        expect(differ, name).toBeGreaterThan(10);
+        if (name !== "deltas") expect(whole, name).toBeGreaterThan(0);
+      }
+      expect("dropFloor" in (checklist.pocket.cleanPocket ?? {})).toBe(false);
+    });
+
+    it("no RollDetail twice in a play or a game under s5a and an s5b-like build, and no step-6 or step-7 label (26)", () => {
+      const beat = S5S_TUNABLES.passRush.beatClock;
+      if (beat === undefined) throw new Error("S5S without its block clock");
+      const s5bLike = { ...restampS5(S5S_TUNABLES, "fnv1a:7f5a00b1", "pocket-1.s5b"), passRush: { ...S5S_TUNABLES.passRush, beatClock: { ...beat, thetaSeconds: 8 } } };
+      const NOT_AT_5A = /:deadline$|:drill:|:contact(:|$)|:dodge(:|$)|:alarm(:|$)/;
+      const runs: readonly [string, Tunables, boolean][] = [
+        ["s5a", S5_TUNABLES, true],
+        ["s5a shape S", S5S_TUNABLES, false],
+        ["s5a shape L", S5L_TUNABLES, false],
+        ["s5b-like", s5bLike, false],
+      ];
+      let clean = 0;
+      for (const [name, tunables, picture] of runs) {
+        for (const [fixture, build] of PASS_FIXTURES) {
+          for (let i = 0; i < 30; i++) {
+            const { state, calls } = build();
+            const { events } = simulatePassPlay(state, picture ? withPicture(state, calls) : calls, `s5-once-${fixture}-${i}`, tunables);
+            const labels = allRolls(events).map((r) => r.roll.rngLabel);
+            expect(new Set(labels).size, `${name} ${fixture} ${i}`).toBe(labels.length);
+            expect(labels.filter((l) => NOT_AT_5A.test(l)), `${name} ${fixture} ${i}`).toEqual([]);
+            clean += labels.filter((l) => l.endsWith(":clean")).length;
+          }
+        }
+      }
+      expect(clean).toBeGreaterThan(100);
+      const fixture = buildGameFixture({ seed: "s5-game-accounting" });
+      for (const [name, tunables, picture] of runs) {
+        const inputs = picture
+          ? { ...fixture.inputs, callers: { home: withLineUp(defaultPlayCaller("baseline-home")), away: withLineUp(defaultPlayCaller("baseline-away")) } }
+          : fixture.inputs;
+        const { events } = simulateGame(fixture.state, inputs, fixture.seed, tunables);
+        const rolls = allRolls(events);
+        expect(rolls.length, name).toBeGreaterThan(500);
+        const seen = new Map<string, number>();
+        for (const { roll, seq } of rolls) {
+          expect(seen.get(roll.rngLabel), `${name}: ${roll.rngLabel} at ${seq}`).toBeUndefined();
+          expect(NOT_AT_5A.test(roll.rngLabel), `${name}: ${roll.rngLabel}`).toBe(false);
+          seen.set(roll.rngLabel, seq);
+        }
+      }
+    });
   });
 });

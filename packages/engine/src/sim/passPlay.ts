@@ -78,6 +78,7 @@ import { readPreSnap, resolvePickups, resolveStunts } from "./preSnap.js";
 import type { RushPlan } from "./preSnap.js";
 import { assertSnapPictureFor, timeFreeRunners } from "./freeRunTiming.js";
 import { pocketRulesOf, pocketRulesUnder } from "./pocketRules.js";
+import { bumpFor, cleanExpiry, d23Pool, floorSecondsOf, isScreen, mustDecideNow, resetAfterMove, resolveCleanPick } from "./cleanPocket.js";
 import { ContactBook } from "./contactBook.js";
 import { arrivedInGridOrder, liveAtTick, onFreeRunClockAtContact, onFreeRunClockAtSnap, rebuiltTick, shedDelaySecondsOf } from "./contactTick.js";
 import type { TickStatusInputs } from "./contactTick.js";
@@ -122,6 +123,7 @@ import {
   sacksWithoutTarget,
 } from "../resolve/pocket.js";
 import { resolvePocketMovement } from "../resolve/pocketMovement.js";
+import type { PocketMovementOutcome } from "../resolve/pocketMovement.js";
 import { resolvePassRushRep, resolvePassRushTick } from "../resolve/passRush.js";
 import type { PassRushBandLabel, PassRushTickOutcome } from "../resolve/passRush.js";
 import { drawBeat, resolveBeatTick } from "../resolve/beatClock.js";
@@ -426,6 +428,13 @@ interface ReceiverTrack {
    * of structure: a scrambling passer is looking at the field as it is.
    */
   belief: CoverageBelief | undefined;
+  /**
+   * ADR-089 step 5a (item d, D25): the window bump a clean move gave him, added to his base inside
+   * the decayed openness, before the clamp, for the rest of the play. Never set without the
+   * clean-pocket block, and then only on a man past his break at a clean move who was TRAILING
+   * (+10) or EVEN (+5). It never touches `contestPosition`.
+   */
+  bump?: number;
 }
 
 function requirePlayer(state: MatchGameState, id: PlayerId): PlayerState {
@@ -570,7 +579,9 @@ export function simulatePassPlayWith(
   );
 
   const system = calls.offense.readSystem;
-  const budgetSeconds = timeBudgetSeconds(tunables, qb, system);
+  // ADR-089 step 5a (item d): a `let` only so that a clean move can restate it (`resetAfterMove`,
+  // under `pocket.cleanPocket` only); every other rule set never writes it after this line.
+  let budgetSeconds = timeBudgetSeconds(tunables, qb, system);
   const maxReads = maxReadsFor(tunables, system);
   const throwThreshold = throwThresholdFor(tunables, system);
   // ---- ADR-068 step 1 / ADR-070 §3: the coverage read ---------------------------------
@@ -830,6 +841,23 @@ export function simulatePassPlayWith(
   let tick: number = tunables.clock.firstTick;
   let stepUpsUsed = 0;
   let scramble: ScrambleState | undefined;
+
+  // ---- ADR-089 step 5a: his count and the clean-pocket checklist (`sim/cleanPocket.ts`) --------
+  // Every line below that reads the block is reached only when the rules carry it (`cleanPocket
+  // !== undefined`), so `legacy`, s1 to s4 and kind T run none of it and call nothing in
+  // `cleanPocket.ts`. The drop floor is read once, from the first read's route as run at the snap
+  // (after any hot conversion): 0 with no floor in the block, no first read, or a screen.
+  const cleanPocket = rules.kind === "LEGACY" ? undefined : rules.cleanPocket;
+  const firstRoute =
+    cleanPocket?.dropFloor === undefined ? undefined : tracks.find((t) => t.assignment.receiver === readOrder[0])?.assignment;
+  const floorSeconds =
+    cleanPocket?.dropFloor === undefined || firstRoute === undefined || isScreen(firstRoute)
+      ? 0
+      : floorSecondsOf(cleanPocket.dropFloor, firstRoute.depthClass);
+  /** Item c: MOVE is offered once a play. */
+  let cleanMoveUsed = false;
+  /** He broke out at a clean pick (D23 on the run reads it). */
+  let cleanBreakOut = false;
 
   /**
    * ADR-007 — every threat transition is published, not inferred. ADR-022: the
@@ -1228,6 +1256,43 @@ export function simulatePassPlayWith(
     if (book !== undefined) late.previousMargin = rush.margin;
   };
 
+  /**
+   * §7.2's climb, today's in full, factored so that the forced pick's STEP_UP and ADR-089 step 5a's
+   * clean MOVE run the same lines (plan §2.1 item d): the step-up counted, `QB_DECISION` STEP_UP
+   * published before its consequences, every rusher live at it marked for D21 (a step-4 block), and
+   * every EDGE threat delayed by `stepUp.edgeThreatDelaySeconds`, published DELAYED, time-retired if
+   * pushed past the clock, and his edge pressure reset. The caller advances the tick.
+   */
+  const climb = (): void => {
+    stepUpsUsed += 1;
+    // The decision is published BEFORE its consequences, so the stream reads
+    // as cause then effect: he climbed, and these arrivals moved because of it.
+    log.qbDecision("STEP_UP");
+    // ADR-089 step 4 (plan §2.1 `contactFrom`): every rusher live (not ARRIVED) at this STEP_UP
+    // comes from BEHIND if his approach is ARC, from this STEP_UP on.
+    if (book !== undefined) {
+      for (const m of matchups) {
+        if (liveAtTick(m.threat, tick)) liveAtStepUp.add(String(m.rusher.bio.id));
+      }
+    }
+    for (const m of matchups) {
+      if (m.threat === undefined || m.threat.alignment !== "EDGE") continue;
+      const beforeStepUp = m.threat;
+      m.threat = delayThreat(m.threat, tunables.pocketMovement.stepUp.edgeThreatDelaySeconds);
+      m.announcedArrival = false;
+      // ADR-089 step 4: the step-up's wait joins his contact time (D21).
+      if (book !== undefined) book.delayed(beforeStepUp, m.threat);
+      // ADR-007 — the climb is exactly the adjustment the printout used to
+      // have to disclaim. The arrival it publishes here is the real one.
+      publishThreat(m.threat, "DELAYED");
+      // §7.2 TIME RETIREMENT — a step-up's own push-back can be what tips
+      // an edge threat's ETA past the play's own clock.
+      retireIfBeyondClock(m);
+      // A rusher run past by a climbing quarterback starts his rep over.
+      if (tunables.pocketMovement.stepUp.resetsEdgePressure) m.pressure = 0;
+    }
+  };
+
   while (outcome === undefined && tick <= tunables.clock.maxTick) {
     log.tickStart(tick);
 
@@ -1272,6 +1337,8 @@ export function simulatePassPlayWith(
      */
     let pocket: PocketStatusRung | undefined;
     let statusInputs: TickStatusInputs | undefined;
+    /** ADR-089 step 5a: the status this tick published; a rebuild after a shed never changes it. */
+    let publishedStatus: PocketStatusRung | undefined;
     if (scramble === undefined) {
       // ADR-089 step 2 — under `pocket.forcing` COUNTER_LESS_SEEN (the narrower counter rule,
       // information only) a matchup whose won rep has a live threat in `threats` is left out of
@@ -1302,6 +1369,7 @@ export function simulatePassPlayWith(
       });
       pocket = pocketStatusFor(tunables, highest, previousBands, minTimeToArrival(threats, tick));
       log.pocketStatus(pocket);
+      publishedStatus = pocket;
       // ADR-089 step 4: what a rebuild after a shed re-reads the status from (the counter and the
       // band floor stay the tick's own; the shed moved threats, not pressure).
       statusInputs = { highest, previousBands };
@@ -1628,10 +1696,19 @@ export function simulatePassPlayWith(
     // `resolve/scramble.ts`'s `pursuitForcesDecision` for the derivation.
     // ADR-089 step 2: the pocket branch's count part (`tick >= budgetSeconds || readsUsed >=
     // maxReads`) is unchanged under every rule.
+    //
+    // ADR-089 step 5a (D26): under `pocket.cleanPocket` the pocket branch is `mustDecideNow`, whose
+    // count part also waits for the drop floor; under every other rule set, today's expression.
     let mustDecide =
       pocket === undefined
         ? scramble !== undefined && pursuitForcesDecision(tunables, tick, scramble.pursuitAtTick)
-        : forced || tick >= budgetSeconds || readsUsed >= maxReads;
+        : cleanPocket === undefined
+          ? forced || tick >= budgetSeconds || readsUsed >= maxReads
+          : mustDecideNow({ forced, tick, budgetSeconds, readsUsed, maxReads, floorSeconds });
+    // ADR-089 step 5a, the drop floor: in the pocket and before it, no aimed throw is decided and no
+    // checkdown look is taken (pressured or clean); throws on the run are not bound. Always false
+    // without the block (`floorSeconds` 0).
+    const beforeFloor = scramble === undefined && tick < floorSeconds;
     // ADR-055 §6 point 3 — pursuit's own accuracy constant for any throw released
     // this tick, not `pocket.accuracyModifier` borrowed through a rung it no
     // longer has (`resolveAccuracy`'s consumer, `throwTo`, below).
@@ -1653,7 +1730,10 @@ export function simulatePassPlayWith(
       minTta = r.minTta;
       pocket = r.pocket;
       forced = r.forced;
-      mustDecide = forced || tick >= budgetSeconds || readsUsed >= maxReads;
+      mustDecide =
+        cleanPocket === undefined
+          ? forced || tick >= budgetSeconds || readsUsed >= maxReads
+          : mustDecideNow({ forced, tick, budgetSeconds, readsUsed, maxReads, floorSeconds });
       accuracyPenalty = accuracyPenaltyForPocket(tunables, pocket);
     };
 
@@ -1744,7 +1824,7 @@ export function simulatePassPlayWith(
       rebuildAfterShed();
     }
 
-    if (candidates.length > 0 && bestOf(candidates) >= throwThreshold) {
+    if (!beforeFloor && candidates.length > 0 && bestOf(candidates) >= throwThreshold) {
       outcome = throwTo(
         selectTarget(tunables, qb, candidates, qbReadRng.fork(`t${tick.toFixed(1)}:decision`)),
         undefined,
@@ -1767,7 +1847,7 @@ export function simulatePassPlayWith(
      * with a floor of its own, so a covered outlet is not thrown to.
      */
     let outletId: PlayerId | undefined;
-    if (mustDecide && scramble === undefined) {
+    if (mustDecide && scramble === undefined && !beforeFloor) {
       const outlet = checkdownTrack(tracks, readOrder);
       if (outlet !== undefined && !outlet.reachedInProgression) {
         const effective = takeRead(outlet, "checkdown");
@@ -1782,7 +1862,28 @@ export function simulatePassPlayWith(
       }
     }
 
-    if (mustDecide && candidates.length > 0 && bestOf(candidates) >= tunables.qb.desperationThreshold) {
+    // ADR-089 step 5a (item b, D23): on a clean expiry with `d23` the pool is cut to men at the
+    // expiry bar (30) or more and today's decision roll runs on it; the desperation throw at 25 is
+    // not taken, and nobody at 30 goes on to the pick below. After a clean break-out with
+    // `d23OnRun` the desperation throw is not taken on the run either (the normal-bar throw above
+    // stays). Before the floor no throw is decided.
+    const cleanD23 =
+      cleanPocket !== undefined &&
+      cleanPocket.d23 &&
+      cleanExpiry({ mustDecide, forced, scrambling: scramble !== undefined, publishedStatus, contested: contestedThisTick });
+    if (cleanD23) {
+      const pool = d23Pool(candidates, cleanPocket.expiryBar);
+      if (pool.length > 0) {
+        outcome = throwTo(selectTarget(tunables, qb, pool, qbReadRng.fork(`t${tick.toFixed(1)}:decision`)), outletId);
+        break;
+      }
+    } else if (
+      mustDecide &&
+      !beforeFloor &&
+      !(cleanBreakOut && cleanPocket?.d23OnRun === true) &&
+      candidates.length > 0 &&
+      bestOf(candidates) >= tunables.qb.desperationThreshold
+    ) {
       outcome = throwTo(
         selectTarget(tunables, qb, candidates, qbReadRng.fork(`t${tick.toFixed(1)}:decision`)),
         outletId,
@@ -1878,49 +1979,70 @@ export function simulatePassPlayWith(
     //
     // ADR-089 step 2: gated by `forced`, which is `forcesDecision(pocket)` under `STEP_1` and
     // `COUNTER_LESS_SEEN` (today's gate) and must act's THREAT part under `PER_RUSHER` (§4.3:
-    // "the movement branch is gated by its threat part"), never its count part: a clean expiry
-    // still goes to CLOCK_EXPIRED below, with no movement check.
-    if (forced) {
-      const movement = resolvePocketMovement({
+    // "the movement branch is gated by its threat part"), never its count part: without the
+    // clean-pocket block a clean expiry still goes to CLOCK_EXPIRED below, with no movement check.
+    //
+    // ADR-089 step 5a (item c, D27): under `pocket.cleanPocket` with `move` or `breakOut`, a clean
+    // expiry that has not thrown reaches the one ranked pick between MOVE and ESCAPE, on
+    // `movement/t<tick>:clean` (`resolveCleanPick`), and its response runs the branch below that
+    // today's pick's would. With no option offered there is no die and today's path runs. Never on
+    // a forced tick, so a `:clean` and a `:movement` CHECK never share one.
+    const climbLane = rules.kind === "LEGACY" ? "INTERIOR" : rules.climbLane;
+    let cleanPick: PocketMovementOutcome | undefined;
+    if (
+      !forced &&
+      cleanPocket !== undefined &&
+      (cleanPocket.move || cleanPocket.breakOut) &&
+      cleanExpiry({ mustDecide, forced, scrambling: scramble !== undefined, publishedStatus, contested: contestedThisTick })
+    ) {
+      cleanPick = resolveCleanPick({
         tunables,
         qb,
         tick,
         threats,
-        // ADR-089 step 3 (E5): FRONT under `pocket-1.s3` with `pocket.climbLane`; INTERIOR otherwise.
-        climbLane: rules.kind === "LEGACY" ? "INTERIOR" : rules.climbLane,
+        climbLane,
         stepUpsUsed,
-        throwawayAvailable,
-        movementRng: movementRng.fork(`t${tick.toFixed(1)}:movement`),
+        moveOffered: cleanPocket.move && !cleanMoveUsed,
+        escapeOffered: cleanPocket.breakOut,
+        movementRng,
       });
+    }
+    if (forced || cleanPick !== undefined) {
+      const movement =
+        cleanPick ??
+        resolvePocketMovement({
+          tunables,
+          qb,
+          tick,
+          threats,
+          // ADR-089 step 3 (E5): FRONT under `pocket-1.s3` with `pocket.climbLane`; INTERIOR otherwise.
+          climbLane,
+          stepUpsUsed,
+          throwawayAvailable,
+          movementRng: movementRng.fork(`t${tick.toFixed(1)}:movement`),
+        });
       log.check(movement.check);
 
       if (movement.response === "STEP_UP") {
-        stepUpsUsed += 1;
-        // The decision is published BEFORE its consequences, so the stream reads
-        // as cause then effect: he climbed, and these arrivals moved because of it.
-        log.qbDecision("STEP_UP");
-        // ADR-089 step 4 (plan §2.1 `contactFrom`): every rusher live (not ARRIVED) at this STEP_UP
-        // comes from BEHIND if his approach is ARC, from this STEP_UP on.
-        if (book !== undefined) {
-          for (const m of matchups) {
-            if (liveAtTick(m.threat, tick)) liveAtStepUp.add(String(m.rusher.bio.id));
+        climb();
+        // ADR-089 step 5a (item d): after the climb, a clean move restarts his reads at the first
+        // read, restates his count as the move tick plus a tick step plus the reset (D33), and gives
+        // each read-order receiver past his break his window bump (D25), openness only. None of it
+        // draws a die. A forced climb does none of it.
+        if (cleanPick !== undefined && cleanPocket !== undefined) {
+          cleanMoveUsed = true;
+          const after = resetAfterMove(tunables, tick, cleanPocket.resetSeconds);
+          readPointer = after.readPointer;
+          readsUsed = after.readsUsed;
+          budgetSeconds = after.budgetSeconds;
+          if (cleanPocket.bump) {
+            for (const id of readOrder) {
+              const track = tracks.find((t) => t.assignment.receiver === id);
+              if (track === undefined || track.bump !== undefined) continue;
+              const bump = bumpFor(tunables, track, tick);
+              if (bump !== undefined) track.bump = bump;
+            }
           }
-        }
-        for (const m of matchups) {
-          if (m.threat === undefined || m.threat.alignment !== "EDGE") continue;
-          const beforeStepUp = m.threat;
-          m.threat = delayThreat(m.threat, tunables.pocketMovement.stepUp.edgeThreatDelaySeconds);
-          m.announcedArrival = false;
-          // ADR-089 step 4: the step-up's wait joins his contact time (D21).
-          if (book !== undefined) book.delayed(beforeStepUp, m.threat);
-          // ADR-007 — the climb is exactly the adjustment the printout used to
-          // have to disclaim. The arrival it publishes here is the real one.
-          publishThreat(m.threat, "DELAYED");
-          // §7.2 TIME RETIREMENT — a step-up's own push-back can be what tips
-          // an edge threat's ETA past the play's own clock.
-          retireIfBeyondClock(m);
-          // A rusher run past by a climbing quarterback starts his rep over.
-          if (tunables.pocketMovement.stepUp.resetsEdgePressure) m.pressure = 0;
         }
         tick = Number((tick + tunables.clock.tickStepSeconds).toFixed(1));
         continue;
@@ -1980,6 +2102,8 @@ export function simulatePassPlayWith(
           break;
         }
         if (escape.escaped) {
+          // ADR-089 step 5a (D23 on the run): a break-out at a clean pick.
+          if (cleanPick !== undefined) cleanBreakOut = true;
           scramble = {
             sinceTick: tick,
             pursuitAtTick: pursuitDeadline(tunables, tick),
@@ -2539,7 +2663,11 @@ function currentOpenness(
  * a property of the coverage rep, not of the receiver.
  */
 function decayedOpenness(tunables: Tunables, track: ReceiverTrack, tick: number): number {
-  const base = track.baseOpenness ?? 0;
+  let base = track.baseOpenness ?? 0;
+  // ADR-089 step 5a (D25): the clean move's window bump, inside the clamp below, only when the
+  // track carries one (never an unconditional `+ 0`). A misread's believed track copies it, so the
+  // misread delta cancels it.
+  if (track.bump !== undefined) base += track.bump;
   // ADR-048 — the rep CONDITIONS the gain, so both curves take the contest
   // position the break point wrote onto the track. `contestPosition` is set in
   // the same assignment as `baseOpenness` at every one of the three break-point

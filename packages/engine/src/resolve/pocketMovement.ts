@@ -188,9 +188,27 @@ export function rankResponses(args: {
 }
 
 export function resolvePocketMovement(args: PocketMovementArgs): PocketMovementOutcome {
-  const { tunables } = args;
-  const t = tunables.pocketMovement;
   const { ranked, urgency } = rankResponses(args);
+  if (ranked.length === 0) throw new Error("@ff/engine: pocket movement with no available response");
+  return rollRankedResponse({ tunables: args.tunables, qb: args.qb, ranked, urgency, movementRng: args.movementRng });
+}
+
+/**
+ * The second half of the pick: one d100 on `movementRng` (its own fork, named by the caller), the
+ * band, the rank clamp and the `pocket_movement` CHECK, over a preference list already ranked.
+ * `resolvePocketMovement` runs it on today's ranking; ADR-089 step 5a's clean pick
+ * (`sim/cleanPocket.ts`'s `resolveCleanPick`) runs it on the clean pick's own options, so the two
+ * CHECKs share one form (contracts-guardian C1). `ranked` must not be empty.
+ */
+export function rollRankedResponse(args: {
+  readonly tunables: Tunables;
+  readonly qb: PlayerState;
+  readonly ranked: readonly ResponseAppeal[];
+  readonly urgency: number;
+  readonly movementRng: Rng;
+}): PocketMovementOutcome {
+  const { tunables, ranked, urgency } = args;
+  const t = tunables.pocketMovement;
   if (ranked.length === 0) throw new Error("@ff/engine: pocket movement with no available response");
 
   const testsAttrs = t.checkTerms.map((term) => attrIdOf(term.attr));

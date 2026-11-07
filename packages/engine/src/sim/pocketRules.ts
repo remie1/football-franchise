@@ -69,10 +69,9 @@
  * without its stamp, each with a named error, never ignored. No petition gates it (no contracts
  * edit: the labels are free strings and every event kind it writes exists). The three read-system
  * deltas the 5a fit sets are not in the block: they stay the existing leaves
- * `qb.readSystem.<system>.budgetDeltaSeconds`. In this commit nothing reads the block beyond this
- * reader and its refusals; the checklist and the floor (`sim/cleanPocket.ts`) read
- * `rules.cleanPocket` when they land. `PLAY_START.rules` keeps its two keys: the block is named by
- * the overlay digest.
+ * `qb.readSystem.<system>.budgetDeltaSeconds`. `sim/passPlay.ts` reads `rules.cleanPocket` and
+ * calls the checklist and the floor (`sim/cleanPocket.ts`) only when it is there. `PLAY_START.rules`
+ * keeps its two keys: the block is named by the overlay digest.
  */
 import { ATTR_SCALE } from "@ff/contracts";
 import type {
