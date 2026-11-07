@@ -13,13 +13,16 @@ import {
   ATTRIBUTE_REGISTRY_V1, positionOverall,
   type CalendarStamp, type FranchiseEvent, type FranchiseEventEnvelope, type PlayerContract, type PlayerState, type Position, type StaffState, type Team,
 } from "@ff/contracts";
-import type { runSeason, SeasonRun } from "@ff/franchise";
+import { capForecast, type runSeason, type SeasonRun } from "@ff/franchise";
 import {
   addCells, addGame, addUsage, AGE_BINS, ageTally, capMoveAges, CAREER_GROUP, CAREER_GROUPS, CAREER_ROWS_VERSION, careerLedger, careerReader,
   headCoachChanges, headCoachLeanings, kaplanMeier, lifeTable, minimumSignings, modalGroup, MOVING_RATING_GROUPS, pearson, RATING_GROUP_COPY,
   RATING_GROUP_DIGEST, reserveLoss, rosterPicture, runCareerCheck, seasonAge, sittingHeadCoaches, SLOT_POSITIONS, snapShares, starterSlots,
   teamStarters, unsignedWaits, usagePeak, waitClass, type BusiestSnaps, type CareerCheckpoint, type SideSnaps, type UsageCell,
+  addAvailability, apyOfDeal, backOnA53, cutFileDeal, EXPIRY_MIN_CAP_SHARE, expiryWindow, followExpiries, leagueYearOf, liveAt, nflCount, nflRosterIds,
+  openExpiries, outFourWeeksBand, outFourWeeksLeft, retiredNextYear, retirementsOf, STARTER_SHARE, startersGone, type AgeCounts, type CareerReaderState,
 } from "../src/season/careerCheck.js";
+import { OTC_SIGNED_AGAIN, STARTER_MIN_SHARE } from "../src/careers/nflCareers.js";
 import { careerValues } from "../src/careers/measure.js";
 import { deltaCurve, peakAge, snapSeasons } from "../src/careers/usage.js";
 import { lastTeams, type CapCheckInput } from "../src/season/capCheck.js";
@@ -443,8 +446,8 @@ describe("the 20-season check's pure pieces", () => {
     expect(ledger.season(2028, after27, after28, [retired("U1", "SEASON_END")])).toEqual({ credited: ["F2", "D1"], relabeled: [] });
     const entrants = ledger.entrants(2028);
     expect(entrants).toEqual([
-      { e: 2027, g: "K", o: "CB", r: "DRAFT", n: 2, c: 1, x: 1, t: null },
-      { e: 2027, g: "WR", o: "WR", r: "UDFA", n: 1, c: 0, x: 0, t: "SEASON_END" },
+      { e: 2027, g: "K", o: "CB", r: "DRAFT", n: 2, c: 1, x: 1, t: null, w: null },
+      { e: 2027, g: "WR", o: "WR", r: "UDFA", n: 1, c: 0, x: 0, t: "SEASON_END", w: "UNSIGNED" },
     ]);
     // Credited in 2026 and on no team in 2027: F1 and F2; F2 is credited again in 2028.
     expect(ledger.comebacks(2026, 2028)).toEqual([{ season: 2026, out: 2, back: 1 }]);
@@ -484,7 +487,7 @@ describe("the 20-season check's pure pieces", () => {
     // 2027: on the 53 at week 18 as a linebacker (MLB); an emergency move after it lists him as a DE.
     ledger.present(2027, [d1]);
     ledger.season(2027, [d1], [man("D1", { cs: 1, position: "DE", team: "T01" })], [], new Map([["D1", "MLB" as Position]]));
-    expect(ledger.entrants(2027)).toEqual([{ e: 2027, g: "LB", o: "EDGE", r: "DRAFT", n: 1, c: 1, x: 1, t: null }]);
+    expect(ledger.entrants(2027)).toEqual([{ e: 2027, g: "LB", o: "EDGE", r: "DRAFT", n: 1, c: 1, x: 1, t: null, w: null }]);
   });
 
   it("ages in a histogram: one bin a year from 21 to 40, the ends open; unknown ages counted apart", () => {
@@ -595,6 +598,225 @@ describe("the 20-season check's pure pieces", () => {
   });
 });
 
+// --- the owner's aging rulings of 2026-11-06 (rows version 5) ------------------------------------
+
+/** An injury on a made-up man (only what the readers look at). */
+const hurt = (p: PlayerState, band: "DAY_TO_DAY" | "SHORT" | "LONG" | "MAJOR", weeksRemaining: number, playable = false): PlayerState => ({
+  ...p, condition: { ...p.condition, injury: { kind: "knee", weeksRemaining, playable, setting: "GAME", band, since: stamp(2026, "REGULAR_SEASON", 6, 7) } },
+} as PlayerState);
+/** A made-up deal: its player, team, years at a cap hit each, signing day, kind and end. */
+const dealOf = (player: string, team: string, o: { seasons: number[]; hit: number; at: CalendarStamp; kind?: string; ended?: { at: CalendarStamp; reason: string }; voidYears?: number[] }): PlayerContract => ({
+  player, team, signedAt: o.at, ...(o.kind ? { kind: o.kind } : {}), ...(o.ended ? { ended: o.ended } : {}),
+  years: [
+    ...o.seasons.map((season) => ({ season, baseSalary: o.hit, signingBonusProration: 0, guarantees: { fullyGuaranteed: false }, capHit: o.hit })),
+    ...(o.voidYears ?? []).map((season) => ({ season, baseSalary: 0, signingBonusProration: 0, guarantees: { fullyGuaranteed: false }, capHit: 0, voidYear: true })),
+  ],
+} as unknown as PlayerContract);
+const env = (seq: number, at: CalendarStamp, event: FranchiseEvent): FranchiseEventEnvelope => ({ seq, at, event });
+const expired = (player: string, team: string): FranchiseEvent => ({ type: "CONTRACT_EXPIRED", payload: { player, team } } as FranchiseEvent);
+
+describe("the owner's aging rulings: the reader's new pieces", () => {
+  it("each group's 22-or-under, 31+ and 34+ shares, and the rookies' ages, read as the league's", () => {
+    const a = squad("T01", 70, 60, (i) => (i < 13 ? 24 : 30));
+    const b = squad("T02", 66, 60);
+    const pic = rosterPicture({ teams: [a.team, b.team], players: [...a.players, ...b.players] });
+    // Quarterbacks: T01's starter 24, T02's 26, and each team's 22-year-old backup.
+    expect(pic.groups.QB).toMatchObject({ n: 4, upTo22: 0.5, from31: 0, from34: 0 });
+    // Corners: T01's three starters 30, T02's 26, and each team's 34-year-old backup.
+    expect(pic.groups.CB).toMatchObject({ n: 8, upTo22: 0, from31: 0.25, from34: 0.25 });
+    expect(pic.groups.K).toMatchObject({ n: 2, upTo22: 0, from31: 0, from34: 0 });
+    // The rookies (no ledger: no credited season) are the two 22-year-old backups.
+    expect(pic.rookieAge).toEqual({ n: 2, mean: 22, histogram: { "22": 2 } });
+    // No men: every share 0.
+    expect(rosterPicture({ teams: [], players: [] }).groups.QB).toMatchObject({ n: 0, upTo22: 0, from31: 0, from34: 0 });
+    expect(rosterPicture({ teams: [], players: [] }).rookieAge).toEqual({ n: 0, mean: 0, histogram: {} });
+  });
+
+  it("the 53 counted like the NFL: an unhealed LONG or MAJOR injury leaves a man out; the variant reads the weeks still to go", () => {
+    const a = squad("T01", 70, 60);
+    const b = squad("T02", 66, 60);
+    // T01's back is 2 weeks from the end of a long injury, a receiver 6 weeks into a major one's last weeks, another out short.
+    const players = [...a.players, ...b.players].map((p) =>
+      p.bio.id === "T01-s1" ? hurt(p, "LONG", 2) : p.bio.id === "T01-s2" ? hurt(p, "MAJOR", 6) : p.bio.id === "T01-s3" ? hurt(p, "SHORT", 3) : p);
+    expect(outFourWeeksBand(players.find((p) => p.bio.id === "T01-s1")!)).toBe(true);
+    expect(outFourWeeksLeft(players.find((p) => p.bio.id === "T01-s1")!)).toBe(false);
+    expect(outFourWeeksBand(players.find((p) => p.bio.id === "T01-s3")!)).toBe(false);
+    expect(outFourWeeksBand(a.players[0]!)).toBe(false);
+    const people = { teams: [a.team, b.team], players };
+    expect(nflCount(people)).toEqual({ onRosters: 56, leftOut: 2, leftOutWeeksLeft: 1, sizes: { before: [28, 28], after: [26, 28], afterWeeksLeft: [27, 28] } });
+    const nfl = rosterPicture(people, undefined, outFourWeeksBand);
+    expect(nfl.players).toBe(54);
+    expect(nfl.groups.RB.n).toBe(1);
+    expect(nfl.groups.WR.n).toBe(5);
+    expect(rosterPicture(people, undefined, outFourWeeksLeft).players).toBe(55);
+    // Without a predicate nobody is left out.
+    expect(rosterPicture(people).players).toBe(56);
+    // The roster way's 53s: the band reading's men, in team then roster order; a man the people do not know is left out.
+    const ids = nflRosterIds(people);
+    expect(ids).toHaveLength(54);
+    expect(ids).not.toContain("T01-s1");
+    expect(ids).not.toContain("T01-s2");
+    expect(ids.slice(0, 2)).toEqual(["T01-s0", "T01-s3"]);
+    expect(ids[26]).toBe("T02-s0");
+    expect(nflRosterIds({ teams: [{ ...a.team, roster: ["nobody" as never, ...a.team.roster] }], players })).toHaveLength(26);
+  });
+
+  it("the league year a day falls in, and a deal's APY over its real years", () => {
+    expect(leagueYearOf(stamp(2025, "OFF_RESET_FA", 1, 1))).toBe(2026);
+    expect(leagueYearOf(stamp(2026, "OFF_EVAL", 3, 1))).toBe(2026);
+    expect(leagueYearOf(stamp(2026, "REGULAR_SEASON", 5, 1))).toBe(2026);
+    expect(leagueYearOf(stamp(2026, "OFF_DRAFT", 3, 4))).toBe(2027);
+    expect(leagueYearOf(stamp(2026, "OFF_SUMMER", 2, 1))).toBe(2027);
+    expect(apyOfDeal(dealOf("p", "T01", { seasons: [2025, 2026], hit: 10e6, at: stamp(2024, "OFF_RESET_FA", 1, 1), voidYears: [2027, 2028] }))).toBe(10e6);
+    expect(apyOfDeal({ years: [] })).toBe(0);
+    // The line is the real rates' (OverTheCap's 1.5%), and a starter is the real side's 50%.
+    expect(EXPIRY_MIN_CAP_SHARE).toBe(OTC_SIGNED_AGAIN.minCapShare);
+    expect(STARTER_SHARE).toBe(STARTER_MIN_SHARE);
+  });
+
+  it("signed again within two years: the window from the last season's OFF_EVAL, one league year and two, retirements, early extensions", () => {
+    const cap = () => 200e6;
+    const ranOut = stamp(2026, "OFF_RESET_FA", 1, 1);
+    const end = (reason = "EXPIRED") => ({ at: ranOut, reason });
+    const at24 = stamp(2024, "OFF_RESET_FA", 1, 1);
+    const after = [
+      // A: 5% of the cap, re-signed by his own team before the expiry (OFF_EVAL week 3).
+      dealOf("A", "T01", { seasons: [2025, 2026], hit: 10e6, at: at24, kind: "VETERAN", ended: end() }),
+      dealOf("A", "T01", { seasons: [2027, 2028], hit: 12e6, at: stamp(2026, "OFF_EVAL", 3, 1), kind: "EXTENSION" }),
+      // B: 3%, a practice-squad deal first (not a signing), then another team's deal in the second league year.
+      dealOf("B", "T01", { seasons: [2026], hit: 6e6, at: stamp(2025, "OFF_RESET_FA", 1, 2), ended: end("VOIDED") }),
+      // C: 2%, retires unsigned at the next camp. D: 1%, under the line.
+      dealOf("C", "T02", { seasons: [2026], hit: 4e6, at: stamp(2025, "OFF_RESET_FA", 1, 2), ended: end() }),
+      dealOf("D", "T02", { seasons: [2026], hit: 2e6, at: stamp(2025, "OFF_RESET_FA", 1, 2), ended: end() }),
+      // F: 4%, extended a year early (signed before the window, running past 2026).
+      dealOf("F", "T01", { seasons: [2024, 2025, 2026], hit: 8e6, at: stamp(2023, "OFF_RESET_FA", 1, 1), ended: end() }),
+      dealOf("F", "T01", { seasons: [2027, 2028, 2029], hit: 9e6, at: stamp(2025, "OFF_EVAL", 3, 1), kind: "EXTENSION" }),
+      // G: 2.5%, a signing before the window opens and one on the day two league years on: neither counts.
+      dealOf("G", "T02", { seasons: [2026], hit: 5e6, at: stamp(2025, "OFF_RESET_FA", 1, 2), ended: end() }),
+      // H: a league-file deal signed for 2024 whose years from 2026 on alone were kept (its early years cut): flagged.
+      dealOf("H", "T02", { seasons: [2026], hit: 6e6, at: stamp(2023, "OFF_RESET_FA", 1, 1), ended: end() }),
+    ];
+    const events26 = [
+      env(0, stamp(2026, "REGULAR_SEASON", 5, 1), signed("G", "MINIMUM", "T02")),
+      env(1, stamp(2026, "OFF_EVAL", 3, 1), signed("A", "EXTENSION", "T01")),
+      ...["A", "B", "C", "D", "F", "G", "H"].map((p, i) => env(2 + i, ranOut, expired(p, p === "C" || p === "D" || p === "G" || p === "H" ? "T02" : "T01"))),
+      env(9, ranOut, expired("E", "T03")), // no such deal: unmatched
+      env(10, stamp(2026, "OFF_SUMMER", 1, 1), signed("B", "PRACTICE_SQUAD", "T02")),
+    ];
+    const ages: Record<string, number> = { A: 27, B: 30, C: 33, F: 25, G: 29, H: 31 };
+    const opened = openExpiries(2026, events26, after, (id) => ages[id], cap, 2026);
+    expect(opened.unmatched).toBe(1);
+    expect(opened.below).toBe(1);
+    expect(opened.open.map((x) => x.player)).toEqual(["A", "B", "C", "F", "G", "H"]);
+    expect(opened.open.find((x) => x.player === "F")).toMatchObject({ settled: true, record: { e: 1, w1: 1, w2: 1, o: 1 } });
+    expect(opened.open.find((x) => x.player === "B")!.record).toMatchObject({ s: 0.03, k: "NONE", a: 30, y: 2026, c: 0, t: 0 });
+    // Only H's years were cut: F's deal (signed for 2024, its 2024 year kept) and every deal the walk signs are whole.
+    expect(opened.open.filter((x) => x.record.t === 1).map((x) => x.player)).toEqual(["H"]);
+    // Read with the walk starting in 2023, H's deal is one the walk signed: not flagged.
+    expect(openExpiries(2026, events26, after, (id) => ages[id], cap, 2023).open.find((x) => x.player === "H")!.record.t).toBe(0);
+    const f26 = followExpiries(opened.open, 2026, events26);
+    expect(f26.find((x) => x.player === "A")).toMatchObject({ settled: true, record: { w1: 1, w2: 1, o: 1, r: 0, c: 0 } });
+    expect(f26.find((x) => x.player === "B")!.settled).toBe(false);
+    const events27 = [
+      env(0, stamp(2027, "TRAINING_CAMP", 1, 1), retired("C", "LATE")),
+      env(1, stamp(2027, "OFF_RESET_FA", 1, 3), signed("B", "VETERAN", "T03")),
+      env(2, stamp(2027, "OFF_RESET_FA", 1, 4), signed("C", "VETERAN", "T02")), // after he retired: settled already
+    ];
+    const f27 = followExpiries(f26, 2027, events27);
+    expect(f27.find((x) => x.player === "B")!.record).toMatchObject({ w1: 0, w2: 1, o: 0, c: 1 });
+    expect(f27.find((x) => x.player === "C")!.record).toMatchObject({ w1: 0, w2: 0, o: null, r: 1, c: 1 });
+    const f28 = followExpiries(f27, 2028, [env(0, stamp(2028, "OFF_RESET_FA", 1, 1), signed("G", "VETERAN", "T02"))]);
+    expect(f28.find((x) => x.player === "G")).toMatchObject({ settled: false, record: { w1: 0, w2: 0, o: null, c: 2 } });
+    expect(f28.every((x) => x.record.c === 2)).toBe(true);
+    expect(expiryWindow(2026)).toEqual({ from: stamp(2026, "OFF_EVAL", 1, 1), oneYear: stamp(2027, "OFF_RESET_FA", 1, 1), twoYears: stamp(2028, "OFF_RESET_FA", 1, 1) });
+  });
+
+  it("retirements each way: the unsigned rule, his own choice while signed, his own choice while unsigned", () => {
+    const before = { players: [
+      man("U", { age: 30, cs: 5, position: "WR" }), man("S", { age: 33, cs: 10, position: "QB", team: "T01" }),
+      man("O", { age: 28, cs: 3, position: "CB" }), man("Q", { age: 35, cs: 12, position: "K" }),
+      man("E", { age: 31, cs: 8, position: "RB", team: "T01" }), man("L", { age: 29, cs: 6, position: "TE" }),
+    ] };
+    const ownChoice = (player: string): FranchiseEvent => ({ type: "PLAYER_RETIRED", payload: { player, timing: "SEASON_END" } } as FranchiseEvent);
+    const at = stamp(2026, "REGULAR_SEASON", 18, 7);
+    const draftDay = stamp(2026, "OFF_DRAFT", 1, 1);
+    const events = [
+      env(0, at, retired("U", "SEASON_END")), env(1, at, ownChoice("S")), env(2, at, ownChoice("O")), env(3, at, ownChoice("Q")), env(4, at, retired("X", "SEASON_END")),
+      env(5, draftDay, ownChoice("E")), env(6, draftDay, ownChoice("L")),
+    ];
+    const after = { contracts: [
+      // Q's deal ended RETIRED this season: he was signed though on no team's list.
+      dealOf("Q", "T02", { seasons: [2026], hit: 1e6, at: stamp(2025, "OFF_RESET_FA", 1, 1), ended: { at, reason: "RETIRED" } }),
+      // E was on T01 when the season began, but his deal ran out at the new league year, before he retired at the draft: unsigned.
+      dealOf("E", "T01", { seasons: [2026], hit: 1e6, at: stamp(2025, "OFF_RESET_FA", 1, 1), ended: { at: stamp(2026, "OFF_RESET_FA", 1, 1), reason: "EXPIRED" } }),
+      // L was on no team when the season began, then signed in free agency: signed when he retired.
+      dealOf("L", "T02", { seasons: [2027], hit: 1e6, at: stamp(2026, "OFF_RESET_FA", 1, 2) }),
+    ] };
+    const { tally, reads } = retirementsOf(2026, events, before, after);
+    expect(tally.unsigned).toEqual({ n: 2, byAge: { "30": 1, "?": 1 }, byCredited: { "5": 1, "?": 1 }, byGroup: { WR: 1, "?": 1 } });
+    // S has no deal in the book: read by his team when the season began.
+    expect(tally.ownSigned).toEqual({ n: 3, byAge: { "29": 1, "33": 1, "35": 1 }, byCredited: { "10": 1, "12": 1, "6": 1 }, byGroup: { K: 1, QB: 1, TE: 1 } });
+    expect(tally.ownUnsigned).toEqual({ n: 2, byAge: { "28": 1, "31": 1 }, byCredited: { "3": 1, "8": 1 }, byGroup: { CB: 1, RB: 1 } });
+    expect(reads.map((r) => `${r.player}:${r.way}`)).toEqual(["U:unsigned", "S:ownSigned", "O:ownUnsigned", "Q:ownSigned", "X:unsigned", "E:ownUnsigned", "L:ownSigned"]);
+  });
+
+  it("a deal live at a moment: signed by then and not ended before it; one ended that moment only if it ended RETIRED", () => {
+    const at = stamp(2027, "OFF_DRAFT", 1, 1);
+    const d = (signedOn: CalendarStamp, ended?: { at: CalendarStamp; reason: string }) => dealOf("p", "T01", { seasons: [2027], hit: 1, at: signedOn, ...(ended ? { ended } : {}) });
+    const before = stamp(2026, "OFF_RESET_FA", 1, 1);
+    expect(liveAt([d(before)], at)).toBe(true);
+    expect(liveAt([d(stamp(2027, "OFF_DRAFT", 1, 2))], at)).toBe(false); // signed after
+    expect(liveAt([d(at)], at)).toBe(true); // signed that moment
+    expect(liveAt([d(before, { at: stamp(2027, "OFF_SUMMER", 1, 1), reason: "RELEASED" })], at)).toBe(true); // ended after
+    expect(liveAt([d(before, { at: stamp(2026, "OFF_RESET_FA", 1, 1), reason: "EXPIRED" })], at)).toBe(false); // ended before
+    expect(liveAt([d(before, { at, reason: "EXPIRED" })], at)).toBe(false);
+    expect(liveAt([d(before, { at, reason: "RELEASED" })], at)).toBe(false);
+    expect(liveAt([d(before, { at, reason: "RETIRED" })], at)).toBe(true);
+    expect(liveAt([d(before, { at, reason: "EXPIRED" }), d(before)], at)).toBe(true);
+    expect(liveAt([], at)).toBe(false);
+  });
+
+  it("a league-file deal with its early years cut: signed before the walk, its first real year after the league year signed", () => {
+    const fileDeal = (signed: number, seasons: number[], voidYears: number[] = []) => dealOf("p", "T01", { seasons, hit: 1, at: stamp(signed - 1, "OFF_RESET_FA", 1, 1), voidYears });
+    expect(cutFileDeal(fileDeal(2023, [2026, 2027]), 2026)).toBe(true);
+    expect(cutFileDeal(fileDeal(2025, [2026]), 2026)).toBe(true);
+    expect(cutFileDeal(fileDeal(2026, [2026, 2027]), 2026)).toBe(false); // signed for the file's season: every year kept
+    expect(cutFileDeal(fileDeal(2023, [], [2026]), 2026)).toBe(false); // no real year: nothing to read
+    // A deal the walk signed is whole even when its years start a year on (an extension signed in season).
+    expect(cutFileDeal(dealOf("p", "T01", { seasons: [2028, 2029], hit: 1, at: stamp(2027, "REGULAR_SEASON", 5, 1) }), 2026)).toBe(false);
+    expect(cutFileDeal(dealOf("p", "T01", { seasons: [2028, 2029], hit: 1, at: stamp(2027, "REGULAR_SEASON", 5, 1) }), 2028)).toBe(true);
+  });
+
+  it("the roster way: back on a 53 in either of the next two seasons, starters gone two seasons, retired within the next year", () => {
+    const men = [{ id: "a", age: 25, starter: true }, { id: "b", age: 25, starter: false }, { id: "c", age: 33, starter: true }, { id: "d", age: null, starter: true }];
+    expect(backOnA53(men, new Set(["a"]), new Set(["c"]))).toEqual({ "25": [2, 1], "33": [1, 1], "?": [1, 0] });
+    const present = new Map([["a", [2027]], ["d", [2028]]]);
+    expect(startersGone(men, (id, y) => present.get(id)?.includes(y) === true, 2026)).toEqual({ "25": [1, 0], "33": [1, 1], "?": [1, 0] });
+    const retiredAt = new Map([
+      ["c", { player: "c", at: stamp(2027, "TRAINING_CAMP", 1, 1), way: "ownSigned" as const }],
+      // The cohort's own day: read before the day's players' steps, so a retirement at the season's end is in the window.
+      ["b", { player: "b", at: stamp(2026, "REGULAR_SEASON", 18, 7), way: "ownSigned" as const }],
+      // The next season's end: the next cohort's, not this one's.
+      ["a", { player: "a", at: stamp(2027, "REGULAR_SEASON", 18, 7), way: "unsigned" as const }],
+      ["d", { player: "d", at: stamp(2026, "REGULAR_SEASON", 18, 6), way: "unsigned" as const }], // before the cohort was read
+    ]);
+    expect(retiredNextYear(men, retiredAt, 2026)).toEqual({
+      "25": { n: 2, unsigned: 0, ownSigned: 1, ownUnsigned: 0 }, "33": { n: 1, unsigned: 0, ownSigned: 1, ownUnsigned: 0 }, "?": { n: 1, unsigned: 0, ownSigned: 0, ownUnsigned: 0 },
+    });
+    // The next cohort (2027) reads a's retirement at its own season's end.
+    expect(retiredNextYear([{ id: "a", age: 26, starter: true }], retiredAt, 2027)).toEqual({ "26": { n: 1, unsigned: 1, ownSigned: 0, ownUnsigned: 0 } });
+  });
+
+  it("availability: man-weeks on a 53, and of them out with an injury he cannot play on", () => {
+    const players = [man("h", { age: 25, team: "T01" }), hurt(man("o", { age: 25, team: "T01" }), "SHORT", 2), hurt(man("p", { age: 30, team: "T01" }), "DAY_TO_DAY", 0, true), man("x", { age: 40 })];
+    const team = { id: "T01", roster: ["h", "o", "p"], depthChart: {} } as unknown as Team;
+    const into: AgeCounts = {};
+    addAvailability(into, { teams: [team], players });
+    addAvailability(into, { teams: [team], players });
+    expect(into).toEqual({ "25": [4, 2], "30": [2, 0] });
+  });
+});
+
 // --- the reader, driven by made-up days ----------------------------------------------------------
 
 describe("the reader on made-up days and seasons", () => {
@@ -637,11 +859,15 @@ describe("the reader on made-up days and seasons", () => {
     const game = { game: { home: "T01", away: "T02", kind: "REGULAR" }, result: {}, extras: { participation: [...report("T01", [qb1, wr1], 60), ...report("T02", [qb2], 50)] } };
     reader.onDay(2026, stamp(2026, "REGULAR_SEASON", 1, 7), start, [game] as never);
     reader.onDay(2026, stamp(2026, "REGULAR_SEASON", 8, 1), start, []);
-    reader.onDay(2026, stamp(2026, "REGULAR_SEASON", 18, 7), start, []);
+    // On the regular season's last day T01's tight end is out with a long injury: on the 53, but not on the NFL's count of it.
+    reader.onDay(2026, stamp(2026, "REGULAR_SEASON", 18, 7), { ...start, players: start.players.map((p) => (p.bio.id === "T01-s5" ? hurt(p, "LONG", 3) : p)) }, []);
     // After 2026: everyone on a 53 credited; the draft brings the rookie; FA1 retired at the season's end; one emergency deal.
     const credit = (p: PlayerState) => (p.teamId === undefined ? p : { ...p, bio: { ...p.bio, creditedSeasons: (p.bio.creditedSeasons ?? 0) + 1, age: p.bio.age + 1 } });
     const t01 = { ...a.team, roster: [...a.team.roster, rookie.bio.id], depthChart: { ...a.team.depthChart, CB: [rookie.bio.id, ...(a.team.depthChart.CB ?? [])] } };
-    const end26 = people([t01, b.team], [...a.players.map(credit), ...b.players.map(credit), { ...rookie, bio: { ...rookie.bio, age: 23 } }, man("FA2", { age: 26 })], ["FA2"], { FA2: camp26 }, { staff: staff27 });
+    // T02's quarterback's deal ran out at the league year (20 million a year): an expiry, signed again by T01 the next day.
+    const ranOut = stamp(2026, "OFF_RESET_FA", 1, 1);
+    const qb2Deal = dealOf(qb2, "T02", { seasons: [2026], hit: 20e6, at: stamp(2025, "OFF_RESET_FA", 1, 1), ended: { at: ranOut, reason: "EXPIRED" } });
+    const end26 = people([t01, b.team], [...a.players.map(credit), ...b.players.map(credit), { ...rookie, bio: { ...rookie.bio, age: 23 } }, man("FA2", { age: 26 })], ["FA2"], { FA2: camp26 }, { staff: staff27, contracts: [qb2Deal] });
     // The league year: T01 re-signs its quarterback (26 in 2026) and releases its receiver (26), T02's quarterback goes to T01; the rookie's deal is no veteran's.
     const envelopes: FranchiseEventEnvelope[] = [
       { seq: 0, at: stamp(2026, "REGULAR_SEASON", 18, 7), event: retired("FA1", "SEASON_END") },
@@ -654,6 +880,7 @@ describe("the reader on made-up days and seasons", () => {
       { seq: 7, at: stamp(2026, "OFF_RESET_FA", 1, 1), event: released(wr1) },
       { seq: 8, at: stamp(2026, "OFF_RESET_FA", 1, 2), event: signed(qb2, "VETERAN", "T01") },
       { seq: 9, at: stamp(2026, "OFF_DRAFT", 3, 4), event: signed("R1", "ROOKIE") },
+      { seq: 10, at: ranOut, event: expired(qb2, "T02") },
     ];
     const run26 = { state: { standings: standings(12, 5) }, events: envelopes, stepEvents: [{ step: "players:unsigned", envelope: envelopes[0]! }, { step: "players:week", envelope: envelopes[1]! }] } as unknown as SeasonRun;
     reader.onRun(2026, envelopes.map((e) => e.event), end26, { run: run26, before: start });
@@ -720,7 +947,7 @@ describe("the reader on made-up days and seasons", () => {
     expect(y0.slots).toHaveLength(50);
     expect(y1.slots[SLOT_POSITIONS.slice(0, SLOT_POSITIONS.indexOf("CB")).reduce((n, p) => n + STARTING[p], 0)]).toBe("R1");
     expect(rows.careers.routes).toEqual({ FILE: 58, DRAFT: 1, UDFA: 0 });
-    expect(rows.careers.entrants).toEqual([{ e: 2027, g: "CB", o: "CB", r: "DRAFT", n: 1, c: 1, x: 0, t: null }]);
+    expect(rows.careers.entrants).toEqual([{ e: 2027, g: "CB", o: "CB", r: "DRAFT", n: 1, c: 1, x: 0, t: null, w: null }]);
     expect(rows.draft).toBe(draft);
     expect(qb1).toBe("T01-s0");
     // The cap's moves by age in 2026 (everyone 26 here); FA9's emergency deal has no deal before it, so it is neither.
@@ -734,6 +961,34 @@ describe("the reader on made-up days and seasons", () => {
     // The coaches: T02 changed head coach after 2026 (one head coach hired); at 2027's week 8 the new man has the leanings stored.
     expect(y0.coaches).toEqual({ headCoachChanges: 1, headCoachHires: 1, week8: { n: 2, unset: 1, incumbent: 100, veteran: 50, form: 0 } });
     expect(y1.coaches).toEqual({ headCoachChanges: 0, headCoachHires: 0, week8: { n: 2, unset: 0, incumbent: 100, veteran: 50, form: 0 } });
+    // Rows version 5. Nobody hurt: the NFL's count of the 53 is the plain one.
+    expect(y0.week8Nfl).toEqual(y0.week8);
+    expect(y0.week8NflWeeksLeft).toEqual(y0.week8);
+    expect(y0.nflCount).toEqual({ onRosters: 56, leftOut: 0, leftOutWeeksLeft: 0, sizes: { before: [28, 28], after: [28, 28], afterWeeksLeft: [28, 28] } });
+    expect(y1.nflCount?.onRosters).toBe(57);
+    // Availability: two regular-season day-1s in each season (week 1 and week 8), nobody out.
+    expect(y0.availability).toEqual({ "22": [4, 0], "26": [104, 0], "34": [4, 0] });
+    expect(y1.availability).toEqual({ "23": [6, 0], "27": [104, 0], "35": [4, 0] });
+    // Retirements each way: FA1 by the unsigned rule at the end of 2026, FA2 at 2027's camp.
+    expect(y0.retirements.unsigned).toEqual({ n: 1, byAge: { "25": 1 }, byCredited: { "0": 1 }, byGroup: { WR: 1 } });
+    expect(y0.retirements.ownSigned.n + y0.retirements.ownUnsigned.n).toBe(0);
+    expect(y1.retirements.unsigned).toMatchObject({ n: 1, byAge: { "26": 1 } });
+    // The roster way: 2026's final-week 53s counted like the NFL (the tight end out 4+ weeks left out, though he
+    // counts on the 53 at week 18 above), closed for retirements at 2027 (nobody on them retired);
+    // a two-season cohort needs a third season.
+    expect(rows.exits.retiredNextYear).toEqual([{ y: 2026, byAge: {
+      "22": { n: 2, unsigned: 0, ownSigned: 0, ownUnsigned: 0 }, "26": { n: 51, unsigned: 0, ownSigned: 0, ownUnsigned: 0 }, "34": { n: 2, unsigned: 0, ownSigned: 0, ownUnsigned: 0 },
+    } }]);
+    expect(rows.exits.backOnA53).toEqual([]);
+    expect(rows.exits.startersGone).toEqual([]);
+    // Signed again: T02's quarterback (26 in 2026), his deal's share of the 2026 cap, a new team inside one league year,
+    // carried through the checkpoint and still open (one season of two) at the walk's end.
+    const share = 20e6 / capForecast("s")(2026);
+    expect(share).toBeGreaterThan(EXPIRY_MIN_CAP_SHARE);
+    expect(rows.market).toEqual({
+      minCapShare: EXPIRY_MIN_CAP_SHARE, unmatched: 0, below: 0,
+      expiries: [{ y: 2026, a: 26, s: share, k: "NONE", w1: 1, w2: 1, o: 0, r: 0, e: 0, c: 1, t: 0 }],
+    });
   });
 
   it("the same days and seasons give the same rows", () => {
@@ -742,6 +997,31 @@ describe("the reader on made-up days and seasons", () => {
 
   it("a reader saved between seasons and restored into a fresh one gives the unbroken reader's rows", () => {
     expect(JSON.stringify(drive(true).rows)).toBe(JSON.stringify(drive().rows));
+  });
+
+  it("the roster way's 53s by season and its final-week cohort are counted like the NFL; the credited cross-check keeps the whole 53", () => {
+    const { a, b } = world();
+    const reader = careerReader({ seed: "s", firstSeason: 2026, seasons: 1, switches: { development: true, injuries: true } });
+    const all = [...a.players, ...b.players];
+    const start = people([a.team, b.team], all);
+    const hurtOn = (id: string, band: "SHORT" | "LONG" | "MAJOR") => people([a.team, b.team], all.map((p) => (p.bio.id === id ? hurt(p, band, 5) : p)));
+    reader.onDay(2026, stamp(2026, "TRAINING_CAMP", 1, 1), start, []);
+    // Week 1: T01's back is out for a major injury, T02's out short; week 2 the back is still out. Week 18: T01's receiver out long.
+    reader.onDay(2026, stamp(2026, "REGULAR_SEASON", 1, 1), people([a.team, b.team], all.map((p) => (p.bio.id === "T01-s1" ? hurt(p, "MAJOR", 9) : p.bio.id === "T02-s1" ? hurt(p, "SHORT", 2) : p))), []);
+    reader.onDay(2026, stamp(2026, "REGULAR_SEASON", 2, 1), hurtOn("T01-s1", "MAJOR"), []);
+    reader.onDay(2026, stamp(2026, "REGULAR_SEASON", 18, 7), hurtOn("T01-s2", "LONG"), []);
+    const run = { state: { standings: [] }, events: [], stepEvents: [] } as unknown as SeasonRun;
+    reader.onRun(2026, [], start, { run, before: start });
+    const state: CareerReaderState = reader.save();
+    const on53 = new Map(state.on53);
+    expect(on53.get(2026)).toHaveLength(55);
+    expect(on53.get(2026)).not.toContain("T01-s1");
+    expect(on53.get(2026)).toContain("T02-s1");
+    const cohort = state.finalWeeks.find((c) => c.season === 2026)!.men.map((m) => m.id);
+    expect(cohort).toHaveLength(55);
+    expect(cohort).not.toContain("T01-s2");
+    expect(cohort).toContain("T01-s1");
+    expect(state.rows[0]!.credited.week18).toBe(56);
   });
 
   it("refuses a save in the middle of a season, and a restore into a reader that has read a day", () => {
@@ -847,6 +1127,21 @@ describe("runCareerCheck on the real walk: one switched-on season of the stand-i
     expect(Object.values(rows.usage.cells).every((c) => Object.keys(c).length === 0)).toBe(true);
     expect(rows.careers.entrants).toEqual([]);
     expect(rows.draft.drafts).toBe(1);
+    // Rows version 5: the 53s counted like the NFL leave out the men hurt 4+ weeks (some, never most);
+    // the deals that ran out are opened, followed one season of two; availability on each week's day 1.
+    const count = y0!.nflCount!;
+    expect(count.onRosters).toBe(y0!.week8!.players);
+    expect(count.leftOut).toBeGreaterThan(0);
+    expect(count.leftOut).toBeLessThan(count.onRosters / 5);
+    expect(count.leftOutWeeksLeft).toBeLessThanOrEqual(count.leftOut);
+    expect(y0!.week8Nfl!.players).toBe(count.onRosters - count.leftOut);
+    expect(y0!.week8NflWeeksLeft!.players).toBe(count.onRosters - count.leftOutWeeksLeft);
+    expect(y0!.week8Nfl!.rookieAge.n).toBeGreaterThan(150);
+    expect(rows.market.expiries.length).toBeGreaterThan(100);
+    expect(rows.market.expiries.every((x) => x.y === 2026 && x.c === 0 && x.s >= rows.market.minCapShare)).toBe(true);
+    const manWeeks = Object.values(y0!.availability).reduce((s, [n]) => s + n, 0);
+    expect(manWeeks).toBeGreaterThan(18 * 32 * 50);
+    expect(y0!.retirements.unsigned.n).toBe(Object.values(y0!.unsigned.retired).reduce((s, w) => s + w.under1 + w["1to2"] + w["2plus"] + w.unknown, 0));
     expect(JSON.parse(JSON.stringify(rows))).toEqual(rows);
   }, 900_000);
 });

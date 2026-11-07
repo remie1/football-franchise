@@ -144,13 +144,19 @@ describe("the rating groups (§2.3)", () => {
 
 describe("the learning rate (§2.2)", () => {
   it("is highest for a young player in his first seasons, falls through the mid-20s, never reaches zero", () => {
-    expect(learningRate(22, 0)).toBe(1);
-    expect(learningRate(21, 0)).toBe(1);
+    // ADR-087 D5b round 1: about 0.58 for a rookie of 22, 0.28 in his second season, near the floor from the fourth.
+    expect(learningRate(22, 0)).toBeCloseTo(0.575, 3);
+    expect(learningRate(21, 0)).toBeGreaterThan(learningRate(22, 0));
+    expect(learningRate(21, 0)).toBeLessThan(1);
+    expect(learningRate(23, 1)).toBeCloseTo(0.283, 3);
     expect(learningRate(23, 1)).toBeLessThan(learningRate(22, 0));
     expect(learningRate(26, 4)).toBeLessThan(learningRate(23, 1));
     expect(learningRate(30, 8)).toBeLessThan(learningRate(26, 4));
-    expect(learningRate(40, 18)).toBeGreaterThan(0.09);
-    // A rookie who comes in older still learns nearly as fast: seasons weigh more than age.
+    expect(learningRate(26, 4)).toBeLessThan(0.16);
+    // The floor stays above 0 (D5b's limit): a veteran still learns a little.
+    expect(learningRate(40, 18)).toBeGreaterThanOrEqual(0.15);
+    expect(learningRate(40, 18)).toBeCloseTo(0.15, 6);
+    // A rookie who comes in older still learns faster than a second-year man: seasons weigh more than age.
     expect(learningRate(24, 0)).toBeGreaterThan(learningRate(23, 1));
   });
 });
@@ -374,15 +380,18 @@ describe("the weekly inputs (§2.3)", () => {
     expect(b / s).toBeLessThan(0.85);
   });
 
-  it("makes coaching 90 against 10 worth about a point a year on a young player", () => {
+  it("makes coaching 90 against 10 worth about a point a year at the full learning rate, scaled by it", () => {
     const p = makePlayer("CO", "DE", 22);
     const good = runYear([p], teamWeek("STARTER", { coachDevelopment: 90 })).players[0]!;
     const bad = runYear([p], teamWeek("STARTER", { coachDevelopment: 10 })).players[0]!;
     const average = runYear([p], teamWeek("STARTER")).players[0]!;
     const gap = change(p, good, coreSkills("DE")) - change(p, bad, coreSkills("DE"));
-    console.log(`coaching 90 vs 10 on a rookie: ${round2(gap)} points a year`);
-    expect(gap).toBeGreaterThan(0.8);
-    expect(gap).toBeLessThan(1.3);
+    console.log(`coaching 90 vs 10 on a rookie of 22: ${round2(gap)} points a year (learning rate ${round2(learningRate(22, 0))})`);
+    // COACHING itself is not tuned (ADR-087 D5b); D5b round 1's learning rate brings a rookie of 22 to
+    // about 0.6 of the full rate, so the same staff gap is worth about 0.6 of a point in his first year.
+    expect(gap / learningRate(22, 0)).toBeGreaterThan(0.8);
+    expect(gap / learningRate(22, 0)).toBeLessThan(1.3);
+    expect(gap).toBeGreaterThan(0.4);
     // Absent reads as 50.
     const fifty = runYear([p], teamWeek("STARTER", { coachDevelopment: 50 })).players[0]!;
     expect(fifty).toEqual(average);
@@ -412,12 +421,14 @@ describe("the weekly inputs (§2.3)", () => {
     const won = one(p, when, { ...base, contests: [{ attr: attrId("manCoverage"), won: 8, lost: 0 }] });
     const lost = one(p, when, { ...base, contests: [{ attr: attrId("manCoverage"), won: 0, lost: 8 }] });
     const even = one(p, when, base);
-    const full = PERFORMANCE.pointsPerWeekAtFullMargin;
+    // The table's points at full margin, scaled by his learning rate like every other gain.
+    const full = PERFORMANCE.pointsPerWeekAtFullMargin * learningRate(22, 0);
     expect(eff(won, "manCoverage") - eff(even, "manCoverage")).toBeCloseTo(full, 9);
     expect(eff(lost, "manCoverage") - eff(even, "manCoverage")).toBeCloseTo(-full, 9);
     expect(eff(won, "zoneCoverage")).toBeCloseTo(eff(even, "zoneCoverage"), 12);
     // A backup's in-season week of practice is worth less than a week of being beaten: he can slip.
-    expect(SKILL_INPUTS.practicePointsPerYear * PRACTICE_SHARES.REGULAR_SEASON! / RULES.weeksPerSeason).toBeLessThan(full);
+    // (Both are scaled by the same learning rate, so the tables compare as they stand.)
+    expect(SKILL_INPUTS.practicePointsPerYear * PRACTICE_SHARES.REGULAR_SEASON! / RULES.weeksPerSeason).toBeLessThan(PERFORMANCE.pointsPerWeekAtFullMargin);
   });
 
   it("grows disguise only in weeks he practises, faster under a DC who teaches well", () => {
@@ -523,17 +534,21 @@ describe("aging (§4)", () => {
   });
 });
 
-describe("a year of development: the target magnitudes (CHOSEN, tuned in D5)", () => {
+describe("a year of development: the target magnitudes (CHOSEN in D5, retuned in D5b round 1)", () => {
   const POSITIONS: Position[] = ["QB", "RB", "WR", "TE", "LT", "DE", "MLB", "CB", "SS"];
+  // D5b round 1 (2026-11-01): the first targets (rookie 4, second year 3, 26 1.5, 27 1, 28-29 0.5,
+  // 32 -1, 34 -2) let the stand-in league's average rise 4.4 points in 20 seasons. The learning rate
+  // was retuned (developmentTables.ts) and these are the year's moves it gives, most of a career's
+  // learning in the first two seasons.
   const STAGES = [
-    { label: "rookie (22, 0 seasons)", age: 22, seasons: 0, target: 4, band: [3.2, 5.2] },
-    { label: "second year (23, 1)", age: 23, seasons: 1, target: 3, band: [2.2, 3.8] },
-    { label: "26 (4)", age: 26, seasons: 4, target: 1.5, band: [0.9, 2.1] },
-    { label: "27 (5)", age: 27, seasons: 5, target: 1, band: [0.4, 1.7] },
-    { label: "28 (6)", age: 28, seasons: 6, target: 0.5, band: [0, 1.1] },
-    { label: "29 (7)", age: 29, seasons: 7, target: 0.5, band: [-0.2, 1.0] },
-    { label: "32 (10)", age: 32, seasons: 10, target: -1, band: [-1.9, -0.5] },
-    { label: "34 (12)", age: 34, seasons: 12, target: -2, band: [-2.8, -1.4] },
+    { label: "rookie (22, 0 seasons)", age: 22, seasons: 0, target: 2.5, band: [2.0, 3.1] },
+    { label: "second year (23, 1)", age: 23, seasons: 1, target: 1, band: [0.6, 1.5] },
+    { label: "26 (4)", age: 26, seasons: 4, target: 0.7, band: [0.35, 1.05] },
+    { label: "27 (5)", age: 27, seasons: 5, target: 0.55, band: [0.2, 0.9] },
+    { label: "28 (6)", age: 28, seasons: 6, target: 0.4, band: [0.05, 0.75] },
+    { label: "29 (7)", age: 29, seasons: 7, target: 0.2, band: [-0.15, 0.55] },
+    { label: "32 (10)", age: 32, seasons: 10, target: -1.1, band: [-1.6, -0.6] },
+    { label: "34 (12)", age: 34, seasons: 12, target: -1.9, band: [-2.5, -1.4] },
   ] as const;
 
   // The same players (the same ids, so the same wobble) in four years: as starters, as backups, and as

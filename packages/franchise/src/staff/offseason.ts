@@ -28,17 +28,36 @@ import { makeCoach, type Cohort } from "./makeCoach.js";
 import { candidateReport, expectedShare, inTree, reputation, type CandidateReport } from "./evaluate.js";
 import { collegeRecord } from "./standIn.js";
 import {
-  clamp, currentJob, isRetired, logistic, offseasonStamp, seasonsOutOfWork, seatOf, sideOf, weightedPick, winShare,
+  clamp, currentJob, isInterimContract, isRetired, logistic, offseasonStamp, seasonsOutOfWork, seatOf, sideOf, weightedPick, winShare,
   type StaffWorld, type TeamSeasonSummary,
 } from "./world.js";
-import { checkViews, syncViews, type LedgerStep, type RelationshipContext } from "../relationships/ledger.js";
+import { applyMove, checkViews, syncViews, type LedgerStep, type RelationshipContext } from "../relationships/ledger.js";
+import {
+  GM_TUNING, LADDER_ROLES, drawGmSource, gmCandidate, gmCandidateReport, gmFireChance, gmSalary, gmVerdict, isCoachId,
+  isFrontOfficeId, isFrontOfficeRole, ladderJob, makeLadderMan, makeOutsider, type GmCandidateReport, type GmSource, type GmVerdict,
+} from "./frontOffice.js";
 import { applyExtension, applyFiring, applyHire, applySeasonResults } from "../relationships/staffMoves.js";
 import { bossOf, viewKey, wordFor } from "../relationships/ledger.js";
 import { RELATIONSHIP_TUNING } from "../relationships/tables.js";
+/** ADR-094 Q13 a: the share of midseason interims kept on after the season. CHOSEN, against the COUNTED few. */
+export const INTERIM_KEEP = { HEAD_COACH: 0.05, GM: 0.05 };
 import { STYLE_MATCH } from "./tables.js";
 
 export type StaffDecisionType = "HIRE_STAFF" | "FIRE_STAFF" | "EXTEND_STAFF" | "LET_CONTRACT_EXPIRE";
-export type StaffDecision = Decision<StaffDecisionType, { team: TeamId; staff: StaffId; seat: Seat }>;
+/** ADR-094 §8: the GM's chair is judged and filled by the carousel too, though it is not a coaching seat. */
+export type StaffDecision = Decision<StaffDecisionType, { team: TeamId; staff: StaffId; seat: Seat | "GM" }>;
+
+/** ADR-094 §8: one change of a team's GM, for the turnover check. */
+export interface GmMove {
+  season: number;
+  team: TeamId;
+  staff: StaffId;
+  kind: "DEPARTED" | "HIRED";
+  reason?: StaffDepartureReason;
+  source?: GmSource;
+  /** ADR-094 Q13 a: an interim seated in midseason (not a hire the turnover counts). */
+  interim?: boolean;
+}
 
 /** Where a new head coach came from (ADR-080 §8, compared with the REPORTED hiring sources). */
 export type HireSource = "OC" | "DC" | "STC" | "RETREAD" | "COLLEGE" | "POSITION_COACH" | "OUT_OF_WORK";
@@ -56,6 +75,8 @@ export interface StaffMove {
   tree?: boolean;
   /** ADR-084 §7.1: he refused a new contract (his contract ran out by his choice, not the team's). */
   walked?: boolean;
+  /** ADR-094 Q13 a: an interim seated in midseason (not a hire the turnover counts). */
+  interim?: boolean;
 }
 
 export interface StaffOffseasonInput {
@@ -83,6 +104,17 @@ export interface StaffOffseasonInput {
      */
     read?: boolean;
   };
+  /**
+   * ADR-094 §8 (Q10 a): the user's own GM. The president never judges the user's GM: `fire` is the
+   * user's call each offseason (absent: he stays), and `choose` picks the new one from the
+   * candidates' reports (absent: the computer picks, as for any team).
+   */
+  gm?: {
+    fire?: (team: TeamId, gm: StaffState, verdict: GmVerdict) => boolean;
+    choose?: (team: TeamId, shortlist: readonly GmCandidateReport[]) => StaffId | undefined;
+  };
+  /** The human's team, when no views are kept (with views, their context names it). */
+  userTeam?: TeamId;
 }
 
 export interface StaffOffseasonResult {
@@ -91,13 +123,16 @@ export interface StaffOffseasonResult {
   events: FranchiseEventEnvelope[];
   decisions: StaffDecision[];
   moves: StaffMove[];
+  /** ADR-094 §8: GM changes (empty in a league with no GMs). */
+  gmMoves: GmMove[];
   /** The views after the offseason, when they were given. */
   relationships?: RelationshipView[];
 }
 
-/** The president and (ADR-081 G1) the GM: fixed in v1, never hired, fired, retired or aged by the carousel. */
-const frontOffice = (s: StaffState): boolean => s.role === "PRESIDENT" || s.role === "GM";
-const authorityFor = (seat: Seat): Authority => (seat === "HEAD_COACH" ? "PRESIDENT" : "COACH");
+/** The president: fixed in v1, never hired, fired, retired or aged by the carousel. */
+const fixed = (s: StaffState): boolean => s.role === "PRESIDENT";
+const authorityFor = (seat: Seat | "GM"): Authority => (seat === "HEAD_COACH" || seat === "GM" ? "PRESIDENT" : "COACH");
+const logit = (p: number): number => Math.log(Math.max(1e-9, p) / Math.max(1e-9, 1 - p));
 
 /** Chance a coach of this age retires this year. */
 export function retireChance(age: number): number {
@@ -117,6 +152,32 @@ export interface HeadCoachVerdict {
   seasonsInJob: number;
   politics: number;
   playoffs?: { wins: number; champion: boolean };
+}
+
+/**
+ * The president's verdict on a head coach from the seasons of his job, the last one the season being
+ * judged (§6): its win share against what the roster promised, the season before it, and credit from
+ * the earlier ones fading a year at a time. ADR-094 §2 reads it in midseason too, with the season so
+ * far as the last one. `correction` (0..1) is how fully the president adjusts for the roster.
+ */
+export function headCoachVerdict(
+  seasons: readonly StaffJob["seasons"][number][],
+  o: { played: number; teamCount: number; correction: number; politics: number; playoffs?: { wins: number; champion: boolean } },
+): HeadCoachVerdict {
+  const t = STAFF_TUNING;
+  const perf = (s: StaffJob["seasons"][number]) => winShare(s.record) - expectedShare(s.rosterRank, o.teamCount, o.correction);
+  const now = seasons[seasons.length - 1];
+  if (!now) throw new Error("staff: a head coach's verdict needs at least one season");
+  const prev = seasons.length >= 2 ? seasons[seasons.length - 2] : undefined;
+  let credit = 0;
+  for (const s of seasons.slice(0, -2)) {
+    credit += Math.pow(t.hcFireCreditDecay, o.played - s.season)
+      * (perf(s) + 0.03 * (s.playoffs?.wins ?? 0) + (s.playoffs?.champion ? 0.1 : 0));
+  }
+  return {
+    perf: perf(now), ...(prev ? { prevPerf: perf(prev) } : {}), credit, seasonsInJob: seasons.length,
+    politics: o.politics, ...(o.playoffs ? { playoffs: o.playoffs } : {}),
+  };
 }
 
 /** The president's chance of firing his head coach this offseason (§6). A champion is never fired. */
@@ -178,8 +239,13 @@ export function runStaffOffseason(input: StaffOffseasonInput): StaffOffseasonRes
   const decisions: StaffDecision[] = [];
   const moves: StaffMove[] = [];
   const emit = (at: CalendarStamp, event: FranchiseEvent) => events.push({ seq: events.length, at, event });
-  const decide = (at: CalendarStamp, type: StaffDecisionType, team: Team, staff: StaffState, seat: Seat, human = false) =>
-    decisions.push({ type, authority: authorityFor(seat), payload: { team: team.id, staff: staff.id, seat }, decidedBy: human ? "HUMAN" : "NPC", at });
+  const gmMoves: GmMove[] = [];
+  // Q10 a: on the user's team the user, holding the GM authority, hires and fires the GM.
+  const decide = (at: CalendarStamp, type: StaffDecisionType, team: Team, staff: StaffState, seat: Seat | "GM", human = false) =>
+    decisions.push({
+      type, authority: seat === "GM" && human ? "GM" : authorityFor(seat), payload: { team: team.id, staff: staff.id, seat },
+      decidedBy: human ? "HUMAN" : "NPC", at,
+    });
 
   const DEPART_AT = offseasonStamp(played, 1);
   const HC_HIRE_AT = offseasonStamp(played, 2);
@@ -187,6 +253,7 @@ export function runStaffOffseason(input: StaffOffseasonInput): StaffOffseasonRes
 
   // ADR-084: the views, if kept. They follow the moves below; nothing reads them.
   const ctx = input.relationships?.context ?? {};
+  const userTeam = ctx.userTeam ?? input.userTeam;
   let views = input.relationships ? [...input.relationships.views] : undefined;
   if (views) checkViews(views, world, ctx);
   const take = (step: LedgerStep) => {
@@ -251,6 +318,24 @@ export function runStaffOffseason(input: StaffOffseasonInput): StaffOffseasonRes
     }
   };
 
+  /** ADR-094 §8: the GM leaves his chair. FIRED keeps his salary on the books, as a coach's. */
+  const gmOf = (team: Team) => team.staff.map((id) => staffById.get(String(id))!).find((s) => s.role === "GM");
+  const gmDepart = (s: StaffState, team: Team, reason: StaffDepartureReason, human = false) => {
+    const job = currentJob(s);
+    if (job) { job.lastSeason = played; job.ended = reason; }
+    const c = contractOf(s, team.id);
+    if (c) {
+      if (reason === "CONTRACT_EXPIRED") c.lastSeason = Math.min(c.lastSeason, played);
+      else c.terminated = { at: DEPART_AT, reason };
+    }
+    vacate(s, team);
+    emit(DEPART_AT, { type: "STAFF_DEPARTED", payload: { staff: s.id, team: team.id, reason } });
+    gmMoves.push({ season: played, team: team.id, staff: s.id, kind: "DEPARTED", reason });
+    if (reason === "FIRED") decide(DEPART_AT, "FIRE_STAFF", team, s, "GM", human);
+    if (reason === "CONTRACT_EXPIRED") decide(DEPART_AT, "LET_CONTRACT_EXPIRE", team, s, "GM", human);
+    if (views) views = syncViews(views, world, ctx);
+  };
+
   /** ADR-084 §7.1: one view's score, when views are kept and it exists. */
   const reads = input.relationships?.read !== false;
   const viewOf = (from: StaffId, of: RelationshipParty | undefined): number | undefined => {
@@ -301,7 +386,7 @@ export function runStaffOffseason(input: StaffOffseasonInput): StaffOffseasonRes
 
   // ---- 2. Retirement. ----------------------------------------------------------------------------
   for (const s of world.staff) {
-    if (isRetired(s) || frontOffice(s)) continue;
+    if (isRetired(s) || fixed(s)) continue;
     let p = retireChance(s.age);
     if (seasonsOutOfWork(s, played) >= t.outOfWorkYearsToDrift) p = Math.max(p, t.outOfWorkDrift);
     if (createRng(seed, `franchise:staff/retire/${played}/${String(s.id)}`).next() >= p) continue;
@@ -309,11 +394,145 @@ export function runStaffOffseason(input: StaffOffseasonInput): StaffOffseasonRes
     const seat = seatOf(s);
     if (seat && s.teamId !== undefined) {
       depart(s, teamById.get(String(s.teamId))!, seat, "RETIRED");
+    } else if (s.role === "GM" && s.teamId !== undefined) {
+      gmDepart(s, teamById.get(String(s.teamId))!, "RETIRED");
     } else if (job) {
       job.lastSeason = played;
       job.ended = "RETIRED";
     }
     s.retiredAfter = job ? played : (s.career[s.career.length - 1]?.lastSeason ?? played);
+  }
+
+  // ---- ADR-094 §8: the GM's chair (only in a league that has GMs). -------------------------------
+  // Worst record first, the order teams hire in; ties broken by each team's own dice.
+  const order = [...world.teams].sort((a, b) => {
+    const wa = winShare(results.get(String(a.id))!.record), wb = winShare(results.get(String(b.id))!.record);
+    return wa - wb || createRng(seed, `franchise:staff/order/${played}/${String(a.id)}`).next()
+      - createRng(seed, `franchise:staff/order/${played}/${String(b.id)}`).next();
+  });
+  const hasGms = world.staff.some((s) => s.role === "GM");
+  // GMs (ADR-081 G1) and the front office carry their own ids, so new coaches are numbered as before they came.
+  let madeFrontOffice = world.staff.filter((s) => isFrontOfficeId(s.id)).length;
+  const taken = new Set(world.staff.map((s) => s.displayName));
+  /** Every team keeps a scouting director and a cap manager, the men most new GMs come from. */
+  const fillLadder = (season: number, label: string) => {
+    const held = new Set<string>();
+    for (const s of world.staff) {
+      const job = ladderJob(s);
+      if (job && !isRetired(s)) held.add(`${String(job.team)}/${job.role}`);
+    }
+    for (const team of world.teams) for (const role of LADDER_ROLES) {
+      if (held.has(`${String(team.id)}/${role}`)) continue;
+      const rng = createRng(seed, `franchise:staff/ladder/${played}/${label}/${String(team.id)}/${role}`);
+      const s = makeLadderMan(rng, madeFrontOffice++, role, team, season, taken);
+      world.staff.push(s);
+      staffById.set(String(s.id), s);
+    }
+  };
+  const extendGm = (s: StaffState, team: Team) => {
+    const c = contractOf(s, team.id)!;
+    c.lastSeason += GM_TUNING.extensionYears;
+    c.salary = Math.round(c.salary * t.extensionRaise / 10_000) * 10_000;
+    decide(DEPART_AT, "EXTEND_STAFF", team, s, "GM", team.id === userTeam);
+  };
+  const hireGm = (c: StaffState, team: Team, judgement: number, source: GmSource, human: boolean) => {
+    const old = currentJob(c);
+    if (old) { old.lastSeason = played; old.ended = old.team === team.id ? "PROMOTED" : "HIRED_AWAY"; }
+    const [lo, hi] = GM_TUNING.contractYears;
+    const length = createRng(seed, `franchise:staff/years/${played}/${String(c.id)}`).next() < 0.5 ? hi : lo;
+    world.contracts.push({
+      staff: c.id, team: team.id, role: "GM", firstSeason: next, lastSeason: played + length, salary: gmSalary(judgement), signedAt: HC_HIRE_AT,
+    });
+    c.career.push({ level: "NFL", role: "GM", team: team.id, employer: team.displayName, firstSeason: next, seasons: [] });
+    c.role = "GM";
+    c.teamId = team.id;
+    team.staff.push(c.id);
+    emit(HC_HIRE_AT, { type: "STAFF_HIRED", payload: { staff: c.id, team: team.id, role: "GM" } });
+    decide(HC_HIRE_AT, "HIRE_STAFF", team, c, "GM", human);
+    if (views) views = syncViews(views, world, ctx);
+    gmMoves.push({ season: played, team: team.id, staff: c.id, kind: "HIRED", source });
+  };
+
+  if (hasGms) {
+    fillLadder(played, "start");
+    // GMs made before GMs were hired (ADR-081 G1) have no contract yet: give each the years left he has.
+    for (const team of world.teams) {
+      const gm = gmOf(team);
+      if (!gm || contractOf(gm, team.id)) continue;
+      const [lo, hi] = GM_TUNING.firstContractLeft;
+      const left = createRng(seed, `franchise:staff/gm-first-contract/${String(gm.id)}`).int(lo, hi);
+      world.contracts.push({
+        staff: gm.id, team: team.id, role: "GM", firstSeason: currentJob(gm)?.firstSeason ?? played,
+        lastSeason: played + left - 1, salary: gmSalary(50), signedAt: DEPART_AT,
+      });
+    }
+
+    // Presidents judge their GMs over the whole tenure; the user judges his own (Q10 a).
+    for (const team of world.teams) {
+      const gm = gmOf(team);
+      if (!gm) continue;
+      const job = currentJob(gm);
+      if (!job || job.seasons[job.seasons.length - 1]?.season !== played) continue;
+      const r = results.get(String(team.id))!;
+      const verdict = gmVerdict(job.seasons, {
+        played, teamCount, correction: rating(president(team).attributes, "talentEvaluation") / 100,
+        politics: rating(gm.attributes, "politics"), ...(r.playoffs ? { playoffs: r.playoffs } : {}),
+      });
+      const ending = contractOf(gm, team.id)!.lastSeason === played;
+      // An interim GM from midseason (Q13 a) is kept on now and then; otherwise the job is opened.
+      if (isInterimContract(contractOf(gm, team.id)!) && team.id !== userTeam) {
+        if (createRng(seed, `franchise:staff/interim-keep/${played}/GM/${String(team.id)}`).next() < INTERIM_KEEP.GM) extendGm(gm, team);
+        else gmDepart(gm, team, "CONTRACT_EXPIRED");
+        continue;
+      }
+      if (team.id === userTeam) {
+        if (input.gm?.fire?.(team.id, gm, verdict)) gmDepart(gm, team, ending ? "CONTRACT_EXPIRED" : "FIRED", true);
+        else if (ending) extendGm(gm, team);
+        continue;
+      }
+      const p = gmFireChance(verdict);
+      const u = createRng(seed, `franchise:staff/judge/${played}/GM/${String(team.id)}`).next();
+      if (ending) {
+        if (u < Math.min(0.95, GM_TUNING.contractEndFactor * p)) gmDepart(gm, team, "CONTRACT_EXPIRED");
+        else extendGm(gm, team);
+      } else if (u < p) {
+        gmDepart(gm, team, "FIRED");
+      }
+    }
+
+    // Open chairs are filled, worst record first. A team does not rehire the GM it has just let go.
+    for (const team of order) {
+      if (gmOf(team)) continue;
+      const pres = president(team);
+      const bySource = new Map<GmSource, StaffState[]>();
+      for (const s of world.staff) {
+        const source = gmCandidate(s, played);
+        if (!source) continue;
+        const last = s.career[s.career.length - 1];
+        if (last?.role === "GM" && last.team === team.id && last.lastSeason === played) continue;
+        bySource.set(source, [...(bySource.get(source) ?? []), s]);
+      }
+      const report = (c: StaffState, source: GmSource) =>
+        gmCandidateReport({ candidate: c, source, evaluator: pres, team, played, teamCount, seed });
+      const best = (rs: GmCandidateReport[]) => [...rs].sort((a, b) => b.judgement - a.judgement || (a.staff < b.staff ? -1 : 1))[0];
+      if (team.id === userTeam && input.gm?.choose) {
+        const shortlist = [...bySource].flatMap(([source, cs]) => cs.map((c) => report(c, source))
+          .sort((a, b) => b.judgement - a.judgement || (a.staff < b.staff ? -1 : 1)).slice(0, 4));
+        const picked = input.gm.choose(team.id, shortlist);
+        const pick = shortlist.find((r) => r.staff === picked);
+        if (pick) { hireGm(staffById.get(String(pick.staff))!, team, pick.judgement, pick.source, true); continue; }
+      }
+      const source = drawGmSource(createRng(seed, `franchise:staff/gm-source/${played}/${String(team.id)}`), new Set(bySource.keys()));
+      if (source === "OUTSIDE") {
+        const c = makeOutsider(createRng(seed, `franchise:staff/gm-outsider/${played}/${String(team.id)}`), madeFrontOffice++, taken);
+        world.staff.push(c);
+        staffById.set(String(c.id), c);
+        hireGm(c, team, report(c, "OUTSIDE").judgement, "OUTSIDE", false);
+        continue;
+      }
+      const pick = best(bySource.get(source)!.map((c) => report(c, source)))!;
+      hireGm(staffById.get(String(pick.staff))!, team, pick.judgement, source, false);
+    }
   }
 
   // ---- 3. Presidents judge their head coaches. --------------------------------------------------
@@ -324,20 +543,32 @@ export function runStaffOffseason(input: StaffOffseasonInput): StaffOffseasonRes
     const r = results.get(String(team.id))!;
     const correction = rating(president(team).attributes, "talentEvaluation") / 100;
     const job = currentJob(hc)!;
-    const perf = (s: StaffJob["seasons"][number]) => winShare(s.record) - expectedShare(s.rosterRank, teamCount, correction);
     const now = job.seasons[job.seasons.length - 1];
     if (now?.season !== played) throw new Error(`staff offseason: ${String(hc.id)} has no ${played} season on his résumé`);
-    const prev = job.seasons.length >= 2 ? job.seasons[job.seasons.length - 2] : undefined;
-    let credit = 0;
-    for (const s of job.seasons.slice(0, -2)) {
-      credit += Math.pow(t.hcFireCreditDecay, played - s.season)
-        * (perf(s) + 0.03 * (s.playoffs?.wins ?? 0) + (s.playoffs?.champion ? 0.1 : 0));
-    }
-    const p = headCoachFireChance({
-      perf: perf(now), ...(prev ? { prevPerf: perf(prev) } : {}), credit, seasonsInJob: job.seasons.length,
-      politics: rating(hc.attributes, "politics"), ...(r.playoffs ? { playoffs: r.playoffs } : {}),
+    const verdictWith = (c: number) => headCoachVerdict(job.seasons, {
+      played, teamCount, correction: c, politics: rating(hc.attributes, "politics"), ...(r.playoffs ? { playoffs: r.playoffs } : {}),
     });
+    let p = headCoachFireChance(verdictWith(correction));
+    // ADR-094 Q8 a: with a GM, the president's read counts half and the GM's the other half; the
+    // GM reads the roster with his own eye, and (views kept) his view of the coach moves his half.
+    const gm = gmOf(team);
+    if (gm) {
+      const opinion = team.id === userTeam ? undefined : viewOf(gm.id, { staff: hc.id });
+      const gmP = headCoachFireChance(verdictWith(rating(gm.attributes, "talentEvaluation") / 100));
+      const gmHalf = opinion === undefined ? gmP : logistic(logit(gmP) - RELATIONSHIP_TUNING.fireOpinionPerPoint * opinion);
+      p = (p + gmHalf) / 2;
+    }
     hcRisk.set(String(team.id), p);
+    // An interim head coach from midseason (Q13 a) is kept on now and then; otherwise the job is opened.
+    const hcContract = contractOf(hc, team.id);
+    if (hcContract && isInterimContract(hcContract)) {
+      if (createRng(seed, `franchise:staff/interim-keep/${played}/HEAD_COACH/${String(team.id)}`).next() < INTERIM_KEEP.HEAD_COACH) {
+        extend(hc, team, "HEAD_COACH");
+      } else {
+        depart(hc, team, "HEAD_COACH", "CONTRACT_EXPIRED");
+      }
+      continue;
+    }
     judge(hc, team, "HEAD_COACH", p, "HEAD_COACH");
   }
 
@@ -362,11 +593,6 @@ export function runStaffOffseason(input: StaffOffseasonInput): StaffOffseasonRes
   }
 
   // ---- hiring --------------------------------------------------------------------------------------
-  const order = [...world.teams].sort((a, b) => {
-    const wa = winShare(results.get(String(a.id))!.record), wb = winShare(results.get(String(b.id))!.record);
-    return wa - wb || createRng(seed, `franchise:staff/order/${played}/${String(a.id)}`).next()
-      - createRng(seed, `franchise:staff/order/${played}/${String(b.id)}`).next();
-  });
 
   // As Football Perspective counts them: any earlier NFL head job makes a retread, wherever he is now.
   const sourceOf = (c: StaffState): HireSource => {
@@ -379,9 +605,7 @@ export function runStaffOffseason(input: StaffOffseasonInput): StaffOffseasonRes
     return "OUT_OF_WORK";
   };
 
-  // GMs (ADR-081 G1) carry their own ids, so new coaches are numbered as before they came.
-  let made = world.staff.filter((s) => s.role !== "GM").length;
-  const taken = new Set(world.staff.map((s) => s.displayName));
+  let made = world.staff.filter((s) => isCoachId(s.id)).length;
   const addCoach = (cohort: Cohort, label: string) => {
     const s = makeCoach(createRng(seed, `franchise:staff/new/${played}/${label}`), made++, cohort, taken);
     world.staff.push(s);
@@ -435,7 +659,7 @@ export function runStaffOffseason(input: StaffOffseasonInput): StaffOffseasonRes
     moves.push(move);
   };
 
-  const available = (s: StaffState) => !isRetired(s) && !frontOffice(s);
+  const available = (s: StaffState) => !isRetired(s) && !isFrontOfficeRole(s.role);
   // Reputation does not move during one offseason's hiring (résumés gain seasons only in step 1).
   const reputationMemo = new Map<string, number>();
   const standing = (s: StaffState, seat: Seat) => {
@@ -468,12 +692,25 @@ export function runStaffOffseason(input: StaffOffseasonInput): StaffOffseasonRes
       .sort((a, b) => b.rep - a.rep || (a.s.id < b.s.id ? -1 : 1));
     const shortlist = ranked.slice(0, t.hcShortlist).map((x) => x.s);
     for (const own of [holder(team, "OC"), holder(team, "DC")]) if (own && !shortlist.includes(own)) shortlist.push(own);
-    const reports = shortlist.map((c) => candidateReport({
+    const presReports = shortlist.map((c) => candidateReport({
       candidate: c, seat: "HEAD_COACH", evaluator: { staff: pres, team }, played, teamCount, players, seed,
     }));
+    // ADR-094 Q8 a: with a GM, his interview counts half.
+    const gm = gmOf(team);
+    const reports = !gm ? presReports : presReports.map((r, i) => ({
+      ...r,
+      judgement: (r.judgement + candidateReport({
+        candidate: shortlist[i]!, seat: "HEAD_COACH", evaluator: { staff: gm, team }, played, teamCount, players, seed, diceKey: "gm",
+      }).judgement) / 2,
+    }));
     const best = [...reports].sort((a, b) => b.judgement - a.judgement || (a.staff < b.staff ? -1 : 1))[0]!;
-    hire(staffById.get(String(best.staff))!, team, "HEAD_COACH", best.judgement, false);
+    const hc = staffById.get(String(best.staff))!;
+    hire(hc, team, "HEAD_COACH", best.judgement, false);
     newHeadCoach.add(String(team.id));
+    // He owes the GM his job, as a coordinator owes the head coach who hires him (ADR-084 §5.2).
+    if (gm && views && views.some((v) => v.from === hc.id && "staff" in v.of && v.of.staff === gm.id)) {
+      take(applyMove(views, { move: "HIRED", from: hc.id, of: { staff: gm.id } }, world, HC_HIRE_AT, ctx, { firstSeq: events.length }));
+    }
   }
 
   // ---- 6. A new head coach keeps or replaces the coordinators he inherits. ------------------------
@@ -581,11 +818,14 @@ export function runStaffOffseason(input: StaffOffseasonInput): StaffOffseasonRes
     }
   }
 
-  // ---- 10. A year older (presidents and GMs are fixed in v1). ------------------------------------
-  for (const s of world.staff) if (!isRetired(s) && !frontOffice(s)) s.age += 1;
+  // ADR-094 §8: the front office is topped up too, so there are always GMs to hire.
+  if (hasGms) fillLadder(next, "topup");
+
+  // ---- 10. A year older (presidents are fixed in v1). --------------------------------------------
+  for (const s of world.staff) if (!isRetired(s) && !fixed(s)) s.age += 1;
   world.season = next;
 
-  return { world, events, decisions, moves, ...(views ? { relationships: views } : {}) };
+  return { world, events, decisions, moves, gmMoves, ...(views ? { relationships: views } : {}) };
 }
 
 /** The seated coaches' seat scores, for reports and checks. */

@@ -1,6 +1,7 @@
 /**
  * The roster side of the career baselines (ADR-087 D5b): ages, the 53 at week 8, credited seasons,
- * careers by entry group (Kaplan-Meier) and comebacks.
+ * careers by entry group (Kaplan-Meier) and comebacks; and, added 2026-11-06 for the owner's aging
+ * rulings, rookies' ages at week 8, the reserve/retired list by age, and exits by age.
  *
  * Pure. Rows go into a ledger one season at a time (`addRosterSeason`), which keeps, per player id,
  * only what the measures need; the measures read the ledger. Ids stay inside: every result is a
@@ -15,7 +16,9 @@
 import { rosterKind } from "../injuries/classify.js";
 import { survival } from "../injuries/measure.js";
 import { CAREER_GROUPS, foldPosition, type CareerGroup } from "./groups.js";
+import { ROOKIE_AGE_BINS, rookieAgeBin, type NflRookieAge, type NflRookieAgeSeason, type RookieAgeBin } from "./nflCareers.js";
 import type { CareerRosterRow } from "./rows.js";
+import { mean, round, sampleSd } from "./stats.js";
 
 // ---------------------------------------------------------------- ages and statuses
 
@@ -31,6 +34,20 @@ export function ageOn(birthDate: string | null, season: number): number | null {
   const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
   const before = mo > SNAPSHOT_MONTH || (mo === SNAPSHOT_MONTH && d > SNAPSHOT_DAY);
   return season - y - (before ? 1 : 0);
+}
+
+/** Days in a mean Gregorian year: a fractional age is days lived / this. */
+export const DAYS_PER_YEAR = 365.2425;
+
+/** Years on 23 October of `season` with the fraction kept (days lived / 365.2425); null when unreadable. */
+export function fractionalAgeOn(birthDate: string | null, season: number): number | null {
+  if (birthDate === null) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(birthDate.trim());
+  if (m === null) return null;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  const days = (Date.UTC(season, SNAPSHOT_MONTH - 1, SNAPSHOT_DAY) - Date.UTC(y, mo - 1, d)) / 86_400_000;
+  return days / DAYS_PER_YEAR;
 }
 
 /**
@@ -59,6 +76,18 @@ export function actOnly(row: CareerRosterRow): boolean {
 export function onARoster(row: CareerRosterRow): boolean {
   const kind = rosterKind(row.status, row.code);
   return kind !== "OFF_ROSTER" && kind !== "UNKNOWN";
+}
+
+/**
+ * On the reserve/retired list: code R02 (Reserve/Retired, `ingest/sources/rosterStatus.ts`) with
+ * status RET, the form of 2021-2024, or RES, the form of 2020 (92 rows that season). The code is
+ * absent from every file before 2020. A RET row without R02 (two in all of 2012-2024) does not
+ * count. Such a row is off the roster for `onARoster` and `onA53`, so a man on this list is on
+ * no team's list that week.
+ */
+export function onRetiredList(row: CareerRosterRow): boolean {
+  const s = (row.status ?? "").trim().toUpperCase();
+  return (row.code ?? "").trim().toUpperCase() === "R02" && (s === "RET" || s === "RES");
 }
 
 // ---------------------------------------------------------------- the 53 at week 8
@@ -176,6 +205,12 @@ export interface PlayerFacts {
   readonly groupBySeason: Map<number, CareerGroup | null>;
   /** First birth date seen on his rows. */
   birthDate: string | null;
+  /** Seasons he was on a 53 (`onA53`) in some regular-season week (2026-11-06, the exits by age). */
+  readonly on53: Set<number>;
+  /** Seasons he had a row on the reserve/retired list (`onRetiredList`) in some regular-season week. */
+  readonly retiredList: Set<number>;
+  /** His `years_exp` each season: the first readable one on his rows that season, in file order. */
+  readonly yearsExp: Map<number, number>;
 }
 
 export interface RosterLedger {
@@ -191,7 +226,10 @@ export const newLedger = (): RosterLedger => ({ players: new Map(), pfrToGsis: n
 function factsOf(ledger: RosterLedger, id: string): PlayerFacts {
   let f = ledger.players.get(id);
   if (f === undefined) {
-    f = { rookieYear: null, entryYear: null, credited: new Map(), onRoster: new Set(), groupBySeason: new Map(), birthDate: null };
+    f = {
+      rookieYear: null, entryYear: null, credited: new Map(), onRoster: new Set(), groupBySeason: new Map(), birthDate: null,
+      on53: new Set(), retiredList: new Set(), yearsExp: new Map(),
+    };
     ledger.players.set(id, f);
   }
   return f;
@@ -215,6 +253,9 @@ export function addRosterSeason(ledger: RosterLedger, rows: readonly CareerRoste
     if (r.pfrId !== null && !ledger.pfrToGsis.has(r.pfrId)) ledger.pfrToGsis.set(r.pfrId, r.gsisId);
     if (r.rookieYear !== null && (f.rookieYear === null || r.rookieYear < f.rookieYear)) f.rookieYear = r.rookieYear;
     if (r.entryYear !== null && (f.entryYear === null || r.entryYear < f.entryYear)) f.entryYear = r.entryYear;
+    if (r.yearsExp !== null && !f.yearsExp.has(season)) f.yearsExp.set(season, r.yearsExp);
+    if (onA53(r)) f.on53.add(season);
+    if (onRetiredList(r)) f.retiredList.add(season);
     const g = rowGroup(r);
     if (r.week === final && onA53(r) && !f.credited.has(season)) f.credited.set(season, g);
     tallyGroup(every, r.gsisId, g, r.week);
@@ -384,4 +425,116 @@ export function comebackUnits(ledger: RosterLedger, years: readonly number[], gr
     if (cases.length > 0) units.push(cases);
   }
   return units;
+}
+
+// ---------------------------------------------------------------- rookies' ages, the retired list, exits by age (2026-11-06)
+
+/**
+ * Rookies' ages on the week-8 53s (ADR-087, the owner's 2026-11-06 ruling to match made-up rookies'
+ * ages to real ones; here only measured). A rookie is a man with `years_exp` 0 on a week-8 53, the
+ * reading of the rookie share (`crossValues`). Pooled over the seasons' men, not the mean of the
+ * season values; ages whole and fractional on 23 October; men with no readable birth date are
+ * counted in `noBirthDate` and left out of every age.
+ */
+export function rookieAges(weekEight: readonly WeekEight[]): NflRookieAge {
+  interface Rookie { readonly whole: number; readonly fractional: number; readonly drafted: boolean }
+  const all: Rookie[] = [];
+  const perSeason: NflRookieAgeSeason[] = [];
+  let noBirthDate = 0;
+  for (const w of weekEight) {
+    const season: Rookie[] = [];
+    for (const r of w.rows) {
+      if (r.yearsExp !== 0) continue;
+      const whole = ageOn(r.birthDate, w.season);
+      const fractional = fractionalAgeOn(r.birthDate, w.season);
+      if (whole === null || fractional === null) {
+        noBirthDate++;
+        continue;
+      }
+      season.push({ whole, fractional, drafted: r.draftNumber !== null });
+    }
+    all.push(...season);
+    perSeason.push({
+      season: w.season, n: season.length,
+      meanWhole: round(mean(season.map((x) => x.whole))), meanFractional: round(mean(season.map((x) => x.fractional))),
+    });
+  }
+  const counts = Object.fromEntries(ROOKIE_AGE_BINS.map((b) => [b, 0])) as Record<RookieAgeBin, number>;
+  for (const x of all) counts[rookieAgeBin(x.whole)]++;
+  const shareByWholeYear = Object.fromEntries(ROOKIE_AGE_BINS.map((b) => [b, all.length === 0 ? 0 : round(counts[b] / all.length)])) as Record<RookieAgeBin, number>;
+  const drafted = all.filter((x) => x.drafted).map((x) => x.fractional);
+  const undrafted = all.filter((x) => !x.drafted).map((x) => x.fractional);
+  const fractional = all.map((x) => x.fractional);
+  return {
+    n: all.length,
+    noBirthDate,
+    meanWhole: round(mean(all.map((x) => x.whole))),
+    meanFractional: round(mean(fractional)),
+    sd: round(sampleSd(fractional)),
+    shareByWholeYear,
+    draftedN: drafted.length,
+    draftedMeanFractional: round(mean(drafted)),
+    undraftedN: undrafted.length,
+    undraftedMeanFractional: round(mean(undrafted)),
+    perSeason,
+  };
+}
+
+/** One case of a rate: his age and years in the league in the season the case is read in, and whether the event happened. */
+export interface RateCase {
+  readonly age: number | null;
+  readonly yearsExp: number | null;
+  readonly hit: boolean;
+}
+
+/** Each player's cases, players in the ledger's order (the bootstrap's units); players with none are left out. */
+function unitsOf(ledger: RosterLedger, casesOf: (id: string, f: PlayerFacts) => RateCase[]): RateCase[][] {
+  const units: RateCase[][] = [];
+  for (const [id, f] of ledger.players) {
+    const cases = casesOf(id, f);
+    if (cases.length > 0) units.push(cases);
+  }
+  return units;
+}
+
+/**
+ * The retired list: for each Y in `years`, every man credited in Y-1 (on a final-week 53) is a case,
+ * with his age and years in the league in Y-1; it is a hit when he is on the reserve/retired list
+ * (`onRetiredList`) in some regular-season week of Y.
+ */
+export function retiredListUnits(ledger: RosterLedger, years: readonly number[]): RateCase[][] {
+  return unitsOf(ledger, (_id, f) => years.filter((y) => f.credited.has(y - 1)).map((y) => ({
+    age: ageOn(f.birthDate, y - 1), yearsExp: f.yearsExp.get(y - 1) ?? null, hit: f.retiredList.has(y),
+  })));
+}
+
+/** Every man on the retired list in some Y of `years` (credited the year before or not), once per man and season: his age and years in the league in Y. */
+export function retiredListPlacements(ledger: RosterLedger, years: readonly number[]): { readonly age: number | null; readonly yearsExp: number | null }[] {
+  const out: { age: number | null; yearsExp: number | null }[] = [];
+  for (const f of ledger.players.values()) {
+    for (const y of years) if (f.retiredList.has(y)) out.push({ age: ageOn(f.birthDate, y), yearsExp: f.yearsExp.get(y) ?? null });
+  }
+  return out;
+}
+
+/**
+ * Back on a 53: for each Y in `years`, every man credited in Y is a case (age in Y); a hit when he
+ * is on a 53 (`onA53`) in some regular-season week of Y+1 or Y+2. Men still under contract count,
+ * so this is looser than "signed again".
+ */
+export function backOnA53Units(ledger: RosterLedger, years: readonly number[]): RateCase[][] {
+  return unitsOf(ledger, (_id, f) => years.filter((y) => f.credited.has(y)).map((y) => ({
+    age: ageOn(f.birthDate, y), yearsExp: f.yearsExp.get(y) ?? null, hit: f.on53.has(y + 1) || f.on53.has(y + 2),
+  })));
+}
+
+/**
+ * Starters gone: for each Y in `years`, every starter that season (`starters`, by roster id) who is
+ * credited in Y is a case (age in Y); a hit when he is on no team's list (`onARoster`) in any
+ * regular-season week of Y+1 and of Y+2. A man on the retired list is on no list.
+ */
+export function startersGoneUnits(ledger: RosterLedger, years: readonly number[], starters: ReadonlyMap<number, ReadonlySet<string>>): RateCase[][] {
+  return unitsOf(ledger, (id, f) => years.filter((y) => f.credited.has(y) && (starters.get(y)?.has(id) ?? false)).map((y) => ({
+    age: ageOn(f.birthDate, y), yearsExp: f.yearsExp.get(y) ?? null, hit: !f.onRoster.has(y + 1) && !f.onRoster.has(y + 2),
+  })));
 }

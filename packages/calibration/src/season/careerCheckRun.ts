@@ -54,7 +54,7 @@ import type { DraftReaderState } from "./draftCheck.js";
 import type { SeasonPeople } from "./realSeason.js";
 
 /** This check's own version: a change to what a record holds starts a fresh cache. */
-export const CAREER_CHECK_VERSION = 4;
+export const CAREER_CHECK_VERSION = 5;
 
 /** The engine rules the walk plays (`runCapCheck` plays the default, `legacy`). */
 export const CAREER_ENGINE_RULES = "legacy";
@@ -128,7 +128,8 @@ export interface CareerFingerprintInput {
 
 /**
  * Source files the fingerprint leaves out, repository-relative: this check's grader and command,
- * and the real-NFL side of it (`careers/`, all but the usage and group pieces the reader shares).
+ * the real-NFL side of it (`careers/`, all but the usage and group pieces the reader shares), and the
+ * stand-in recount (`standin/`).
  * None is reachable from the walk (`careerCheckRun.ts` and what it imports); a test reads the walk's
  * imports and holds this list to that, so a file the walk comes to import cannot stay left out.
  */
@@ -143,6 +144,12 @@ export const CAREER_FINGERPRINT_LEAVES_OUT: readonly string[] = [
   "packages/calibration/src/careers/report.ts",
   "packages/calibration/src/careers/stats.ts",
   "packages/calibration/src/careers/wins.ts",
+  // The stand-in recount (ADR-087, owner's ruling 2026-11-06): a real-side measurement of the league file, never reached by the walk.
+  "packages/calibration/src/standin/main.ts",
+  "packages/calibration/src/standin/recount.ts",
+  "packages/calibration/src/standin/report.ts",
+  "packages/calibration/src/standin/rows.ts",
+  "packages/calibration/src/standin/rules.ts",
 ];
 
 /** Every file under `dir`, repository-relative with "/", sorted. */

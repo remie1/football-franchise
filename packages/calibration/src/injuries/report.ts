@@ -3,6 +3,8 @@
  * JSON for the franchise injury table, with every definition and its limits written out.
  */
 
+import { AGE_BANDS, BODY_CLASSES, type AgeClassSummary, type AgeSummary, type RepeatConcussion, type WeeksOut } from "./byAge.js";
+import type { SpotSummary } from "./bySpot.js";
 import type { AssetManifest } from "./data.js";
 import type { GroupSummary, Summary } from "./measure.js";
 import type { TimelineCoverage } from "./timeline.js";
@@ -18,6 +20,14 @@ export interface InjuryRatesReport {
   /** 2022-2024 pooled: today's rules (17 games, 4-game IR returns), no COVID lists. */
   readonly recent: Summary | null;
   readonly perSeason: readonly Summary[];
+  /** REAL, all measured seasons pooled: new in-season injuries by age band (owner's rulings 2026-11-06; `byAge.ts`). */
+  readonly byAge: AgeSummary;
+  /** REAL: the same by CHOSEN body-part class within each age band. */
+  readonly byAgeClass: AgeClassSummary;
+  /** REAL: a man's first concussion seen in the window against his second or later. */
+  readonly repeatConcussion: RepeatConcussion;
+  /** REAL: the per-group rates by depth-chart spot, beside the listed groups (`bySpot.ts`). */
+  readonly byDepthChartGroup: SpotSummary;
 }
 
 /** What each count is, in words. Shared by the Markdown and the JSON. */
@@ -105,7 +115,7 @@ export function compactJson(value: unknown, width = 110, indent = ""): string {
 }
 
 export function renderJson(r: InjuryRatesReport): string {
-  return compactJson({ ...r, definitions: DEFINITIONS, limits: LIMITS }) + "\n";
+  return compactJson({ ...r, ageAndSpotCaveats: AGE_AND_SPOT_CAVEATS, definitions: DEFINITIONS, limits: LIMITS }) + "\n";
 }
 
 // ---------------------------------------------------------------- formatting
@@ -302,6 +312,8 @@ export function renderMarkdown(r: InjuryRatesReport): string {
   );
   out.push("");
 
+  out.push(...renderAgeAndSpot(r));
+
   out.push("## Definitions");
   out.push("");
   for (const d of DEFINITIONS) out.push(`- **${d.term}.** ${d.text}`);
@@ -326,4 +338,177 @@ export function renderMarkdown(r: InjuryRatesReport): string {
   out.push(table(["Asset", "Bytes", "sha256", "Fetched"], r.sources.map((s) => [`[${s.tag}/${s.asset}](${s.url})`, int(s.bytes), `\`${s.sha256.slice(7, 23)}…\``, s.fetchedAt.slice(0, 10)])));
   out.push("");
   return out.join("\n");
+}
+
+// ---------------------------------------------------------------- by age and by spot
+
+const orDash = (x: number | null, f: (v: number) => string): string => (x === null ? "-" : f(x));
+const median = (w: WeeksOut): string => (w.n === 0 ? "-" : String(w.median ?? "-"));
+const signed = (x: number, d: number): string => `${x >= 0 ? "+" : ""}${x.toFixed(d)}`;
+
+/** The limits of the age and spot numbers, in the Markdown section and the JSON. */
+export const AGE_AND_SPOT_CAVEATS: readonly string[] = [
+  "Survivors: the men still playing at 33 and over are the ones durable and good enough to last, so the oldest band's rates describe them, not what age does to a typical player.",
+  "Position mix: older men are more often quarterbacks, linemen and specialists, so the raw rates by age mix age with position; the observed / expected columns adjust for the listed group only, not for role (starter or backup) or snaps per game.",
+  "Injured-reserve rules shape weeks out and availability: 2019's IR was season-ending but for two designated returns a team, 2020-2021 had a 3-week minimum, 2022 on 4 games; teams shut players down late in a lost season, and stash young men on IR to keep them, which lifts the youngest band's share of game weeks missed.",
+  "Unknown body parts: about 11% of spells have no report text near them, skewed to the longest (players placed straight on IR), so the unknown class holds many of the long injuries and the named classes' out-4+-weeks shares understate theirs.",
+  "Only these seasons: six regular seasons (2019-2024). The code reads back to 2013, but the older injury files would have to be downloaded; 2025 is held out and never read.",
+  "Ages are one per player-season, on 23 October: a man who turns 26 in December is 25 all season.",
+  "First concussion means the first seen in the window (since 2019), not his first ever: a man concussed in 2018 and again in 2020 has his 2020 one counted first.",
+  "Quick relapses: a second or later concussion that begins after one game back from the one before, on the same team in the same season, may be the same concussion counted twice. It sits in the second-or-later row and is also set apart; the first spell of such a pair, often short, sits in the first row.",
+  "Depth-chart spot: the weekly roster's depth_chart_position is each man's position on the team's list in fine form, not the game-day depth chart's order or formation (nflverse's separate depth-chart table, not cached here, has those). A man who plays outside his listed spot on game day, such as a safety at corner in the nickel, is not seen.",
+];
+
+/**
+ * The section for the owner's rulings of 2026-11-06 (ADR-087): REAL (counted) injuries by age, by
+ * body-part class within age, repeat concussions, and the group rates recounted by depth-chart spot.
+ */
+export function renderAgeAndSpot(r: InjuryRatesReport): string[] {
+  const a = r.byAge;
+  const c = r.byAgeClass;
+  const rc = r.repeatConcussion;
+  const sp = r.byDepthChartGroup;
+  const out: string[] = [];
+
+  out.push("## By age, body-part class and depth-chart spot (REAL)");
+  out.push("");
+  out.push(
+    `Added for the owner's rulings of 2026-11-06 (ADR-087): measure injuries by age before adding slower healing, and recount the group rates by the spot a team plays a man at. ` +
+      `Every number in this section is REAL (counted) from the same files, timelines and definitions as above, regular seasons ${span(a.seasons)} pooled; 2025 is never read. ` +
+      "CHOSEN: the age bands, the body-part classes, the reference date, the reading of older spot spellings and the standard error's method.",
+  );
+  out.push("");
+  out.push(
+    `Age is ${a.reference} (the stand-in file's snapshot point, the same reading as \`nfl-careers\`), from the first birth date on the player's weekly-roster rows, oldest season first. ` +
+      `One age per player-season. Listed kickers, punters and long snappers (K/P) are left out of the age rows (${int(a.leftOut.specialistTimelines)} team-season timelines), ` +
+      `and so are ${int(a.leftOut.noBirthDate.timelines)} timelines with no birth date (${int(a.leftOut.noBirthDate.playerGames)} player-games, ${int(a.leftOut.noBirthDate.newTimeLoss)} new injuries).`,
+  );
+  out.push("");
+
+  out.push("### Injuries by age");
+  out.push("");
+  out.push(table(
+    ["Age", "Player-seasons", "Player-games", "Injuries (after a game played)", "Per 1,000 snaps", "Per player-game", "Observed / expected, per snap", "Observed / expected, per player-game"],
+    a.bands.map((b) => [
+      b.band, int(b.playerSeasons), int(b.playerGames), `${int(b.newTimeLoss)} (${int(b.afterPlayed)})`, fix(b.per1000Snaps, 3), fix(b.perPlayerGame, 4),
+      `${fix(b.mixPerSnap.ratio, 2)} ± ${fix(b.mixPerSnap.se, 2)}`, `${fix(b.mixPerPlayerGame.ratio, 2)} ± ${fix(b.mixPerPlayerGame.se, 2)}`,
+    ]),
+  ));
+  out.push("");
+  out.push(
+    "Injuries are new in-season time-loss football injuries; per 1,000 snaps counts those after a game he played. Observed / expected sets the band's injuries against what its own player-games " +
+      "would have at each listed group's rate over all ages, so a band heavy with quarterbacks or linemen is not read as an age effect; ± is one Poisson standard error (√observed / expected).",
+  );
+  out.push("");
+  out.push(table(
+    ["Age", "Injuries (censored)", "Median weeks out", "Out 4+ weeks", "Out 9+ weeks", "Game weeks", "Missed for injury", "... football", "... on IR or PUP"],
+    a.bands.map((b) => [
+      b.band, `${int(b.weeksOut.n)} (${int(b.weeksOut.censored)})`, median(b.weeksOut),
+      orDash(b.weeksOut.p4Plus, (x) => pct(x)), orDash(b.weeksOut.p9Plus, (x) => pct(x)),
+      int(b.availability.gameWeeks), pct(b.availability.missedShare), pct(b.availability.missedFootballShare), pct(b.availability.onReserveShare),
+    ]),
+  ));
+  out.push("");
+  out.push(
+    "Weeks out are Kaplan-Meier over the band's new in-season time-loss injuries (calendar weeks, byes count). Game weeks are the team game weeks he played, was healthy on the 53 " +
+      "and did not play, or missed for injury of any cause (football, illness, the non-football list); the last three columns are shares of them (availability).",
+  );
+  out.push("");
+
+  out.push("### By body-part class within each age band");
+  out.push("");
+  const partsOf = (cls: (typeof BODY_CLASSES)[number]): string => c.classes[cls].filter((p) => p !== "illness").join(", ");
+  out.push(
+    `Classes (CHOSEN, grouping the keyword classes above): ${BODY_CLASSES.filter((k) => k !== "unknown").map((k) => `${k} = ${partsOf(k)}`).join("; ")}; ` +
+      "unknown = no report text near the spell. Elbow/arm also catches biceps and triceps.",
+  );
+  out.push("");
+  const cell = (band: string, cls: string) => c.rows.find((x) => x.band === band && x.cls === cls);
+  out.push(table(
+    ["Per 1,000 snaps (injuries)", ...AGE_BANDS],
+    BODY_CLASSES.map((cls) => [cls, ...AGE_BANDS.map((band) => {
+      const x = cell(band, cls);
+      return x === undefined ? "-" : `${fix(x.per1000Snaps, 3)} (${int(x.n)})`;
+    })]),
+  ));
+  out.push("");
+  out.push(table(
+    ["Out 4+ weeks, Kaplan-Meier", ...AGE_BANDS],
+    BODY_CLASSES.map((cls) => [cls, ...AGE_BANDS.map((band) => {
+      const x = cell(band, cls);
+      return x === undefined ? "-" : orDash(x.weeksOut.p4Plus, (v) => pct(v));
+    })]),
+  ));
+  out.push("");
+  out.push("The count in brackets is the class's new in-season injuries in the band; the per-snap rate counts the ones after a game played, over the band's snaps.");
+  out.push("");
+
+  out.push("### Repeat concussions");
+  out.push("");
+  out.push(
+    `Every football spell with body part concussion/head in ${span(rc.seasons)} (any onset, any group): ${int(rc.spells)} spells, ${int(rc.men)} men, ${int(rc.menWith2Plus)} of them with two or more. ` +
+      "Each man's spells are ordered by season and first missed week.",
+  );
+  out.push("");
+  const conc = (label: string, o: RepeatConcussion["first"]): string[] => [
+    label, int(o.all.n), median(o.all), orDash(o.all.p2Plus, (x) => pct(x)), orDash(o.all.p4Plus, (x) => pct(x)),
+    `${int(o.newInSeason.n)}; ${orDash(o.newInSeason.p4Plus, (x) => pct(x))}`,
+  ];
+  out.push(table(
+    ["Concussion", "Spells", "Median weeks out", "Out 2+ weeks", "Out 4+ weeks", "New in season: spells; out 4+ weeks"],
+    [
+      conc("First seen in the window", rc.first), conc("Second or later", rc.later),
+      conc("... a quick relapse", rc.laterQuickRelapse), conc("... the rest", rc.laterApart),
+    ],
+  ));
+  out.push("");
+  out.push(
+    `A quick relapse begins the team game after the one game that ended his previous concussion spell, on the same team in the same season (CHOSEN line: one game back). ` +
+      `Some of those may be one concussion counted twice, so the second-or-later row mixes them with the rest; a rule that later concussions heal slower is better built on the rest's row. ` +
+      `The first half of such a pair is in the first row: ${int(rc.firstFollowedByQuickRelapse)} first spells are followed by a quick relapse.`,
+  );
+  out.push("");
+
+  out.push("### By depth-chart spot");
+  out.push("");
+  const codes = Object.entries(sp.unknownSpot.codes).map(([k, v]) => `${k} ${int(v)}`).join(", ");
+  out.push(
+    "The spot is the weekly roster's depth_chart_position, read week by week and folded into the injury groups by the listed position's own rule (DE, DT, NT are DL; OLB, ILB, MLB are LB; " +
+      "CB, FS, SS, S are DB; T, G, C are OL; FB is RB; K, P, LS are K/P). Older spellings OT, OG, HB and SAF read as T, G, RB and S (CHOSEN, as `nfl-careers` reads them). " +
+      "A player-game counts at that week's spot; an injury counts at the spot of the game week its onset follows. " +
+      `A blank or unreadable spot counts at his listed group: ${int(sp.unknownSpot.playerGames)} player-games${codes === "" ? "" : ` (${codes})`}, ${int(sp.unknownSpot.newTimeLoss)} injuries.`,
+  );
+  out.push("");
+  const maxSnap = Math.max(0, ...sp.groups.map((g) => Math.abs(g.change.per1000Snaps)));
+  const maxGame = Math.max(0, ...sp.groups.map((g) => Math.abs(g.change.perPlayerGame)));
+  out.push(
+    `The spot group differs from the listed group in ${int(sp.differ.playerGames)} of ${int(sp.playerGames)} player-games (${pct(sp.differ.share, 2)}; ${pct(sp.differ.snapShare, 2)} of snaps) ` +
+      `and moves ${int(sp.differ.newTimeLoss)} injuries. ${int(sp.differ.fromThatWeeksListing)} of those player-games have a spot outside that same week's listed group; the rest come from a listed ` +
+      "position that changed during the season (the listed group is the team-season's most common). In these files the column holds the man's position in its fine form (CB, FS, SS; T, G, C; " +
+      `DE, DT, NT; OLB, ILB, MLB), not the game-day depth chart, so the recount moves no group's rate by more than ${fix(maxSnap, 3)} per 1,000 snaps or ${fix(maxGame, 4)} per player-game. ` +
+      "Edge rushers stay split the way teams list them (a 4-3 end is DL, a 3-4 outside linebacker LB). The fine spots below are where the spot says more than the group.",
+  );
+  out.push("");
+  out.push(table(
+    ["Group", "Player-games (listed; spot)", "Per player-game (listed; spot; change)", "Per 1,000 snaps (listed; spot; change)"],
+    sp.groups.map((g) => [
+      g.group, `${int(g.listed.playerGames)}; ${int(g.spot.playerGames)}`,
+      `${fix(g.listed.perPlayerGame, 4)}; ${fix(g.spot.perPlayerGame, 4)}; ${signed(g.change.perPlayerGame, 4)}`,
+      `${fix(g.listed.per1000Snaps, 3)}; ${fix(g.spot.per1000Snaps, 3)}; ${signed(g.change.per1000Snaps, 3)}`,
+    ]),
+  ));
+  out.push("");
+  out.push(table(
+    ["Spot", "Group", "Player-games", "Injuries (after a game played)", "Per player-game", "Per 1,000 snaps"],
+    sp.fine.map((f) => [
+      f.spot, f.group ?? "-", int(f.rates.playerGames), `${int(f.rates.newTimeLoss)} (${int(f.rates.afterPlayed)})`, fix(f.rates.perPlayerGame, 4), fix(f.rates.per1000Snaps, 3),
+    ]),
+  ));
+  out.push("");
+
+  out.push("### Caveats for this section");
+  out.push("");
+  for (const line of AGE_AND_SPOT_CAVEATS) out.push(`- ${line}`);
+  out.push("");
+  return out;
 }

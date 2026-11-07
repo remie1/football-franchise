@@ -3694,6 +3694,855 @@
       }
     }
   ],
+  "byAge": {
+    "seasons": [2019, 2020, 2021, 2022, 2023, 2024],
+    "reference": "whole years on 23 October of the season",
+    "bands": [
+      {
+        "band": "25 and under",
+        "playerSeasons": 6122,
+        "playerGames": 63653,
+        "snaps": 2406170,
+        "newTimeLoss": 2826,
+        "afterPlayed": 2709,
+        "per1000Snaps": 1.125856,
+        "perPlayerGame": 0.044397,
+        "mixPerSnap": {"observed": 2709, "expected": 2738.873, "ratio": 0.9891, "se": 0.019},
+        "mixPerPlayerGame": {"observed": 2826, "expected": 2972.442, "ratio": 0.9507, "se": 0.0179},
+        "weeksOut": {"n": 2826, "censored": 983, "median": 3, "p2Plus": 0.699228, "p4Plus": 0.420641, "p9Plus": 0.219359},
+        "availability": {
+          "gameWeeks": 97816,
+          "missed": 19044,
+          "missedShare": 0.194692,
+          "missedFootball": 18178,
+          "missedFootballShare": 0.185839,
+          "onReserve": 14438,
+          "onReserveShare": 0.147604
+        }
+      },
+      {
+        "band": "26-28",
+        "playerSeasons": 3606,
+        "playerGames": 39280,
+        "snaps": 1618848,
+        "newTimeLoss": 1796,
+        "afterPlayed": 1738,
+        "per1000Snaps": 1.073603,
+        "perPlayerGame": 0.045723,
+        "mixPerSnap": {"observed": 1738, "expected": 1804.149, "ratio": 0.9633, "se": 0.0231},
+        "mixPerPlayerGame": {"observed": 1796, "expected": 1813.88, "ratio": 0.9901, "se": 0.0234},
+        "weeksOut": {"n": 1796, "censored": 635, "median": 3, "p2Plus": 0.699636, "p4Plus": 0.401442, "p9Plus": 0.216949},
+        "availability": {
+          "gameWeeks": 55889,
+          "missed": 10224,
+          "missedShare": 0.182934,
+          "missedFootball": 9965,
+          "missedFootballShare": 0.1783,
+          "onReserve": 7581,
+          "onReserveShare": 0.135644
+        }
+      },
+      {
+        "band": "29-30",
+        "playerSeasons": 1306,
+        "playerGames": 14548,
+        "snaps": 628520,
+        "newTimeLoss": 739,
+        "afterPlayed": 712,
+        "per1000Snaps": 1.13282,
+        "perPlayerGame": 0.050797,
+        "mixPerSnap": {"observed": 712, "expected": 683.856, "ratio": 1.0412, "se": 0.039},
+        "mixPerPlayerGame": {"observed": 739, "expected": 667.95, "ratio": 1.1064, "se": 0.0407},
+        "weeksOut": {"n": 739, "censored": 271, "median": 3, "p2Plus": 0.680882, "p4Plus": 0.438628, "p9Plus": 0.259199},
+        "availability": {
+          "gameWeeks": 20353,
+          "missed": 3630,
+          "missedShare": 0.178352,
+          "missedFootball": 3557,
+          "missedFootballShare": 0.174765,
+          "onReserve": 2584,
+          "onReserveShare": 0.126959
+        }
+      },
+      {
+        "band": "31-32",
+        "playerSeasons": 649,
+        "playerGames": 7056,
+        "snaps": 307223,
+        "newTimeLoss": 407,
+        "afterPlayed": 394,
+        "per1000Snaps": 1.282456,
+        "perPlayerGame": 0.057681,
+        "mixPerSnap": {"observed": 394, "expected": 327.431, "ratio": 1.2033, "se": 0.0606},
+        "mixPerPlayerGame": {"observed": 407, "expected": 322.685, "ratio": 1.2613, "se": 0.0625},
+        "weeksOut": {"n": 407, "censored": 153, "median": 3, "p2Plus": 0.682065, "p4Plus": 0.41654, "p9Plus": 0.22496},
+        "availability": {
+          "gameWeeks": 10001,
+          "missed": 1889,
+          "missedShare": 0.188881,
+          "missedFootball": 1854,
+          "missedFootballShare": 0.185381,
+          "onReserve": 1270,
+          "onReserveShare": 0.126987
+        }
+      },
+      {
+        "band": "33 and over",
+        "playerSeasons": 402,
+        "playerGames": 4354,
+        "snaps": 195197,
+        "newTimeLoss": 209,
+        "afterPlayed": 202,
+        "per1000Snaps": 1.034852,
+        "perPlayerGame": 0.048002,
+        "mixPerSnap": {"observed": 202, "expected": 200.691, "ratio": 1.0065, "se": 0.0708},
+        "mixPerPlayerGame": {"observed": 209, "expected": 200.043, "ratio": 1.0448, "se": 0.0723},
+        "weeksOut": {"n": 209, "censored": 84, "median": 2, "p2Plus": 0.693122, "p4Plus": 0.40735, "p9Plus": 0.274294},
+        "availability": {
+          "gameWeeks": 6172,
+          "missed": 909,
+          "missedShare": 0.147278,
+          "missedFootball": 902,
+          "missedFootballShare": 0.146144,
+          "onReserve": 607,
+          "onReserveShare": 0.098347
+        }
+      }
+    ],
+    "leftOut": {"specialistTimelines": 790, "noBirthDate": {"timelines": 23, "playerGames": 0, "newTimeLoss": 0}}
+  },
+  "byAgeClass": {
+    "seasons": [2019, 2020, 2021, 2022, 2023, 2024],
+    "classes": {
+      "soft tissue": ["hamstring", "groin/hip", "calf/shin", "quad/thigh", "achilles"],
+      "concussion": ["concussion/head"],
+      "joint": ["knee", "ankle", "shoulder", "foot/toe", "hand/wrist", "elbow/arm"],
+      "other": ["back/neck", "chest/ribs/abdomen", "illness", "other"],
+      "unknown": ["unknown"]
+    },
+    "rows": [
+      {
+        "band": "25 and under",
+        "cls": "soft tissue",
+        "n": 711,
+        "afterPlayed": 669,
+        "per1000Snaps": 0.278035,
+        "weeksOut": {"n": 711, "censored": 163, "median": 2, "p2Plus": 0.683258, "p4Plus": 0.324055, "p9Plus": 0.108079}
+      },
+      {
+        "band": "25 and under",
+        "cls": "concussion",
+        "n": 285,
+        "afterPlayed": 283,
+        "per1000Snaps": 0.117614,
+        "weeksOut": {"n": 285, "censored": 59, "median": 1, "p2Plus": 0.473077, "p4Plus": 0.175149, "p9Plus": 0.065626}
+      },
+      {
+        "band": "25 and under",
+        "cls": "joint",
+        "n": 1298,
+        "afterPlayed": 1247,
+        "per1000Snaps": 0.518251,
+        "weeksOut": {"n": 1298, "censored": 440, "median": 3, "p2Plus": 0.716456, "p4Plus": 0.429093, "p9Plus": 0.198648}
+      },
+      {
+        "band": "25 and under",
+        "cls": "other",
+        "n": 233,
+        "afterPlayed": 218,
+        "per1000Snaps": 0.0906,
+        "weeksOut": {"n": 233, "censored": 76, "median": 2, "p2Plus": 0.559809, "p4Plus": 0.304433, "p9Plus": 0.203742}
+      },
+      {
+        "band": "25 and under",
+        "cls": "unknown",
+        "n": 299,
+        "afterPlayed": 292,
+        "per1000Snaps": 0.121355,
+        "weeksOut": {"n": 299, "censored": 245, "median": null, "p2Plus": 0.985348, "p4Plus": 0.958398, "p9Plus": 0.763554}
+      },
+      {
+        "band": "26-28",
+        "cls": "soft tissue",
+        "n": 476,
+        "afterPlayed": 465,
+        "per1000Snaps": 0.287241,
+        "weeksOut": {"n": 476, "censored": 116, "median": 2, "p2Plus": 0.680365, "p4Plus": 0.312623, "p9Plus": 0.072136}
+      },
+      {
+        "band": "26-28",
+        "cls": "concussion",
+        "n": 131,
+        "afterPlayed": 129,
+        "per1000Snaps": 0.079686,
+        "weeksOut": {"n": 131, "censored": 25, "median": 1, "p2Plus": 0.468254, "p4Plus": 0.159698, "p9Plus": 0.110095}
+      },
+      {
+        "band": "26-28",
+        "cls": "joint",
+        "n": 784,
+        "afterPlayed": 757,
+        "per1000Snaps": 0.467616,
+        "weeksOut": {"n": 784, "censored": 254, "median": 2, "p2Plus": 0.684951, "p4Plus": 0.364976, "p9Plus": 0.176477}
+      },
+      {
+        "band": "26-28",
+        "cls": "other",
+        "n": 187,
+        "afterPlayed": 176,
+        "per1000Snaps": 0.108719,
+        "weeksOut": {"n": 187, "censored": 62, "median": 2, "p2Plus": 0.658824, "p4Plus": 0.356709, "p9Plus": 0.207769}
+      },
+      {
+        "band": "26-28",
+        "cls": "unknown",
+        "n": 218,
+        "afterPlayed": 211,
+        "per1000Snaps": 0.13034,
+        "weeksOut": {"n": 218, "censored": 178, "median": null, "p2Plus": 0.970443, "p4Plus": 0.927175, "p9Plus": 0.752913}
+      },
+      {
+        "band": "29-30",
+        "cls": "soft tissue",
+        "n": 179,
+        "afterPlayed": 175,
+        "per1000Snaps": 0.278432,
+        "weeksOut": {"n": 179, "censored": 41, "median": 2, "p2Plus": 0.660714, "p4Plus": 0.340074, "p9Plus": 0.104181}
+      },
+      {
+        "band": "29-30",
+        "cls": "concussion",
+        "n": 62,
+        "afterPlayed": 59,
+        "per1000Snaps": 0.093871,
+        "weeksOut": {"n": 62, "censored": 13, "median": 1, "p2Plus": 0.473684, "p4Plus": 0.177632, "p9Plus": 0.101504}
+      },
+      {
+        "band": "29-30",
+        "cls": "joint",
+        "n": 332,
+        "afterPlayed": 318,
+        "per1000Snaps": 0.50595,
+        "weeksOut": {"n": 332, "censored": 119, "median": 3, "p2Plus": 0.676667, "p4Plus": 0.426761, "p9Plus": 0.224241}
+      },
+      {
+        "band": "29-30",
+        "cls": "other",
+        "n": 77,
+        "afterPlayed": 74,
+        "per1000Snaps": 0.117737,
+        "weeksOut": {"n": 77, "censored": 24, "median": 2, "p2Plus": 0.608108, "p4Plus": 0.353808, "p9Plus": 0.282031}
+      },
+      {
+        "band": "29-30",
+        "cls": "unknown",
+        "n": 89,
+        "afterPlayed": 86,
+        "per1000Snaps": 0.136829,
+        "weeksOut": {"n": 89, "censored": 74, "median": null, "p2Plus": 0.950617, "p4Plus": 0.950617, "p9Plus": 0.809442}
+      },
+      {
+        "band": "31-32",
+        "cls": "soft tissue",
+        "n": 113,
+        "afterPlayed": 110,
+        "per1000Snaps": 0.358046,
+        "weeksOut": {"n": 113, "censored": 34, "median": 2, "p2Plus": 0.61165, "p4Plus": 0.312621, "p9Plus": 0.125607}
+      },
+      {
+        "band": "31-32",
+        "cls": "concussion",
+        "n": 28,
+        "afterPlayed": 27,
+        "per1000Snaps": 0.087884,
+        "weeksOut": {"n": 28, "censored": 9, "median": 1, "p2Plus": 0.44, "p4Plus": 0.256667, "p9Plus": 0.171111}
+      },
+      {
+        "band": "31-32",
+        "cls": "joint",
+        "n": 180,
+        "afterPlayed": 176,
+        "per1000Snaps": 0.572874,
+        "weeksOut": {"n": 180, "censored": 68, "median": 3, "p2Plus": 0.73913, "p4Plus": 0.434874, "p9Plus": 0.220352}
+      },
+      {
+        "band": "31-32",
+        "cls": "other",
+        "n": 58,
+        "afterPlayed": 54,
+        "per1000Snaps": 0.175768,
+        "weeksOut": {"n": 58, "censored": 19, "median": 2, "p2Plus": 0.625, "p4Plus": 0.417889, "p9Plus": 0.255376}
+      },
+      {
+        "band": "31-32",
+        "cls": "unknown",
+        "n": 28,
+        "afterPlayed": 27,
+        "per1000Snaps": 0.087884,
+        "weeksOut": {"n": 28, "censored": 23, "median": null, "p2Plus": 1, "p4Plus": 0.944444, "p9Plus": 0.750309}
+      },
+      {
+        "band": "33 and over",
+        "cls": "soft tissue",
+        "n": 54,
+        "afterPlayed": 52,
+        "per1000Snaps": 0.266398,
+        "weeksOut": {"n": 54, "censored": 11, "median": 2, "p2Plus": 0.647059, "p4Plus": 0.271347, "p9Plus": 0.087219}
+      },
+      {
+        "band": "33 and over",
+        "cls": "concussion",
+        "n": 26,
+        "afterPlayed": 25,
+        "per1000Snaps": 0.128076,
+        "weeksOut": {"n": 26, "censored": 9, "median": 2, "p2Plus": 0.52, "p4Plus": 0.303333, "p9Plus": 0.303333}
+      },
+      {
+        "band": "33 and over",
+        "cls": "joint",
+        "n": 87,
+        "afterPlayed": 84,
+        "per1000Snaps": 0.430334,
+        "weeksOut": {"n": 87, "censored": 36, "median": 3, "p2Plus": 0.733333, "p4Plus": 0.398627, "p9Plus": 0.239176}
+      },
+      {
+        "band": "33 and over",
+        "cls": "other",
+        "n": 28,
+        "afterPlayed": 27,
+        "per1000Snaps": 0.138322,
+        "weeksOut": {"n": 28, "censored": 14, "median": 3, "p2Plus": 0.666667, "p4Plus": 0.481481, "p9Plus": 0.361111}
+      },
+      {
+        "band": "33 and over",
+        "cls": "unknown",
+        "n": 14,
+        "afterPlayed": 14,
+        "per1000Snaps": 0.071722,
+        "weeksOut": {"n": 14, "censored": 14, "median": null, "p2Plus": 1, "p4Plus": 1, "p9Plus": 1}
+      }
+    ]
+  },
+  "repeatConcussion": {
+    "seasons": [2019, 2020, 2021, 2022, 2023, 2024],
+    "spells": 541,
+    "men": 452,
+    "menWith2Plus": 78,
+    "first": {
+      "all": {"n": 452, "censored": 91, "median": 1, "p2Plus": 0.440191, "p4Plus": 0.159688, "p9Plus": 0.084388},
+      "newInSeason": {"n": 446, "censored": 89, "median": 1, "p2Plus": 0.441748, "p4Plus": 0.156743, "p9Plus": 0.079713}
+    },
+    "later": {
+      "all": {"n": 89, "censored": 27, "median": 2, "p2Plus": 0.642857, "p4Plus": 0.304464, "p9Plus": 0.180893},
+      "newInSeason": {"n": 86, "censored": 26, "median": 2, "p2Plus": 0.62963, "p4Plus": 0.304321, "p9Plus": 0.170835}
+    },
+    "laterQuickRelapse": {
+      "all": {"n": 12, "censored": 7, "median": null, "p2Plus": 0.916667, "p4Plus": 0.55, "p9Plus": 0.55},
+      "newInSeason": {"n": 9, "censored": 6, "median": null, "p2Plus": 0.888889, "p4Plus": 0.634921, "p9Plus": 0.634921}
+    },
+    "laterApart": {
+      "all": {"n": 77, "censored": 20, "median": 2, "p2Plus": 0.597222, "p4Plus": 0.263436, "p9Plus": 0.120056},
+      "newInSeason": {"n": 77, "censored": 20, "median": 2, "p2Plus": 0.597222, "p4Plus": 0.263436, "p9Plus": 0.120056}
+    },
+    "firstFollowedByQuickRelapse": 10
+  },
+  "byDepthChartGroup": {
+    "seasons": [2019, 2020, 2021, 2022, 2023, 2024],
+    "groups": [
+      {
+        "group": "QB",
+        "listed": {
+          "newTimeLoss": 187,
+          "afterPlayed": 175,
+          "playerGames": 3744,
+          "snaps": 200770,
+          "perPlayerGame": 0.049947,
+          "per1000Snaps": 0.871644
+        },
+        "spot": {
+          "newTimeLoss": 188,
+          "afterPlayed": 176,
+          "playerGames": 3747,
+          "snaps": 200837,
+          "perPlayerGame": 0.050173,
+          "per1000Snaps": 0.876333
+        },
+        "change": {"perPlayerGame": 0.000226, "per1000Snaps": 0.004689}
+      },
+      {
+        "group": "RB",
+        "listed": {
+          "newTimeLoss": 523,
+          "afterPlayed": 514,
+          "playerGames": 10647,
+          "snaps": 288180,
+          "perPlayerGame": 0.049122,
+          "per1000Snaps": 1.783607
+        },
+        "spot": {
+          "newTimeLoss": 524,
+          "afterPlayed": 515,
+          "playerGames": 10657,
+          "snaps": 288453,
+          "perPlayerGame": 0.04917,
+          "per1000Snaps": 1.785386
+        },
+        "change": {"perPlayerGame": 0.000048, "per1000Snaps": 0.001779}
+      },
+      {
+        "group": "WR",
+        "listed": {
+          "newTimeLoss": 769,
+          "afterPlayed": 753,
+          "playerGames": 15462,
+          "snaps": 570151,
+          "perPlayerGame": 0.049735,
+          "per1000Snaps": 1.320703
+        },
+        "spot": {
+          "newTimeLoss": 769,
+          "afterPlayed": 753,
+          "playerGames": 15474,
+          "snaps": 570306,
+          "perPlayerGame": 0.049696,
+          "per1000Snaps": 1.320344
+        },
+        "change": {"perPlayerGame": -0.000039, "per1000Snaps": -0.000359}
+      },
+      {
+        "group": "TE",
+        "listed": {
+          "newTimeLoss": 372,
+          "afterPlayed": 364,
+          "playerGames": 9122,
+          "snaps": 324099,
+          "perPlayerGame": 0.040781,
+          "per1000Snaps": 1.123114
+        },
+        "spot": {
+          "newTimeLoss": 370,
+          "afterPlayed": 362,
+          "playerGames": 9102,
+          "snaps": 323685,
+          "perPlayerGame": 0.04065,
+          "per1000Snaps": 1.118371
+        },
+        "change": {"perPlayerGame": -0.000131, "per1000Snaps": -0.004743}
+      },
+      {
+        "group": "OL",
+        "listed": {
+          "newTimeLoss": 1024,
+          "afterPlayed": 947,
+          "playerGames": 21950,
+          "snaps": 1057212,
+          "perPlayerGame": 0.046651,
+          "per1000Snaps": 0.895752
+        },
+        "spot": {
+          "newTimeLoss": 1024,
+          "afterPlayed": 947,
+          "playerGames": 21950,
+          "snaps": 1057212,
+          "perPlayerGame": 0.046651,
+          "per1000Snaps": 0.895752
+        },
+        "change": {"perPlayerGame": 0, "per1000Snaps": 0}
+      },
+      {
+        "group": "DL",
+        "listed": {
+          "newTimeLoss": 782,
+          "afterPlayed": 747,
+          "playerGames": 20756,
+          "snaps": 730766,
+          "perPlayerGame": 0.037676,
+          "per1000Snaps": 1.022215
+        },
+        "spot": {
+          "newTimeLoss": 780,
+          "afterPlayed": 745,
+          "playerGames": 20745,
+          "snaps": 729699,
+          "perPlayerGame": 0.037599,
+          "per1000Snaps": 1.020969
+        },
+        "change": {"perPlayerGame": -0.000077, "per1000Snaps": -0.001246}
+      },
+      {
+        "group": "LB",
+        "listed": {
+          "newTimeLoss": 834,
+          "afterPlayed": 811,
+          "playerGames": 20021,
+          "snaps": 783665,
+          "perPlayerGame": 0.041656,
+          "per1000Snaps": 1.034881
+        },
+        "spot": {
+          "newTimeLoss": 836,
+          "afterPlayed": 813,
+          "playerGames": 20051,
+          "snaps": 785486,
+          "perPlayerGame": 0.041694,
+          "per1000Snaps": 1.035028
+        },
+        "change": {"perPlayerGame": 0.000038, "per1000Snaps": 0.000147}
+      },
+      {
+        "group": "DB",
+        "listed": {
+          "newTimeLoss": 1486,
+          "afterPlayed": 1444,
+          "playerGames": 27189,
+          "snaps": 1201115,
+          "perPlayerGame": 0.054654,
+          "per1000Snaps": 1.202216
+        },
+        "spot": {
+          "newTimeLoss": 1486,
+          "afterPlayed": 1444,
+          "playerGames": 27166,
+          "snaps": 1200290,
+          "perPlayerGame": 0.054701,
+          "per1000Snaps": 1.203043
+        },
+        "change": {"perPlayerGame": 0.000047, "per1000Snaps": 0.000827}
+      },
+      {
+        "group": "K/P",
+        "listed": {
+          "newTimeLoss": 85,
+          "afterPlayed": 81,
+          "playerGames": 8885,
+          "snaps": 77947,
+          "perPlayerGame": 0.009567,
+          "per1000Snaps": 1.039168
+        },
+        "spot": {
+          "newTimeLoss": 85,
+          "afterPlayed": 81,
+          "playerGames": 8884,
+          "snaps": 77937,
+          "perPlayerGame": 0.009568,
+          "per1000Snaps": 1.039301
+        },
+        "change": {"perPlayerGame": 0.000001, "per1000Snaps": 0.000133}
+      }
+    ],
+    "playerGames": 137776,
+    "snaps": 5233905,
+    "differ": {
+      "playerGames": 294,
+      "share": 0.002134,
+      "snaps": 10451,
+      "snapShare": 0.001997,
+      "newTimeLoss": 12,
+      "fromThatWeeksListing": 2
+    },
+    "unknownSpot": {"playerGames": 0, "snaps": 0, "newTimeLoss": 0, "codes": {}},
+    "fine": [
+      {
+        "spot": "QB",
+        "group": "QB",
+        "rates": {
+          "newTimeLoss": 188,
+          "afterPlayed": 176,
+          "playerGames": 3747,
+          "snaps": 200837,
+          "perPlayerGame": 0.050173,
+          "per1000Snaps": 0.876333
+        }
+      },
+      {
+        "spot": "RB",
+        "group": "RB",
+        "rates": {
+          "newTimeLoss": 482,
+          "afterPlayed": 473,
+          "playerGames": 9542,
+          "snaps": 257216,
+          "perPlayerGame": 0.050514,
+          "per1000Snaps": 1.838921
+        }
+      },
+      {
+        "spot": "FB",
+        "group": "RB",
+        "rates": {
+          "newTimeLoss": 42,
+          "afterPlayed": 42,
+          "playerGames": 1115,
+          "snaps": 31237,
+          "perPlayerGame": 0.037668,
+          "per1000Snaps": 1.344559
+        }
+      },
+      {
+        "spot": "WR",
+        "group": "WR",
+        "rates": {
+          "newTimeLoss": 769,
+          "afterPlayed": 753,
+          "playerGames": 15474,
+          "snaps": 570306,
+          "perPlayerGame": 0.049696,
+          "per1000Snaps": 1.320344
+        }
+      },
+      {
+        "spot": "TE",
+        "group": "TE",
+        "rates": {
+          "newTimeLoss": 370,
+          "afterPlayed": 362,
+          "playerGames": 9102,
+          "snaps": 323685,
+          "perPlayerGame": 0.04065,
+          "per1000Snaps": 1.118371
+        }
+      },
+      {
+        "spot": "T",
+        "group": "OL",
+        "rates": {
+          "newTimeLoss": 504,
+          "afterPlayed": 462,
+          "playerGames": 9317,
+          "snaps": 444732,
+          "perPlayerGame": 0.054095,
+          "per1000Snaps": 1.038828
+        }
+      },
+      {
+        "spot": "G",
+        "group": "OL",
+        "rates": {
+          "newTimeLoss": 345,
+          "afterPlayed": 319,
+          "playerGames": 8380,
+          "snaps": 407630,
+          "perPlayerGame": 0.041169,
+          "per1000Snaps": 0.782572
+        }
+      },
+      {
+        "spot": "C",
+        "group": "OL",
+        "rates": {
+          "newTimeLoss": 175,
+          "afterPlayed": 166,
+          "playerGames": 4253,
+          "snaps": 204850,
+          "perPlayerGame": 0.041147,
+          "per1000Snaps": 0.810349
+        }
+      },
+      {
+        "spot": "DE",
+        "group": "DL",
+        "rates": {
+          "newTimeLoss": 391,
+          "afterPlayed": 374,
+          "playerGames": 9887,
+          "snaps": 352662,
+          "perPlayerGame": 0.039547,
+          "per1000Snaps": 1.060506
+        }
+      },
+      {
+        "spot": "DT",
+        "group": "DL",
+        "rates": {
+          "newTimeLoss": 292,
+          "afterPlayed": 276,
+          "playerGames": 8521,
+          "snaps": 298813,
+          "perPlayerGame": 0.034268,
+          "per1000Snaps": 0.923655
+        }
+      },
+      {
+        "spot": "NT",
+        "group": "DL",
+        "rates": {
+          "newTimeLoss": 92,
+          "afterPlayed": 91,
+          "playerGames": 2258,
+          "snaps": 75806,
+          "perPlayerGame": 0.040744,
+          "per1000Snaps": 1.200433
+        }
+      },
+      {
+        "spot": "DL",
+        "group": "DL",
+        "rates": {
+          "newTimeLoss": 5,
+          "afterPlayed": 4,
+          "playerGames": 79,
+          "snaps": 2418,
+          "perPlayerGame": 0.063291,
+          "per1000Snaps": 1.65426
+        }
+      },
+      {
+        "spot": "OLB",
+        "group": "LB",
+        "rates": {
+          "newTimeLoss": 360,
+          "afterPlayed": 352,
+          "playerGames": 8755,
+          "snaps": 345057,
+          "perPlayerGame": 0.041119,
+          "per1000Snaps": 1.020121
+        }
+      },
+      {
+        "spot": "ILB",
+        "group": "LB",
+        "rates": {
+          "newTimeLoss": 300,
+          "afterPlayed": 292,
+          "playerGames": 7079,
+          "snaps": 285698,
+          "perPlayerGame": 0.042379,
+          "per1000Snaps": 1.022058
+        }
+      },
+      {
+        "spot": "MLB",
+        "group": "LB",
+        "rates": {
+          "newTimeLoss": 74,
+          "afterPlayed": 72,
+          "playerGames": 1872,
+          "snaps": 78906,
+          "perPlayerGame": 0.03953,
+          "per1000Snaps": 0.912478
+        }
+      },
+      {
+        "spot": "LB",
+        "group": "LB",
+        "rates": {
+          "newTimeLoss": 102,
+          "afterPlayed": 97,
+          "playerGames": 2345,
+          "snaps": 75825,
+          "perPlayerGame": 0.043497,
+          "per1000Snaps": 1.279261
+        }
+      },
+      {
+        "spot": "CB",
+        "group": "DB",
+        "rates": {
+          "newTimeLoss": 870,
+          "afterPlayed": 839,
+          "playerGames": 14109,
+          "snaps": 611321,
+          "perPlayerGame": 0.061663,
+          "per1000Snaps": 1.372438
+        }
+      },
+      {
+        "spot": "FS",
+        "group": "DB",
+        "rates": {
+          "newTimeLoss": 265,
+          "afterPlayed": 259,
+          "playerGames": 5778,
+          "snaps": 276710,
+          "perPlayerGame": 0.045864,
+          "per1000Snaps": 0.935998
+        }
+      },
+      {
+        "spot": "SS",
+        "group": "DB",
+        "rates": {
+          "newTimeLoss": 255,
+          "afterPlayed": 253,
+          "playerGames": 5213,
+          "snaps": 242825,
+          "perPlayerGame": 0.048916,
+          "per1000Snaps": 1.041903
+        }
+      },
+      {
+        "spot": "S",
+        "group": "DB",
+        "rates": {
+          "newTimeLoss": 18,
+          "afterPlayed": 18,
+          "playerGames": 274,
+          "snaps": 12096,
+          "perPlayerGame": 0.065693,
+          "per1000Snaps": 1.488095
+        }
+      },
+      {
+        "spot": "DB",
+        "group": "DB",
+        "rates": {
+          "newTimeLoss": 78,
+          "afterPlayed": 75,
+          "playerGames": 1792,
+          "snaps": 57338,
+          "perPlayerGame": 0.043527,
+          "per1000Snaps": 1.308033
+        }
+      },
+      {
+        "spot": "K",
+        "group": "K/P",
+        "rates": {
+          "newTimeLoss": 50,
+          "afterPlayed": 48,
+          "playerGames": 2970,
+          "snaps": 25568,
+          "perPlayerGame": 0.016835,
+          "per1000Snaps": 1.877347
+        }
+      },
+      {
+        "spot": "P",
+        "group": "K/P",
+        "rates": {
+          "newTimeLoss": 19,
+          "afterPlayed": 18,
+          "playerGames": 3013,
+          "snaps": 27916,
+          "perPlayerGame": 0.006306,
+          "per1000Snaps": 0.644792
+        }
+      },
+      {
+        "spot": "LS",
+        "group": "K/P",
+        "rates": {
+          "newTimeLoss": 16,
+          "afterPlayed": 15,
+          "playerGames": 2901,
+          "snaps": 24453,
+          "perPlayerGame": 0.005515,
+          "per1000Snaps": 0.613422
+        }
+      }
+    ]
+  },
+  "ageAndSpotCaveats": [
+    "Survivors: the men still playing at 33 and over are the ones durable and good enough to last, so the oldest band's rates describe them, not what age does to a typical player.",
+    "Position mix: older men are more often quarterbacks, linemen and specialists, so the raw rates by age mix age with position; the observed / expected columns adjust for the listed group only, not for role (starter or backup) or snaps per game.",
+    "Injured-reserve rules shape weeks out and availability: 2019's IR was season-ending but for two designated returns a team, 2020-2021 had a 3-week minimum, 2022 on 4 games; teams shut players down late in a lost season, and stash young men on IR to keep them, which lifts the youngest band's share of game weeks missed.",
+    "Unknown body parts: about 11% of spells have no report text near them, skewed to the longest (players placed straight on IR), so the unknown class holds many of the long injuries and the named classes' out-4+-weeks shares understate theirs.",
+    "Only these seasons: six regular seasons (2019-2024). The code reads back to 2013, but the older injury files would have to be downloaded; 2025 is held out and never read.",
+    "Ages are one per player-season, on 23 October: a man who turns 26 in December is 25 all season.",
+    "First concussion means the first seen in the window (since 2019), not his first ever: a man concussed in 2018 and again in 2020 has his 2020 one counted first.",
+    "Quick relapses: a second or later concussion that begins after one game back from the one before, on the same team in the same season, may be the same concussion counted twice. It sits in the second-or-later row and is also set apart; the first spell of such a pair, often short, sits in the first row.",
+    "Depth-chart spot: the weekly roster's depth_chart_position is each man's position on the team's list in fine form, not the game-day depth chart's order or formation (nflverse's separate depth-chart table, not cached here, has those). A man who plays outside his listed spot on game day, such as a safety at corner in the nickel, is not seen."
+  ],
   "definitions": [
     {
       "term": "Data",

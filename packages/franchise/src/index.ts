@@ -26,10 +26,20 @@ export { makeSave, readSave, SaveError, type MakeSaveInput, type LoadedSave } fr
 // ADR-080: coaching staffs, hiring and firing.
 export { buildStaff, freshStaff, recentreDisguise, type BuildStaffOptions, type BuiltStaff } from "./staff/buildStaff.js";
 export {
-  runStaffOffseason, headCoachFireChance, coordinatorFireChance, retireChance, seatScores,
+  runStaffOffseason, headCoachFireChance, headCoachVerdict, coordinatorFireChance, retireChance, seatScores,
   type StaffOffseasonInput, type StaffOffseasonResult, type StaffDecision, type StaffDecisionType,
-  type StaffMove, type HireSource, type HeadCoachVerdict, type CoordinatorVerdict,
+  type StaffMove, type HireSource, type HeadCoachVerdict, type CoordinatorVerdict, type GmMove,
 } from "./staff/offseason.js";
+// ADR-094 §8: GMs hired and fired, and the front office they come from.
+export {
+  GM_TUNING, LADDER_ROLES, drawGmSource, gmCandidate, gmCandidateReport, gmFireChance, gmSalary, gmScore, gmSourceOf, gmVerdict,
+  isFrontOfficeRole, ladderJob, makeLadderMan, makeOutsider,
+  type GmCandidateReport, type GmSource, type GmVerdict, type LadderRole,
+} from "./staff/frontOffice.js";
+// ADR-094 Q13 a: midseason firings, an interim finishing the year.
+export { MIDSEASON, runMidseasonWeek, type MidseasonInput, type MidseasonResult } from "./staff/midseason.js";
+export { INTERIM_KEEP } from "./staff/offseason.js";
+export { isInterimContract } from "./staff/world.js";
 export {
   candidateReport, readResume, reputation, experiencePoints, inTree, firedStigma, hasRunSomething,
   sideLean, unprovenPenalty, expectedShare, rosterExpectation,
@@ -98,9 +108,13 @@ export {
 } from "./draft/steps.js";
 export { signRookie, signSquad, signFuture, release, claimedDeal, liveContract, flatCap, type CapForSeason } from "./draft/money.js";
 export {
-  apyOf, marketCurves, percentileOf, quantile, ageFactor, termFor, structureFor, valuePlayer, veteranContract, guaranteedShare, firstYearShareFor, REAL_FIRST_YEAR,
-  type MarketCurve, type MarketCurves, type Valuation, type VeteranDeal,
+  apyOf, marketCurves, percentileOf, quantile, ageFactor, ageFactorAt, legacyRuleAge, termFor, termAt, structureFor, valuePlayer, veteranContract, guaranteedShare, firstYearShareFor, REAL_FIRST_YEAR,
+  type MarketCurve, type MarketCurves, type Valuation, type ValueAhead, type VeteranDeal,
 } from "./cap/value.js";
+// ADR-085 step 13: teams judge a man ahead, through their GMs' eyes.
+export {
+  aheadView, decisionSeason, outlookPeriod, gmOf, gmEvaluation, outlookSkill, outlookError, AHEAD, type AheadView, type AheadContext,
+} from "./cap/ahead.js";
 export {
   needWeights, offerWorth, askingPrice, NON_MONEY_REACH, WINDOW_ASK, BARGAIN_WEEKLY, AGENT_SPREAD,
   type NegotiationNeed, type OfferTerms, type MarketWindow,
@@ -113,6 +127,10 @@ export { CAP_LEANING, capLeaning, capPlan, floorShortfall, planWithFloor, presid
 // ADR-087: players age, grow and get hurt (off unless runSeason's `players` switches them on).
 export { PLAYER_STEP_PREFIX, playerSteps, playerWeeks, emergencySignings, type PlayerStepsConfig, type PlayerGameExtras } from "./players/steps.js";
 export { developmentWeek, learningRate, RATING_GROUPS, type DevelopmentWeekInput, type DevelopmentWeekResult } from "./players/development.js";
+// ADR-087 §5, for the cap thread: expected availability over the regular-season games ahead (draw-free).
+export {
+  EXPECTED_BACKUP_SNAPS_PER_GAME, expectedAvailability, type Availability, type AvailabilityOptions,
+} from "./players/availability.js";
 export {
   gameInjuries, weekInjuries, healWeek, isAvailable, bandFor,
   type InjuryResult, type GameInjuryInput, type WeekInjuryInput, type HealInput,
@@ -150,3 +168,15 @@ export {
 } from "./officials/crews.js";
 export { assignWeek, crewWeek, weekRng, type AssignWeekInput } from "./officials/assign.js";
 export { seasonOfficials, type OfficiatingInput, type SeasonOfficials } from "./officials/season.js";
+
+// ADR-094: leans from patient to win-now, and job pressure.
+export {
+  LEAN_CENTER, LEAN_NUDGE, LEAN_SPREAD, WIN_NOW_LEAN, WIN_NOW_STREAM, drawWinNowLean, leanHolderOf, winNowLean, withWinNowLean,
+  type LeanHolder,
+} from "./winNow/lean.js";
+export { CONTRACT_YEAR_PRESSURE, PRESSURE_PUSH, gmPressure, headCoachPressure, workingLean, type SeasonSoFar } from "./winNow/pressure.js";
+export {
+  PLAYOFF_ODDS, STANCE, guessChance, missSd, playoffChance, readSkill, recordsAfter, stanceFor, stepToward, stepsBetween, weeklyStance,
+  type WeekRead, type WeeklyStanceInput, type WeeklyStanceResult,
+} from "./winNow/stance.js";
+

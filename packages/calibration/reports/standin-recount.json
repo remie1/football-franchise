@@ -1,0 +1,736 @@
+{
+  "measuredOn": "2026-11-07",
+  "league": {"file": "standin-2026-10-23.json", "sha256": "bb55709a7656460c348046afd84bc5d193fdd2a29e392139bfe1bbe7180058ed", "season": 2026, "snapshotDate": "2026-10-23"},
+  "file": {
+    "season": 2026,
+    "snapshotDate": "2026-10-23",
+    "the53": {
+      "league": {"n": 1681, "aged": 1681, "meanAge": 26.5431, "upTo22": 0.0738, "from31": 0.1297, "from34": 0.0339, "rookie": 0.1529, "undrafted": 0.2231, "meanYears": 3.8882, "years9Plus": 0.1017, "entryAge": 22.655},
+      "teams": {"teams": 32, "min": 50, "max": 55, "mean": 52.5313},
+      "byGroup": {
+        "QB": {"n": 86, "aged": 86, "meanAge": 27.9186, "upTo22": 0.0233, "from31": 0.2326, "from34": 0.093, "rookie": 0.1628, "undrafted": 0.1279, "meanYears": 5.093, "years9Plus": 0.2093, "entryAge": 22.8256},
+        "RB": {"n": 116, "aged": 116, "meanAge": 25.9224, "upTo22": 0.0862, "from31": 0.0862, "from34": 0.0172, "rookie": 0.1293, "undrafted": 0.2241, "meanYears": 3.4914, "years9Plus": 0.0948, "entryAge": 22.431},
+        "WR": {"n": 172, "aged": 172, "meanAge": 25.7151, "upTo22": 0.0988, "from31": 0.0872, "from34": 0.0058, "rookie": 0.1919, "undrafted": 0.2035, "meanYears": 3.3023, "years9Plus": 0.0698, "entryAge": 22.4128},
+        "TE": {"n": 119, "aged": 119, "meanAge": 26.5882, "upTo22": 0.0672, "from31": 0.1597, "from34": 0.0252, "rookie": 0.1513, "undrafted": 0.1933, "meanYears": 3.8739, "years9Plus": 0.1261, "entryAge": 22.7143},
+        "OL": {"n": 295, "aged": 295, "meanAge": 26.4678, "upTo22": 0.0576, "from31": 0.1153, "from34": 0.0305, "rookie": 0.1661, "undrafted": 0.1763, "meanYears": 3.6, "years9Plus": 0.078, "entryAge": 22.8678},
+        "EDGE": {"n": 207, "aged": 207, "meanAge": 26.3575, "upTo22": 0.0676, "from31": 0.1014, "from34": 0.029, "rookie": 0.1498, "undrafted": 0.1836, "meanYears": 3.8502, "years9Plus": 0.0821, "entryAge": 22.5072},
+        "IDL": {"n": 144, "aged": 144, "meanAge": 26.9861, "upTo22": 0.0625, "from31": 0.2153, "from34": 0.0417, "rookie": 0.1528, "undrafted": 0.1667, "meanYears": 4.2847, "years9Plus": 0.1736, "entryAge": 22.7014},
+        "LB": {"n": 123, "aged": 123, "meanAge": 26.1707, "upTo22": 0.0894, "from31": 0.065, "from34": 0.0081, "rookie": 0.1626, "undrafted": 0.2764, "meanYears": 3.5122, "years9Plus": 0.0325, "entryAge": 22.6585},
+        "CB": {"n": 177, "aged": 177, "meanAge": 25.7514, "upTo22": 0.1017, "from31": 0.0452, "from34": 0, "rookie": 0.1525, "undrafted": 0.1751, "meanYears": 3.2655, "years9Plus": 0.0452, "entryAge": 22.4859},
+        "S": {"n": 146, "aged": 146, "meanAge": 26.226, "upTo22": 0.1027, "from31": 0.0753, "from34": 0.0137, "rookie": 0.137, "undrafted": 0.2603, "meanYears": 3.7603, "years9Plus": 0.0548, "entryAge": 22.4658},
+        "K": {"n": 31, "aged": 31, "meanAge": 29.0645, "upTo22": 0.0645, "from31": 0.4194, "from34": 0.1613, "rookie": 0.0968, "undrafted": 0.5484, "meanYears": 6.0323, "years9Plus": 0.2903, "entryAge": 23.0323},
+        "P": {"n": 32, "aged": 32, "meanAge": 29.25, "upTo22": 0.0313, "from31": 0.3125, "from34": 0.1563, "rookie": 0.0938, "undrafted": 0.4688, "meanYears": 5.9375, "years9Plus": 0.2188, "entryAge": 23.3125},
+        "LS": {"n": 33, "aged": 33, "meanAge": 31.2424, "upTo22": 0, "from31": 0.5455, "from34": 0.2727, "rookie": 0.0606, "undrafted": 0.9394, "meanYears": 7.6364, "years9Plus": 0.4242, "entryAge": 23.6061}
+      },
+      "noGroup": 0,
+      "old": {"n": 218, "aged": 218, "meanAge": 32.8807, "upTo22": 0, "from31": 1, "from34": 0.2615, "rookie": 0, "undrafted": 0.289, "meanYears": 10.1376, "years9Plus": 0.7569, "entryAge": 22.7431}
+    },
+    "asLoaded": {
+      "league": {"n": 1682, "aged": 1682, "meanAge": 26.5458, "upTo22": 0.0737, "from31": 0.1302, "from34": 0.0339, "rookie": 0.1528, "undrafted": 0.2229, "meanYears": 3.8912, "years9Plus": 0.1023, "entryAge": 22.6546},
+      "teams": {"teams": 32, "min": 50, "max": 55, "mean": 52.5625},
+      "byGroup": {
+        "QB": {"n": 86, "aged": 86, "meanAge": 27.9186, "upTo22": 0.0233, "from31": 0.2326, "from34": 0.093, "rookie": 0.1628, "undrafted": 0.1279, "meanYears": 5.093, "years9Plus": 0.2093, "entryAge": 22.8256},
+        "RB": {"n": 116, "aged": 116, "meanAge": 25.9224, "upTo22": 0.0862, "from31": 0.0862, "from34": 0.0172, "rookie": 0.1293, "undrafted": 0.2241, "meanYears": 3.4914, "years9Plus": 0.0948, "entryAge": 22.431},
+        "WR": {"n": 172, "aged": 172, "meanAge": 25.7151, "upTo22": 0.0988, "from31": 0.0872, "from34": 0.0058, "rookie": 0.1919, "undrafted": 0.2035, "meanYears": 3.3023, "years9Plus": 0.0698, "entryAge": 22.4128},
+        "TE": {"n": 119, "aged": 119, "meanAge": 26.5882, "upTo22": 0.0672, "from31": 0.1597, "from34": 0.0252, "rookie": 0.1513, "undrafted": 0.1933, "meanYears": 3.8739, "years9Plus": 0.1261, "entryAge": 22.7143},
+        "OL": {"n": 295, "aged": 295, "meanAge": 26.4678, "upTo22": 0.0576, "from31": 0.1153, "from34": 0.0305, "rookie": 0.1661, "undrafted": 0.1763, "meanYears": 3.6, "years9Plus": 0.078, "entryAge": 22.8678},
+        "EDGE": {"n": 207, "aged": 207, "meanAge": 26.3575, "upTo22": 0.0676, "from31": 0.1014, "from34": 0.029, "rookie": 0.1498, "undrafted": 0.1836, "meanYears": 3.8502, "years9Plus": 0.0821, "entryAge": 22.5072},
+        "IDL": {"n": 144, "aged": 144, "meanAge": 26.9861, "upTo22": 0.0625, "from31": 0.2153, "from34": 0.0417, "rookie": 0.1528, "undrafted": 0.1667, "meanYears": 4.2847, "years9Plus": 0.1736, "entryAge": 22.7014},
+        "LB": {"n": 123, "aged": 123, "meanAge": 26.1707, "upTo22": 0.0894, "from31": 0.065, "from34": 0.0081, "rookie": 0.1626, "undrafted": 0.2764, "meanYears": 3.5122, "years9Plus": 0.0325, "entryAge": 22.6585},
+        "CB": {"n": 177, "aged": 177, "meanAge": 25.7514, "upTo22": 0.1017, "from31": 0.0452, "from34": 0, "rookie": 0.1525, "undrafted": 0.1751, "meanYears": 3.2655, "years9Plus": 0.0452, "entryAge": 22.4859},
+        "S": {"n": 146, "aged": 146, "meanAge": 26.226, "upTo22": 0.1027, "from31": 0.0753, "from34": 0.0137, "rookie": 0.137, "undrafted": 0.2603, "meanYears": 3.7603, "years9Plus": 0.0548, "entryAge": 22.4658},
+        "K": {"n": 32, "aged": 32, "meanAge": 29.125, "upTo22": 0.0625, "from31": 0.4375, "from34": 0.1563, "rookie": 0.0938, "undrafted": 0.5313, "meanYears": 6.125, "years9Plus": 0.3125, "entryAge": 23},
+        "P": {"n": 32, "aged": 32, "meanAge": 29.25, "upTo22": 0.0313, "from31": 0.3125, "from34": 0.1563, "rookie": 0.0938, "undrafted": 0.4688, "meanYears": 5.9375, "years9Plus": 0.2188, "entryAge": 23.3125},
+        "LS": {"n": 33, "aged": 33, "meanAge": 31.2424, "upTo22": 0, "from31": 0.5455, "from34": 0.2727, "rookie": 0.0606, "undrafted": 0.9394, "meanYears": 7.6364, "years9Plus": 0.4242, "entryAge": 23.6061}
+      },
+      "noGroup": 0,
+      "old": {"n": 219, "aged": 219, "meanAge": 32.8721, "upTo22": 0, "from31": 1, "from34": 0.2603, "rookie": 0, "undrafted": 0.2877, "meanYears": 10.1324, "years9Plus": 0.758, "entryAge": 22.7397}
+    },
+    "nflWay": {
+      "league": {"n": 1681, "aged": 1681, "meanAge": 26.5431, "upTo22": 0.0738, "from31": 0.1297, "from34": 0.0339, "rookie": 0.1529, "undrafted": 0.2231, "meanYears": 3.8882, "years9Plus": 0.1017, "entryAge": 22.655},
+      "teams": {"teams": 32, "min": 50, "max": 55, "mean": 52.5313},
+      "byGroup": {
+        "QB": {"n": 86, "aged": 86, "meanAge": 27.9186, "upTo22": 0.0233, "from31": 0.2326, "from34": 0.093, "rookie": 0.1628, "undrafted": 0.1279, "meanYears": 5.093, "years9Plus": 0.2093, "entryAge": 22.8256},
+        "RB": {"n": 116, "aged": 116, "meanAge": 25.9224, "upTo22": 0.0862, "from31": 0.0862, "from34": 0.0172, "rookie": 0.1293, "undrafted": 0.2241, "meanYears": 3.4914, "years9Plus": 0.0948, "entryAge": 22.431},
+        "WR": {"n": 172, "aged": 172, "meanAge": 25.7151, "upTo22": 0.0988, "from31": 0.0872, "from34": 0.0058, "rookie": 0.1919, "undrafted": 0.2035, "meanYears": 3.3023, "years9Plus": 0.0698, "entryAge": 22.4128},
+        "TE": {"n": 119, "aged": 119, "meanAge": 26.5882, "upTo22": 0.0672, "from31": 0.1597, "from34": 0.0252, "rookie": 0.1513, "undrafted": 0.1933, "meanYears": 3.8739, "years9Plus": 0.1261, "entryAge": 22.7143},
+        "OL": {"n": 295, "aged": 295, "meanAge": 26.4678, "upTo22": 0.0576, "from31": 0.1153, "from34": 0.0305, "rookie": 0.1661, "undrafted": 0.1763, "meanYears": 3.6, "years9Plus": 0.078, "entryAge": 22.8678},
+        "EDGE": {"n": 207, "aged": 207, "meanAge": 26.3575, "upTo22": 0.0676, "from31": 0.1014, "from34": 0.029, "rookie": 0.1498, "undrafted": 0.1836, "meanYears": 3.8502, "years9Plus": 0.0821, "entryAge": 22.5072},
+        "IDL": {"n": 144, "aged": 144, "meanAge": 26.9861, "upTo22": 0.0625, "from31": 0.2153, "from34": 0.0417, "rookie": 0.1528, "undrafted": 0.1667, "meanYears": 4.2847, "years9Plus": 0.1736, "entryAge": 22.7014},
+        "LB": {"n": 123, "aged": 123, "meanAge": 26.1707, "upTo22": 0.0894, "from31": 0.065, "from34": 0.0081, "rookie": 0.1626, "undrafted": 0.2764, "meanYears": 3.5122, "years9Plus": 0.0325, "entryAge": 22.6585},
+        "CB": {"n": 177, "aged": 177, "meanAge": 25.7514, "upTo22": 0.1017, "from31": 0.0452, "from34": 0, "rookie": 0.1525, "undrafted": 0.1751, "meanYears": 3.2655, "years9Plus": 0.0452, "entryAge": 22.4859},
+        "S": {"n": 146, "aged": 146, "meanAge": 26.226, "upTo22": 0.1027, "from31": 0.0753, "from34": 0.0137, "rookie": 0.137, "undrafted": 0.2603, "meanYears": 3.7603, "years9Plus": 0.0548, "entryAge": 22.4658},
+        "K": {"n": 31, "aged": 31, "meanAge": 29.0645, "upTo22": 0.0645, "from31": 0.4194, "from34": 0.1613, "rookie": 0.0968, "undrafted": 0.5484, "meanYears": 6.0323, "years9Plus": 0.2903, "entryAge": 23.0323},
+        "P": {"n": 32, "aged": 32, "meanAge": 29.25, "upTo22": 0.0313, "from31": 0.3125, "from34": 0.1563, "rookie": 0.0938, "undrafted": 0.4688, "meanYears": 5.9375, "years9Plus": 0.2188, "entryAge": 23.3125},
+        "LS": {"n": 33, "aged": 33, "meanAge": 31.2424, "upTo22": 0, "from31": 0.5455, "from34": 0.2727, "rookie": 0.0606, "undrafted": 0.9394, "meanYears": 7.6364, "years9Plus": 0.4242, "entryAge": 23.6061}
+      },
+      "noGroup": 0,
+      "old": {"n": 218, "aged": 218, "meanAge": 32.8807, "upTo22": 0, "from31": 1, "from34": 0.2615, "rookie": 0, "undrafted": 0.289, "meanYears": 10.1376, "years9Plus": 0.7569, "entryAge": 22.7431}
+    },
+    "reserve": {
+      "league": {"n": 308, "aged": 308, "meanAge": 26.0942, "upTo22": 0.0584, "from31": 0.0682, "from34": 0.0032, "rookie": 0.1623, "undrafted": 0.3019, "meanYears": 3.25, "years9Plus": 0.0617, "entryAge": 22.8442},
+      "teams": {"teams": 32, "min": 4, "max": 16, "mean": 9.625},
+      "byGroup": {
+        "QB": {"n": 7, "aged": 7, "meanAge": 25.5714, "upTo22": 0, "from31": 0, "from34": 0, "rookie": 0.1429, "undrafted": 0.1429, "meanYears": 2.5714, "years9Plus": 0, "entryAge": 23},
+        "RB": {"n": 30, "aged": 30, "meanAge": 25.7333, "upTo22": 0.0667, "from31": 0.0333, "from34": 0, "rookie": 0.1667, "undrafted": 0.4, "meanYears": 3.0333, "years9Plus": 0.0667, "entryAge": 22.7},
+        "WR": {"n": 39, "aged": 39, "meanAge": 26.1026, "upTo22": 0.0513, "from31": 0.1026, "from34": 0, "rookie": 0.1282, "undrafted": 0.2564, "meanYears": 3.359, "years9Plus": 0.0769, "entryAge": 22.7436},
+        "TE": {"n": 27, "aged": 27, "meanAge": 25.8148, "upTo22": 0.037, "from31": 0.0741, "from34": 0, "rookie": 0.2963, "undrafted": 0.4444, "meanYears": 2.6296, "years9Plus": 0.037, "entryAge": 23.1852},
+        "OL": {"n": 53, "aged": 53, "meanAge": 26.3396, "upTo22": 0.0943, "from31": 0.0755, "from34": 0.0189, "rookie": 0.1698, "undrafted": 0.2075, "meanYears": 3.6604, "years9Plus": 0.0755, "entryAge": 22.6792},
+        "EDGE": {"n": 59, "aged": 59, "meanAge": 26.322, "upTo22": 0.0678, "from31": 0.0847, "from34": 0, "rookie": 0.1695, "undrafted": 0.2542, "meanYears": 3.4068, "years9Plus": 0.0678, "entryAge": 22.9153},
+        "IDL": {"n": 23, "aged": 23, "meanAge": 26.6522, "upTo22": 0.0435, "from31": 0.1739, "from34": 0, "rookie": 0.1304, "undrafted": 0.1739, "meanYears": 3.7826, "years9Plus": 0.1739, "entryAge": 22.8696},
+        "LB": {"n": 17, "aged": 17, "meanAge": 25.8235, "upTo22": 0.0588, "from31": 0.0588, "from34": 0, "rookie": 0.1176, "undrafted": 0.5882, "meanYears": 2.7059, "years9Plus": 0.0588, "entryAge": 23.1176},
+        "CB": {"n": 32, "aged": 32, "meanAge": 25.75, "upTo22": 0.0313, "from31": 0, "from34": 0, "rookie": 0.0938, "undrafted": 0.2188, "meanYears": 2.9688, "years9Plus": 0, "entryAge": 22.7813},
+        "S": {"n": 19, "aged": 19, "meanAge": 25.8947, "upTo22": 0.0526, "from31": 0, "from34": 0, "rookie": 0.2105, "undrafted": 0.5263, "meanYears": 3.2105, "years9Plus": 0, "entryAge": 22.6842},
+        "K": {"n": 1, "aged": 1, "meanAge": 27, "upTo22": 0, "from31": 0, "from34": 0, "rookie": 0, "undrafted": 1, "meanYears": 3, "years9Plus": 0, "entryAge": 24},
+        "P": {"n": 1, "aged": 1, "meanAge": 27, "upTo22": 0, "from31": 0, "from34": 0, "rookie": 0, "undrafted": 0, "meanYears": 3, "years9Plus": 0, "entryAge": 24},
+        "LS": {"n": 0, "aged": 0, "meanAge": 0, "upTo22": 0, "from31": 0, "from34": 0, "rookie": 0, "undrafted": 0, "meanYears": 0, "years9Plus": 0, "entryAge": 0}
+      },
+      "noGroup": 0,
+      "old": {"n": 21, "aged": 21, "meanAge": 32.1429, "upTo22": 0, "from31": 1, "from34": 0.0476, "rookie": 0, "undrafted": 0.1905, "meanYears": 9.5714, "years9Plus": 0.7619, "entryAge": 22.5714}
+    },
+    "practice": {
+      "league": {"n": 538, "aged": 538, "meanAge": 25.6394, "upTo22": 0.0558, "from31": 0.0428, "from34": 0.0074, "rookie": 0.2788, "undrafted": 0.7082, "meanYears": 2.448, "years9Plus": 0.0316, "entryAge": 23.1914},
+      "teams": {"teams": 32, "min": 14, "max": 19, "mean": 16.8125},
+      "byGroup": {
+        "QB": {"n": 16, "aged": 16, "meanAge": 28.1875, "upTo22": 0, "from31": 0.1875, "from34": 0.0625, "rookie": 0.1875, "undrafted": 0.625, "meanYears": 4.5, "years9Plus": 0.125, "entryAge": 23.6875},
+        "RB": {"n": 43, "aged": 43, "meanAge": 25, "upTo22": 0.0465, "from31": 0, "from34": 0, "rookie": 0.2326, "undrafted": 0.6744, "meanYears": 2.0233, "years9Plus": 0, "entryAge": 22.9767},
+        "WR": {"n": 97, "aged": 97, "meanAge": 25.7423, "upTo22": 0.0619, "from31": 0.0515, "from34": 0, "rookie": 0.268, "undrafted": 0.7216, "meanYears": 2.6082, "years9Plus": 0.0412, "entryAge": 23.134},
+        "TE": {"n": 31, "aged": 31, "meanAge": 26.0645, "upTo22": 0.0645, "from31": 0.0323, "from34": 0.0323, "rookie": 0.2903, "undrafted": 0.871, "meanYears": 2.5806, "years9Plus": 0.0323, "entryAge": 23.4839},
+        "OL": {"n": 93, "aged": 93, "meanAge": 25.6774, "upTo22": 0.0323, "from31": 0.0215, "from34": 0, "rookie": 0.2473, "undrafted": 0.7849, "meanYears": 2.3226, "years9Plus": 0.0108, "entryAge": 23.3548},
+        "EDGE": {"n": 61, "aged": 61, "meanAge": 25.541, "upTo22": 0.0656, "from31": 0.0656, "from34": 0, "rookie": 0.2787, "undrafted": 0.5902, "meanYears": 2.6721, "years9Plus": 0.0492, "entryAge": 22.8689},
+        "IDL": {"n": 54, "aged": 54, "meanAge": 25.4259, "upTo22": 0.0926, "from31": 0.037, "from34": 0, "rookie": 0.3333, "undrafted": 0.6852, "meanYears": 2.0556, "years9Plus": 0.037, "entryAge": 23.3704},
+        "LB": {"n": 41, "aged": 41, "meanAge": 25.7805, "upTo22": 0.0732, "from31": 0.0976, "from34": 0.0244, "rookie": 0.2927, "undrafted": 0.6829, "meanYears": 2.8537, "years9Plus": 0.0732, "entryAge": 22.9268},
+        "CB": {"n": 58, "aged": 58, "meanAge": 25.0862, "upTo22": 0.0862, "from31": 0, "from34": 0, "rookie": 0.3448, "undrafted": 0.6897, "meanYears": 1.8103, "years9Plus": 0, "entryAge": 23.2759},
+        "S": {"n": 36, "aged": 36, "meanAge": 25.4167, "upTo22": 0, "from31": 0.0278, "from34": 0, "rookie": 0.2222, "undrafted": 0.6944, "meanYears": 2.5, "years9Plus": 0, "entryAge": 22.9167},
+        "K": {"n": 4, "aged": 4, "meanAge": 25.5, "upTo22": 0, "from31": 0, "from34": 0, "rookie": 0.25, "undrafted": 0.75, "meanYears": 1.5, "years9Plus": 0, "entryAge": 24},
+        "P": {"n": 3, "aged": 3, "meanAge": 30.3333, "upTo22": 0, "from31": 0.3333, "from34": 0.3333, "rookie": 0.6667, "undrafted": 0.6667, "meanYears": 5.6667, "years9Plus": 0.3333, "entryAge": 24.6667},
+        "LS": {"n": 1, "aged": 1, "meanAge": 24, "upTo22": 0, "from31": 0, "from34": 0, "rookie": 1, "undrafted": 1, "meanYears": 0, "years9Plus": 0, "entryAge": 24}
+      },
+      "noGroup": 0,
+      "old": {"n": 23, "aged": 23, "meanAge": 32.8696, "upTo22": 0, "from31": 1, "from34": 0.1739, "rookie": 0, "undrafted": 0.2609, "meanYears": 10.1739, "years9Plus": 0.7391, "entryAge": 22.6957}
+    },
+    "onATeam": {
+      "league": {"n": 2528, "aged": 2528, "meanAge": 26.2979, "upTo22": 0.068, "from31": 0.104, "from34": 0.0245, "rookie": 0.1808, "undrafted": 0.3358, "meanYears": 3.5059, "years9Plus": 0.0823, "entryAge": 22.7919},
+      "teams": {"teams": 32, "min": 74, "max": 86, "mean": 79},
+      "byGroup": {
+        "QB": {"n": 109, "aged": 109, "meanAge": 27.8073, "upTo22": 0.0183, "from31": 0.211, "from34": 0.0826, "rookie": 0.1651, "undrafted": 0.2018, "meanYears": 4.844, "years9Plus": 0.1835, "entryAge": 22.9633},
+        "RB": {"n": 189, "aged": 189, "meanAge": 25.6825, "upTo22": 0.0741, "from31": 0.0582, "from34": 0.0106, "rookie": 0.1587, "undrafted": 0.3545, "meanYears": 3.0847, "years9Plus": 0.0688, "entryAge": 22.5979},
+        "WR": {"n": 308, "aged": 308, "meanAge": 25.7727, "upTo22": 0.0812, "from31": 0.0779, "from34": 0.0032, "rookie": 0.2078, "undrafted": 0.3734, "meanYears": 3.0909, "years9Plus": 0.0617, "entryAge": 22.6818},
+        "TE": {"n": 177, "aged": 177, "meanAge": 26.3785, "upTo22": 0.0621, "from31": 0.1243, "from34": 0.0226, "rookie": 0.1977, "undrafted": 0.3503, "meanYears": 3.4576, "years9Plus": 0.096, "entryAge": 22.9209},
+        "OL": {"n": 441, "aged": 441, "meanAge": 26.2857, "upTo22": 0.0567, "from31": 0.0907, "from34": 0.0227, "rookie": 0.1837, "undrafted": 0.3084, "meanYears": 3.3379, "years9Plus": 0.0635, "entryAge": 22.9478},
+        "EDGE": {"n": 327, "aged": 327, "meanAge": 26.1988, "upTo22": 0.0673, "from31": 0.0917, "from34": 0.0183, "rookie": 0.1774, "undrafted": 0.2722, "meanYears": 3.5505, "years9Plus": 0.0734, "entryAge": 22.6483},
+        "IDL": {"n": 221, "aged": 221, "meanAge": 26.5701, "upTo22": 0.0679, "from31": 0.1674, "from34": 0.0271, "rookie": 0.1946, "undrafted": 0.2941, "meanYears": 3.6878, "years9Plus": 0.1403, "entryAge": 22.8824},
+        "LB": {"n": 181, "aged": 181, "meanAge": 26.0497, "upTo22": 0.0829, "from31": 0.0718, "from34": 0.011, "rookie": 0.1878, "undrafted": 0.3978, "meanYears": 3.2873, "years9Plus": 0.0442, "entryAge": 22.7624},
+        "CB": {"n": 267, "aged": 267, "meanAge": 25.6067, "upTo22": 0.0899, "from31": 0.03, "from34": 0, "rookie": 0.1873, "undrafted": 0.2921, "meanYears": 2.9139, "years9Plus": 0.03, "entryAge": 22.6929},
+        "S": {"n": 201, "aged": 201, "meanAge": 26.0498, "upTo22": 0.0796, "from31": 0.0597, "from34": 0.01, "rookie": 0.1592, "undrafted": 0.3632, "meanYears": 3.4826, "years9Plus": 0.0398, "entryAge": 22.5672},
+        "K": {"n": 37, "aged": 37, "meanAge": 28.6757, "upTo22": 0.0541, "from31": 0.3784, "from34": 0.1351, "rookie": 0.1081, "undrafted": 0.5676, "meanYears": 5.5405, "years9Plus": 0.2703, "entryAge": 23.1351},
+        "P": {"n": 36, "aged": 36, "meanAge": 29.2778, "upTo22": 0.0278, "from31": 0.3056, "from34": 0.1667, "rookie": 0.1389, "undrafted": 0.4722, "meanYears": 5.8333, "years9Plus": 0.2222, "entryAge": 23.4444},
+        "LS": {"n": 34, "aged": 34, "meanAge": 31.0294, "upTo22": 0, "from31": 0.5294, "from34": 0.2647, "rookie": 0.0882, "undrafted": 0.9412, "meanYears": 7.4118, "years9Plus": 0.4118, "entryAge": 23.6176}
+      },
+      "noGroup": 0,
+      "old": {"n": 263, "aged": 263, "meanAge": 32.8137, "upTo22": 0, "from31": 1, "from34": 0.2357, "rookie": 0, "undrafted": 0.2776, "meanYears": 10.0913, "years9Plus": 0.7567, "entryAge": 22.7224}
+    },
+    "elevated": 1,
+    "outFourPlus": 0,
+    "ageFallback": {"recorded": false, "matches": 501, "matches31Plus": 61}
+  },
+  "realBySeason": [
+    {
+      "season": 2022,
+      "week": 8,
+      "byeFilled": 2,
+      "the53": {
+        "league": {"n": 1735, "aged": 1735, "meanAge": 26.2086, "upTo22": 0.0738, "from31": 0.1026, "from34": 0.0294, "rookie": 0.1597, "undrafted": 0.2686, "meanYears": 3.6853, "years9Plus": 0.0807, "entryAge": 22.5233},
+        "teams": {"teams": 32, "min": 52, "max": 55, "mean": 54.2188},
+        "byGroup": {
+          "QB": {"n": 78, "aged": 78, "meanAge": 27.9615, "upTo22": 0.0256, "from31": 0.2308, "from34": 0.1538, "rookie": 0.0897, "undrafted": 0.1667, "meanYears": 5.2949, "years9Plus": 0.2179, "entryAge": 22.6667},
+          "RB": {"n": 131, "aged": 131, "meanAge": 25.4198, "upTo22": 0.0763, "from31": 0.0458, "from34": 0.0076, "rookie": 0.1908, "undrafted": 0.2824, "meanYears": 3.1527, "years9Plus": 0.0458, "entryAge": 22.2672},
+          "WR": {"n": 191, "aged": 191, "meanAge": 25.5759, "upTo22": 0.1204, "from31": 0.0314, "from34": 0.0105, "rookie": 0.1728, "undrafted": 0.2723, "meanYears": 3.3037, "years9Plus": 0.0471, "entryAge": 22.2723},
+          "TE": {"n": 114, "aged": 114, "meanAge": 26.1404, "upTo22": 0.0789, "from31": 0.0702, "from34": 0.0088, "rookie": 0.1491, "undrafted": 0.3158, "meanYears": 3.4386, "years9Plus": 0.0439, "entryAge": 22.7018},
+          "OL": {"n": 289, "aged": 289, "meanAge": 26.4671, "upTo22": 0.0554, "from31": 0.1246, "from34": 0.0242, "rookie": 0.1384, "undrafted": 0.2284, "meanYears": 3.7855, "years9Plus": 0.0727, "entryAge": 22.6817},
+          "EDGE": {"n": 246, "aged": 246, "meanAge": 26.061, "upTo22": 0.0691, "from31": 0.1098, "from34": 0.0244, "rookie": 0.1911, "undrafted": 0.1951, "meanYears": 3.5407, "years9Plus": 0.0772, "entryAge": 22.5203},
+          "IDL": {"n": 141, "aged": 141, "meanAge": 26.4539, "upTo22": 0.0496, "from31": 0.0922, "from34": 0.0213, "rookie": 0.1206, "undrafted": 0.2057, "meanYears": 3.9574, "years9Plus": 0.0851, "entryAge": 22.4965},
+          "LB": {"n": 111, "aged": 111, "meanAge": 25.7748, "upTo22": 0.0901, "from31": 0.0541, "from34": 0, "rookie": 0.1351, "undrafted": 0.2793, "meanYears": 3.3063, "years9Plus": 0.045, "entryAge": 22.4685},
+          "CB": {"n": 190, "aged": 190, "meanAge": 25.2632, "upTo22": 0.0947, "from31": 0.0474, "from34": 0, "rookie": 0.2263, "undrafted": 0.2947, "meanYears": 2.8053, "years9Plus": 0.0263, "entryAge": 22.4579},
+          "S": {"n": 145, "aged": 145, "meanAge": 25.9931, "upTo22": 0.0897, "from31": 0.0966, "from34": 0.0138, "rookie": 0.1655, "undrafted": 0.2345, "meanYears": 3.6345, "years9Plus": 0.0759, "entryAge": 22.3586},
+          "K": {"n": 35, "aged": 35, "meanAge": 29.4, "upTo22": 0.0571, "from31": 0.4, "from34": 0.2, "rookie": 0.0571, "undrafted": 0.6, "meanYears": 6.7714, "years9Plus": 0.3429, "entryAge": 22.6286},
+          "P": {"n": 32, "aged": 32, "meanAge": 27.9375, "upTo22": 0.0313, "from31": 0.25, "from34": 0.125, "rookie": 0.1563, "undrafted": 0.4375, "meanYears": 4.8438, "years9Plus": 0.2188, "entryAge": 23.0938},
+          "LS": {"n": 32, "aged": 32, "meanAge": 29.7813, "upTo22": 0, "from31": 0.4063, "from34": 0.1875, "rookie": 0.0625, "undrafted": 0.9063, "meanYears": 6.3438, "years9Plus": 0.3438, "entryAge": 23.4375}
+        },
+        "noGroup": 0,
+        "old": {"n": 178, "aged": 178, "meanAge": 32.9382, "upTo22": 0, "from31": 1, "from34": 0.2865, "rookie": 0, "undrafted": 0.3315, "meanYears": 10.1629, "years9Plus": 0.7472, "entryAge": 22.7753}
+      }
+    },
+    {
+      "season": 2023,
+      "week": 8,
+      "byeFilled": 0,
+      "the53": {
+        "league": {"n": 1730, "aged": 1730, "meanAge": 26.2618, "upTo22": 0.0734, "from31": 0.0977, "from34": 0.0266, "rookie": 0.1595, "undrafted": 0.2538, "meanYears": 3.6983, "years9Plus": 0.0775, "entryAge": 22.5636},
+        "teams": {"teams": 32, "min": 52, "max": 55, "mean": 54.0625},
+        "byGroup": {
+          "QB": {"n": 80, "aged": 80, "meanAge": 27.6, "upTo22": 0.0375, "from31": 0.1875, "from34": 0.125, "rookie": 0.15, "undrafted": 0.1625, "meanYears": 4.8, "years9Plus": 0.175, "entryAge": 22.8},
+          "RB": {"n": 124, "aged": 124, "meanAge": 25.7097, "upTo22": 0.1129, "from31": 0.0726, "from34": 0, "rookie": 0.1532, "undrafted": 0.3065, "meanYears": 3.4355, "years9Plus": 0.0565, "entryAge": 22.2742},
+          "WR": {"n": 189, "aged": 189, "meanAge": 25.7989, "upTo22": 0.1111, "from31": 0.0529, "from34": 0.0106, "rookie": 0.1852, "undrafted": 0.2222, "meanYears": 3.5344, "years9Plus": 0.0741, "entryAge": 22.2646},
+          "TE": {"n": 107, "aged": 107, "meanAge": 26.0748, "upTo22": 0.0654, "from31": 0.0935, "from34": 0.028, "rookie": 0.1776, "undrafted": 0.2243, "meanYears": 3.3645, "years9Plus": 0.0374, "entryAge": 22.7103},
+          "OL": {"n": 298, "aged": 298, "meanAge": 26.4295, "upTo22": 0.0503, "from31": 0.1309, "from34": 0.0168, "rookie": 0.1376, "undrafted": 0.2315, "meanYears": 3.6879, "years9Plus": 0.0805, "entryAge": 22.7416},
+          "EDGE": {"n": 239, "aged": 239, "meanAge": 26, "upTo22": 0.0837, "from31": 0.0753, "from34": 0.0251, "rookie": 0.1757, "undrafted": 0.1799, "meanYears": 3.4937, "years9Plus": 0.0628, "entryAge": 22.5063},
+          "IDL": {"n": 131, "aged": 131, "meanAge": 26.6565, "upTo22": 0.0611, "from31": 0.0763, "from34": 0.0153, "rookie": 0.1603, "undrafted": 0.1985, "meanYears": 4.0534, "years9Plus": 0.0687, "entryAge": 22.6031},
+          "LB": {"n": 129, "aged": 129, "meanAge": 25.8682, "upTo22": 0.0698, "from31": 0.0543, "from34": 0.0155, "rookie": 0.1318, "undrafted": 0.2713, "meanYears": 3.3953, "years9Plus": 0.0388, "entryAge": 22.4729},
+          "CB": {"n": 189, "aged": 189, "meanAge": 25.5608, "upTo22": 0.0952, "from31": 0.037, "from34": 0.0053, "rookie": 0.1958, "undrafted": 0.2593, "meanYears": 3.0952, "years9Plus": 0.0317, "entryAge": 22.4656},
+          "S": {"n": 146, "aged": 146, "meanAge": 25.9795, "upTo22": 0.0753, "from31": 0.0822, "from34": 0.0137, "rookie": 0.1575, "undrafted": 0.2534, "meanYears": 3.5205, "years9Plus": 0.0685, "entryAge": 22.4589},
+          "K": {"n": 33, "aged": 33, "meanAge": 28.7576, "upTo22": 0, "from31": 0.303, "from34": 0.1212, "rookie": 0.1212, "undrafted": 0.6061, "meanYears": 5.7576, "years9Plus": 0.2727, "entryAge": 23},
+          "P": {"n": 33, "aged": 33, "meanAge": 27.697, "upTo22": 0.0303, "from31": 0.2424, "from34": 0.0606, "rookie": 0.1212, "undrafted": 0.4242, "meanYears": 4.5152, "years9Plus": 0.1818, "entryAge": 23.1818},
+          "LS": {"n": 32, "aged": 32, "meanAge": 30.1563, "upTo22": 0, "from31": 0.4375, "from34": 0.2188, "rookie": 0.0625, "undrafted": 0.9063, "meanYears": 6.8438, "years9Plus": 0.3438, "entryAge": 23.3125}
+        },
+        "noGroup": 0,
+        "old": {"n": 169, "aged": 169, "meanAge": 32.7988, "upTo22": 0, "from31": 1, "from34": 0.2722, "rookie": 0, "undrafted": 0.3373, "meanYears": 9.9763, "years9Plus": 0.7456, "entryAge": 22.8225}
+      }
+    },
+    {
+      "season": 2024,
+      "week": 8,
+      "byeFilled": 0,
+      "the53": {
+        "league": {"n": 1735, "aged": 1735, "meanAge": 26.3429, "upTo22": 0.0657, "from31": 0.102, "from34": 0.03, "rookie": 0.1568, "undrafted": 0.2478, "meanYears": 3.7135, "years9Plus": 0.079, "entryAge": 22.6294},
+        "teams": {"teams": 32, "min": 53, "max": 56, "mean": 54.2188},
+        "byGroup": {
+          "QB": {"n": 83, "aged": 83, "meanAge": 27.7952, "upTo22": 0.0361, "from31": 0.2169, "from34": 0.1084, "rookie": 0.1205, "undrafted": 0.1325, "meanYears": 5.0361, "years9Plus": 0.1807, "entryAge": 22.759},
+          "RB": {"n": 125, "aged": 125, "meanAge": 25.544, "upTo22": 0.128, "from31": 0.048, "from34": 0, "rookie": 0.16, "undrafted": 0.272, "meanYears": 3.248, "years9Plus": 0.04, "entryAge": 22.296},
+          "WR": {"n": 183, "aged": 183, "meanAge": 25.5792, "upTo22": 0.1038, "from31": 0.0765, "from34": 0, "rookie": 0.2131, "undrafted": 0.2131, "meanYears": 3.224, "years9Plus": 0.071, "entryAge": 22.3552},
+          "TE": {"n": 115, "aged": 115, "meanAge": 26.5304, "upTo22": 0.0348, "from31": 0.113, "from34": 0.0261, "rookie": 0.1304, "undrafted": 0.2783, "meanYears": 3.6261, "years9Plus": 0.0609, "entryAge": 22.9043},
+          "OL": {"n": 294, "aged": 294, "meanAge": 26.2959, "upTo22": 0.0544, "from31": 0.102, "from34": 0.0204, "rookie": 0.1803, "undrafted": 0.1939, "meanYears": 3.4694, "years9Plus": 0.0714, "entryAge": 22.8265},
+          "EDGE": {"n": 225, "aged": 225, "meanAge": 26.3822, "upTo22": 0.0578, "from31": 0.08, "from34": 0.0178, "rookie": 0.1333, "undrafted": 0.1733, "meanYears": 3.8133, "years9Plus": 0.08, "entryAge": 22.5689},
+          "IDL": {"n": 137, "aged": 137, "meanAge": 26.9416, "upTo22": 0.0584, "from31": 0.1241, "from34": 0.0292, "rookie": 0.1168, "undrafted": 0.1825, "meanYears": 4.3285, "years9Plus": 0.0876, "entryAge": 22.6131},
+          "LB": {"n": 138, "aged": 138, "meanAge": 26.0217, "upTo22": 0.0507, "from31": 0.087, "from34": 0.029, "rookie": 0.1594, "undrafted": 0.3043, "meanYears": 3.4203, "years9Plus": 0.0652, "entryAge": 22.6014},
+          "CB": {"n": 191, "aged": 191, "meanAge": 25.4869, "upTo22": 0.0995, "from31": 0.0366, "from34": 0.0105, "rookie": 0.1937, "undrafted": 0.2565, "meanYears": 3, "years9Plus": 0.0209, "entryAge": 22.4869},
+          "S": {"n": 146, "aged": 146, "meanAge": 25.863, "upTo22": 0.0479, "from31": 0.0753, "from34": 0.0137, "rookie": 0.1575, "undrafted": 0.2671, "meanYears": 3.3836, "years9Plus": 0.0479, "entryAge": 22.4795},
+          "K": {"n": 33, "aged": 33, "meanAge": 28.697, "upTo22": 0.0606, "from31": 0.2424, "from34": 0.1212, "rookie": 0.0909, "undrafted": 0.4848, "meanYears": 5.7273, "years9Plus": 0.2424, "entryAge": 22.9697},
+          "P": {"n": 33, "aged": 33, "meanAge": 28.3939, "upTo22": 0, "from31": 0.2121, "from34": 0.1515, "rookie": 0.0909, "undrafted": 0.4848, "meanYears": 5.1818, "years9Plus": 0.1818, "entryAge": 23.2121},
+          "LS": {"n": 32, "aged": 32, "meanAge": 31.125, "upTo22": 0, "from31": 0.5, "from34": 0.2813, "rookie": 0.0313, "undrafted": 0.9688, "meanYears": 7.5625, "years9Plus": 0.375, "entryAge": 23.5625}
+        },
+        "noGroup": 0,
+        "old": {"n": 177, "aged": 177, "meanAge": 32.8362, "upTo22": 0, "from31": 1, "from34": 0.2938, "rookie": 0, "undrafted": 0.2881, "meanYears": 9.9661, "years9Plus": 0.7006, "entryAge": 22.8701}
+      }
+    }
+  ],
+  "study": {
+    "season": 2024,
+    "ageDate": "2024-10-23",
+    "snapshotWeek": 7,
+    "lastRegularWeek": 18,
+    "lastWeek": 22,
+    "dayAfterLastGame": "2025-02-10",
+    "realWeek8": {
+      "week": 8,
+      "byeFilled": 0,
+      "the53": {
+        "league": {"n": 1735, "aged": 1735, "meanAge": 26.3429, "upTo22": 0.0657, "from31": 0.102, "from34": 0.03, "rookie": 0.1568, "undrafted": 0.2478, "meanYears": 3.7135, "years9Plus": 0.079, "entryAge": 22.6294},
+        "teams": {"teams": 32, "min": 53, "max": 56, "mean": 54.2188},
+        "byGroup": {
+          "QB": {"n": 83, "aged": 83, "meanAge": 27.7952, "upTo22": 0.0361, "from31": 0.2169, "from34": 0.1084, "rookie": 0.1205, "undrafted": 0.1325, "meanYears": 5.0361, "years9Plus": 0.1807, "entryAge": 22.759},
+          "RB": {"n": 125, "aged": 125, "meanAge": 25.544, "upTo22": 0.128, "from31": 0.048, "from34": 0, "rookie": 0.16, "undrafted": 0.272, "meanYears": 3.248, "years9Plus": 0.04, "entryAge": 22.296},
+          "WR": {"n": 183, "aged": 183, "meanAge": 25.5792, "upTo22": 0.1038, "from31": 0.0765, "from34": 0, "rookie": 0.2131, "undrafted": 0.2131, "meanYears": 3.224, "years9Plus": 0.071, "entryAge": 22.3552},
+          "TE": {"n": 115, "aged": 115, "meanAge": 26.5304, "upTo22": 0.0348, "from31": 0.113, "from34": 0.0261, "rookie": 0.1304, "undrafted": 0.2783, "meanYears": 3.6261, "years9Plus": 0.0609, "entryAge": 22.9043},
+          "OL": {"n": 294, "aged": 294, "meanAge": 26.2959, "upTo22": 0.0544, "from31": 0.102, "from34": 0.0204, "rookie": 0.1803, "undrafted": 0.1939, "meanYears": 3.4694, "years9Plus": 0.0714, "entryAge": 22.8265},
+          "EDGE": {"n": 225, "aged": 225, "meanAge": 26.3822, "upTo22": 0.0578, "from31": 0.08, "from34": 0.0178, "rookie": 0.1333, "undrafted": 0.1733, "meanYears": 3.8133, "years9Plus": 0.08, "entryAge": 22.5689},
+          "IDL": {"n": 137, "aged": 137, "meanAge": 26.9416, "upTo22": 0.0584, "from31": 0.1241, "from34": 0.0292, "rookie": 0.1168, "undrafted": 0.1825, "meanYears": 4.3285, "years9Plus": 0.0876, "entryAge": 22.6131},
+          "LB": {"n": 138, "aged": 138, "meanAge": 26.0217, "upTo22": 0.0507, "from31": 0.087, "from34": 0.029, "rookie": 0.1594, "undrafted": 0.3043, "meanYears": 3.4203, "years9Plus": 0.0652, "entryAge": 22.6014},
+          "CB": {"n": 191, "aged": 191, "meanAge": 25.4869, "upTo22": 0.0995, "from31": 0.0366, "from34": 0.0105, "rookie": 0.1937, "undrafted": 0.2565, "meanYears": 3, "years9Plus": 0.0209, "entryAge": 22.4869},
+          "S": {"n": 146, "aged": 146, "meanAge": 25.863, "upTo22": 0.0479, "from31": 0.0753, "from34": 0.0137, "rookie": 0.1575, "undrafted": 0.2671, "meanYears": 3.3836, "years9Plus": 0.0479, "entryAge": 22.4795},
+          "K": {"n": 33, "aged": 33, "meanAge": 28.697, "upTo22": 0.0606, "from31": 0.2424, "from34": 0.1212, "rookie": 0.0909, "undrafted": 0.4848, "meanYears": 5.7273, "years9Plus": 0.2424, "entryAge": 22.9697},
+          "P": {"n": 33, "aged": 33, "meanAge": 28.3939, "upTo22": 0, "from31": 0.2121, "from34": 0.1515, "rookie": 0.0909, "undrafted": 0.4848, "meanYears": 5.1818, "years9Plus": 0.1818, "entryAge": 23.2121},
+          "LS": {"n": 32, "aged": 32, "meanAge": 31.125, "upTo22": 0, "from31": 0.5, "from34": 0.2813, "rookie": 0.0313, "undrafted": 0.9688, "meanYears": 7.5625, "years9Plus": 0.375, "entryAge": 23.5625}
+        },
+        "noGroup": 0,
+        "old": {"n": 177, "aged": 177, "meanAge": 32.8362, "upTo22": 0, "from31": 1, "from34": 0.2938, "rookie": 0, "undrafted": 0.2881, "meanYears": 9.9661, "years9Plus": 0.7006, "entryAge": 22.8701}
+      }
+    },
+    "realAtSnapshot": {
+      "week": 7,
+      "byeFilled": 2,
+      "the53": {
+        "league": {"n": 1741, "aged": 1741, "meanAge": 26.3435, "upTo22": 0.0655, "from31": 0.1005, "from34": 0.0299, "rookie": 0.1539, "undrafted": 0.2499, "meanYears": 3.7111, "years9Plus": 0.0781, "entryAge": 22.6324},
+        "teams": {"teams": 32, "min": 53, "max": 55, "mean": 54.4063},
+        "byGroup": {
+          "QB": {"n": 80, "aged": 80, "meanAge": 28, "upTo22": 0.0375, "from31": 0.225, "from34": 0.1125, "rookie": 0.0875, "undrafted": 0.125, "meanYears": 5.275, "years9Plus": 0.1875, "entryAge": 22.725},
+          "RB": {"n": 126, "aged": 126, "meanAge": 25.5159, "upTo22": 0.127, "from31": 0.0476, "from34": 0, "rookie": 0.1587, "undrafted": 0.2937, "meanYears": 3.1825, "years9Plus": 0.0397, "entryAge": 22.3333},
+          "WR": {"n": 182, "aged": 182, "meanAge": 25.6429, "upTo22": 0.1044, "from31": 0.0769, "from34": 0, "rookie": 0.2033, "undrafted": 0.1978, "meanYears": 3.3187, "years9Plus": 0.0714, "entryAge": 22.3242},
+          "TE": {"n": 116, "aged": 116, "meanAge": 26.5172, "upTo22": 0.0345, "from31": 0.1121, "from34": 0.0259, "rookie": 0.1293, "undrafted": 0.2845, "meanYears": 3.6034, "years9Plus": 0.0603, "entryAge": 22.9138},
+          "OL": {"n": 295, "aged": 295, "meanAge": 26.2814, "upTo22": 0.0542, "from31": 0.1017, "from34": 0.0203, "rookie": 0.1763, "undrafted": 0.1932, "meanYears": 3.4746, "years9Plus": 0.0712, "entryAge": 22.8068},
+          "EDGE": {"n": 228, "aged": 228, "meanAge": 26.3772, "upTo22": 0.057, "from31": 0.0789, "from34": 0.0175, "rookie": 0.1316, "undrafted": 0.1798, "meanYears": 3.7763, "years9Plus": 0.0789, "entryAge": 22.6009},
+          "IDL": {"n": 136, "aged": 136, "meanAge": 26.8824, "upTo22": 0.0515, "from31": 0.125, "from34": 0.0294, "rookie": 0.1176, "undrafted": 0.1765, "meanYears": 4.2794, "years9Plus": 0.0882, "entryAge": 22.6029},
+          "LB": {"n": 144, "aged": 144, "meanAge": 26, "upTo22": 0.0486, "from31": 0.0833, "from34": 0.0278, "rookie": 0.1667, "undrafted": 0.3333, "meanYears": 3.3542, "years9Plus": 0.0625, "entryAge": 22.6458},
+          "CB": {"n": 192, "aged": 192, "meanAge": 25.5208, "upTo22": 0.1042, "from31": 0.0313, "from34": 0.0104, "rookie": 0.1927, "undrafted": 0.25, "meanYears": 3.0313, "years9Plus": 0.0208, "entryAge": 22.4896},
+          "S": {"n": 143, "aged": 143, "meanAge": 25.8322, "upTo22": 0.049, "from31": 0.0699, "from34": 0.014, "rookie": 0.1608, "undrafted": 0.2657, "meanYears": 3.3497, "years9Plus": 0.042, "entryAge": 22.4825},
+          "K": {"n": 33, "aged": 33, "meanAge": 28.697, "upTo22": 0.0606, "from31": 0.2424, "from34": 0.1212, "rookie": 0.0909, "undrafted": 0.4848, "meanYears": 5.7273, "years9Plus": 0.2424, "entryAge": 22.9697},
+          "P": {"n": 34, "aged": 34, "meanAge": 28.2941, "upTo22": 0, "from31": 0.2059, "from34": 0.1471, "rookie": 0.0882, "undrafted": 0.4706, "meanYears": 5.0882, "years9Plus": 0.1765, "entryAge": 23.2059},
+          "LS": {"n": 32, "aged": 32, "meanAge": 31.125, "upTo22": 0, "from31": 0.5, "from34": 0.2813, "rookie": 0.0313, "undrafted": 0.9688, "meanYears": 7.5625, "years9Plus": 0.375, "entryAge": 23.5625}
+        },
+        "noGroup": 0,
+        "old": {"n": 175, "aged": 175, "meanAge": 32.8571, "upTo22": 0, "from31": 1, "from34": 0.2971, "rookie": 0, "undrafted": 0.2857, "meanYears": 9.9886, "years9Plus": 0.7029, "entryAge": 22.8686}
+      }
+    },
+    "importer": {
+      "atSnapshot": {
+        "throughWeek": 7,
+        "gameTypes": "ALL",
+        "ageDate": "2024-10-23",
+        "teamWeeks": {"6": 2, "7": 30},
+        "the53": {
+          "league": {"n": 1588, "aged": 1588, "meanAge": 26.3967, "upTo22": 0.0668, "from31": 0.1033, "from34": 0.0315, "rookie": 0.1467, "undrafted": 0.2513, "meanYears": 3.7872, "years9Plus": 0.0806, "entryAge": 22.6096},
+          "teams": {"teams": 32, "min": 48, "max": 55, "mean": 49.625},
+          "byGroup": {
+            "QB": {"n": 68, "aged": 68, "meanAge": 28.2353, "upTo22": 0.0441, "from31": 0.25, "from34": 0.1324, "rookie": 0.0882, "undrafted": 0.1176, "meanYears": 5.6029, "years9Plus": 0.2059, "entryAge": 22.6324},
+            "RB": {"n": 116, "aged": 116, "meanAge": 25.569, "upTo22": 0.1293, "from31": 0.0517, "from34": 0, "rookie": 0.1552, "undrafted": 0.3017, "meanYears": 3.2328, "years9Plus": 0.0431, "entryAge": 22.3362},
+            "WR": {"n": 171, "aged": 171, "meanAge": 25.5906, "upTo22": 0.1053, "from31": 0.0702, "from34": 0, "rookie": 0.1988, "undrafted": 0.1871, "meanYears": 3.2924, "years9Plus": 0.0702, "entryAge": 22.2982},
+            "TE": {"n": 108, "aged": 108, "meanAge": 26.5926, "upTo22": 0.037, "from31": 0.1204, "from34": 0.0278, "rookie": 0.1204, "undrafted": 0.2778, "meanYears": 3.7037, "years9Plus": 0.0648, "entryAge": 22.8889},
+            "OL": {"n": 265, "aged": 265, "meanAge": 26.3321, "upTo22": 0.0604, "from31": 0.1057, "from34": 0.0189, "rookie": 0.1585, "undrafted": 0.1962, "meanYears": 3.5509, "years9Plus": 0.0717, "entryAge": 22.7811},
+            "EDGE": {"n": 201, "aged": 201, "meanAge": 26.3831, "upTo22": 0.0547, "from31": 0.0796, "from34": 0.0199, "rookie": 0.1194, "undrafted": 0.1741, "meanYears": 3.8209, "years9Plus": 0.0846, "entryAge": 22.5622},
+            "IDL": {"n": 125, "aged": 125, "meanAge": 27.008, "upTo22": 0.048, "from31": 0.128, "from34": 0.024, "rookie": 0.12, "undrafted": 0.192, "meanYears": 4.4, "years9Plus": 0.088, "entryAge": 22.608},
+            "LB": {"n": 130, "aged": 130, "meanAge": 26.0538, "upTo22": 0.0538, "from31": 0.0846, "from34": 0.0308, "rookie": 0.1615, "undrafted": 0.3385, "meanYears": 3.4308, "years9Plus": 0.0615, "entryAge": 22.6231},
+            "CB": {"n": 174, "aged": 174, "meanAge": 25.5402, "upTo22": 0.0977, "from31": 0.0287, "from34": 0.0115, "rookie": 0.1954, "undrafted": 0.2356, "meanYears": 3.0747, "years9Plus": 0.023, "entryAge": 22.4655},
+            "S": {"n": 133, "aged": 133, "meanAge": 25.8797, "upTo22": 0.0526, "from31": 0.0677, "from34": 0.015, "rookie": 0.1429, "undrafted": 0.2707, "meanYears": 3.4361, "years9Plus": 0.0376, "entryAge": 22.4436},
+            "K": {"n": 32, "aged": 32, "meanAge": 28.8438, "upTo22": 0.0625, "from31": 0.25, "from34": 0.125, "rookie": 0.0938, "undrafted": 0.5, "meanYears": 5.875, "years9Plus": 0.25, "entryAge": 22.9688},
+            "P": {"n": 33, "aged": 33, "meanAge": 28.3333, "upTo22": 0, "from31": 0.2121, "from34": 0.1515, "rookie": 0.0909, "undrafted": 0.4545, "meanYears": 5.0909, "years9Plus": 0.1818, "entryAge": 23.2424},
+            "LS": {"n": 32, "aged": 32, "meanAge": 31.125, "upTo22": 0, "from31": 0.5, "from34": 0.2813, "rookie": 0.0313, "undrafted": 0.9688, "meanYears": 7.5625, "years9Plus": 0.375, "entryAge": 23.5625}
+          },
+          "noGroup": 0,
+          "old": {"n": 164, "aged": 164, "meanAge": 32.9085, "upTo22": 0, "from31": 1, "from34": 0.3049, "rookie": 0, "undrafted": 0.2927, "meanYears": 10.0061, "years9Plus": 0.7073, "entryAge": 22.9024}
+        },
+        "reserve": {"n": 305, "aged": 305, "meanAge": 26.2885, "upTo22": 0.0328, "from31": 0.0885, "from34": 0.0295, "rookie": 0.177, "undrafted": 0.3246, "meanYears": 3.5279, "years9Plus": 0.0623, "entryAge": 22.7607},
+        "practice": {"n": 486, "aged": 486, "meanAge": 25.4465, "upTo22": 0.0247, "from31": 0.0309, "from34": 0.0041, "rookie": 0.3025, "undrafted": 0.6646, "meanYears": 2.2449, "years9Plus": 0.0247, "entryAge": 23.2016},
+        "elevated": 0,
+        "ageSources": {"roster": 1588, "table": 0, "fallback": 0},
+        "versusReal": {
+          "both": 1535,
+          "onlyImporter": {"n": 53, "shares": {"n": 53, "aged": 53, "meanAge": 26.1887, "upTo22": 0.0189, "from31": 0, "from34": 0, "rookie": 0.1132, "undrafted": 0.3962, "meanYears": 3.3208, "years9Plus": 0, "entryAge": 22.8679}, "codes": {"ACT/A01": 51, "INA/A01": 2}},
+          "onlyReal": {
+            "n": 200,
+            "shares": {"n": 200, "aged": 200, "meanAge": 25.875, "upTo22": 0.045, "from31": 0.065, "from34": 0.01, "rookie": 0.225, "undrafted": 0.265, "meanYears": 3.025, "years9Plus": 0.045, "entryAge": 22.85},
+            "codes": {"ACT/A01": 104, "INA/A01": 24, "INA/I01": 67, "INA/I02": 5}
+          }
+        }
+      },
+      "week8": {
+        "throughWeek": 8,
+        "gameTypes": "ALL",
+        "ageDate": "2024-10-23",
+        "teamWeeks": {"8": 32},
+        "the53": {
+          "league": {"n": 1574, "aged": 1574, "meanAge": 26.4231, "upTo22": 0.068, "from31": 0.1074, "from34": 0.0324, "rookie": 0.1442, "undrafted": 0.2516, "meanYears": 3.8183, "years9Plus": 0.0839, "entryAge": 22.6048},
+          "teams": {"teams": 32, "min": 48, "max": 55, "mean": 49.1875},
+          "byGroup": {
+            "QB": {"n": 72, "aged": 72, "meanAge": 27.8611, "upTo22": 0.0417, "from31": 0.2083, "from34": 0.1111, "rookie": 0.1111, "undrafted": 0.1528, "meanYears": 5.1667, "years9Plus": 0.1806, "entryAge": 22.6944},
+            "RB": {"n": 113, "aged": 113, "meanAge": 25.6637, "upTo22": 0.1239, "from31": 0.0531, "from34": 0, "rookie": 0.1416, "undrafted": 0.2743, "meanYears": 3.3982, "years9Plus": 0.0442, "entryAge": 22.2655},
+            "WR": {"n": 167, "aged": 167, "meanAge": 25.509, "upTo22": 0.1138, "from31": 0.0778, "from34": 0, "rookie": 0.2156, "undrafted": 0.2096, "meanYears": 3.1437, "years9Plus": 0.0719, "entryAge": 22.3653},
+            "TE": {"n": 105, "aged": 105, "meanAge": 26.5333, "upTo22": 0.0381, "from31": 0.1143, "from34": 0.0286, "rookie": 0.1143, "undrafted": 0.2571, "meanYears": 3.7238, "years9Plus": 0.0667, "entryAge": 22.8095},
+            "OL": {"n": 262, "aged": 262, "meanAge": 26.4313, "upTo22": 0.0611, "from31": 0.1145, "from34": 0.0229, "rookie": 0.1565, "undrafted": 0.1985, "meanYears": 3.645, "years9Plus": 0.0802, "entryAge": 22.7863},
+            "EDGE": {"n": 200, "aged": 200, "meanAge": 26.53, "upTo22": 0.055, "from31": 0.085, "from34": 0.02, "rookie": 0.115, "undrafted": 0.17, "meanYears": 3.995, "years9Plus": 0.09, "entryAge": 22.535},
+            "IDL": {"n": 125, "aged": 125, "meanAge": 27.064, "upTo22": 0.056, "from31": 0.136, "from34": 0.032, "rookie": 0.112, "undrafted": 0.192, "meanYears": 4.472, "years9Plus": 0.096, "entryAge": 22.592},
+            "LB": {"n": 128, "aged": 128, "meanAge": 26.0781, "upTo22": 0.0469, "from31": 0.0859, "from34": 0.0313, "rookie": 0.1563, "undrafted": 0.3125, "meanYears": 3.4609, "years9Plus": 0.0625, "entryAge": 22.6172},
+            "CB": {"n": 174, "aged": 174, "meanAge": 25.5402, "upTo22": 0.1034, "from31": 0.0402, "from34": 0.0115, "rookie": 0.1839, "undrafted": 0.2471, "meanYears": 3.0517, "years9Plus": 0.023, "entryAge": 22.4885},
+            "S": {"n": 130, "aged": 130, "meanAge": 25.8615, "upTo22": 0.0538, "from31": 0.0769, "from34": 0.0154, "rookie": 0.1385, "undrafted": 0.2769, "meanYears": 3.4538, "years9Plus": 0.0462, "entryAge": 22.4077},
+            "K": {"n": 33, "aged": 33, "meanAge": 28.697, "upTo22": 0.0606, "from31": 0.2424, "from34": 0.1212, "rookie": 0.0909, "undrafted": 0.4848, "meanYears": 5.7273, "years9Plus": 0.2424, "entryAge": 22.9697},
+            "P": {"n": 33, "aged": 33, "meanAge": 28.3939, "upTo22": 0, "from31": 0.2121, "from34": 0.1515, "rookie": 0.0909, "undrafted": 0.4848, "meanYears": 5.1818, "years9Plus": 0.1818, "entryAge": 23.2121},
+            "LS": {"n": 32, "aged": 32, "meanAge": 31.125, "upTo22": 0, "from31": 0.5, "from34": 0.2813, "rookie": 0.0313, "undrafted": 0.9688, "meanYears": 7.5625, "years9Plus": 0.375, "entryAge": 23.5625}
+          },
+          "noGroup": 0,
+          "old": {"n": 169, "aged": 169, "meanAge": 32.8639, "upTo22": 0, "from31": 1, "from34": 0.3018, "rookie": 0, "undrafted": 0.3018, "meanYears": 10, "years9Plus": 0.7041, "entryAge": 22.8639}
+        },
+        "reserve": {"n": 304, "aged": 304, "meanAge": 26.2796, "upTo22": 0.0362, "from31": 0.0855, "from34": 0.0296, "rookie": 0.1776, "undrafted": 0.3257, "meanYears": 3.5132, "years9Plus": 0.0625, "entryAge": 22.7664},
+        "practice": {"n": 500, "aged": 500, "meanAge": 25.488, "upTo22": 0.024, "from31": 0.03, "from34": 0.006, "rookie": 0.298, "undrafted": 0.67, "meanYears": 2.286, "years9Plus": 0.024, "entryAge": 23.202},
+        "elevated": 0,
+        "ageSources": {"roster": 1574, "table": 0, "fallback": 0},
+        "versusReal": {
+          "both": 1574,
+          "onlyImporter": {"n": 0, "shares": {"n": 0, "aged": 0, "meanAge": 0, "upTo22": 0, "from31": 0, "from34": 0, "rookie": 0, "undrafted": 0, "meanYears": 0, "years9Plus": 0, "entryAge": 0}, "codes": {}},
+          "onlyReal": {
+            "n": 161,
+            "shares": {"n": 161, "aged": 161, "meanAge": 25.559, "upTo22": 0.0435, "from31": 0.0497, "from34": 0.0062, "rookie": 0.2795, "undrafted": 0.2174, "meanYears": 2.6894, "years9Plus": 0.0311, "entryAge": 22.8696},
+            "codes": {"INA/I01": 154, "INA/I02": 7}
+          }
+        }
+      },
+      "latest": {
+        "throughWeek": null,
+        "gameTypes": "ALL",
+        "ageDate": "2024-10-23",
+        "teamWeeks": {"18": 18, "19": 6, "20": 4, "21": 2, "22": 2},
+        "the53": {
+          "league": {"n": 1719, "aged": 1719, "meanAge": 26.3415, "upTo22": 0.0634, "from31": 0.0977, "from34": 0.0314, "rookie": 0.16, "undrafted": 0.2664, "meanYears": 3.6987, "years9Plus": 0.0785, "entryAge": 22.6428},
+          "teams": {"teams": 32, "min": 48, "max": 55, "mean": 53.7188},
+          "byGroup": {
+            "QB": {"n": 82, "aged": 82, "meanAge": 27.7195, "upTo22": 0.0366, "from31": 0.1951, "from34": 0.1098, "rookie": 0.1098, "undrafted": 0.1341, "meanYears": 4.878, "years9Plus": 0.1707, "entryAge": 22.8415},
+            "RB": {"n": 127, "aged": 127, "meanAge": 25.5197, "upTo22": 0.126, "from31": 0.0472, "from34": 0, "rookie": 0.189, "undrafted": 0.3465, "meanYears": 3.1181, "years9Plus": 0.0394, "entryAge": 22.4016},
+            "WR": {"n": 184, "aged": 184, "meanAge": 25.6793, "upTo22": 0.1033, "from31": 0.0815, "from34": 0.0054, "rookie": 0.2065, "undrafted": 0.25, "meanYears": 3.2935, "years9Plus": 0.0707, "entryAge": 22.3859},
+            "TE": {"n": 113, "aged": 113, "meanAge": 26.2389, "upTo22": 0.0354, "from31": 0.0973, "from34": 0.0177, "rookie": 0.1239, "undrafted": 0.3009, "meanYears": 3.354, "years9Plus": 0.0442, "entryAge": 22.885},
+            "OL": {"n": 295, "aged": 295, "meanAge": 26.3153, "upTo22": 0.0508, "from31": 0.0881, "from34": 0.0169, "rookie": 0.1831, "undrafted": 0.1966, "meanYears": 3.4373, "years9Plus": 0.0644, "entryAge": 22.878},
+            "EDGE": {"n": 230, "aged": 230, "meanAge": 26.3913, "upTo22": 0.0522, "from31": 0.087, "from34": 0.0261, "rookie": 0.1348, "undrafted": 0.213, "meanYears": 3.8043, "years9Plus": 0.0826, "entryAge": 22.587},
+            "IDL": {"n": 133, "aged": 133, "meanAge": 26.8346, "upTo22": 0.0526, "from31": 0.1203, "from34": 0.0226, "rookie": 0.1429, "undrafted": 0.1805, "meanYears": 4.1654, "years9Plus": 0.0977, "entryAge": 22.6692},
+            "LB": {"n": 137, "aged": 137, "meanAge": 26.0219, "upTo22": 0.0365, "from31": 0.073, "from34": 0.0292, "rookie": 0.1533, "undrafted": 0.3577, "meanYears": 3.438, "years9Plus": 0.0511, "entryAge": 22.5839},
+            "CB": {"n": 180, "aged": 180, "meanAge": 25.4944, "upTo22": 0.1, "from31": 0.0333, "from34": 0.0111, "rookie": 0.1944, "undrafted": 0.2278, "meanYears": 3.0389, "years9Plus": 0.0278, "entryAge": 22.4556},
+            "S": {"n": 141, "aged": 141, "meanAge": 26.0993, "upTo22": 0.0496, "from31": 0.078, "from34": 0.0284, "rookie": 0.156, "undrafted": 0.2624, "meanYears": 3.6596, "years9Plus": 0.0496, "entryAge": 22.4397},
+            "K": {"n": 33, "aged": 33, "meanAge": 28.6364, "upTo22": 0.0606, "from31": 0.2424, "from34": 0.1212, "rookie": 0.0909, "undrafted": 0.5455, "meanYears": 5.8485, "years9Plus": 0.2424, "entryAge": 22.7879},
+            "P": {"n": 32, "aged": 32, "meanAge": 28.4688, "upTo22": 0.0313, "from31": 0.25, "from34": 0.1563, "rookie": 0.125, "undrafted": 0.5, "meanYears": 5.4063, "years9Plus": 0.25, "entryAge": 23.0625},
+            "LS": {"n": 32, "aged": 32, "meanAge": 30.7813, "upTo22": 0, "from31": 0.4688, "from34": 0.2813, "rookie": 0.0313, "undrafted": 0.9688, "meanYears": 7.3125, "years9Plus": 0.375, "entryAge": 23.4688}
+          },
+          "noGroup": 0,
+          "old": {"n": 168, "aged": 168, "meanAge": 32.9107, "upTo22": 0, "from31": 1, "from34": 0.3214, "rookie": 0, "undrafted": 0.2857, "meanYears": 10.1548, "years9Plus": 0.7321, "entryAge": 22.756}
+        },
+        "reserve": {"n": 389, "aged": 389, "meanAge": 26.1388, "upTo22": 0.0437, "from31": 0.0925, "from34": 0.018, "rookie": 0.162, "undrafted": 0.3213, "meanYears": 3.3753, "years9Plus": 0.0617, "entryAge": 22.7635},
+        "practice": {"n": 472, "aged": 472, "meanAge": 25.4597, "upTo22": 0.0254, "from31": 0.036, "from34": 0.0021, "rookie": 0.3051, "undrafted": 0.6695, "meanYears": 2.2585, "years9Plus": 0.0297, "entryAge": 23.2013},
+        "elevated": 0,
+        "ageSources": {"roster": 1719, "table": 0, "fallback": 0},
+        "versusReal": {
+          "both": 1460,
+          "onlyImporter": {
+            "n": 259,
+            "shares": {"n": 259, "aged": 259, "meanAge": 26.471, "upTo22": 0.027, "from31": 0.0849, "from34": 0.027, "rookie": 0.1622, "undrafted": 0.4324, "meanYears": 3.6525, "years9Plus": 0.0772, "entryAge": 22.8185},
+            "codes": {"ACT/A01": 218, "INA/A01": 41}
+          },
+          "onlyReal": {
+            "n": 275,
+            "shares": {"n": 275, "aged": 275, "meanAge": 26.4727, "upTo22": 0.0436, "from31": 0.1127, "from34": 0.0182, "rookie": 0.1418, "undrafted": 0.3091, "meanYears": 3.7491, "years9Plus": 0.08, "entryAge": 22.7236},
+            "codes": {"ACT/A01": 238, "INA/A01": 8, "INA/I01": 28, "INA/I02": 1}
+          }
+        }
+      },
+      "latestRegular": {
+        "throughWeek": null,
+        "gameTypes": "REG",
+        "ageDate": "2024-10-23",
+        "teamWeeks": {"18": 32},
+        "the53": {
+          "league": {"n": 1732, "aged": 1732, "meanAge": 26.3077, "upTo22": 0.0629, "from31": 0.0953, "from34": 0.03, "rookie": 0.1628, "undrafted": 0.2667, "meanYears": 3.6559, "years9Plus": 0.0756, "entryAge": 22.6518},
+          "teams": {"teams": 32, "min": 48, "max": 55, "mean": 54.125},
+          "byGroup": {
+            "QB": {"n": 85, "aged": 85, "meanAge": 27.7765, "upTo22": 0.0353, "from31": 0.2, "from34": 0.1059, "rookie": 0.1059, "undrafted": 0.1412, "meanYears": 4.9176, "years9Plus": 0.1647, "entryAge": 22.8588},
+            "RB": {"n": 122, "aged": 122, "meanAge": 25.4754, "upTo22": 0.1311, "from31": 0.0492, "from34": 0, "rookie": 0.1967, "undrafted": 0.3197, "meanYears": 3.0574, "years9Plus": 0.041, "entryAge": 22.418},
+            "WR": {"n": 183, "aged": 183, "meanAge": 25.694, "upTo22": 0.1038, "from31": 0.082, "from34": 0.0055, "rookie": 0.2022, "undrafted": 0.2459, "meanYears": 3.3169, "years9Plus": 0.0656, "entryAge": 22.377},
+            "TE": {"n": 114, "aged": 114, "meanAge": 26.2193, "upTo22": 0.0351, "from31": 0.0965, "from34": 0.0175, "rookie": 0.1316, "undrafted": 0.2982, "meanYears": 3.3246, "years9Plus": 0.0439, "entryAge": 22.8947},
+            "OL": {"n": 300, "aged": 300, "meanAge": 26.3167, "upTo22": 0.05, "from31": 0.0867, "from34": 0.0167, "rookie": 0.18, "undrafted": 0.2, "meanYears": 3.4433, "years9Plus": 0.0667, "entryAge": 22.8733},
+            "EDGE": {"n": 235, "aged": 235, "meanAge": 26.3447, "upTo22": 0.0511, "from31": 0.0809, "from34": 0.0213, "rookie": 0.1404, "undrafted": 0.217, "meanYears": 3.7362, "years9Plus": 0.0766, "entryAge": 22.6085},
+            "IDL": {"n": 134, "aged": 134, "meanAge": 26.709, "upTo22": 0.0522, "from31": 0.1119, "from34": 0.0224, "rookie": 0.1493, "undrafted": 0.1791, "meanYears": 4.0448, "years9Plus": 0.0896, "entryAge": 22.6642},
+            "LB": {"n": 139, "aged": 139, "meanAge": 25.9784, "upTo22": 0.036, "from31": 0.0719, "from34": 0.0288, "rookie": 0.1583, "undrafted": 0.3525, "meanYears": 3.4029, "years9Plus": 0.0504, "entryAge": 22.5755},
+            "CB": {"n": 182, "aged": 182, "meanAge": 25.4176, "upTo22": 0.0989, "from31": 0.0275, "from34": 0.011, "rookie": 0.1978, "undrafted": 0.2418, "meanYears": 2.9505, "years9Plus": 0.022, "entryAge": 22.467},
+            "S": {"n": 141, "aged": 141, "meanAge": 25.9716, "upTo22": 0.0496, "from31": 0.0709, "from34": 0.0213, "rookie": 0.1702, "undrafted": 0.2766, "meanYears": 3.4894, "years9Plus": 0.0426, "entryAge": 22.4823},
+            "K": {"n": 33, "aged": 33, "meanAge": 28.6364, "upTo22": 0.0606, "from31": 0.2424, "from34": 0.1212, "rookie": 0.0909, "undrafted": 0.5455, "meanYears": 5.8485, "years9Plus": 0.2424, "entryAge": 22.7879},
+            "P": {"n": 32, "aged": 32, "meanAge": 28.4688, "upTo22": 0.0313, "from31": 0.25, "from34": 0.1563, "rookie": 0.125, "undrafted": 0.5, "meanYears": 5.4063, "years9Plus": 0.25, "entryAge": 23.0625},
+            "LS": {"n": 32, "aged": 32, "meanAge": 30.7813, "upTo22": 0, "from31": 0.4688, "from34": 0.2813, "rookie": 0.0313, "undrafted": 0.9688, "meanYears": 7.3125, "years9Plus": 0.375, "entryAge": 23.4688}
+          },
+          "noGroup": 0,
+          "old": {"n": 165, "aged": 165, "meanAge": 32.8788, "upTo22": 0, "from31": 1, "from34": 0.3152, "rookie": 0, "undrafted": 0.297, "meanYears": 10.103, "years9Plus": 0.7152, "entryAge": 22.7758}
+        },
+        "reserve": {"n": 377, "aged": 377, "meanAge": 26.2255, "upTo22": 0.0451, "from31": 0.0981, "from34": 0.0212, "rookie": 0.1592, "undrafted": 0.3183, "meanYears": 3.4721, "years9Plus": 0.0663, "entryAge": 22.7533},
+        "practice": {"n": 467, "aged": 467, "meanAge": 25.4561, "upTo22": 0.0257, "from31": 0.0364, "from34": 0.0043, "rookie": 0.3041, "undrafted": 0.6788, "meanYears": 2.2612, "years9Plus": 0.0343, "entryAge": 23.1949},
+        "elevated": 0,
+        "ageSources": {"roster": 1732, "table": 0, "fallback": 0},
+        "versusReal": {
+          "both": 1474,
+          "onlyImporter": {
+            "n": 258,
+            "shares": {"n": 258, "aged": 258, "meanAge": 26.3527, "upTo22": 0.0271, "from31": 0.0775, "from34": 0.0233, "rookie": 0.1744, "undrafted": 0.438, "meanYears": 3.5039, "years9Plus": 0.0698, "entryAge": 22.8488},
+            "codes": {"ACT/A01": 223, "INA/A01": 35}
+          },
+          "onlyReal": {
+            "n": 261,
+            "shares": {"n": 261, "aged": 261, "meanAge": 26.5862, "upTo22": 0.046, "from31": 0.1226, "from34": 0.023, "rookie": 0.1341, "undrafted": 0.3142, "meanYears": 3.8889, "years9Plus": 0.092, "entryAge": 22.6973},
+            "codes": {"ACT/A01": 227, "INA/A01": 7, "INA/I01": 27}
+          }
+        }
+      },
+      "latestAgedLater": {
+        "throughWeek": null,
+        "gameTypes": "ALL",
+        "ageDate": "2025-02-10",
+        "teamWeeks": {"18": 18, "19": 6, "20": 4, "21": 2, "22": 2},
+        "the53": {
+          "league": {"n": 1719, "aged": 1719, "meanAge": 26.6417, "upTo22": 0.0471, "from31": 0.1129, "from34": 0.0326, "rookie": 0.16, "undrafted": 0.2664, "meanYears": 3.6987, "years9Plus": 0.0785, "entryAge": 22.943},
+          "teams": {"teams": 32, "min": 48, "max": 55, "mean": 53.7188},
+          "byGroup": {
+            "QB": {"n": 82, "aged": 82, "meanAge": 28.0122, "upTo22": 0.0244, "from31": 0.2317, "from34": 0.1098, "rookie": 0.1098, "undrafted": 0.1341, "meanYears": 4.878, "years9Plus": 0.1707, "entryAge": 23.1341},
+            "RB": {"n": 127, "aged": 127, "meanAge": 25.8346, "upTo22": 0.0866, "from31": 0.0551, "from34": 0, "rookie": 0.189, "undrafted": 0.3465, "meanYears": 3.1181, "years9Plus": 0.0394, "entryAge": 22.7165},
+            "WR": {"n": 184, "aged": 184, "meanAge": 25.9511, "upTo22": 0.0815, "from31": 0.087, "from34": 0.0054, "rookie": 0.2065, "undrafted": 0.25, "meanYears": 3.2935, "years9Plus": 0.0707, "entryAge": 22.6576},
+            "TE": {"n": 113, "aged": 113, "meanAge": 26.6018, "upTo22": 0.0354, "from31": 0.0973, "from34": 0.0265, "rookie": 0.1239, "undrafted": 0.3009, "meanYears": 3.354, "years9Plus": 0.0442, "entryAge": 23.2478},
+            "OL": {"n": 295, "aged": 295, "meanAge": 26.5763, "upTo22": 0.0407, "from31": 0.1051, "from34": 0.0169, "rookie": 0.1831, "undrafted": 0.1966, "meanYears": 3.4373, "years9Plus": 0.0644, "entryAge": 23.139},
+            "EDGE": {"n": 230, "aged": 230, "meanAge": 26.7348, "upTo22": 0.0348, "from31": 0.1043, "from34": 0.0261, "rookie": 0.1348, "undrafted": 0.213, "meanYears": 3.8043, "years9Plus": 0.0826, "entryAge": 22.9304},
+            "IDL": {"n": 133, "aged": 133, "meanAge": 27.0827, "upTo22": 0.0451, "from31": 0.1429, "from34": 0.0226, "rookie": 0.1429, "undrafted": 0.1805, "meanYears": 4.1654, "years9Plus": 0.0977, "entryAge": 22.9173},
+            "LB": {"n": 137, "aged": 137, "meanAge": 26.3796, "upTo22": 0.0292, "from31": 0.073, "from34": 0.0292, "rookie": 0.1533, "undrafted": 0.3577, "meanYears": 3.438, "years9Plus": 0.0511, "entryAge": 22.9416},
+            "CB": {"n": 180, "aged": 180, "meanAge": 25.8056, "upTo22": 0.0667, "from31": 0.05, "from34": 0.0167, "rookie": 0.1944, "undrafted": 0.2278, "meanYears": 3.0389, "years9Plus": 0.0278, "entryAge": 22.7667},
+            "S": {"n": 141, "aged": 141, "meanAge": 26.3901, "upTo22": 0.0355, "from31": 0.1064, "from34": 0.0284, "rookie": 0.156, "undrafted": 0.2624, "meanYears": 3.6596, "years9Plus": 0.0496, "entryAge": 22.7305},
+            "K": {"n": 33, "aged": 33, "meanAge": 28.9697, "upTo22": 0.0606, "from31": 0.2727, "from34": 0.1212, "rookie": 0.0909, "undrafted": 0.5455, "meanYears": 5.8485, "years9Plus": 0.2424, "entryAge": 23.1212},
+            "P": {"n": 32, "aged": 32, "meanAge": 28.7188, "upTo22": 0, "from31": 0.25, "from34": 0.1563, "rookie": 0.125, "undrafted": 0.5, "meanYears": 5.4063, "years9Plus": 0.25, "entryAge": 23.3125},
+            "LS": {"n": 32, "aged": 32, "meanAge": 31, "upTo22": 0, "from31": 0.5, "from34": 0.2813, "rookie": 0.0313, "undrafted": 0.9688, "meanYears": 7.3125, "years9Plus": 0.375, "entryAge": 23.6875}
+          },
+          "noGroup": 0,
+          "old": {"n": 194, "aged": 194, "meanAge": 32.8763, "upTo22": 0, "from31": 1, "from34": 0.2887, "rookie": 0, "undrafted": 0.2887, "meanYears": 9.8247, "years9Plus": 0.6701, "entryAge": 23.0515}
+        },
+        "reserve": {"n": 389, "aged": 389, "meanAge": 26.4062, "upTo22": 0.036, "from31": 0.1003, "from34": 0.0231, "rookie": 0.162, "undrafted": 0.3213, "meanYears": 3.3753, "years9Plus": 0.0617, "entryAge": 23.0308},
+        "practice": {"n": 472, "aged": 472, "meanAge": 25.7733, "upTo22": 0.0148, "from31": 0.036, "from34": 0.0042, "rookie": 0.3051, "undrafted": 0.6695, "meanYears": 2.2585, "years9Plus": 0.0297, "entryAge": 23.5148},
+        "elevated": 0,
+        "ageSources": {"roster": 1719, "table": 0, "fallback": 0},
+        "versusReal": {
+          "both": 1460,
+          "onlyImporter": {
+            "n": 259,
+            "shares": {"n": 259, "aged": 259, "meanAge": 26.8147, "upTo22": 0.0116, "from31": 0.1081, "from34": 0.027, "rookie": 0.1622, "undrafted": 0.4324, "meanYears": 3.6525, "years9Plus": 0.0772, "entryAge": 23.1622},
+            "codes": {"ACT/A01": 218, "INA/A01": 41}
+          },
+          "onlyReal": {
+            "n": 275,
+            "shares": {"n": 275, "aged": 275, "meanAge": 26.4727, "upTo22": 0.0436, "from31": 0.1127, "from34": 0.0182, "rookie": 0.1418, "undrafted": 0.3091, "meanYears": 3.7491, "years9Plus": 0.08, "entryAge": 22.7236},
+            "codes": {"ACT/A01": 238, "INA/A01": 8, "INA/I01": 28, "INA/I02": 1}
+          }
+        }
+      }
+    },
+    "byWeek": [
+      {
+        "week": 1,
+        "gameType": "REG",
+        "importer": {"n": 1604, "aged": 1604, "meanAge": 26.4794, "upTo22": 0.0617, "from31": 0.111, "from34": 0.0337, "rookie": 0.1309, "undrafted": 0.2375, "meanYears": 3.9108, "years9Plus": 0.086, "entryAge": 22.5686},
+        "real": {"n": 1754, "aged": 1746, "meanAge": 26.3477, "upTo22": 0.0636, "from31": 0.1037, "from34": 0.0315, "rookie": 0.1562, "undrafted": 0.2412, "meanYears": 3.7229, "years9Plus": 0.0798, "entryAge": 22.6082}
+      },
+      {
+        "week": 2,
+        "gameType": "REG",
+        "importer": {"n": 1573, "aged": 1573, "meanAge": 26.5264, "upTo22": 0.0559, "from31": 0.1113, "from34": 0.0343, "rookie": 0.1271, "undrafted": 0.2378, "meanYears": 3.9358, "years9Plus": 0.0871, "entryAge": 22.5906},
+        "real": {"n": 1736, "aged": 1736, "meanAge": 26.3537, "upTo22": 0.0628, "from31": 0.1031, "from34": 0.0317, "rookie": 0.1544, "undrafted": 0.2396, "meanYears": 3.7339, "years9Plus": 0.0806, "entryAge": 22.6198}
+      },
+      {
+        "week": 3,
+        "gameType": "REG",
+        "importer": {"n": 1570, "aged": 1570, "meanAge": 26.4847, "upTo22": 0.0611, "from31": 0.1076, "from34": 0.0331, "rookie": 0.1338, "undrafted": 0.2471, "meanYears": 3.8936, "years9Plus": 0.086, "entryAge": 22.5911},
+        "real": {"n": 1740, "aged": 1740, "meanAge": 26.3517, "upTo22": 0.0626, "from31": 0.1023, "from34": 0.0316, "rookie": 0.154, "undrafted": 0.2471, "meanYears": 3.7264, "years9Plus": 0.081, "entryAge": 22.6253}
+      },
+      {
+        "week": 4,
+        "gameType": "REG",
+        "importer": {"n": 1571, "aged": 1571, "meanAge": 26.4157, "upTo22": 0.0656, "from31": 0.105, "from34": 0.0325, "rookie": 0.1426, "undrafted": 0.2565, "meanYears": 3.8224, "years9Plus": 0.0821, "entryAge": 22.5933},
+        "real": {"n": 1738, "aged": 1738, "meanAge": 26.3521, "upTo22": 0.0639, "from31": 0.1024, "from34": 0.0311, "rookie": 0.1554, "undrafted": 0.2491, "meanYears": 3.7313, "years9Plus": 0.0806, "entryAge": 22.6208}
+      },
+      {
+        "week": 5,
+        "gameType": "REG",
+        "importer": {"n": 1579, "aged": 1579, "meanAge": 26.4224, "upTo22": 0.0633, "from31": 0.1045, "from34": 0.0317, "rookie": 0.1393, "undrafted": 0.2584, "meanYears": 3.8176, "years9Plus": 0.0804, "entryAge": 22.6048},
+        "real": {"n": 1742, "aged": 1742, "meanAge": 26.3479, "upTo22": 0.0649, "from31": 0.101, "from34": 0.0299, "rookie": 0.1561, "undrafted": 0.2555, "meanYears": 3.721, "years9Plus": 0.0775, "entryAge": 22.6269}
+      },
+      {
+        "week": 6,
+        "gameType": "REG",
+        "importer": {"n": 1581, "aged": 1581, "meanAge": 26.4042, "upTo22": 0.0658, "from31": 0.0999, "from34": 0.031, "rookie": 0.1467, "undrafted": 0.2581, "meanYears": 3.8052, "years9Plus": 0.0784, "entryAge": 22.599},
+        "real": {"n": 1740, "aged": 1740, "meanAge": 26.3448, "upTo22": 0.0672, "from31": 0.1017, "from34": 0.0293, "rookie": 0.158, "undrafted": 0.254, "meanYears": 3.7201, "years9Plus": 0.0787, "entryAge": 22.6247}
+      },
+      {
+        "week": 7,
+        "gameType": "REG",
+        "importer": {"n": 1588, "aged": 1588, "meanAge": 26.3967, "upTo22": 0.0668, "from31": 0.1033, "from34": 0.0315, "rookie": 0.1467, "undrafted": 0.2513, "meanYears": 3.7872, "years9Plus": 0.0806, "entryAge": 22.6096},
+        "real": {"n": 1741, "aged": 1741, "meanAge": 26.3435, "upTo22": 0.0655, "from31": 0.1005, "from34": 0.0299, "rookie": 0.1539, "undrafted": 0.2499, "meanYears": 3.7111, "years9Plus": 0.0781, "entryAge": 22.6324}
+      },
+      {
+        "week": 8,
+        "gameType": "REG",
+        "importer": {"n": 1574, "aged": 1574, "meanAge": 26.4231, "upTo22": 0.068, "from31": 0.1074, "from34": 0.0324, "rookie": 0.1442, "undrafted": 0.2516, "meanYears": 3.8183, "years9Plus": 0.0839, "entryAge": 22.6048},
+        "real": {"n": 1735, "aged": 1735, "meanAge": 26.3429, "upTo22": 0.0657, "from31": 0.102, "from34": 0.03, "rookie": 0.1568, "undrafted": 0.2478, "meanYears": 3.7135, "years9Plus": 0.079, "entryAge": 22.6294}
+      },
+      {
+        "week": 9,
+        "gameType": "REG",
+        "importer": {"n": 1585, "aged": 1585, "meanAge": 26.4221, "upTo22": 0.0669, "from31": 0.1085, "from34": 0.0322, "rookie": 0.1426, "undrafted": 0.2568, "meanYears": 3.8082, "years9Plus": 0.0826, "entryAge": 22.6139},
+        "real": {"n": 1739, "aged": 1739, "meanAge": 26.3312, "upTo22": 0.0656, "from31": 0.1024, "from34": 0.0293, "rookie": 0.1564, "undrafted": 0.2524, "meanYears": 3.6987, "years9Plus": 0.0782, "entryAge": 22.6325}
+      },
+      {
+        "week": 10,
+        "gameType": "REG",
+        "importer": {"n": 1617, "aged": 1617, "meanAge": 26.3964, "upTo22": 0.0662, "from31": 0.1045, "from34": 0.0328, "rookie": 0.1447, "undrafted": 0.2536, "meanYears": 3.7792, "years9Plus": 0.0798, "entryAge": 22.6172},
+        "real": {"n": 1727, "aged": 1727, "meanAge": 26.3468, "upTo22": 0.066, "from31": 0.1013, "from34": 0.0307, "rookie": 0.1529, "undrafted": 0.2496, "meanYears": 3.7279, "years9Plus": 0.0776, "entryAge": 22.619}
+      },
+      {
+        "week": 11,
+        "gameType": "REG",
+        "importer": {"n": 1621, "aged": 1621, "meanAge": 26.3979, "upTo22": 0.0642, "from31": 0.1018, "from34": 0.0327, "rookie": 0.1357, "undrafted": 0.2511, "meanYears": 3.802, "years9Plus": 0.0814, "entryAge": 22.5959},
+        "real": {"n": 1741, "aged": 1741, "meanAge": 26.3412, "upTo22": 0.0643, "from31": 0.0994, "from34": 0.0304, "rookie": 0.1499, "undrafted": 0.2499, "meanYears": 3.7186, "years9Plus": 0.0787, "entryAge": 22.6226}
+      },
+      {
+        "week": 12,
+        "gameType": "REG",
+        "importer": {"n": 1678, "aged": 1678, "meanAge": 26.3558, "upTo22": 0.0638, "from31": 0.1001, "from34": 0.0316, "rookie": 0.1484, "undrafted": 0.2426, "meanYears": 3.7342, "years9Plus": 0.0793, "entryAge": 22.6216},
+        "real": {"n": 1686, "aged": 1686, "meanAge": 26.3422, "upTo22": 0.0652, "from31": 0.1002, "from34": 0.0308, "rookie": 0.1518, "undrafted": 0.2408, "meanYears": 3.7236, "years9Plus": 0.0795, "entryAge": 22.6186}
+      },
+      {
+        "week": 13,
+        "gameType": "REG",
+        "importer": {"n": 1708, "aged": 1708, "meanAge": 26.3718, "upTo22": 0.0632, "from31": 0.1013, "from34": 0.031, "rookie": 0.1505, "undrafted": 0.2453, "meanYears": 3.7459, "years9Plus": 0.0808, "entryAge": 22.6259},
+        "real": {"n": 1732, "aged": 1732, "meanAge": 26.3557, "upTo22": 0.0629, "from31": 0.1005, "from34": 0.0306, "rookie": 0.1518, "undrafted": 0.2448, "meanYears": 3.7304, "years9Plus": 0.0803, "entryAge": 22.6253}
+      },
+      {
+        "week": 14,
+        "gameType": "REG",
+        "importer": {"n": 1732, "aged": 1732, "meanAge": 26.3297, "upTo22": 0.0641, "from31": 0.0999, "from34": 0.03, "rookie": 0.1547, "undrafted": 0.25, "meanYears": 3.7038, "years9Plus": 0.0803, "entryAge": 22.6259},
+        "real": {"n": 1729, "aged": 1729, "meanAge": 26.3274, "upTo22": 0.0642, "from31": 0.0995, "from34": 0.0301, "rookie": 0.155, "undrafted": 0.2493, "meanYears": 3.7027, "years9Plus": 0.0798, "entryAge": 22.6246}
+      },
+      {
+        "week": 15,
+        "gameType": "REG",
+        "importer": {"n": 1722, "aged": 1722, "meanAge": 26.3525, "upTo22": 0.0645, "from31": 0.0993, "from34": 0.0308, "rookie": 0.1545, "undrafted": 0.2497, "meanYears": 3.7276, "years9Plus": 0.0801, "entryAge": 22.6249},
+        "real": {"n": 1721, "aged": 1721, "meanAge": 26.3539, "upTo22": 0.0645, "from31": 0.0994, "from34": 0.0308, "rookie": 0.1546, "undrafted": 0.2493, "meanYears": 3.7292, "years9Plus": 0.0802, "entryAge": 22.6246}
+      },
+      {
+        "week": 16,
+        "gameType": "REG",
+        "importer": {"n": 1706, "aged": 1706, "meanAge": 26.3499, "upTo22": 0.0645, "from31": 0.1008, "from34": 0.0311, "rookie": 0.1571, "undrafted": 0.2544, "meanYears": 3.7151, "years9Plus": 0.0797, "entryAge": 22.6348},
+        "real": {"n": 1731, "aged": 1731, "meanAge": 26.3449, "upTo22": 0.0641, "from31": 0.1005, "from34": 0.0312, "rookie": 0.1577, "undrafted": 0.2519, "meanYears": 3.7146, "years9Plus": 0.0803, "entryAge": 22.6303}
+      },
+      {
+        "week": 17,
+        "gameType": "REG",
+        "importer": {"n": 1669, "aged": 1669, "meanAge": 26.3229, "upTo22": 0.0653, "from31": 0.0989, "from34": 0.0312, "rookie": 0.1582, "undrafted": 0.257, "meanYears": 3.695, "years9Plus": 0.0779, "entryAge": 22.6279},
+        "real": {"n": 1725, "aged": 1725, "meanAge": 26.3316, "upTo22": 0.0638, "from31": 0.0991, "from34": 0.0307, "rookie": 0.1594, "undrafted": 0.2551, "meanYears": 3.6991, "years9Plus": 0.0788, "entryAge": 22.6325}
+      },
+      {
+        "week": 18,
+        "gameType": "REG",
+        "importer": {"n": 1732, "aged": 1732, "meanAge": 26.3077, "upTo22": 0.0629, "from31": 0.0953, "from34": 0.03, "rookie": 0.1628, "undrafted": 0.2667, "meanYears": 3.6559, "years9Plus": 0.0756, "entryAge": 22.6518},
+        "real": {"n": 1746, "aged": 1746, "meanAge": 26.3167, "upTo22": 0.0624, "from31": 0.0962, "from34": 0.0298, "rookie": 0.1627, "undrafted": 0.2646, "meanYears": 3.6684, "years9Plus": 0.0767, "entryAge": 22.6483}
+      },
+      {"week": 19, "gameType": "WC", "importer": {"n": 1729, "aged": 1729, "meanAge": 26.3216, "upTo22": 0.063, "from31": 0.0972, "from34": 0.0307, "rookie": 0.1614, "undrafted": 0.2649, "meanYears": 3.679, "years9Plus": 0.0763, "entryAge": 22.6426}, "real": null},
+      {"week": 20, "gameType": "DIV", "importer": {"n": 1729, "aged": 1729, "meanAge": 26.3204, "upTo22": 0.063, "from31": 0.096, "from34": 0.0301, "rookie": 0.1614, "undrafted": 0.2672, "meanYears": 3.6738, "years9Plus": 0.0758, "entryAge": 22.6466}, "real": null},
+      {"week": 21, "gameType": "CON", "importer": {"n": 1706, "aged": 1706, "meanAge": 26.3464, "upTo22": 0.0639, "from31": 0.0973, "from34": 0.0311, "rookie": 0.1589, "undrafted": 0.2673, "meanYears": 3.7046, "years9Plus": 0.078, "entryAge": 22.6419}, "real": null},
+      {"week": 22, "gameType": "SB", "importer": {"n": 1719, "aged": 1719, "meanAge": 26.3415, "upTo22": 0.0634, "from31": 0.0977, "from34": 0.0314, "rookie": 0.16, "undrafted": 0.2664, "meanYears": 3.6987, "years9Plus": 0.0785, "entryAge": 22.6428}, "real": null}
+    ],
+    "fallbackLookalikes": {"dated": 1574, "matches": 512, "matches31Plus": 52}
+  },
+  "sources": [
+    {
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/players/players.csv",
+      "tag": "players",
+      "asset": "players.csv",
+      "bytes": 7306244,
+      "sha256": "sha256:b7703ce67dc8468b8ebc8aed9ca2293650d39d454d843be561706705ae18e2c6",
+      "fetchedAt": "2026-10-31T14:52:46.705Z"
+    },
+    {
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/schedules/games.csv",
+      "tag": "schedules",
+      "asset": "games.csv",
+      "bytes": 2186415,
+      "sha256": "sha256:9f9cb29ad120dcfad400f2d14e29057fc9d0de0ff5bb05c8fe888179acca7373",
+      "fetchedAt": "2026-10-24T03:13:37.458Z"
+    },
+    {
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/weekly_rosters/roster_weekly_2022.csv",
+      "tag": "weekly_rosters",
+      "asset": "roster_weekly_2022.csv",
+      "bytes": 14790824,
+      "sha256": "sha256:bd6a50de334473c10f8058afa948fd0c6adc8a8b081da41c500cc0aa069c5312",
+      "fetchedAt": "2026-10-24T03:13:41.658Z"
+    },
+    {
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/weekly_rosters/roster_weekly_2023.csv",
+      "tag": "weekly_rosters",
+      "asset": "roster_weekly_2023.csv",
+      "bytes": 14612235,
+      "sha256": "sha256:1433f1f239784dde7fcb35349d211a9b83abfc0156337b72ec4f923abf715bd3",
+      "fetchedAt": "2026-10-24T03:13:42.565Z"
+    },
+    {
+      "url": "https://github.com/nflverse/nflverse-data/releases/download/weekly_rosters/roster_weekly_2024.csv",
+      "tag": "weekly_rosters",
+      "asset": "roster_weekly_2024.csv",
+      "bytes": 14926918,
+      "sha256": "sha256:074ecaeb9325de943c11f7bbc941425626985090ef8386f90cd837fa5cb5d4b3",
+      "fetchedAt": "2026-10-24T03:13:43.553Z"
+    }
+  ],
+  "steps": [
+    {"step": "gap", "from31": 0.0277, "from34": 0.0039, "meanAge": 0.2002, "n": -54},
+    {"step": "method", "from31": 0.0054, "from34": 0.0024, "meanAge": 0.0802, "n": -161},
+    {"step": "snapshot", "from31": -0.0041, "from34": -0.0009, "meanAge": -0.0264, "n": 14},
+    {"step": "rows", "from31": 0.0264, "from34": 0.0024, "meanAge": 0.1464, "n": 93},
+    {"step": "seasonEnd", "from31": -0.0096, "from34": -0.001, "meanAge": -0.0816, "n": 145}
+  ],
+  "splits": {
+    "snapshotFirst": [
+      {"step": "gap", "from31": 0.0277, "from34": 0.0039, "meanAge": 0.2002, "n": -54},
+      {"step": "snapshot", "from31": -0.0015, "from34": -0.0001, "meanAge": 0.0005, "n": 6},
+      {"step": "method", "from31": 0.0028, "from34": 0.0016, "meanAge": 0.0532, "n": -153},
+      {"step": "rows", "from31": 0.0264, "from34": 0.0024, "meanAge": 0.1464, "n": 93}
+    ],
+    "fileReadRealWay": [{"step": "gap", "from31": 0.0277, "from34": 0.0039, "meanAge": 0.2002, "n": -54}, {"step": "snapshot", "from31": -0.0015, "from34": -0.0001, "meanAge": 0.0005, "n": 6}, {"step": "rows", "from31": 0.0292, "from34": 0.004, "meanAge": 0.1996, "n": -60}]
+  },
+  "stepRanges": {"method": {"min": 0, "max": 0.0054}, "snapshot": {"min": -0.0041, "max": -0.0015}, "rows": {"min": 0.0264, "max": 0.0292}},
+  "mix": {
+    "season": 2024,
+    "fileAtRealMix": 0.1273,
+    "realAtFileMix": 0.1037,
+    "excessOldMen": {"QB": -1.5, "RB": 4, "WR": 2.9298, "TE": 4.6759, "OL": 2.8302, "EDGE": 4.5224, "IDL": 12.568, "LB": -2.4077, "CB": 2.9138, "S": 1.1203, "K": 5.25, "P": 3.2121, "LS": 1.5},
+    "excessOldMenAtRealRate": {"QB": 1.3494, "RB": 4.432, "WR": 1.8415, "TE": 5.5478, "OL": 3.898, "EDGE": 4.44, "IDL": 13.1314, "LB": -2.6957, "CB": 1.5131, "S": 0, "K": 5.4848, "P": 3.2121, "LS": 1.5}
+  },
+  "pooled": {
+    "seasons": [2018, 2024],
+    "league": {"meanAge": 26.1815, "from31": 0.1005, "from34": 0.0307},
+    "byGroup": {
+      "QB": {"n": 565, "from31": 0.2405, "se31": 0.0121, "from34": 0.1436, "se34": 0.0096},
+      "RB": {"n": 913, "from31": 0.0473, "se31": 0.005, "from34": 0.0085, "se34": 0.0034},
+      "WR": {"n": 1319, "from31": 0.0624, "se31": 0.0067, "from34": 0.0128, "se34": 0.0027},
+      "TE": {"n": 767, "from31": 0.0981, "se31": 0.0079, "from34": 0.0317, "se34": 0.0056},
+      "OL": {"n": 2025, "from31": 0.108, "se31": 0.0062, "from34": 0.0223, "se34": 0.0025},
+      "EDGE": {"n": 1794, "from31": 0.0856, "se31": 0.0065, "from34": 0.0169, "se34": 0.0024},
+      "IDL": {"n": 932, "from31": 0.0965, "se31": 0.0061, "from34": 0.0193, "se34": 0.0032},
+      "LB": {"n": 723, "from31": 0.0468, "se31": 0.0086, "from34": 0.0064, "se34": 0.0044},
+      "CB": {"n": 1393, "from31": 0.0516, "se31": 0.0054, "from34": 0.007, "se34": 0.0025},
+      "S": {"n": 933, "from31": 0.0903, "se31": 0.0074, "from34": 0.017, "se34": 0.0038},
+      "K": {"n": 234, "from31": 0.3024, "se31": 0.0189, "from34": 0.1747, "se34": 0.0167},
+      "P": {"n": 226, "from31": 0.2569, "se31": 0.012, "from34": 0.1419, "se34": 0.0166},
+      "LS": {"n": 224, "from31": 0.4107, "se31": 0.0209, "from34": 0.192, "se34": 0.0186}
+    }
+  },
+  "definitions": [
+    {
+      "term": "Data",
+      "text": "The stand-in league file (made-up names; ids and attributes only), read for its teams' rosters, reserve lists and practice squads, each man's age, position, credited seasons, draft record and copied injury, and its provenance's moved-up men; counts only. nflverse's public weekly rosters (roster_weekly_<season>.csv, every game type for the study season, the regular season for the real counts), the player table (players.csv, read for gsis_id, birth_date, draft_year, draft_round and draft_pick only) and the schedule (games.csv, the study season's game days only). 2025 is never read (held out, calibration.md §7)."
+    },
+    {
+      "term": "The real way",
+      "text": "As careers/measure.ts counts the real week-8 53s: status ACT or INA, without an injured-reserve or COVID code and without a practice-squad (P) code; week 8, a team on its bye read from its nearest week before; one row a man. Ages are whole years on 23 October; the mean age and the age shares are over men with a known age (a man with no roster birth date is left out of them); the rookie share (years_exp 0) over men with years_exp; the undrafted share (no draft number) over all. For the file: each team's roster less the practice-squad men the importer moved up (they carry a P code, which the real count leaves out); ages, credited seasons (the file's years_exp) and draft records as the file holds them."
+    },
+    {
+      "term": "The importer's way",
+      "text": "The stand-in importer's rules (the attributes package's real importer, its importer/real/standins.ts, copied in calibration's src/standin/rules.ts): a row counts only with coarse status ACT, INA, RES or DEV; code A01 is the 53, a P code the practice squad, an R code but R02 a reserve list, anything else (I01, I02, no code, W, E codes) is off the team; each team is read at its latest week among all its rows; a man on two teams' latest rosters stays with the later week; when a team's 53 has no QB, K, P or LS, its first practice-squad man there is moved up; age = whole years on the reference date from the roster's birth date, else the player table's, else 22 + years_exp; undrafted = no year, round and pick in the player table."
+    },
+    {
+      "term": "Readings of the study season",
+      "text": "Real week 8: the real way. (i) 23 October: the importer's way on rows through the last week whose first game was on or before 23 October (week 7 in 2024), as a file fetched that day would hold them. (ii) Week 8: the importer's way on rows through week 8, so each team is read at the same week as the real count. (iii) Latest: the importer's way on the whole file, playoffs included, as the importer reads a file fetched after the season; variants: the regular season's rows only, and the whole file with ages on the day after the last game. Ages are on 23 October of the season for every reading but the last."
+    },
+    {
+      "term": "Group",
+      "text": "QB, RB (RB+FB), WR, TE, OL, EDGE, IDL, LB, CB, S, K, P, LS. A real row folds by careers/groups.ts (its depth_chart_position, else its position, the importer's way); a man in the file by his game position through careerCheck.ts's CAREER_GROUP, the same fold (a test holds them equal)."
+    },
+    {"term": "Out 4+ weeks", "text": "A copied injury of band LONG (4-8 weeks) or MAJOR (9 or more), as a man on injured reserve misses at least 4 games."},
+    {
+      "term": "Steps",
+      "text": "The file's 53s (the real way) against the study season's real week-8 count, split into three parts that add up to it: method = importer (ii) − real week 8 (same rows, same team weeks); snapshot = importer (i) − importer (ii); rows = file − importer (i) (another season's rows read the same way at the same point). Season's end = importer (iii) − importer (ii), beside the sum."
+    },
+    {
+      "term": "Other splits",
+      "text": "The steps above are split (a), which takes the method at week 8 and the file to have been read as the importer reads the final file, game-day inactives dropped. (b) The snapshot first: snapshot = the real count at the 23 October point − real week 8 (the real rules), method = importer (i) − the real count at the 23 October point, rows = file − importer (i) as in (a). (c) The file read the real way, as if its rows still carried the game-day inactives when it was fetched, so the importer's drop of them did not act: snapshot as in (b), no method step, rows = file − the real count at the 23 October point. Each adds up to the gap exactly. A step's range is its least and greatest part over (a), (b) and (c), a split with no method step counting 0 there."
+    }
+  ],
+  "chosen": [
+    "Which week a file fetched on 23 October holds: the last regular-season week whose first game was played by then.",
+    "Ages on 23 October of the study season for every reading but one, so the readings differ by who is counted, not by the date.",
+    "LONG or MAJOR as out 4+ weeks.",
+    "The group of a real row: careers/groups.ts's fold, the importer's game position folded into groups; the importer's must-field check reads QB, K, P and LS by group, where group and game position agree.",
+    "The steps' split, the group-mix check (each count's group weights against the other's group shares) and the file's extra men aged 31 or over by group (its men times the difference from the importer's 23 October share).",
+    "The order of the steps: the method and snapshot parts depend on it (the method read at week 8 in (a), at the 23 October point in (b)), and the method's part also on whether the importer's drop of the game-day inactives acted on the file ((c) takes it that it did not); the rows part is the same in (a) and (b). Each part is reported as its range over (a), (b) and (c).",
+    "The file's extra men aged 31 or over by group against the real week-8 share as well (its men times the difference from the real count's share in that group), the gap's own reference."
+  ],
+  "limits": [
+    "The file was built from the 2026 rows, which are not read here (they are the importer's, under attributes); the study applies the same rules to the 2024 rows, so 'rows' is 2026's rows against 2024's read the same way, plus anything in the 2026 run these readings do not copy.",
+    "The file does not record which ages came from the fallback; the bound given counts every man whose age equals 22 + years in the league.",
+    "A weekly-roster file fetched during a week may hold that week's rows before its games; the final file holds each week as of its game day, so the 23 October reading is the nearest the final file allows.",
+    "The player table is today's, not as of the file's date; it fills only a few birth dates.",
+    "The file records no status codes, so whether the importer's drop of the game-day inactives acted on it is read only from its team sizes; that is why the method's part is given as a range over the three splits, split (c) taking it to be none."
+  ]
+}

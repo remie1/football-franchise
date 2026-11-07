@@ -4,6 +4,8 @@
  * In `runSeason` with `people.coaching`:
  *   every day, first           a league with no views yet gets them, each at its rest point (§3)
  *   each week's last day       every view drifts 2% toward its rest point (§4)
+ *   each regular-season week's last day   ADR-094 Q13 a: presidents may fire a GM or head coach,
+ *                              an interim taking over for the rest of the year (`runMidseasonWeek`)
  *   OFF_EVAL week 1 day 1      the coaching carousel (ADR-080 §6-§7) on the season just played, read
  *                              by `summariseSeason`, carrying the views (§5.2, §5.4), with roster
  *                              fit read from the teams' rosters that day
@@ -17,7 +19,9 @@ import { isDay, type DayStep, type LeaguePeople } from "../season/people.js";
 import { driftWeek, seatRelationships, type RelationshipContext } from "../relationships/ledger.js";
 import { lineupFor } from "../players/lineup.js";
 import { DAYS_PER_WEEK } from "../calendar/clock.js";
-import { runStaffOffseason } from "./offseason.js";
+import { runStaffOffseason, type StaffOffseasonInput } from "./offseason.js";
+import { runMidseasonWeek } from "./midseason.js";
+import { weeklyStance } from "../winNow/stance.js";
 import { summariseSeason } from "./summarise.js";
 import { seatOf } from "./world.js";
 
@@ -30,6 +34,8 @@ export const STAFF_DAYS = {
 export interface StaffStepsConfig {
   /** The human's team and trait (ADR-084 §3, ADR-083). Absent: every team is run by the computer. */
   readonly context?: RelationshipContext;
+  /** ADR-094 §8 (Q10 a): the user's calls on his own GM (absent: he stays, and the computer fills an open chair). */
+  readonly gm?: StaffOffseasonInput["gm"];
 }
 
 /** Give a newly seated head coach his depth-chart leanings when the league's head coaches have them (ADR-087 C1). */
@@ -50,6 +56,45 @@ export function staffSteps(config: StaffStepsConfig = {}): DayStep[] {
       },
     },
     {
+      id: `${STAFF_STEP_PREFIX}midseason`,
+      run: (people, day) => {
+        const coaching = people.coaching;
+        if (!coaching || day.day.phase !== "REGULAR_SEASON" || day.day.day !== DAYS_PER_WEEK) return undefined;
+        if (coaching.world.season !== day.season) return undefined;
+        const records = new Map(day.state.standings.map((r) => [String(r.team), r.overall]));
+        const r = runMidseasonWeek({
+          world: coaching.world, season: day.season, week: day.day.week, weeks: day.rules.weeksPerSeason, at: day.day,
+          records, seed: day.seed, ...(ctx.userTeam !== undefined ? { userTeam: ctx.userTeam } : {}),
+          ...(coaching.relationships ? { relationships: { views: coaching.relationships, context: ctx } } : {}),
+        });
+        if (r.events.length === 0) return undefined;
+        const world = { ...r.world, staff: withLineups(coaching.world.staff, r.world.staff, day.seed) };
+        return {
+          people: { ...people, staff: world.staff, coaching: { world, ...(r.relationships ? { relationships: r.relationships } : {}) } },
+          events: r.events.map((e) => e.event),
+        };
+      },
+    },
+    {
+      // ADR-094 §3-§6: after the week's games (and any firing), each computer team's GM and coach read its chances and set a stance.
+      id: `${STAFF_STEP_PREFIX}stance`,
+      run: (people, day) => {
+        const coaching = people.coaching;
+        if (!coaching || day.day.phase !== "REGULAR_SEASON" || day.day.day !== DAYS_PER_WEEK) return undefined;
+        if (coaching.world.season !== day.season) return undefined;
+        const r = weeklyStance({
+          world: coaching.world, teams: people.teams, state: day.state, season: day.season, week: day.day.week,
+          weeks: day.rules.weeksPerSeason, at: day.day, seed: day.seed, context: ctx,
+          ...(coaching.relationships ? { views: coaching.relationships } : {}),
+        });
+        if (r.events.length === 0) return undefined;
+        return {
+          people: { ...people, teams: r.teams, coaching: { ...coaching, ...(r.views ? { relationships: r.views } : {}) } },
+          events: r.events,
+        };
+      },
+    },
+    {
       id: `${STAFF_STEP_PREFIX}carousel`,
       run: (people, day) => {
         const coaching = people.coaching;
@@ -64,6 +109,7 @@ export function staffSteps(config: StaffStepsConfig = {}): DayStep[] {
         });
         const r = runStaffOffseason({
           world: { ...coaching.world, teams }, results: summariseSeason(day.state), seed: day.seed, players,
+          ...(ctx.userTeam !== undefined ? { userTeam: ctx.userTeam } : {}), ...(config.gm ? { gm: config.gm } : {}),
           ...(coaching.relationships ? { relationships: { views: coaching.relationships, context: ctx } } : {}),
         });
         const world = { ...r.world, staff: withLineups(coaching.world.staff, r.world.staff, day.seed) };

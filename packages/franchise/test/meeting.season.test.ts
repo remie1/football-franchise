@@ -24,8 +24,10 @@ const meetingOf = (e: FranchiseEventEnvelope) => (e.event as Extract<FranchiseEv
 
 describe("the meeting in the season's walk (M4)", () => {
   it("seats a GM on every team, once", () => {
-    const gms = run.people!.coaching!.world.staff.filter((s) => s.role === "GM");
+    // Seated GMs: a GM fired in midseason (ADR-094 Q13 a) is out of work, his interim in his chair.
+    const gms = run.people!.coaching!.world.staff.filter((s) => s.role === "GM" && s.teamId !== undefined);
     expect(gms).toHaveLength(32);
+    expect(run.people!.coaching!.world.staff.filter((s) => String(s.id).startsWith("GM-"))).toHaveLength(32);
     expect(new Set(gms.map((g) => String(g.teamId))).size).toBe(32);
     for (const t of run.people!.coaching!.world.teams) expect(gms.some((g) => t.staff.includes(g.id))).toBe(true);
   });
@@ -44,7 +46,7 @@ describe("the meeting in the season's walk (M4)", () => {
   });
 
   it("meets before the carousel and sets each team's direction", () => {
-    const firstHire = run.events.findIndex((e) => e.event.type === "STAFF_HIRED" || e.event.type === "STAFF_DEPARTED");
+    const firstHire = run.events.findIndex((e) => (e.event.type === "STAFF_HIRED" || e.event.type === "STAFF_DEPARTED") && e.at.phase === "OFF_EVAL");
     const lastMeeting = run.events.indexOf(held[held.length - 1]!);
     expect(firstHire).toBeGreaterThan(lastMeeting);
     const set = run.events.filter((e) => e.event.type === "TEAM_DIRECTION_SET");

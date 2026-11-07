@@ -50,6 +50,10 @@ export interface Entry {
   readonly listed: boolean;
   /** Listed with a game designation (Questionable, Doubtful, Out), or missed for a football injury. */
   readonly designated: boolean;
+  /** This week's roster row's listed position (null when absent or blank). Read only by `bySpot.ts`. */
+  readonly rosterPosition: string | null;
+  /** This week's roster row's `depth_chart_position` (null when absent or blank). Read only by `bySpot.ts`. */
+  readonly depthChartPosition: string | null;
 }
 
 export interface Timeline {
@@ -137,6 +141,8 @@ export function makeEntry(week: number, roster: RosterRow | null, report: Report
     week, kind, report, reportText, reportKind, snaps, state, missClass,
     listed: missedFootball || reportListed,
     designated: missedFootball || (reportKind === "FOOTBALL" && designation),
+    rosterPosition: roster?.position ?? null,
+    depthChartPosition: roster?.depthChartPosition ?? null,
   };
 }
 

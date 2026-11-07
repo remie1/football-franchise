@@ -36,6 +36,54 @@ By season, league:
 | 2023 | 1,730 | 26.26 | 7.3% | 9.8% | 2.7% | 16.0% | 25.4% | 0 |
 | 2024 | 1,735 | 26.34 | 6.6% | 10.2% | 3.0% | 15.7% | 24.8% | 0 |
 
+## Rookies' ages at week 8, 2018-2024 (REAL)
+
+REAL, counted from the weekly rosters: rookies (years_exp 0) on the week-8 53s, pooled over the 7 seasons' men. Ages on 23 October; rookies with no birth date are left out (0 of them). Survivors only: rookies cut in camp, on reserve lists or on practice squads are not here.
+
+|  | Rookies | Mean age (whole years) | Mean age (fractional) | SD (fractional) |
+| --- | --- | --- | --- | --- |
+| All | 1,891 | 22.67 | 23.16 | 1.02 |
+| Drafted | 1,442 |  | 23.01 |  |
+| Undrafted | 449 |  | 23.63 |  |
+
+Share of the rookies by whole years on 23 October:
+
+| 20 or under | 21 | 22 | 23 | 24 | 25 | 26 or older |
+| --- | --- | --- | --- | --- | --- | --- |
+| 0.2% | 12.8% | 31.5% | 35.4% | 16.6% | 2.9% | 0.6% |
+
+By season:
+
+| Season | Rookies | Mean age (whole years) | Mean age (fractional) |
+| --- | --- | --- | --- |
+| 2018 | 286 | 22.49 | 22.98 |
+| 2019 | 271 | 22.56 | 23.03 |
+| 2020 | 271 | 22.41 | 22.90 |
+| 2021 | 238 | 22.45 | 22.93 |
+| 2022 | 277 | 22.90 | 23.39 |
+| 2023 | 276 | 22.91 | 23.40 |
+| 2024 | 272 | 22.95 | 23.44 |
+
+## Week 8 by group, season by season, 2022-2024 (REAL)
+
+REAL: the by-group values of the seasons the league's week-8 rows are graded on, copied into `NFL_CAREERS` as `weekEight.byGroupBySeason`. Each cell reads 2022 / 2023 / 2024. Kickers, punters and long snappers are about 32 men a season, so one season's share moves by several points by chance.
+
+| Group | Men | 22 or under | 31 or over | 34 or over |
+| --- | --- | --- | --- | --- |
+| QB | 78 / 80 / 83 | 2.6% / 3.8% / 3.6% | 23.1% / 18.8% / 21.7% | 15.4% / 12.5% / 10.8% |
+| RB | 131 / 124 / 125 | 7.6% / 11.3% / 12.8% | 4.6% / 7.3% / 4.8% | 0.8% / 0.0% / 0.0% |
+| WR | 191 / 189 / 183 | 12.0% / 11.1% / 10.4% | 3.1% / 5.3% / 7.6% | 1.1% / 1.1% / 0.0% |
+| TE | 114 / 107 / 115 | 7.9% / 6.5% / 3.5% | 7.0% / 9.3% / 11.3% | 0.9% / 2.8% / 2.6% |
+| OL | 289 / 298 / 294 | 5.5% / 5.0% / 5.4% | 12.5% / 13.1% / 10.2% | 2.4% / 1.7% / 2.0% |
+| EDGE | 246 / 239 / 225 | 6.9% / 8.4% / 5.8% | 11.0% / 7.5% / 8.0% | 2.4% / 2.5% / 1.8% |
+| IDL | 141 / 131 / 137 | 5.0% / 6.1% / 5.8% | 9.2% / 7.6% / 12.4% | 2.1% / 1.5% / 2.9% |
+| LB | 111 / 129 / 138 | 9.0% / 7.0% / 5.1% | 5.4% / 5.4% / 8.7% | 0.0% / 1.6% / 2.9% |
+| CB | 190 / 189 / 191 | 9.5% / 9.5% / 10.0% | 4.7% / 3.7% / 3.7% | 0.0% / 0.5% / 1.1% |
+| S | 145 / 146 / 146 | 9.0% / 7.5% / 4.8% | 9.7% / 8.2% / 7.5% | 1.4% / 1.4% / 1.4% |
+| K | 35 / 33 / 33 | 5.7% / 0.0% / 6.1% | 40.0% / 30.3% / 24.2% | 20.0% / 12.1% / 12.1% |
+| P | 32 / 33 / 33 | 3.1% / 3.0% / 0.0% | 25.0% / 24.2% / 21.2% | 12.5% / 6.1% / 15.2% |
+| LS | 32 / 32 / 32 | 0.0% / 0.0% / 0.0% | 40.6% / 43.8% / 50.0% | 18.8% / 21.9% / 28.1% |
+
 ## Peak usage age, 2013-2024
 
 Ages with at least 20 pairs. In brackets: the share of bootstrap replicates that found a peak.
@@ -123,6 +171,64 @@ By position family (the member groups' entrants pooled, one Kaplan-Meier each):
 | P | 22 | 4 | 18.2% ± 7.3% |
 | LS | 17 | 1 | 5.9% ± 5.8% |
 
+## The reserve/retired list, Y = 2021-2024 (REAL, a lower bound)
+
+REAL, counted from the weekly rosters. Of men credited in Y-1 (on a final-week 53), the share with a reserve/retired row (code R02) in some regular-season week of Y. The code is in these files only from 2020 (RES with R02 that season, RET with R02 from 2021), so Y starts in 2021. Most retirements are invisible in these files: only a man under contract is placed on the reserve/retired list (code R02), so a man who retires unsigned, or after his release, gets no code. These are lower bounds on retirement by age, not retirement rates.
+
+| Age in Y-1 | Credited in Y-1 | On the retired list in Y | Share |
+| --- | --- | --- | --- |
+| 25 and under | 3,532 | 7 | 0.20% ± 0.07% |
+| 26-28 | 2,011 | 10 | 0.50% ± 0.15% |
+| 29-30 | 702 | 9 | 1.28% ± 0.41% |
+| 31-32 | 388 | 9 | 2.32% ± 0.67% |
+| 33 and over | 305 | 9 | 2.95% ± 0.93% |
+| All (0 with no birth date among them) | 6,938 | 44 | 0.63% ± 0.10% |
+
+| Years in the league in Y-1 | Credited in Y-1 | On the retired list in Y | Share |
+| --- | --- | --- | --- |
+| 0 | 1,152 | 1 | 0.09% ± 0.09% |
+| 1-2 | 1,993 | 4 | 0.20% ± 0.11% |
+| 3-5 | 2,189 | 9 | 0.41% ± 0.13% |
+| 6-9 | 1,237 | 17 | 1.37% ± 0.31% |
+| 10 and more | 367 | 13 | 3.54% ± 0.86% |
+| Unknown | 0 |  |  |
+
+Every man on the retired list in Y, 2021-2024, once per man and season, credited the year before or not: 102. By age and by years in the league in Y:
+
+| 25 and under | 26-28 | 29-30 | 31-32 | 33 and over | No birth date |
+| --- | --- | --- | --- | --- | --- |
+| 14 | 25 | 13 | 14 | 28 | 8 |
+
+| 0 years | 1-2 years | 3-5 years | 6-9 years | 10 and more years | Unknown |
+| --- | --- | --- | --- | --- | --- |
+| 8 | 16 | 17 | 32 | 29 | 0 |
+
+## Exits by age, Y = 2016-2022 (REAL)
+
+REAL, counted from the weekly rosters and snap counts; ages in Y; Y+2 is at most 2024, so 2025 is never read. Survivors: the men still on a 53 at 33 are the durable and the wanted.
+
+Back on a 53: of men credited in Y, the share on a 53 in some regular-season week of Y+1 or Y+2. This counts men still under contract, so it is looser than "signed again". Beside it, REPORTED and not measured by this command: of expiring deals of at least 1.5% of the cap that ran out in 2016-2022, the share signed again within 2 years (OverTheCap data via nflverse, counted by the salary-cap thread, ADR-085 step 12; n = 1,799 deals, no count by age; about half of the next deals were for one year).
+
+| Age in Y | Credited in Y | On a 53 in Y+1 or Y+2 | Share | Signed again within two years (OverTheCap, REPORTED) |
+| --- | --- | --- | --- | --- |
+| 26 and under | 7,635 | 6,728 | 88.12% ± 0.39% | 94% |
+| 27-28 | 2,026 | 1,729 | 85.34% ± 0.78% | 89% |
+| 29-30 | 1,201 | 965 | 80.35% ± 1.20% | 86% |
+| 31-32 | 625 | 463 | 74.08% ± 1.76% | 71% |
+| 33 and over | 536 | 388 | 72.39% ± 1.91% | 58% |
+| All (0 with no birth date among them) | 12,023 | 10,273 | 85.44% ± 0.32% |  |
+
+Starters gone: of starters (at least 50% of his main team's snaps on his side) credited in Y, the share on no team's list in any regular-season week of Y+1 and of Y+2. A proxy for leaving while still wanted; it also holds injuries, suspensions and men cut in camp.
+
+| Age in Y | Starters credited in Y | On no list in Y+1 or Y+2 | Share |
+| --- | --- | --- | --- |
+| 25 and under | 1,766 | 12 | 0.68% ± 0.20% |
+| 26-28 | 1,319 | 23 | 1.74% ± 0.36% |
+| 29-30 | 532 | 43 | 8.08% ± 1.21% |
+| 31-32 | 250 | 29 | 11.60% ± 2.07% |
+| 33 and over | 203 | 43 | 21.18% ± 2.67% |
+| All (0 with no birth date among them) | 4,070 | 150 | 3.69% ± 0.28% |
+
 ## Team wins
 
 |  | Value |
@@ -171,6 +277,10 @@ Bootstrap: 200 replicates per row from the seeded PRNG (@ff/contracts), seed str
 - **Peak usage age.** For seasons Y, Y+1 (2013-2024) with at least one snap of any kind in both, delta = share(Y+1) − share(Y), at his age in Y. Mean delta by age per group over ages with at least the minimum pairs, smoothed with a centered 3-age moving average; peak = the first age whose smoothed delta is ≤ 0 after an earlier age's was > 0. 'With exits' also counts Y+1 with no snaps as share 0. SE: bootstrap over players; 'resolved' is the share of replicates that found a peak.
 - **Comebacks.** P(credited again in Y+2 | credited in Y and on no team's list in any week of Y+1), Y = 2016-2022: practice squads are listed in the weekly rosters only from 2017. Reported only. SE: bootstrap over players.
 - **Wins.** Year-over-year win r: Pearson r of team wins in Y and Y+1 for 2020→21, 21→22, 22→23, 23→24; their mean, SE = their sample SD / √4. Win spread: the population SD of team wins each season 2021-2024 (as the season checks compute it), their mean, SE = sample SD / √4. A tie is half a win.
+- **Rookies' ages.** Rookies (years_exp 0, as for the rookie share) on the week-8 53s, 2018-2024, pooled over the seasons' men (not the mean of the season values). Age on 23 October in whole years, and with the fraction kept (days lived / 365.2425); SD = the sample SD of the fractional ages. Drafted = a draft pick on his row. Rookies with no birth date are left out of every age.
+- **Retired list.** A row with code R02 (Reserve/Retired) and status RET (2021-2024) or RES (2020, its first season) in some regular-season week. Cases: men credited in Y-1, Y = 2021-2024; a case is on the list when he has such a row in season Y. Age and years in the league (years_exp) in Y-1. 'Every man on the list' counts each man once per season he is on it, credited the year before or not, with age and years in Y. SE: bootstrap over players.
+- **Back on a 53.** Cases: men credited in Y, Y = 2016-2022; a case is back when he is on a 53 (the 53 as above) in some regular-season week of Y+1 or Y+2. Age in Y. A man under contract counts whether or not he signed again. SE: bootstrap over players.
+- **Starters gone.** Cases: starters credited in Y, Y = 2016-2022. A starter has at least 50% of his main team's snaps on his side that season (the snap share above); kickers, punters and snappers never are. A case is gone when he is on no team's list (any status) in any regular-season week of Y+1 and of Y+2; a man on the retired list is on no list. Age in Y. SE: bootstrap over players.
 
 ## Departures from the written definitions
 
@@ -189,6 +299,9 @@ Bootstrap: 200 replicates per row from the seeded PRNG (@ff/contracts), seed str
 - Weekly rosters before 2016 under-list week 8 (about 47 a team); the week-8 rows start in 2018. Final-week rosters are whole in every season.
 - Snap counts are PFR's per game; a man traded in season is counted with the team he played most for, so his share understates his season.
 - 2016-2019 rosters list some linebackers and defensive backs by group only (LB, DB); the importer's rule reads them as outside linebackers (EDGE) and corners, which moves some inside linebackers and safeties into EDGE and CB in those seasons.
+- Rookies' ages count only rookies still on a 53 at week 8: men cut in camp, on reserve lists or on practice squads are not in them.
+- The retired list exists in these files only from 2020, and it holds only men under contract: a man who retires unsigned, or after his release, gets no code. Its rates are lower bounds on retiring by age, not retirement rates.
+- Exits by age read survivors: the men still on a 53 at 33 are the durable and the wanted. Back on a 53 counts men still under contract, so it is looser than signed again; starters gone also holds injuries, suspensions and men cut in camp.
 
 ## Sources
 

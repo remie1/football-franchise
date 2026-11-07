@@ -26,6 +26,7 @@ import { compensatoryPicks, type FreeAgentMove } from "./compensatory.js";
 import { runCutdown, seasonsIn, type CoachLean } from "./cutdown.js";
 import { endSquadDeal, flatCap, signFuture, type CapForSeason } from "./money.js";
 import { runDraftDay } from "./draftDay.js";
+import { aheadView, type AheadView } from "../cap/ahead.js";
 import { draftOrder, draftPicks, settleConditions } from "./order.js";
 
 export const DRAFT_DAYS = {
@@ -51,6 +52,8 @@ export interface DraftStepsConfig {
   snapShare?: (player: PlayerId, season: number) => number | undefined;
   /** The cap by season, for rookie and practice-squad pay (ADR-085's forecast). Default: flat at the rules' cap. */
   cap?: CapForSeason;
+  /** ADR-085 step 13: the view ahead the cut-down judges by, shared with the league year in a season's walk (default: its own over `rate`). */
+  ahead?: AheadView;
 }
 
 export function headCoachEvaluation(team: TeamId, people: LeaguePeople): number {
@@ -61,6 +64,7 @@ export function headCoachEvaluation(team: TeamId, people: LeaguePeople): number 
 export function draftSteps(config: DraftStepsConfig): DayStep[] {
   const scouting = config.scouting ?? headCoachEvaluation;
   const capOf = (rules: LeagueRules) => config.cap ?? flatCap(rules);
+  const ahead = config.ahead ?? aheadView(config.rate);
   return [
     {
       id: "draft-order",
@@ -120,8 +124,12 @@ export function draftSteps(config: DraftStepsConfig): DayStep[] {
       run: (people, ctx) => {
         const at = ctx.rules.cutdown ?? DEFAULT_LEAGUE_RULES.cutdown!;
         if (!isDay(ctx.day, at)) return undefined;
+        // ADR-085 step 13: who makes the 53 is judged ahead, through the GM's eyes, as the market judges
+        // him; the depth charts stay on today's ratings.
+        ahead.setToday({ at: ctx.day, people, rules: ctx.rules });
         return runCutdown(people, {
-          season: ctx.season, rules: ctx.rules, rate: config.rate, at: ctx.day, cap: capOf(ctx.rules), ...(config.lean ? { lean: config.lean } : {}),
+          season: ctx.season, rules: ctx.rules, rate: config.rate, rateFor: (t) => ahead.forTeam(t), at: ctx.day, cap: capOf(ctx.rules),
+          ...(config.lean ? { lean: config.lean } : {}),
         });
       },
     },

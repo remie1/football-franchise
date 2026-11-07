@@ -260,6 +260,7 @@ export interface StaffState {
   career: StaffJob[];              // ADR-080 P2: his résumé, oldest job first
   retiredAfter?: number;           // ADR-080 P2: the last season he coached, once retired
   disguise?: DefensiveDisguiseTendency; // ADR-080 P4 (ADR-075 §3.2): read only in the DC seat
+  formerPlayer?: PlayerId;         // ADR-094 W4: the player he was, if he played in this league
 }
 
 export type StaffDepartureReason = "FIRED" | "HIRED_AWAY" | "RETIRED" | "CONTRACT_EXPIRED"; // P3
@@ -437,7 +438,7 @@ The draft (ADR-086 C5): `DRAFT_PICK_MADE` may carry `overall` and `kind`; `COMPE
 
 Players age, grow and get hurt (ADR-087): `RATINGS_CHANGED` (E1, truth layer: `{ team?, changes: { player, attr, from, to }[], body?: { player, measure, from, to }[] }`, one per team per week plus one for free agents), `INJURY_OCCURRED` gains `setting`, `band` and `game?` (E2, public), `INJURY_HEALED` (E3, truth layer: `{ player, lasting: { attr, from, to }[], body? }`), `PLAYER_RETIRED` gains `reason?: "UNSIGNED"` and `timing: "SEASON_END"` (E4), and the COACH decisions `DEPTH_CHART_CHANGED` (`{ team, position, up?, down?, situation: OPEN_COMPETITION | INJURY_COVER | STARTER_RETURNS | KEPT_AFTER_INJURY | FORM | SUDDEN, authority, decidedBy }`), `POSITION_BATTLE_DECLARED` (`{ team, position, players, ... }`) and `POSITION_BATTLE_ENDED` (`{ team, position, starter, ... }`) (E5, public).
 
-The end-of-season meeting (ADR-081 G2, G3): `STAFF_MEETING_HELD` (`{ meeting: StaffMeeting }`, every take with its hidden grade), `MEETING_CERTAINTY_ASKED` (`{ team, season, speaker, point, certainty }`, the user asked "how sure are you?") and `TEAM_DIRECTION_SET` (`{ team, season, direction, authority }`).
+The end-of-season meeting (ADR-081 G2, G3): `STAFF_MEETING_HELD` (`{ meeting: StaffMeeting }`, every take with its hidden grade), `MEETING_CERTAINTY_ASKED` (`{ team, season, speaker, point, certainty }`, the user asked "how sure are you?") and `TEAM_DIRECTION_SET` (`{ team, season, direction, authority }`). ADR-094 W1 and W2: `Team.stance?: TeamStance` (`"BUY" | "HOLD" | "SELL"`), set by the GM after a regular-season week's games with `TEAM_STANCE_SET` (`{ team, season, week, stance, authority: "GM" }`), apart from the yearly direction; `COURSE_ARGUED` (`{ team, season, week, gm, coach, gmStance, coachStance, heat, winner?, outcome }`) when the GM and the head coach argued it.
 
 `RELATIONSHIP_CHANGED` (ADR-084 V2) is a view that moved: `{ from, of, delta, cause, before, after, rift?: "OPENED" | "REPAIRED" }`, once per move and once whenever the weekly drift changes a view's word.
 

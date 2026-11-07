@@ -46,6 +46,7 @@ import { PLAYER_STEP_PREFIX, playerSteps, type PlayerStepsConfig } from "../play
 import { staffSteps, type StaffStepsConfig } from "../staff/steps.js";
 import { meetingSteps, type MeetingStepsConfig } from "../meeting/steps.js";
 import { leagueYearSteps, type LeagueYearConfig } from "../cap/leagueYear.js";
+import { aheadView } from "../cap/ahead.js";
 import { advance, nextDay, phaseWeeks, seasonStart, DAYS_PER_WEEK, type ClockWorld } from "../calendar/clock.js";
 import { buildSchedule } from "../schedule/buildSchedule.js";
 import { computeStandings } from "../standings/computeStandings.js";
@@ -204,13 +205,18 @@ export function runSeason(input: RunSeasonInput): SeasonRun {
   // then the draft's (ADR-086). One cap for every deal the year signs: the draft's, else the league year's
   // (ADR-085's forecast). The players' emergency signings take it too when they have no cap of their own.
   const sharedCap = input.draft?.cap ?? input.leagueYear?.cap;
-  const draftConfig = input.draft && { ...input.draft, ...(sharedCap ? { cap: sharedCap } : {}) };
+  // ADR-085 step 13: one view ahead for the walk, so the league year and the draft's cut-down judge a man
+  // alike and read his expected path once, when both rate alike and neither brings its own.
+  const ahead = input.leagueYear && input.draft && input.leagueYear.rate === input.draft.rate && !input.leagueYear.ahead && !input.draft.ahead
+    ? aheadView(input.leagueYear.rate) : undefined;
+  const yearConfig = input.leagueYear && (ahead ? { ...input.leagueYear, ahead } : input.leagueYear);
+  const draftConfig = input.draft && { ...input.draft, ...(sharedCap ? { cap: sharedCap } : {}), ...(ahead ? { ahead } : {}) };
   const playersConfig = input.players && input.players.cap === undefined && sharedCap ? { ...input.players, cap: sharedCap } : input.players;
   const steps = [
     ...(input.daySteps ?? []), ...(playersConfig ? playerSteps(playersConfig) : []),
     ...(input.meeting ? meetingSteps(input.meeting) : []),
     ...(input.coaching ? staffSteps(input.coaching) : []),
-    ...(input.leagueYear ? leagueYearSteps(input.leagueYear) : []), ...(draftConfig ? draftSteps(draftConfig) : []),
+    ...(yearConfig ? leagueYearSteps(yearConfig) : []), ...(draftConfig ? draftSteps(draftConfig) : []),
   ];
   if (steps.length > 0 && !input.people) throw new Error("runSeason: daySteps, the players' steps, the coaches', the league year and the draft need people");
   if (input.coaching && !input.people?.coaching) throw new Error("runSeason: the coaches' steps need people.coaching");
