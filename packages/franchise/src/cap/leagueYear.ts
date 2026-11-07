@@ -193,11 +193,14 @@ function unusedRoom(team: TeamId, season: number, people: Pick<LeaguePeople, "ca
  * Step 11: a back-loaded deal's second year must fit the season after's room, as a front office checks
  * before it signs: that season's top 51, less the team's cushion and the free-agency room it will want
  * that March (it does not spend next year's free-agency money now). A one-year deal always passes.
+ * `own`: a deal with one of the team's own men (a re-signing or an extension) keeps only the cushion.
+ * Next March's free-agency room is money to replace men like him, so a team keeping him does not hold
+ * it back from him, as real teams keep their own before they shop.
  */
-function secondYearFits(team: TeamId, c: PlayerContract, book: Book, cap: CapForSeason, plan: CapPlan, totals?: Map<number, number>): boolean {
+function secondYearFits(team: TeamId, c: PlayerContract, book: Book, cap: CapForSeason, plan: CapPlan, totals?: Map<number, number>, own = false): boolean {
   const y = c.years.filter((x) => !x.voidYear)[1];
   if (!y) return true;
-  const keep = plan.cushion + plan.marchRoom * MARKET.freeAgencyShare * cap(y.season);
+  const keep = plan.cushion + (own ? 0 : plan.marchRoom * MARKET.freeAgencyShare * cap(y.season));
   // `totals` keeps a team's top-51 totals by season while its book does not change (one team's pass in a round).
   let total = totals?.get(y.season);
   if (total === undefined) { total = teamCapTotal(team, y.season, book.contracts, book.dead, { top51: true }).total; totals?.set(y.season, total); }
@@ -527,7 +530,7 @@ function reSign(
           apy: v.apy, guaranteed: guaranteedShare(offer), winShare: winShareOf(team.id, ctx.state),
           starts: wouldStart(g, pos, gradesAt(pos)), ownTeam: true,
         }, ask);
-        if (worth >= 1) signed = signWithRoom(offer, (b) => lastMan || secondYearFits(team.id, offer, b, config.cap, p0));
+        if (worth >= 1) signed = signWithRoom(offer, (b) => lastMan || secondYearFits(team.id, offer, b, config.cap, p0, undefined, true));
         // A star who said no may be tagged at the deadline (a restricted free agent has his tenders instead).
         if (!signed && cs > RFA_SEASONS) {
           const prior = book.contracts.find((c) => String(c.player) === String(p.bio.id) && endsAfter(c, ctx.season));
@@ -635,7 +638,7 @@ function campExtensions(
         if (extra > roomIn(trial)) continue;
         b = trial;
       }
-      if (!secondYearFits(team.id, offer, { ...b, contracts: b.contracts.map((c, j) => (j === oi ? shortened : c)) }, config.cap, plan)) continue;
+      if (!secondYearFits(team.id, offer, { ...b, contracts: b.contracts.map((c, j) => (j === oi ? shortened : c)) }, config.cap, plan, undefined, true)) continue;
       const ask = askingPrice(p, askValue(p, config, curves, floor, config.cap(season)), "VALUE", 0, floor, ctx.seed, ctx.season);
       const worth = offerWorth(p, {
         // He weighs the new deal's own pay, not the bonus money it carries over from his old one.

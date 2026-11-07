@@ -135,13 +135,26 @@ describe("late winter: re-signing from the season's end to the new league year",
     expect(saved).toBeLessThan(3_010_000);
   });
 
+  it("a re-signing's second year keeps only the cushion: a team does not hold next March's free-agency money back from its own man", () => {
+    const change: Partial<Record<Position, Seat[]>> = { WR: [...wr([80, 79, 60, 57, 56]), { position: "WR", ovr: 74, years: 1, id: "keeper" }] };
+    const roomy = world(change, 2026);
+    const deal = run("re-sign", roomy, OPENS)!.people.contracts!.find((c) => String(c.player) === "keeper" && c.years[0]!.season === 2027)!;
+    const real = deal.years.filter((y) => !y.voidYear);
+    expect(real.length).toBeGreaterThanOrEqual(2);
+    // Dead money fills 2028 to $1M over his second year and the cushion: less than March's free-agency room on top.
+    const plan = capPlan(50);
+    expect(plan.marchRoom * MARKET.freeAgencyShare * cap(2028)).toBeGreaterThan(1_000_000);
+    const tight = world(change, 2026, [deadIn(2028, cap(2028) - total(roomy, 2028) - plan.cushion - capNumber(real[1]!) - 1_000_000)]);
+    expect(signedBy(run("re-sign", tight, OPENS), "keeper")).toHaveLength(1);
+  });
+
   it("tags at the deadline only: a star it cannot fit on a long deal is tagged that day, the tag just before its signing", () => {
     // Dead money fills 2028, so no long deal's second year fits; the one-year tag does.
     const change: Partial<Record<Position, Seat[]>> = { WR: [{ position: "WR", ovr: 84, years: 1, id: "star" }, ...wr([70, 60, 57, 56, 55])] };
     const base = world(change, 2026, [], [league[1]!, league[2]!]);
     const plan = capPlan(50);
-    const keep = plan.cushion + plan.marchRoom * MARKET.freeAgencyShare * cap(2028);
-    const fill28 = cap(2028) - total(base, 2028) - keep - 2_000_000;
+    // $2M of 2028 room past the cushion (a deal with one of its own men keeps only that).
+    const fill28 = cap(2028) - total(base, 2028) - plan.cushion - 2_000_000;
     const w = { ...base, deadMoney: [deadIn(2028, fill28)] };
     const opens = run("re-sign", w, OPENS);
     expect(signedBy(opens, "star")).toEqual([]);
