@@ -164,6 +164,8 @@ export interface Step4Args {
   readonly digests?: true;
   /** Step 4's build checks only (R-3: C-1 on every s4 arm, T_L on D17, the bases' replay), printed. */
   readonly part1?: true;
+  /** Step 4's probes only (`step4Probes.ts`: the release probe and the rating probes, AM-7 items 13 and 14); takes --shard, --cache, --report and --out. */
+  readonly probes?: true;
   /** Play (and report) this seed set only; the clauses are then reported, not graded. */
   readonly seedSet?: SeedSet;
   readonly report?: string;
@@ -180,7 +182,7 @@ const STEP3_USAGE =
   "pocket -- --step 3 --digests --out <file.json>, or pocket -- --step 3 [--arms C1,C2] [--cache <dir>] [--seed-set 1|2] --part1";
 const STEP4_USAGE =
   "pocket -- --step 4 [--arms D1,D6] [--shard i/n] [--cache <dir>] [--seed-set 1|2] [--report <file.md>] [--out <file.json>], " +
-  "pocket -- --step 4 --digests --out <file.json>, or pocket -- --step 4 [--arms D1,D6] [--cache <dir>] [--seed-set 1|2] --part1";
+  "pocket -- --step 4 --digests --out <file.json>, pocket -- --step 4 [--arms D1,D6] [--cache <dir>] [--seed-set 1|2] --part1, or pocket -- --step 4 --probes [--shard i/n] [--cache <dir>] [--report <file.md>] [--out <file.json>]";
 
 /** Each step's `--arms` list, as its refusal names it (step 3's with its arm ids, plan §5.1; step 4's, plan §4). */
 const ARMS_NAMED: Readonly<Record<ArmStep, string>> = {
@@ -212,6 +214,7 @@ export function parsePocketArgs(argv: readonly string[], cwd: string = process.c
   let digests = false;
   let m2 = false;
   let part1 = false;
+  let probes = false;
   let seedSet: SeedSet | undefined;
   let report: string | undefined;
   const armFlags: string[] = [];
@@ -278,6 +281,9 @@ export function parsePocketArgs(argv: readonly string[], cwd: string = process.c
         part1 = true;
         step3Only.push(arg);
         break;
+      case "--probes":
+        probes = true;
+        break;
       case "--seed-set": {
         const v = value();
         if (v !== "1" && v !== "2") throw new SyntaxError(`--seed-set takes 1 or 2; ${v} is not`);
@@ -294,6 +300,7 @@ export function parsePocketArgs(argv: readonly string[], cwd: string = process.c
     }
   }
   if (step === undefined) throw new SyntaxError(`--step is required: ${STEP0_USAGE}; ${STEP1_USAGE}; ${STEP2_USAGE}; ${STEP3_USAGE}; ${STEP4_USAGE}`);
+  if (probes && step !== 4) throw new SyntaxError(`--probes: step 4's flag, not step ${String(step)}'s (${usageOf(step)})`);
   if (step === 0) {
     if (armFlags.length > 0) throw new SyntaxError(`${armFlags.join(", ")}: step 1's and step 2's flags, not step 0's (${STEP0_USAGE})`);
     if (step2Only.length > 0) throw new SyntaxError(`${step2Only.join(", ")}: step 2's flag, not step 0's (${STEP0_USAGE})`);
@@ -310,6 +317,18 @@ export function parsePocketArgs(argv: readonly string[], cwd: string = process.c
     if (refusal !== undefined) throw new SyntaxError(`--arms: ${a} is not playable: ${refusal}`);
   }
   const arms = armList as ArmId[] | undefined;
+  if (probes) {
+    const others = [arms && "--arms", seedSet && "--seed-set", digests && "--digests", part1 && "--part1"].filter((x): x is string => typeof x === "string");
+    if (others.length > 0) throw new SyntaxError(`--probes plays step 4's probes only; it takes --shard, --cache, --report and --out (not ${others.join(", ")})`);
+    return {
+      step: 4,
+      probes: true,
+      ...(shard === undefined ? {} : { shard }),
+      ...(cache === undefined ? {} : { cache }),
+      ...(report === undefined ? {} : { report }),
+      ...(out === undefined ? {} : { out }),
+    };
+  }
   if (digests) {
     const others = [arms && "--arms", shard && "--shard", cache && "--cache", seedSet && "--seed-set", report && "--report", m2 && "--m2", part1 && "--part1"].filter((x): x is string => typeof x === "string");
     const what =

@@ -1,5 +1,5 @@
 /**
- * ADR-089 step 4 — THE RATING OVERRIDE (`pocket/ratingOverride.ts`; `RunGameInput.ratings`; review F9, F10).
+ * ADR-089 step 4: THE RATING OVERRIDE (`pocket/ratingOverride.ts`; `RunGameInput.ratings`; review F9, F10).
  *
  * The probes set or raise one attribute, by registry id, on chosen men before a game is played. These
  * tests hold that the override is pure (the snapshot it is given is never touched), reaches exactly

@@ -347,7 +347,7 @@ describe("gradeStep4 on hand-built records (pure)", () => {
   it("the arms not played are NOT PLAYED; the falsifiers wait; the merge card is not posted with a structural failure", () => {
     expect(clause("s4.bRange").verdict).toBe("NOT PLAYED");
     expect(clause("s4.falsifier.release")).toMatchObject({ verdict: "NOT CHECKED" });
-    expect(clause("s4.falsifier.release").note).toMatch(/waits for the lift/);
+    expect(clause("s4.falsifier.release").note).toMatch(/waits for the probes \(--probes\)/);
     expect(clause("s4.sackCredit").verdict).toBe("PASS");
     expect(s.outcome.mergeCard).toBe(false);
     const text = renderStep4Report(grade, records);

@@ -51,6 +51,7 @@ import { LEAGUES, renderStep4Sections, renderStepReport, reportProblems, type Ar
 import { readsStep3Facts, step4PetitionsIn, type Step4Petitions } from "./rules.js";
 import { emptyS4Fold, foldS4Game, hitCurveSlope, meanSeconds, mergeS4Folds, per100, s4Problems, sackShareOf, secondArrivalRateOf, type S4Fold, type TiltClass } from "./s4Stream.js";
 import { openFiling, PR33_STATE, sanitize, type Step4Args } from "./step0.js";
+import { gradeStep4Probes, playProbeTargets, probeCacheDir, readProbeRecords, remainingProbeTargets, renderProbeSection, type GoldenGamePlayer, type ProbeGamesPlayer, type Step4ProbeGrade } from "./step4Probes.js";
 import { armFileOf, FULL_CORPUS, isUnder, jsonText, realOf, STEP1_CALLER, STEP1_CLOSED_RECORDS, step1Env, stampProblems, writeAtomic, type Step1Corpus, type Step1Env } from "./step1.js";
 import { playStep3Arm, rowValueOf, STEP2_CLOSED_RECORDS, STEP3_RECORDS, step3StampOf, timesFromPicture, unmadeChoicesOf, type PlayStep3Options, type Step3Record, type Step3Stamp } from "./step3.js";
 
@@ -435,7 +436,7 @@ const TILT_BASE: ArmId = "D8";
  * under AM-7; s4.motion.int under AM-6), the guard as AM-6 maps it with the own-clock reading beside,
  * the bases' replay against step 3's records, and the s4 stream's build checks.
  */
-export function gradeStep4(records: Step4Records, file: FiledFile, guard: Step4Guard, references: Step3References, oneSet?: SeedSet): Step4Grade {
+export function gradeStep4(records: Step4Records, file: FiledFile, guard: Step4Guard, references: Step3References, oneSet?: SeedSet, probes?: Step4ProbeGrade): Step4Grade {
   const at = (id: ArmId, s: SeedSet): Step4Record | undefined => records.get(id)?.[s];
   const sets: readonly SeedSet[] = oneSet === undefined ? SEED_SETS : [oneSet];
   const graded = oneSet === undefined ? GRADED_SEED_SET : oneSet;
@@ -612,13 +613,17 @@ export function gradeStep4(records: Step4Records, file: FiledFile, guard: Step4G
   structural("s4.sackCredit", sackCredit, "every s4 sack in the pocket under the contact block credited to the man at contact (one RUSHER_SACKS contest); a sack on a motion-alone arm, an escape that ends in a sack (caught by the escape roll or run down) and the coverage sack at the horizon keep today's rule until step 6 (plan §2.2 item 8) and are counted apart");
   structural("s4.qbHitFields", [...qbHitFields, ...tiltAgainst], "every QB_HIT carries approach, from and seen; no tilt against its direction");
   structural("s4.reading", readingProblems(records, guard), "read from the arms played: every D arm but D14 plays the continuous arrival reading and is stamped pocket-1.s4; D14 alone plays the grid, is read by no clause and is in no guard map (never a candidate); the reading inside the engine is the rules tests' proof");
+  // The two falsifiers read the probes (step4Probes.ts) when they were played; otherwise they wait for them by name.
   for (const [id, note] of [
-    ["s4.falsifier.ratingProbes", "a unit proof (exact at the contest for every b and tilt; the engine's tests), not read from the arms"],
-    ["s4.falsifier.release", "waits for the lift: the release probe (release 40 against 80 on D6's bundle) is not built in this build"],
+    ["s4.falsifier.ratingProbes", "waits for the probes (--probes): exact at the contest is the engine's unit proof (contact.test.ts); the play-level probe is not in the probes' cache"],
+    ["s4.falsifier.release", "waits for the probes (--probes): the release probe (release 40 against 80 on D6's bundle, the flat league, both sets) is not in the probes' cache"],
   ] as const) {
     const c = clauseOf(id);
-    if (c !== undefined) clauses.push({ id, kind: c.kind, arms: [], filed: "structural", values: [], verdict: "NOT CHECKED", note });
+    if (c === undefined) continue;
+    const read = probes?.clauses.find((p) => p.id === id);
+    clauses.push(read === undefined || oneSet !== undefined ? { id, kind: c.kind, arms: [], filed: "structural", values: [], verdict: "NOT CHECKED", note: oneSet === undefined ? note : "a one-set run: the probes are read on both sets, never here" } : { ...read, kind: c.kind });
   }
+  if (probes !== undefined && oneSet === undefined) structuralFailures.push(...probes.structuralFailures);
 
   // The guard under AM-6.
   const guardRows: Step4GuardRow[] = [];
@@ -734,7 +739,7 @@ export function gradeStep4(records: Step4Records, file: FiledFile, guard: Step4G
   }
 
   const waits = [
-    "s4.falsifier.release: the release probe waits for the lift (release 40 against 80 on D6's bundle needs the D arms to play)",
+    ...(probes === undefined ? ["s4.falsifier.release and s4.falsifier.ratingProbes: the probes (--probes) are not all in their cache; they play only after the lift"] : []),
     "R-1 (--digests on D1 to D17) and the s4 pins wait for the lift",
     "T_L's clamp and m(0) on D17 (--part1) wait for the lift",
     "AM-6's declared prints on the own-clock rule: the counts are read at the decision instant's class only; the own-clock reading of them is not built",
@@ -760,6 +765,7 @@ export function gradeStep4(records: Step4Records, file: FiledFile, guard: Step4G
       replay,
       arms,
       declared,
+      ...(probes === undefined || oneSet !== undefined ? {} : { probes: probes.lines }),
       waits,
     },
     groups,
@@ -866,6 +872,8 @@ export interface Step4Options {
   readonly references?: Step3References;
   /** Tests only: the pin and the petitions (`preflightStep4`). */
   readonly preflight?: PreflightStep4Options;
+  /** Where the probes' records are cached (`--probes`); the two falsifiers read them when every probe is there. Absent, they wait. */
+  readonly probeCacheParent?: string;
 }
 
 export interface Step4RunResult {
@@ -953,7 +961,8 @@ export function runStep4(opts: Step4Options): Step4RunResult {
   }
   const records = readTargets(plan.complete, cacheDir, opts, guard.digest, corpus);
   if (committed && [...records.values()].some((b) => SEED_SETS.some((s) => b[s]?.stamp.dirty === true))) throw new Error("ADR-089 step 4: refused to grade a committed report: a record was played on a dirty tree");
-  const grade = gradeStep4(records, file, guard, opts.references ?? loadStep3References(), plan.oneSet);
+  const probes = opts.probeCacheParent === undefined ? undefined : probeGradeIn(join(opts.probeCacheParent, opts.env.fingerprint), opts.env, guard.digest, corpus, opts.preflight?.petitions);
+  const grade = gradeStep4(records, file, guard, opts.references ?? loadStep3References(), plan.oneSet, probes);
   if (opts.report !== undefined) {
     writeAtomic(opts.report, renderStep4Report(grade, records));
     wrote.push(opts.report);
@@ -963,6 +972,83 @@ export function runStep4(opts: Step4Options): Step4RunResult {
     wrote.push(opts.out);
   }
   return { cacheDir, played, cached, remaining, graded: true, wrote, grade };
+}
+
+/** The probes' grade from their cache, or undefined while any probe is not there. */
+export function probeGradeIn(cacheDir: string, env: Step1Env, amendments: string, corpus: Step1Corpus, petitions?: Step4Petitions): Step4ProbeGrade | undefined {
+  if (!existsSync(cacheDir)) return undefined;
+  const read = readProbeRecords({ env, amendments, cacheDir, corpus, ...(petitions === undefined ? {} : { petitions }) });
+  return read === undefined ? undefined : gradeStep4Probes(read.records, read.play);
+}
+
+export interface Step4ProbesOptions {
+  readonly cacheParent: string;
+  readonly filedPath: string;
+  readonly amendmentsPath: string;
+  readonly env: Step1Env;
+  readonly shard?: { readonly index: number; readonly count: number };
+  readonly report?: string;
+  readonly out?: string;
+  readonly corpus?: Step1Corpus;
+  readonly log?: (line: string) => void;
+  /** Tests only: the pin and the petitions (`preflightStep4`), and the game players. */
+  readonly preflight?: PreflightStep4Options;
+  readonly playGames?: ProbeGamesPlayer;
+  readonly playGolden?: GoldenGamePlayer;
+  readonly first?: number;
+}
+
+export interface Step4ProbesResult {
+  readonly cacheDir: string;
+  readonly played: readonly string[];
+  readonly cached: readonly string[];
+  readonly remaining: readonly string[];
+  readonly wrote: readonly string[];
+  readonly grade?: Step4ProbeGrade;
+}
+
+/**
+ * `--probes`: plays this shard's probe targets (`step4Probes.ts`), then, once every probe is cached,
+ * grades the two falsifiers and writes the probes' section. Refused, before anything plays and before
+ * any cache is made, exactly as a graded step-4 run is (`preflightStep4`: AM-6, AM-7, the pin, P6,
+ * P7 and P8), and from a dirty tree.
+ */
+export function runStep4Probes(opts: Step4ProbesOptions): Step4ProbesResult {
+  const log = opts.log ?? ((): void => undefined);
+  const { guard } = preflightStep4(opts.filedPath, opts.amendmentsPath, opts.preflight);
+  if (opts.env.dirty) throw new Error(STEP4_DIRTY_REFUSAL);
+  const corpus = opts.corpus ?? FULL_CORPUS;
+  const cacheDir = probeCacheDir(opts.cacheParent, opts.env);
+  const petitions = opts.preflight?.petitions;
+  log(`pocket step 4 probes: fingerprint ${opts.env.fingerprint}; amendments at step 4 ${guard.digest}; probes cached in ${cacheDir}`);
+  const { played, cached } = playProbeTargets({
+    env: opts.env,
+    amendments: guard.digest,
+    cacheDir,
+    corpus,
+    log,
+    ...(opts.shard === undefined ? {} : { shard: opts.shard }),
+    ...(petitions === undefined ? {} : { petitions }),
+    ...(opts.playGames === undefined ? {} : { playGames: opts.playGames }),
+    ...(opts.playGolden === undefined ? {} : { playGolden: opts.playGolden }),
+    ...(opts.first === undefined ? {} : { first: opts.first }),
+  });
+  const remaining = remainingProbeTargets(cacheDir);
+  const wrote: string[] = [];
+  if (remaining.length > 0) {
+    log(`pocket step 4 probes: ${String(remaining.length)} probe(s) still to play (${remaining.join(", ")})`);
+    return { cacheDir, played, cached, remaining, wrote };
+  }
+  const grade = probeGradeIn(cacheDir, opts.env, guard.digest, corpus, petitions)!;
+  if (opts.report !== undefined) {
+    writeAtomic(opts.report, `${["# ADR-089 step 4: the probes", "", ...renderProbeSection(grade)].join("\n")}\n`);
+    wrote.push(opts.report);
+  }
+  if (opts.out !== undefined) {
+    writeAtomic(opts.out, jsonText(sanitize({ format: "adr-089-step4-probes/v1", amendments: guard.digest, fingerprint: opts.env.fingerprint, grade })));
+    wrote.push(opts.out);
+  }
+  return { cacheDir, played, cached, remaining, wrote, grade };
 }
 
 export interface Step4Part1Result {
@@ -1098,6 +1184,21 @@ export async function step4Command(args: Step4Args, log: (line: string) => void)
     env,
     log,
   };
+  const probeCacheParent = args.cache === undefined ? join(PKG_ROOT, "data-cache", "pocket-step4-probes") : join(args.cache, "probes");
+  if (args.probes === true) {
+    const r = runStep4Probes({
+      cacheParent: probeCacheParent,
+      filedPath,
+      amendmentsPath,
+      env,
+      log,
+      ...(args.shard === undefined ? {} : { shard: args.shard }),
+      ...(args.report === undefined ? {} : { report: args.report }),
+      ...(args.out === undefined ? {} : { out: args.out }),
+    });
+    if (r.grade !== undefined) process.stdout.write(`${renderProbeSection(r.grade).join("\n")}\n`);
+    return;
+  }
   if (args.part1 === true) {
     const r = runStep4Part1(common);
     process.stdout.write(`${r.lines.join("\n")}\n`);
@@ -1111,6 +1212,7 @@ export async function step4Command(args: Step4Args, log: (line: string) => void)
     ...(args.report === undefined ? {} : { report: args.report }),
     ...(args.out === undefined ? {} : { out: args.out }),
     committedDir: join(PKG_ROOT, "reports"),
+    probeCacheParent,
   });
   if (result.graded && result.grade !== undefined) process.stdout.write(`${step4SummaryLines(result.grade.sections).join("\n")}\n`);
 }

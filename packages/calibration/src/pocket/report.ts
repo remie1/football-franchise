@@ -1585,6 +1585,8 @@ export interface Step4Sections {
   readonly arms: readonly Step4ArmRow[];
   /** AM-6's declared prints (plan §3.1): interceptions on aimed throws by guard class, THROWING-hit against unhit (D1, D2, D5, D6) and after a SHED (D1, D2, D3, D7). */
   readonly declared?: readonly string[];
+  /** The step-4 probes' printed lines (the gen release probe, the game-level rating probes), never graded. */
+  readonly probes?: readonly string[];
   /** What this report cannot read yet, by name (the release probe, R-1, T_L on D17). */
   readonly waits: readonly string[];
 }
@@ -1656,6 +1658,13 @@ export function renderStep4Sections(s: Step4Sections): readonly string[] {
     out.push("");
     out.push("Each throw's class is read once, at the decision instant, as the fold reads it; the own-clock reading of these counts is not built and waits with the lift.");
     for (const line of s.declared) out.push(`- ${line}`);
+    out.push("");
+  }
+
+  if (s.probes !== undefined) {
+    out.push("## The step-4 probes, printed beside the falsifiers (paired SE; never graded)");
+    out.push("");
+    for (const line of s.probes) out.push(`- ${line}`);
     out.push("");
   }
 
