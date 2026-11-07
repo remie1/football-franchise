@@ -62,14 +62,27 @@
  * die, as P5 and P17 refused s2 and s3 before their lifts; nothing writes a `QB_HIT`, an
  * `arrival_contest` CHECK or `THROW.releaseSeconds` before then. `PLAY_START.rules` keeps its two
  * keys: the step-4 blocks, and kind T, are named by the overlay digest.
+ *
+ * ADR-089 step 5a (plan §1.2) adds one block, `pocket.cleanPocket` (his count's clean-pocket
+ * checklist and the drop floor, §4.6), optional. Shapes S and L read it; it is refused under
+ * `legacy` (no block clock, `playsLegacyRules` false for a tree carrying it) and on kind T, and
+ * without its stamp, each with a named error, never ignored. No petition gates it (no contracts
+ * edit: the labels are free strings and every event kind it writes exists). The three read-system
+ * deltas the 5a fit sets are not in the block: they stay the existing leaves
+ * `qb.readSystem.<system>.budgetDeltaSeconds`. In this commit nothing reads the block beyond this
+ * reader and its refusals; the checklist and the floor (`sim/cleanPocket.ts`) read
+ * `rules.cleanPocket` when they land. `PLAY_START.rules` keeps its two keys: the block is named by
+ * the overlay digest.
  */
 import { ATTR_SCALE } from "@ff/contracts";
 import type {
   ApproachTunables,
   BeatClockTunables,
+  CleanPocketTunables,
   ClimbLaneTunables,
   ContactOrder,
   ContactTunables,
+  DropFloorTunables,
   ForcingTunables,
   FreeRunOrigin,
   FreeRunPicture,
@@ -142,6 +155,16 @@ export interface PocketStep4Rules {
 }
 
 /**
+ * ADR-089 step 5a: the rules' step-5 part. The block is the tunables' own object, or `undefined`
+ * when the bundle does not carry it (steps 1 to 4's bundles carry none, and their plays run exactly
+ * as before).
+ */
+export interface PocketStep5Rules {
+  /** His count's clean-pocket checklist and the drop floor (§4.6); `undefined` is today's count. */
+  readonly cleanPocket: CleanPocketTunables | undefined;
+}
+
+/**
  * ADR-089 step 4, kind T (plan §1.2): "today's line plus contact", the named arm of §6.4's contact
  * clauses (AM-7 item 1: A0's settings plus the contact block). No block clock; its step-2 and
  * step-3 parts are today's (`STEP_1`, no free-run or late block, the climb lane `INTERIOR`, no
@@ -159,6 +182,8 @@ export interface TodaysLinePlusContact {
   readonly threatGeometry: false;
   readonly contact: ContactTunables;
   readonly motion: undefined;
+  /** ADR-089 step 5a: kind T never runs the clean-pocket block (refused). */
+  readonly cleanPocket: undefined;
 }
 
 /**
@@ -174,7 +199,8 @@ export type PocketRules =
       readonly rules: PublishedRules;
       readonly forcing: PocketForcing;
     } & PocketStep3Rules &
-      PocketStep4Rules)
+      PocketStep4Rules &
+      PocketStep5Rules)
   | ({
       readonly kind: "L";
       readonly repClock: RepClockTunables;
@@ -182,7 +208,8 @@ export type PocketRules =
       readonly rules: PublishedRules;
       readonly forcing: PocketForcing;
     } & PocketStep3Rules &
-      PocketStep4Rules)
+      PocketStep4Rules &
+      PocketStep5Rules)
   | TodaysLinePlusContact;
 
 /**
@@ -490,6 +517,14 @@ function step4BlocksOf(tunables: Tunables): readonly { readonly name: string; re
 
 const CONTACT_BLOCK = "the contact block (pocket.contact)";
 const MOTION_BLOCK = "the throwing motion (throwExec.motion)";
+const CLEAN_POCKET_BLOCK = "the clean-pocket block (pocket.cleanPocket)";
+
+/** ADR-089 step 5a: D23's bar, the only value `pocket.cleanPocket.expiryBar` takes. */
+const EXPIRY_BAR = 30;
+/** ADR-089 §4.6: the drop floor by the first read's depth class (CHOSEN), the only values accepted. */
+const DROP_FLOOR: DropFloorTunables = Object.freeze({ QUICK: 1.0, SHORT: 1.5, INTERMEDIATE: 2.0, DEEP: 2.0 });
+/** The clean-pocket block's switches, in plan §1.2's order. */
+const CLEAN_POCKET_SWITCHES = ["d23", "move", "bump", "breakOut", "d23OnRun"] as const;
 
 function onTheTenth(value: number, what: string): void {
   const tenths = value / DELAY_ROUNDING_SECONDS;
@@ -553,6 +588,43 @@ function checkContact(block: unknown): ContactTunables {
   }
   oneOf(block.order, CONTACT_ORDERS, `the contact order (${leaf("order")})`);
   return block as unknown as ContactTunables;
+}
+
+/**
+ * ADR-089 step 5a: the clean-pocket block's dials (plan §1.2). Each part's switch true or false;
+ * D23's bar exactly 30; the reset 0 or more and a whole number of tenths of a second (a restated
+ * budget is rounded to the tenth, `toFixed(1)`, so any other reset would be rounded silently);
+ * and the drop floor, when present, exactly the four CHOSEN values by depth class. A block with
+ * every part off and no floor is accepted (it plays today's count, the all-off proof's case).
+ */
+function checkCleanPocket(block: unknown): CleanPocketTunables {
+  if (!isObject(block)) throw new PocketRulesError(`${CLEAN_POCKET_BLOCK} must be an object, got ${String(block)}`);
+  const leaf = (name: string): string => `pocket.cleanPocket.${name}`;
+  for (const name of CLEAN_POCKET_SWITCHES) isBoolean(block[name], leaf(name));
+  if (block.expiryBar !== EXPIRY_BAR) {
+    throw new PocketRulesError(`${leaf("expiryBar")} must be ${String(EXPIRY_BAR)} (D23's bar), got ${String(block.expiryBar)}`);
+  }
+  atLeast(block.resetSeconds, 0, leaf("resetSeconds"));
+  const tenths = (block.resetSeconds as number) / DELAY_ROUNDING_SECONDS;
+  if (!(Math.abs(tenths - Math.round(tenths)) < 1e-9)) {
+    throw new PocketRulesError(
+      `${leaf("resetSeconds")} must be a whole number of tenths of a second (the restated budget is rounded to the tenth), got ${String(block.resetSeconds)}`,
+    );
+  }
+  if (block.dropFloor !== undefined) {
+    const floor = block.dropFloor;
+    if (!isObject(floor)) {
+      throw new PocketRulesError(`${leaf("dropFloor")} must be an object { QUICK, SHORT, INTERMEDIATE, DEEP }, got ${String(floor)}`);
+    }
+    for (const depth of Object.keys(DROP_FLOOR) as (keyof DropFloorTunables)[]) {
+      if (floor[depth] !== DROP_FLOOR[depth]) {
+        throw new PocketRulesError(
+          `${leaf(`dropFloor.${depth}`)} must be ${String(DROP_FLOOR[depth])} (the drop floor is CHOSEN, ADR-089 §4.6), got ${String(floor[depth])}`,
+        );
+      }
+    }
+  }
+  return block as unknown as CleanPocketTunables;
 }
 
 /**
@@ -632,7 +704,8 @@ export function playsLegacyRules(tunables: Tunables): boolean {
     approach === undefined &&
     tunables.pocket.forcing === undefined &&
     step3BlocksOf(tunables).length === 0 &&
-    step4BlocksOf(tunables).length === 0
+    step4BlocksOf(tunables).length === 0 &&
+    tunables.pocket.cleanPocket === undefined
   );
 }
 
@@ -649,7 +722,7 @@ export function playsTodaysLine(tunables: Tunables): boolean {
   return playsLegacyRules(tunables) || (tunables.pocket.contact !== undefined && isTodaysLinePlusContactTree(tunables));
 }
 
-/** Kind T's shape: a stamp, the approach card, the contact block, and no clock, forcing, step-3 block or motion. */
+/** Kind T's shape: a stamp, the approach card, the contact block, and no clock, forcing, step-3 block, motion or clean-pocket block. */
 function isTodaysLinePlusContactTree(tunables: Tunables): boolean {
   const { beatClock, repClock, approach } = tunables.passRush;
   return (
@@ -660,7 +733,8 @@ function isTodaysLinePlusContactTree(tunables: Tunables): boolean {
     tunables.pocket.forcing === undefined &&
     step3BlocksOf(tunables).length === 0 &&
     tunables.pocket.contact !== undefined &&
-    tunables.throwExec.motion === undefined
+    tunables.throwExec.motion === undefined &&
+    tunables.pocket.cleanPocket === undefined
   );
 }
 
@@ -685,6 +759,7 @@ export function pocketRulesUnder(tunables: Tunables, petitions: ContractPetition
   const step4Blocks = step4BlocksOf(tunables);
   const contactBlock: unknown = tunables.pocket.contact;
   const motionBlock: unknown = tunables.throwExec.motion;
+  const cleanPocketBlock: unknown = tunables.pocket.cleanPocket;
   const clocks = (beatClock === undefined ? 0 : 1) + (repClock === undefined ? 0 : 1);
 
   if (clocks === 2) {
@@ -721,6 +796,20 @@ export function pocketRulesUnder(tunables: Tunables, petitions: ContractPetition
       throw new PocketRulesError(`${block.name} without its rules stamp (engineRules { name, overlayDigest })`);
     }
   }
+  // ADR-089 step 5a: the clean-pocket block is read on shapes S and L only. Under legacy (no block
+  // clock, no stamp) and on kind T (no block clock) it is refused, and so is it without its stamp.
+  if (cleanPocketBlock !== undefined) {
+    if (clocks === 0) {
+      throw new PocketRulesError(
+        contactBlock === undefined
+          ? `${CLEAN_POCKET_BLOCK} without a block clock (passRush.beatClock or passRush.repClock); it is a pocket-1 rule, read on shapes S and L only`
+          : `${CLEAN_POCKET_BLOCK} on today's line plus contact (kind T), which has no block clock; it is read on shapes S and L only`,
+      );
+    }
+    if (stamp === undefined) {
+      throw new PocketRulesError(`${CLEAN_POCKET_BLOCK} without its rules stamp (engineRules { name, overlayDigest })`);
+    }
+  }
   if (clocks === 0 && motionBlock !== undefined) {
     throw new PocketRulesError(
       `${MOTION_BLOCK} without a block clock (passRush.beatClock or passRush.repClock); today's line plus contact (kind T) runs the contact alone`,
@@ -749,6 +838,7 @@ export function pocketRulesUnder(tunables: Tunables, petitions: ContractPetition
   const forcing = forcingOf(tunables);
   const contact = contactBlock === undefined ? undefined : checkContact(contactBlock);
   const motion = motionBlock === undefined ? undefined : checkMotion(motionBlock, tunables.clock.tickStepSeconds);
+  const cleanPocket = cleanPocketBlock === undefined ? undefined : checkCleanPocket(cleanPocketBlock);
   step4Gate(step4Blocks, petitions);
 
   if (clocks === 0) {
@@ -764,10 +854,12 @@ export function pocketRulesUnder(tunables: Tunables, petitions: ContractPetition
       threatGeometry: false,
       contact,
       motion: undefined,
+      cleanPocket: undefined,
     };
     return Object.freeze(t);
   }
   const step4: PocketStep4Rules = { contact, motion };
+  const step5: PocketStep5Rules = { cleanPocket };
 
   if (beatClock !== undefined) {
     positive(beatClock.thetaSeconds, "passRush.beatClock.thetaSeconds");
@@ -779,11 +871,11 @@ export function pocketRulesUnder(tunables: Tunables, petitions: ContractPetition
       positive(w.lengthSeconds, "passRush.beatClock.pushWindow.lengthSeconds");
       onTheGrid(w.lengthSeconds, tunables.clock.tickStepSeconds, "passRush.beatClock.pushWindow.lengthSeconds");
     }
-    return Object.freeze({ kind: "S", beatClock, approach, rules, forcing, ...step3RulesOf(tunables, "S", petitions), ...step4 });
+    return Object.freeze({ kind: "S", beatClock, approach, rules, forcing, ...step3RulesOf(tunables, "S", petitions), ...step4, ...step5 });
   }
   if (repClock === undefined) throw new PocketRulesError("unreachable: no block clock");
   positive(repClock.fullExpressionSeconds, "passRush.repClock.fullExpressionSeconds");
-  return Object.freeze({ kind: "L", repClock, approach, rules, forcing, ...step3RulesOf(tunables, "L", petitions), ...step4 });
+  return Object.freeze({ kind: "L", repClock, approach, rules, forcing, ...step3RulesOf(tunables, "L", petitions), ...step4, ...step5 });
 }
 
 /**

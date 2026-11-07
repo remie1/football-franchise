@@ -3573,12 +3573,50 @@ export interface MotionTunables {
 }
 
 /**
+ * ADR-089 step 5a, §4.6 (CHOSEN, a declared dial): the drop floor, the earliest non-screen release
+ * by the depth class of the call's first read. QUICK 1.0 s (a three-step drop), SHORT 1.5 s
+ * (five-step), INTERMEDIATE and DEEP 2.0 s (seven-step or its shotgun equivalent). The only values
+ * accepted; the floor is on or off by the key's presence.
+ */
+export interface DropFloorTunables {
+  readonly QUICK: 1.0;
+  readonly SHORT: 1.5;
+  readonly INTERMEDIATE: 2.0;
+  readonly DEEP: 2.0;
+}
+/**
+ * ADR-089 step 5a, §4.6 (`pocket-1` only; absent from DEFAULT_TUNABLES until step 11): his count
+ * and the owner's clean-pocket checklist, each part on or off for an arm (plan §1.2). Read by
+ * `sim/pocketRules.ts` on shapes S and L only; refused under legacy and on kind T. The three
+ * read-system deltas the 5a fit sets are not here: they stay the existing leaves
+ * `qb.readSystem.<system>.budgetDeltaSeconds`, patched inside a bundle or an arm.
+ */
+export interface CleanPocketTunables {
+  /** Item b: on a clean expiry the pool is cut to men at `expiryBar` or more (D23). */
+  readonly d23: boolean;
+  /** D23's bar, 30; the only value accepted. */
+  readonly expiryBar: 30;
+  /** MOVE offered at the clean pick: today's climb, the read restart and the reset (item d). */
+  readonly move: boolean;
+  /** D33's reset after a clean move, 1.0 s (CHOSEN, never fitted); 0 in arm E10 ("no reset"). */
+  readonly resetSeconds: number;
+  /** Item d's window bump, openness only (D25). */
+  readonly bump: boolean;
+  /** ESCAPE offered at the clean pick; a clean break-out ends in a run (item e; step 6 adds the deadline pick). */
+  readonly breakOut: boolean;
+  /** D23 extended: no desperation throw after a clean break-out. */
+  readonly d23OnRun: boolean;
+  /** The drop floor (§4.6, CHOSEN); absent is no floor. */
+  readonly dropFloor?: DropFloorTunables;
+}
+
+/**
  * ADR-089 steps 1 to 4: the build's tunables, widened by the `pocket-1` overlay's optional blocks
  * (`engineRules`, `passRush.beatClock`, `passRush.repClock`, `passRush.approach`, from step 2
  * `pocket.forcing`, from step 3 `blitzPickup.freeRun`, `blitzPickup.lateBlock` and
- * `pocket.climbLane`, and from step 4 `pocket.contact` and `throwExec.motion`). The run-time value
- * of `DEFAULT_TUNABLES` carries none of them (`legacy`), not even as an `undefined` key; only the
- * type widened.
+ * `pocket.climbLane`, from step 4 `pocket.contact` and `throwExec.motion`, and from step 5
+ * `pocket.cleanPocket`). The run-time value of `DEFAULT_TUNABLES` carries none of them (`legacy`),
+ * not even as an `undefined` key; only the type widened.
  */
 export type Tunables = typeof TUNABLES & {
   readonly engineRules?: EngineRulesStamp;
@@ -3595,6 +3633,7 @@ export type Tunables = typeof TUNABLES & {
     readonly forcing?: ForcingTunables;
     readonly climbLane?: ClimbLaneTunables;
     readonly contact?: ContactTunables;
+    readonly cleanPocket?: CleanPocketTunables;
   };
   readonly throwExec: { readonly motion?: MotionTunables };
 };
