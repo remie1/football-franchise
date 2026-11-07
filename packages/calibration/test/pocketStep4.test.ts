@@ -34,6 +34,7 @@ import {
   isStep4ArmId,
   loadStep3References,
   part1Findings,
+  STEP4_TL_LINE,
   planStep4,
   preflightStep4,
   preflightStep4Previews,
@@ -465,5 +466,14 @@ describe("gradeStep4 on hand-built records (pure)", () => {
     const r = part1Findings(new Map([["C1", { 1: recordOf("C1", "C1", 1, bad) }]]), REFS);
     expect(r.problems).toEqual(["C1 set 1 flat: the s4 stream, 1 problem(s), first: p1: C-1", "C1 set 1 gen: the s4 stream, 1 problem(s), first: p1: C-1"]);
     expect(r.lines.some((l) => l === "C1 set 1: the replay equals step 3's record")).toBe(true);
+  });
+
+  it("after the lift nothing waits for it: --part1's lines and the grade's waits say what is not checked, by name", () => {
+    const r = part1Findings(new Map([["C1", { 1: recordOf("C1", "C1", 1, emptyS4Fold()) }]]), REFS);
+    const waits = gradeStep4(records, file, guard, REFS).sections.waits;
+    for (const l of [...r.lines, ...waits]) expect(l, l).not.toMatch(/\blift\b/);
+    expect(r.lines).toContain(STEP4_TL_LINE);
+    expect(waits).toContain(STEP4_TL_LINE);
+    expect(waits).toContain("R-1 (--digests on D1 to D17) and the s4 pins: not run and not pinned yet");
   });
 });

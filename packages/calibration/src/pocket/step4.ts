@@ -31,7 +31,7 @@
  *  - **`--digests`** (R-1) plays the D arms; it is refused when P6, P7 or P8 is withheld (a test's set).
  *  - **`--part1`** (a preview, never graded; AM-6 and AM-7 not needed) plays or reads the asked arms
  *    (default every playable arm) and fails on any build fault: C-1 on every s4 arm, the s4 stream's
- *    problems and the bases' replay. T_L's clamp and m(0) on D17 wait for the lift.
+ *    problems and the bases' replay. T_L's clamp and m(0) on D17 are not read here (`STEP4_TL_LINE`).
  *  - **No wall-clock, host or path field** in any record or file, and no clock is read here.
  */
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
@@ -740,9 +740,9 @@ export function gradeStep4(records: Step4Records, file: FiledFile, guard: Step4G
   }
 
   const waits = [
-    ...(probes === undefined ? ["s4.falsifier.release and s4.falsifier.ratingProbes: the probes (--probes) are not all in their cache; they play only after the lift"] : []),
-    "R-1 (--digests on D1 to D17) and the s4 pins wait for the lift",
-    "T_L's clamp and m(0) on D17 (--part1) wait for the lift",
+    ...(probes === undefined ? ["s4.falsifier.release and s4.falsifier.ratingProbes: the probes (--probes) are not all in their cache"] : []),
+    "R-1 (--digests on D1 to D17) and the s4 pins: not run and not pinned yet",
+    STEP4_TL_LINE,
     "AM-6's declared prints on the own-clock rule: the counts are read at the decision instant's class only; the own-clock reading of them is not built",
     ...(oneSet === undefined ? [] : [`a one-set run (set ${String(oneSet)}): nothing graded`]),
   ];
@@ -1052,6 +1052,14 @@ export function runStep4Probes(opts: Step4ProbesOptions): Step4ProbesResult {
   return { cacheDir, played, cached, remaining, wrote, grade };
 }
 
+/**
+ * T_L's clamp and m(0) on D17 (plan R-3): the stream states each contact's time, not the line
+ * margins the crossing is read from, so neither `--part1` nor the grade reads them; the engine's
+ * unit proofs hold them (`motion.test.ts`: the clamp, and m(0) = 0).
+ */
+export const STEP4_TL_LINE =
+  "T_L's clamp and m(0) on D17: not read by --part1 or the grade (the stream carries no line margins); held by the engine's unit proofs (motion.test.ts)";
+
 export interface Step4Part1Result {
   readonly cacheDir: string;
   readonly played: readonly string[];
@@ -1063,7 +1071,7 @@ export interface Step4Part1Result {
 /**
  * `--part1` (a preview; AM-6 and AM-7 not needed): plays or reads the asked arms (default every
  * playable one) and returns every build fault: the s4 stream's checks and C-1 on every s4 play, and
- * each re-played base against step 3's record. T_L's clamp and m(0) on D17 wait for the lift.
+ * each re-played base against step 3's record. T_L's clamp and m(0) on D17 are not read here (`STEP4_TL_LINE`).
  */
 export function runStep4Part1(opts: Omit<Step4Options, "shard" | "report" | "out" | "committedDir" | "preflight">): Step4Part1Result {
   const log = opts.log ?? ((): void => undefined);
@@ -1100,7 +1108,7 @@ export function part1Findings(records: Step4Records, references: Step3References
       }
     }
   }
-  lines.push("T_L's clamp and m(0) on D17: waits for the lift (D17 does not play in this build)");
+  lines.push(STEP4_TL_LINE);
   return { lines, problems };
 }
 
