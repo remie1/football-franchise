@@ -423,6 +423,27 @@ exactly as before. On:
   center on 40, so the tilt mostly nudges low-lean GMs toward rebuild.
 - Tests: `test/meeting.headCoach.test.ts` (6).
 
+**Step 5 (2026-11-07, same thread; news).** In `packages/narrative`; no contracts change. Teams and
+jobs only, never names (ADR-082 Q1).
+- `src/news/staff.ts`: the GM sits on the coaching beat. His sour views of his head coach, and the
+  coach's of him, leak at ADR-084's rates with lines of their own (`LEAK.gmOnCoach`, `LEAK.coachOnGm`,
+  and the same for a grudge). GM hires and departures stay out of the coordinator roundup; they are not
+  news yet.
+- An argument over the course (`COURSE_ARGUED`) gets out with chance 0.25 when open and 0.6 when a
+  rift (`COURSE_LEAK_CHANCE`, CHOSEN), only the week a split starts: a new split, or one that changed
+  sides or grew wider since the week before. A polite one never does. It is ranked with the week's
+  news (importance 2, a rift 3), not left as room-filler, because a game week's paper is always full.
+- The trade deadline (`DEADLINE_REACHED` `TRADE_DEADLINE`, Tuesday of week 10): each team whose GM
+  overruled his coach after the last games before it gets a `DEADLINE_SPLIT` story (importance 3,
+  ranked under the weekly cap and the two-of-a-kind rule), worded by which way the GM went and which
+  way the coach pushed. No trade is made; the lines speak of standing pat, looking to next year or
+  going for it.
+- The season command now seats the GMs on the beat.
+- Two stand-in seasons with growth and injuries (seeds news5, news6): 7 and 6 teams split at the
+  deadline, 2 a season ran (two-of-a-kind rule); 1 and 2 course leaks in a season; 140 arguments in
+  news5 (72 polite, 57 open, 11 rifts), most of them repeats of a split already going.
+- Tests: `test/staff.test.ts` (4 more).
+
 ## Appendix A: new GMs by season, 2018-2026 (counted from Wikipedia season pages)
 
 Background: FO = came up through a front office; Re = former GM; HC = head coach given GM power;
