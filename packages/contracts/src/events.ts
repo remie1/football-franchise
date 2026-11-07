@@ -11,7 +11,7 @@ import type { StaffDepartureReason } from "./staff.js";
 import type { RelationshipParty, RelationshipWord } from "./relationships.js";
 import type { OfficiatingCrew } from "./officials.js";
 import type { FoulKind, FoulTiming, PenaltyEnforcement, PenaltyOutcome } from "./penalties.js";
-import type { MeetingPoint, StaffMeeting, TeamDirection } from "./meeting.js";
+import type { MeetingPoint, StaffMeeting, TeamDirection, TeamStance } from "./meeting.js";
 import type { SidelineAdjustmentPayload, StemPayload } from "./stem.js";
 
 export interface RollModifier {
@@ -906,6 +906,18 @@ export type FranchiseEvent =
   | { type: "MEETING_CERTAINTY_ASKED"; payload: { team: TeamId; season: number; speaker: StaffId; point: MeetingPoint; certainty: number } }
   /** ADR-081 G3: a team's course set (or changed). */
   | { type: "TEAM_DIRECTION_SET"; payload: { team: TeamId; season: number; direction: TeamDirection; authority: "COACH" | "GM" | "PRESIDENT" } }
+  /** ADR-094 W1: a team's stance set (or changed) by its GM after a regular-season week's games. */
+  | { type: "TEAM_STANCE_SET"; payload: { team: TeamId; season: number; week: number; stance: TeamStance; authority: "GM" } }
+  /**
+   * ADR-094 W2: the GM and the head coach argued the team's stance after a week's games. `winner`
+   * is absent when neither carried the day on politics; `outcome` is the stance the GM then set.
+   * The views move through `RELATIONSHIP_CHANGED`, as at the meeting.
+   */
+  | { type: "COURSE_ARGUED"; payload: {
+        team: TeamId; season: number; week: number; gm: StaffId; coach: StaffId;
+        gmStance: TeamStance; coachStance: TeamStance; heat: "POLITE" | "OPEN_ARGUMENT" | "RIFT";
+        winner?: StaffId; outcome: TeamStance;
+      } }
   | { type: "AWARD_GIVEN"; payload: { award: string; subject: PlayerId | StaffId } }
   /** ADR-078 C6: widened to carry the teams; nothing emitted the old shape. */
   | { type: "GAME_COMPLETED"; payload: { result: GameResult; kind: GameKind } }

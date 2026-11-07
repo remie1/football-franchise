@@ -1,6 +1,6 @@
 /** Player, staff, team, and contract shapes. Cap math lives in franchise. */
 import type { PlayerId, TeamId, StaffId, Position, AttrId, CoachAttrId } from "./ids.js";
-import type { TeamDirection } from "./meeting.js";
+import type { TeamDirection, TeamStance } from "./meeting.js";
 import type { AttributeMap, TraitSet } from "./registry.js";
 import type { CalendarStamp } from "./calendar.js";
 import type { DefensiveDisguiseTendency, StaffJob } from "./staff.js";
@@ -260,6 +260,8 @@ export interface Team {
   staffBudget: { limit: number; committed: number };
   /** ADR-081 G3: the course set after the end-of-season meeting. Absent until one is set. */
   direction?: TeamDirection;
+  /** ADR-094 W1: the GM's stance after the latest regular-season week's games. Absent until one is set. */
+  stance?: TeamStance;
 }
 
 export interface ContractYear {
