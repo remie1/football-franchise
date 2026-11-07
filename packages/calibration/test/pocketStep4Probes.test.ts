@@ -24,11 +24,12 @@ import { afterAll, describe, expect, it } from "vitest";
 import { AMENDMENTS_PATH, amendmentsAtStep, amendmentsDigest, loadAmendments } from "../src/pocket/amendments.js";
 import { armById, STEP1_RUN_IDS, STEP2_RUN_IDS, STEP3_RUN_IDS, STEP4_RUN_IDS } from "../src/pocket/arms.js";
 import { FILED_PATH } from "../src/pocket/bands.js";
-import { goldenGames } from "../src/pocket/corpus.js";
+import { goldenFixtures, goldenGames } from "../src/pocket/corpus.js";
+import { buildFixture } from "../src/harness/schedule.js";
 import { loadFiled } from "../src/pocket/filed.js";
 import { registryAttr } from "../src/pocket/freeRun.js";
 import { fnv1a } from "../src/pocket/golden.js";
-import { applyRatingOverrides } from "../src/pocket/ratingOverride.js";
+import { applyRatingOverrides, ratingOverridesReach } from "../src/pocket/ratingOverride.js";
 import { POCKET_1_S4_DIGEST, POCKET_1_S4_RULES, STEP4_PETITIONS_GRANTED } from "../src/pocket/rules.js";
 import { parsePocketArgs } from "../src/pocket/step0.js";
 import { jsonText, STEP1_CALLER, type Step1Env } from "../src/pocket/step1.js";
@@ -199,6 +200,17 @@ describe("the probes' run ids, cache paths and stamps are their own", () => {
     expect(stamps.find((s) => s.probe === "PR-RAT-BASE")!).toMatchObject({ ratings: "none", watches: ["PR-QB-STRENGTH", "PR-QB-AGILITY", "PR-RUSHER-TACKLING", "PR-RUSHER-SPEED"] });
     expect(stamps.find((s) => s.probe === "PR-REL40")!.watches).toEqual(["PR-REL40"]);
   });
+
+  it("the rusher probes raise the men who reach him: every defense's interior linemen and ends (review 2 S1)", () => {
+    const { index, fixtures } = goldenFixtures("flat");
+    const { snapshot } = buildFixture(index, fixtures[0]!);
+    for (const id of ["PR-RUSHER-TACKLING", "PR-RUSHER-SPEED"]) {
+      const reach = ratingOverridesReach(snapshot, STEP4_PROBE_RUNS.find((r) => r.id === id)!.ratings);
+      const rushers = [snapshot.home, snapshot.away].flatMap((t) => [...t.defense.edges, ...t.defense.interior].map(String));
+      expect(rushers.length, id).toBe(8);
+      expect([...reach].sort(), id).toEqual([...rushers].sort());
+    }
+  });
 });
 
 // --- the readings (pure) --------------------------------------------------------------------------------------
@@ -353,7 +365,7 @@ describe("with the gates flipped, the probes read the direction on a constructed
     expect(rating.values[0]).toMatch(/^the quarterback's strength \+30: [1-9][0-9]* compared/);
     expect(r.grade!.structuralFailures).toEqual([]);
     expect(r.grade!.lines.some((l) => /^PR-RUSHER-SPEED set 1 .*sacks per 100 dropbacks/.test(l))).toBe(true);
-    expect(r.grade!.lines.some((l) => /PR-RUSHER-SPEED set 1, apart: his arrivals/.test(l))).toBe(true);
+    expect(r.grade!.lines.some((l) => /PR-RUSHER-SPEED set 1, apart: the raised rushers' arrivals/.test(l))).toBe(true);
     expect(r.grade!.lines.some((l) => /^gen set 1 \(printed beside, never graded\)/.test(l))).toBe(true);
     // The cache: every target cached, the same grade, and the record files hold no host path.
     const again = runStep4Probes({ cacheParent: parent, filedPath: FILED, amendmentsPath: BOTH.path, env: ENV, preflight: granted, playGames: () => { throw new Error("cached"); }, playGolden: () => { throw new Error("cached"); }, first: GAMES });

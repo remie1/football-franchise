@@ -25,10 +25,12 @@
  *       A compared pair where the quarterback's raise moves the margin up, or a shed to a sack, is a
  *       failure of the clause; a rusher's raise moving the margin down is a build fault named beside;
  *     - *the game-level paired probes*, printed with their paired SE, never graded: the flat league,
- *       both sets, every quarterback's strength or agility raised 30, or the first end's tackling or
- *       speed raised 30, each against the same games unraised. Sacks per 100 dropbacks and the raised
- *       men's contests are printed; speed's arrival effect (the raised rusher's rated contests per
- *       100 dropbacks) is printed apart from his sacks per contest.
+ *       both sets, every quarterback's strength or agility raised 30, or every defense's four
+ *       rushers' tackling or speed raised 30, each against the same games unraised. Sacks per 100
+ *       dropbacks and the raised men's contests are printed; speed's arrival effect (the raised
+ *       rushers' rated contests per 100 dropbacks) is printed apart from their sacks per contest.
+ *       Strength and agility enter the contest the same way (each rating/5 on the quarterback's side),
+ *       so their figures can match to the last count: that is the design, not a copied wiring.
  *  - **The refusals** are step 4's: nothing plays, and no cache is made, unless `preflightStep4`
  *    passes (AM-6, AM-7, the pin, P6, P7 and P8). While the gates are false every probe is refused
  *    before its first die, as every D arm is.
@@ -82,7 +84,12 @@ export interface ProbeRunDef {
 const everyPlayer = (attr: string, value: number): RatingOverride => ({ attr, target: { kind: "ROLE", role: "ALL", side: "BOTH" }, change: { op: "SET", value } });
 const raise = (attr: string, target: RatingOverride["target"], delta: number): RatingOverride => ({ attr, target, change: { op: "ADD", delta } });
 const QB_BOTH: RatingOverride["target"] = { kind: "ROLE", role: "QB", side: "BOTH" };
-const FIRST_END_BOTH: RatingOverride["target"] = { kind: "ROLE", role: "EDGE", side: "BOTH", slot: 0 };
+/**
+ * Every defense's four rushers (the ends, then the interior), the men who reach the quarterback: on
+ * D3's flat league an interior lineman is in about nine first contests of ten and the first end in
+ * one of 350 (review 2 S1), so raising one end alone measured nothing.
+ */
+const RUSHERS_BOTH: RatingOverride["target"] = { kind: "ROLE", role: "RUSHER", side: "BOTH" };
 
 /** The probes' runs, in order (each played on both seed sets). */
 export const STEP4_PROBE_RUNS: readonly ProbeRunDef[] = Object.freeze([
@@ -93,8 +100,8 @@ export const STEP4_PROBE_RUNS: readonly ProbeRunDef[] = Object.freeze([
   { id: "PR-RAT-BASE", kind: "RATING", arm: "D3", league: "flat", ratings: [], what: "D3's bundle, the flat league, unraised (the rating probes' pair)" },
   { id: "PR-QB-STRENGTH", kind: "RATING", arm: "D3", league: "flat", ratings: [raise("strength", QB_BOTH, PROBE_RAISE)], pairedWith: "PR-RAT-BASE", what: `D3's bundle, the flat league, every quarterback's strength raised ${String(PROBE_RAISE)}` },
   { id: "PR-QB-AGILITY", kind: "RATING", arm: "D3", league: "flat", ratings: [raise("agility", QB_BOTH, PROBE_RAISE)], pairedWith: "PR-RAT-BASE", what: `D3's bundle, the flat league, every quarterback's agility raised ${String(PROBE_RAISE)}` },
-  { id: "PR-RUSHER-TACKLING", kind: "RATING", arm: "D3", league: "flat", ratings: [raise("tackling", FIRST_END_BOTH, PROBE_RAISE)], pairedWith: "PR-RAT-BASE", what: `D3's bundle, the flat league, each defense's first end's tackling raised ${String(PROBE_RAISE)}` },
-  { id: "PR-RUSHER-SPEED", kind: "RATING", arm: "D3", league: "flat", ratings: [raise("speed", FIRST_END_BOTH, PROBE_RAISE)], pairedWith: "PR-RAT-BASE", what: `D3's bundle, the flat league, each defense's first end's speed raised ${String(PROBE_RAISE)}` },
+  { id: "PR-RUSHER-TACKLING", kind: "RATING", arm: "D3", league: "flat", ratings: [raise("tackling", RUSHERS_BOTH, PROBE_RAISE)], pairedWith: "PR-RAT-BASE", what: `D3's bundle, the flat league, each defense's four rushers' tackling raised ${String(PROBE_RAISE)}` },
+  { id: "PR-RUSHER-SPEED", kind: "RATING", arm: "D3", league: "flat", ratings: [raise("speed", RUSHERS_BOTH, PROBE_RAISE)], pairedWith: "PR-RAT-BASE", what: `D3's bundle, the flat league, each defense's four rushers' speed raised ${String(PROBE_RAISE)}` },
 ] as const);
 
 /** The play-level probe's one run (the golden 50 a league, no seed set). */
@@ -500,7 +507,7 @@ export function genReleaseLines(records: ProbeRecords): readonly string[] {
     const bh = pick(b.games, hitOf);
     const rh = pick(r.games, hitOf);
     const pair = pairedDiff(rh, bh);
-    return `gen set ${String(s)} (printed beside, never graded): the home quarterback's release raised ${String(GEN_RELEASE_RAISE)}: home THROWING hits per 100 aimed throws ${fmt(per100(total(rh).x, total(rh).n))} against ${fmt(per100(total(bh).x, total(bh).n))} unraised; difference ${fmt(pair.diff)} (paired SE ${fmt(pair.se)})`;
+    return `gen set ${String(s)} (printed beside, never graded): the home quarterback's release raised ${String(GEN_RELEASE_RAISE)} (one team's quarterback in every game; clamped at 99): home THROWING hits per 100 aimed throws ${fmt(per100(total(rh).x, total(rh).n))} against ${fmt(per100(total(bh).x, total(bh).n))} unraised; difference ${fmt(pair.diff)} (paired SE ${fmt(pair.se)})`;
   });
 }
 
@@ -529,7 +536,7 @@ export function ratingGameLines(records: ProbeRecords): readonly string[] {
       if (def.ratings.some((o) => o.attr === "speed" || o.attr === "tackling")) {
         const arr = pairedDiff(pick(r.games, (g) => ({ x: wr(g).arrivals, n: g.all.dropbacks })), pick(b.games, (g) => ({ x: wr(g).arrivals, n: g.all.dropbacks })));
         const per = pairedDiff(pick(r.games, (g) => ({ x: wr(g).arrivalSacks, n: wr(g).arrivals })), pick(b.games, (g) => ({ x: wr(g).arrivalSacks, n: wr(g).arrivals })));
-        out.push(`  ${def.id} set ${String(s)}, apart: his arrivals (rated contests) per 100 dropbacks ${fmt(arr.diff)} (paired SE ${fmt(arr.se)}); his sacks per 100 contests ${fmt(per.diff)} (paired SE ${fmt(per.se)})`);
+        out.push(`  ${def.id} set ${String(s)}, apart: the raised rushers' arrivals (rated contests) per 100 dropbacks ${fmt(arr.diff)} (paired SE ${fmt(arr.se)}); their sacks per 100 contests ${fmt(per.diff)} (paired SE ${fmt(per.se)})`);
       }
     }
   }
