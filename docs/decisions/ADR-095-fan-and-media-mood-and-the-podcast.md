@@ -4,11 +4,11 @@
 - **Proposed by:** Orchestrator, for `franchise` (mood, the perception system's public side, and its
   small push on the president's firing chances), `narrative` (the weekly rundown, hot takes and the
   podcast script) and `apps/game` (a Listen button). Thread "Improve the post-game podcast".
-- **Status:** proposed. The design questions Q1-Q7 were ruled by the owner 2026-11-07 13:58Z
-  ("1. A 2. A 3. B 4. B 5. A 6. B 7. A"). Contracts edits M1-M2 wait for the owner's typed yes, by
-  name, at build. The script-writer question (templates, an AI writer on the player's computer, an
-  AI writer on a server, or templates now and an AI writer later) is open on a card in the thread;
-  this ADR is written for templates and leaves room for the others (§7).
+- **Status:** design questions Q1-Q7 ruled by the owner 2026-11-07 13:58Z
+  ("1. A 2. A 3. B 4. B 5. A 6. B 7. A"). Contracts edits M1 and M2 approved by the owner's typed
+  yes 2026-11-07 14:09Z ("Yes, make contracts edits M1 and M2") and made (§8). The script writer
+  ruled 2026-11-07 14:10Z on the thread's card: **templates now, an AI writer as an option later**
+  (§7). Nothing outside contracts is built.
 - **Plan doc (plain words, the questions as put to the owner):**
   https://claude.ai/artifact/7MtH3yZVLokYE8qhEWEfh6
 - **Origin:** the owner's post-game podcast idea (2026-10-22, thread "Coaching staff"), the test
@@ -208,14 +208,17 @@ count; a guess to look at, not a target).
 The switch is `--mood-firings` on `season` and `staff-check`, off by default, until the owner sees
 the check. The user's own GM is never judged by the president (ADR-094 Q10 a), so mood never fires him.
 
-## 7. The writer, left open
+## 7. The writer (ruled: templates now, an AI writer as an option later)
 
-The rundown is the same whatever writes the script. If the owner later picks an AI writer, it gets
+The owner's pick on the thread's card (2026-11-07 14:10Z). The rundown is the same whatever writes the script. If the owner later picks an AI writer, it gets
 the rundown and its facts and nothing else, so it cannot invent a fact; the episode is then the
-same for a game only if the writer's output is saved with it. That choice, and where the writer
-runs, is the card's question, not this ADR's.
+same for a game only if the writer's output is saved with it. Where such a writer would run (the
+player's computer or a server) is decided when it is built.
 
-## 8. Contracts edits (each needs the owner's typed yes by name)
+## 8. Contracts edits (approved by the owner's typed yes 2026-11-07 14:09Z; made)
+
+As made: `packages/contracts/src/mood.ts` (`MoodAudience`, `MoodSeat`, `MoodSubject`,
+`MoodReading`), the event in `events.ts`, `Team.mood` in `players.ts`; test `test/mood.test.ts`.
 
 **M1: `PUBLIC_MOOD_UPDATED` event** (franchise, public), one per team per week that has a game or a
 mood-moving offseason event:
@@ -243,7 +246,7 @@ viewer's own, and an episode file is not a save.
 ## 9. Build steps (each its own pull request; nothing merges without the owner's yes)
 
 1. **This ADR.**
-2. **Mood** in `packages/franchise` (`src/mood/`), contracts M1 and M2 with the owner's typed yes,
+2. **Mood** in `packages/franchise` (`src/mood/`) on contracts M1 and M2,
    a calendar step after each week's games and at the offseason events. Tests: same seed, same
    moods; save and load keeps them; a blowout loss to a worse team moves fans more than a close loss
    to a better one; fans move further and faster than media; drift fades a bad week. A many-season
@@ -261,5 +264,6 @@ viewer's own, and an episode file is not a save.
 
 ## 10. Decision
 
-Q1-Q7 ruled by the owner, 2026-11-07 13:58Z. The ADR as a whole, and contracts edits M1-M2, are
-proposed and wait for the owner.
+Q1-Q7 ruled by the owner, 2026-11-07 13:58Z. Contracts edits M1 and M2 approved by the owner's
+typed yes, 2026-11-07 14:09Z, and made. The writer ruled on the card, 2026-11-07 14:10Z. Merging
+this ADR waits for the owner.

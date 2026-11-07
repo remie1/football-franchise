@@ -12,6 +12,7 @@ import type { RelationshipParty, RelationshipWord } from "./relationships.js";
 import type { OfficiatingCrew } from "./officials.js";
 import type { FoulKind, FoulTiming, PenaltyEnforcement, PenaltyOutcome } from "./penalties.js";
 import type { MeetingPoint, StaffMeeting, TeamDirection, TeamStance } from "./meeting.js";
+import type { MoodReading } from "./mood.js";
 import type { SidelineAdjustmentPayload, StemPayload } from "./stem.js";
 
 export interface RollModifier {
@@ -918,6 +919,12 @@ export type FranchiseEvent =
         gmStance: TeamStance; coachStance: TeamStance; heat: "POLITE" | "OPEN_ARGUMENT" | "RIFT";
         winner?: StaffId; outcome: TeamStance;
       } }
+  /**
+   * ADR-095 M1: a team's fan and media moods after a week's games or an offseason moment (`week`
+   * absent then). `readings` carries every subject's latest reading, so the newest event is the
+   * whole picture. Public.
+   */
+  | { type: "PUBLIC_MOOD_UPDATED"; payload: { team: TeamId; season: number; week?: number; readings: MoodReading[] } }
   | { type: "AWARD_GIVEN"; payload: { award: string; subject: PlayerId | StaffId } }
   /** ADR-078 C6: widened to carry the teams; nothing emitted the old shape. */
   | { type: "GAME_COMPLETED"; payload: { result: GameResult; kind: GameKind } }

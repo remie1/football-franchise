@@ -1,6 +1,7 @@
 /** Player, staff, team, and contract shapes. Cap math lives in franchise. */
 import type { PlayerId, TeamId, StaffId, Position, AttrId, CoachAttrId } from "./ids.js";
 import type { TeamDirection, TeamStance } from "./meeting.js";
+import type { MoodReading } from "./mood.js";
 import type { AttributeMap, TraitSet } from "./registry.js";
 import type { CalendarStamp } from "./calendar.js";
 import type { DefensiveDisguiseTendency, StaffJob } from "./staff.js";
@@ -262,6 +263,11 @@ export interface Team {
   direction?: TeamDirection;
   /** ADR-094 W1: the GM's stance after the latest regular-season week's games. Absent until one is set. */
   stance?: TeamStance;
+  /**
+   * ADR-095 M2: fans' and media's latest moods about the team, its seats and its watch list (the
+   * PLAYER readings). Absent, or a subject missing, reads as 0.
+   */
+  mood?: MoodReading[];
 }
 
 export interface ContractYear {
