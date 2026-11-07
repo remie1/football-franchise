@@ -30,6 +30,8 @@
  * the last status at or before the release; F.9 item 4), each with its own Z, and the rise
  * re-weighted to the base's composition of halves (AM-1 §4.5).
  */
+import { guardFor, type AmendmentsFile } from "./amendments.js";
+import type { ArmId } from "./arms.js";
 import type { ThrowClass } from "./constructs.js";
 import type { SeedSet } from "./corpus.js";
 import { GUARD_CLASSES, intGuard, intGuardByClass, type GuardClock, type IntMix } from "./bands.js";
@@ -250,6 +252,68 @@ export function am1ArmReading(
   const breaches = [...(league.verdict === "BREACH" ? ["league-wide"] : []), ...classes.flatMap((c) => (c.reading?.verdict === "BREACH" ? [c.cls] : []))];
   const filedBreaches = [...(league.filedPasses ? [] : ["league-wide"]), ...classes.flatMap((c) => (c.reading !== undefined && !c.reading.filedPasses ? [c.cls] : []))];
   return { league, classes, graded: league.graded, breaches, filedBreaches };
+}
+
+// --- step 4: s4.motion.int under AM-6 (ADR-089 step 4, plan §3.1; critique 2 F2, critique 4 S1) --------
+
+/** The clause AM-6 reads under AM-1's statistic, and the pair it names: the motion alone (D6) against step 3's pricing arm (C2). */
+export const S4_MOTION_INT = Object.freeze({ clause: "s4.motion.int", arm: "D6" as ArmId, base: "C2" as ArmId });
+
+/** The named refusal while no entry filed before step 4 maps D6 against C2 and supersedes `s4.motion.int` (AM-6). */
+export function am6Refusal(why: string): string {
+  return (
+    "ADR-089 step 4: refused to read s4.motion.int: AM-6 (the guard at step 4, ADR-089 Appendix H, H.8; step-4 plan §3.1) is not filed in the amendments file's step-4 view: " +
+    `${why}. ` +
+    "s4.motion.int is D6 against C2 league-wide under AM-1's statistic only once AM-6 names that base; its filed reading (no noise term) is printed beside"
+  );
+}
+
+/**
+ * The step-4 guard entry that reads `s4.motion.int` (AM-6): the latest entry in `view` mapping step 4's
+ * guard bases, which must supersede `s4.motion.int` and grade D6 against C2. Refuses, by
+ * `am6Refusal`, while none is filed (`guardFor` throws), or when the filed entry reads the clause
+ * otherwise.
+ */
+export function s4MotionIntEntryOf(view: AmendmentsFile): { readonly entry: string; readonly record: string; readonly lines: Am1Lines } {
+  let found;
+  try {
+    found = guardFor(view, "4");
+  } catch (e) {
+    throw new Error(am6Refusal(e instanceof Error ? e.message : String(e)));
+  }
+  const { entry, rule, bases } = found;
+  if (!entry.supersedes.includes(S4_MOTION_INT.clause)) throw new Error(am6Refusal(`${entry.id} maps step 4's guard bases and does not supersede ${S4_MOTION_INT.clause}`));
+  if (bases[S4_MOTION_INT.arm] !== S4_MOTION_INT.base) {
+    throw new Error(am6Refusal(`${entry.id} reads ${S4_MOTION_INT.arm} against ${String(bases[S4_MOTION_INT.arm] ?? "nothing")}, not ${S4_MOTION_INT.base}`));
+  }
+  return { entry: entry.id, record: entry.record, lines: { zLeague: rule.zLeague, zClass: rule.zClass, zSetSE0: rule.zSetSE0 } };
+}
+
+export interface S4MotionIntReading {
+  readonly clause: string;
+  readonly entry: string;
+  readonly arm: ArmId;
+  readonly base: ArmId;
+  /** AM-1's league-wide reading of D6 against C2 (pooled Z, the entry's league line, both seed sets). */
+  readonly reading: Am1Reading;
+  /** The filed reading beside (every set's rise at most its allowance, no noise term). */
+  readonly filedPasses: boolean;
+}
+
+/**
+ * `s4.motion.int` as AM-6 reads it (plan §3.1): D6 against C2, league-wide (every aimed throw of one
+ * league, all classes pooled), under AM-1's statistic with the entry's lines, on the filed release
+ * clock (`clock`, the arm's own: both mixes on the arm's rate table). Refuses while AM-6 is not filed.
+ */
+export function s4MotionIntReading(
+  view: AmendmentsFile,
+  baseBySet: Readonly<Partial<Record<SeedSet, IntMix>>>,
+  armBySet: Readonly<Partial<Record<SeedSet, IntMix>>>,
+  clock: GuardClock,
+): S4MotionIntReading {
+  const { entry, lines } = s4MotionIntEntryOf(view);
+  const reading = am1Reading(baseBySet, armBySet, clock, "LEAGUE", lines);
+  return { clause: S4_MOTION_INT.clause, entry, arm: S4_MOTION_INT.arm, base: S4_MOTION_INT.base, reading, filedPasses: reading.filedPasses };
 }
 
 // --- reported: the paired, game-clustered SE (S4-2) ------------------------------------------------------

@@ -58,6 +58,11 @@ export function quarter(period: number): string {
   return period === 5 ? "OT" : `OT${period - 4}`;
 }
 
+/** Seconds from the snap, as the stream states them, to the hundredth: 2.413 → "2.41s". Display only. */
+export function seconds(s: number): string {
+  return `${s.toFixed(2)}s`;
+}
+
 /** SCREAMING_CASE from the stream, as a sentence fragment: "TURNOVER_ON_DOWNS" → "Turnover on downs". */
 export function sentenceCase(token: string): string {
   const words = token.toLowerCase().replace(/_/g, " ");

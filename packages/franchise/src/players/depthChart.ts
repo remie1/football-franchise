@@ -56,6 +56,7 @@ import { clamp, currentJob, normal, seatOf } from "../staff/world.js";
 import { isAvailable } from "./injuries.js";
 import { hasQuickHook, headCoachOf, teamLineup, type Lineup } from "./lineup.js";
 import type { InjuredStarter, PlayerMemory, PositionBattle } from "./types.js";
+import { LINEUP_HOPES } from "../winNow/lineupHopes.js";
 
 export interface DepthWeekInput {
   /** The week's last day. */
@@ -70,6 +71,18 @@ export interface DepthWeekInput {
   readonly reports: readonly GameParticipation[];
   /** The owner's team: even leanings until ADR-083's trait; decided "NPC" while the staff sets it. */
   readonly ownerTeam?: TeamId;
+  /**
+   * ADR-094 §9: each computer head coach's lineup mood for the week, by team (`lineupHopes`), read in
+   * the regular season only. Absent: nobody's leanings move.
+   */
+  readonly hopes?: ReadonlyMap<string, WeekHope>;
+}
+
+/** ADR-094 §9: what a head coach's read of his hopes does to his lineup this week. */
+export interface WeekHope {
+  readonly veteranDrop: number;
+  readonly youthLook: boolean;
+  readonly shakeUp: boolean;
 }
 
 export interface DepthWeekResult {
@@ -189,6 +202,9 @@ export const MORALE_HIT: Readonly<Record<DepthChartSituation, number>> = {
   KEPT_AFTER_INJURY: -4,
   FORM: -5,
   SUDDEN: -10,
+  // ADR-094 W3: benched for a younger man in a lost season, and benched in a desperate shake-up.
+  YOUTH_LOOK: -6,
+  SHAKE_UP: -8,
 };
 
 /** The rest of the morale step. CHOSEN, except where marked. */
@@ -358,16 +374,27 @@ interface TeamWeek {
   readonly byPosition: ReadonlyMap<Position, readonly string[]>;
   /** How each player looks to the coordinators (`read`) and to the head coach (`view`), in rating points. */
   readonly look: (id: string) => { read: number; view: number };
+  /** ADR-094 §9: a younger close challenger gets the spot this week. */
+  readonly youthLook: boolean;
+  /** ADR-094 §9: the starter this week's shake-up benches, if any (one a team). */
+  shake?: { position: Position; starter: string } | undefined;
 }
 
 function makeTeamWeek(
   input: DepthWeekInput, team: Team, seats: ReadonlyMap<string, StaffState>,
-  shared: Omit<TeamWeek, "input" | "team" | "lineup" | "formCoach" | "quickHook" | "deciding" | "recorded" | "byPosition" | "look">,
+  shared: Omit<TeamWeek, "input" | "team" | "lineup" | "formCoach" | "quickHook" | "deciding" | "recorded" | "byPosition" | "look" | "youthLook" | "shake">,
   played: ReadonlySet<string>,
 ): TeamWeek {
   const { at, seed, ownerTeam } = input;
   const owner = ownerTeam !== undefined && team.id === ownerTeam;
-  const lineup = teamLineup(team.id, input.staff, seed, ownerTeam);
+  // ADR-094 §9: in the regular season a coach's read of his hopes moves two of his leanings for the week.
+  const hope = at.phase === "REGULAR_SEASON" && !owner ? input.hopes?.get(String(team.id)) : undefined;
+  const base = teamLineup(team.id, input.staff, seed, ownerTeam);
+  const lineup: Lineup = hope ? {
+    ...base,
+    veteran: Math.max(0, base.veteran - hope.veteranDrop),
+    incumbent: hope.shakeUp ? base.incumbent * LINEUP_HOPES.shakeIncumbent : base.incumbent,
+  } : base;
   const coachWeight = FORM.coachMin + FORM.coachSpan * lineup.form / 100;
   const veteranPoints = COACH.veteranPoints * lineup.veteran / 100;
 
@@ -407,6 +434,7 @@ function makeTeamWeek(
 
   return {
     ...shared, input, team, lineup, look, recorded, byPosition,
+    youthLook: hope?.youthLook === true,
     formCoach: lineup.form >= COACH.formCoachFrom,
     quickHook: !owner && hasQuickHook(headCoachOf(team.id, input.staff)),
     deciding: DECIDING_PHASES.has(at.phase) && (at.phase !== "PLAYOFFS" || played.has(String(team.id))),
@@ -603,24 +631,67 @@ function decide(
     const challenger = bestOf(available.filter((id) => !slots.includes(id) && !benched.has(id)), (id) => t.look(id).view);
     if (challenger === undefined) return;
     const contestable = slots.filter((id): id is string => id !== undefined && !placed.has(id));
+    // ADR-094 §9: in a lost season the spot is opened to a younger challenger.
+    const youth = (id: string) => t.youthLook && younger(t, challenger, id);
     const keep = (id: string) => {
       const hooked = t.quickHook && (t.gameThisWeek.get(id) ?? Infinity) <= FORM.badGame;
       const margin = hooked ? -COACH.quickHookPoints
-        : t.formCoach || inBattle(id, challenger) ? COACH.openMargin
+        : t.formCoach || inBattle(id, challenger) || youth(id) ? COACH.openMargin
         : incumbentMargin(t);
       return t.look(id).view + margin;
     };
     const starter = bestOf(contestable, (id) => -keep(id));
-    if (starter === undefined || t.look(challenger).view <= keep(starter)) return;
+    if (starter === undefined || t.look(challenger).view <= keep(starter)) break;
     slots[slots.indexOf(starter)] = challenger;
     placed.add(challenger); benched.add(starter);
     // The label is what the benched player can see: a spot declared open (on a form coach's team every
-    // spot, all season, whoever the challenger is), else his own form.
+    // spot, all season, whoever the challenger is), else a lost season's look at a younger man, else his own form.
     const situation: DepthChartSituation = OPEN_PHASES.has(at.phase) || battle !== undefined ? "OPEN_COMPETITION"
+      : youth(starter) ? "YOUTH_LOOK"
       : formDropped(t.grades[starter]) ? "FORM"
       : "SUDDEN";
     change(t, position, situation, challenger, starter);
   }
+  // ADR-094 §9: the shake-up's starter, if he is still in place, goes for the closest challenger.
+  const shake = t.shake;
+  if (shake === undefined || shake.position !== position || !slots.includes(shake.starter) || placed.has(shake.starter)) return;
+  const challenger = bestOf(available.filter((id) => !slots.includes(id) && !benched.has(id)), (id) => t.look(id).view);
+  if (challenger === undefined || t.look(challenger).view < t.look(shake.starter).view - LINEUP_HOPES.shakeClose) return;
+  slots[slots.indexOf(shake.starter)] = challenger;
+  placed.add(challenger); benched.add(shake.starter);
+  change(t, position, "SHAKE_UP", challenger, shake.starter);
+  t.shake = undefined;
+}
+
+/** Is `a` younger than `b` (by age, then by credited seasons)? */
+function younger(t: TeamWeek, a: string, b: string): boolean {
+  const pa = t.players.get(a)!.bio, pb = t.players.get(b)!.bio;
+  return pa.age < pb.age;
+}
+
+/**
+ * ADR-094 §9: a shake-up's starter. Of this week's fit starters with a game grade, the one whose
+ * recent games graded worst, among those with a fit challenger at his spot whose view is close.
+ */
+function shakeTarget(t: TeamWeek): TeamWeek["shake"] {
+  let worst: { position: Position; starter: string; grade: number } | undefined;
+  for (const position of POSITIONS) {
+    const n = STARTERS[position];
+    if (n === 0) continue;
+    const here = (t.byPosition.get(position) ?? []).filter((id) => isAvailable(t.players.get(id)!));
+    const chart = (t.team.depthChart[position] ?? []).map(String).filter((id) => here.includes(id));
+    const starters = chart.slice(0, n);
+    const rest = here.filter((id) => !starters.includes(id));
+    if (rest.length === 0) continue;
+    const best = Math.max(...rest.map((id) => t.look(id).view));
+    for (const id of starters) {
+      const games = t.grades[id]?.game ?? [];
+      if (games.length === 0 || best < t.look(id).view - LINEUP_HOPES.shakeClose) continue;
+      const grade = mean(games);
+      if (worst === undefined || grade < worst.grade || (grade === worst.grade && byId(id, worst.starter) < 0)) worst = { position, starter: id, grade };
+    }
+  }
+  return worst ? { position: worst.position, starter: worst.starter } : undefined;
 }
 
 /** The sitting coordinators and head coaches, by `team/seat`. */
@@ -667,6 +738,8 @@ export function depthChartWeek(input: DepthWeekInput): DepthWeekResult {
 
   const teams = input.teams.map((team) => {
     const t = makeTeamWeek(input, team, seats, shared, played);
+    if (t.deciding && input.at.phase === "REGULAR_SEASON" && input.hopes?.get(String(team.id))?.shakeUp === true
+      && !(input.ownerTeam !== undefined && team.id === input.ownerTeam)) t.shake = shakeTarget(t);
     const listed = new Map<Position, PlayerId[]>();
     for (const position of POSITIONS) listed.set(position, positionWeek(t, position));
     return withChart(team, listed);

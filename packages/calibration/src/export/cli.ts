@@ -5,7 +5,9 @@
  * build's design bundles, `pocket-1.s1` (step 1), `pocket-1.s2` (step 2: must act per rusher, the
  * forcing point at 0.5 s and the warning at 1.0 s) or `pocket-1.s3` (step 3: men nobody blocked run
  * on their own clock from their snap spots, a touched man is a late, weak block, and any FRONT threat
- * closes the climb lane), never an arm (O26). A non-legacy file is named after its rules too, so it
+ * closes the climb lane), never an arm (O26). `pocket-1.s4` (step 4: contact by approach and the
+ * throwing motion) is named and refused before any game until petitions P6, P7 and P8 are in
+ * contracts; step 4's "today's line plus contact" (kind T) is the pocket harness's only. A non-legacy file is named after its rules too, so it
  * never overwrites the legacy file of the same seed.
  *
  * Plays one game and saves it where the viewer looks: `apps/game/public/games/` by default,

@@ -29,7 +29,11 @@ describe("an arm whose petition is out (P17 withheld in this suite only)", () =>
     expect(armRefusal("C14")).toBe(REASON);
     expect(() => armById("C14")).toThrow(EngineRulesError);
     expect(() => armById("C14")).toThrow(/^arms: C14 waits on petition P17 .*: nothing plays it$/);
-    for (const id of ALL_ARM_IDS) if (id !== "C14") expect(armRefusal(id), id).toBeUndefined();
+    // Every other arm is played, step 4's D arms too since P6, P7 and P8 are in contracts (ADR-089 step 4).
+    for (const id of ALL_ARM_IDS) {
+      if (id === "C14") continue;
+      expect(armRefusal(id), id).toBeUndefined();
+    }
     expect(everyArm().some((a) => a.id === "C14")).toBe(false);
     expect(step3Arms().some((a) => a.id === "C14")).toBe(false);
     expect(STEP3_PLAYABLE).not.toContain("C14");

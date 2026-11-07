@@ -9,12 +9,14 @@
  * from the one they played — is a display of two fields the call already carries side by side.
  * The one cross-reference — which CHECK a beat, a tick or a threat names by its `rollRef` — is how
  * the stream itself says a late block is one (ADR-089 step 3, `lateBlocksOf` below); nothing is
- * timed or decided here.
+ * timed or decided here. From ADR-089 step 4 a quarterback hit (`QB_HIT`, P7) has its own timeline
+ * line at the seconds it states, a THROW says when the ball left his hand (`releaseSeconds`, P8),
+ * and an `arrival_contest` CHECK (P6) is listed with the dice, its second-arrival die so marked.
  */
 import type { MatchEvent, RollDetail } from "@ff/contracts";
 import { nameOf, type GameFile } from "./gameFile.js";
 import { readSnapPicture, type SnapDiagram } from "./snapPicture.js";
-import { gapWords, sentenceCase } from "./words.js";
+import { gapWords, seconds, sentenceCase } from "./words.js";
 
 export interface DetailFact {
   readonly label: string;
@@ -247,6 +249,41 @@ const APPROACH_WORDS: Readonly<Record<ThreatApproach, string>> = {
   PUSH: "bull rush, still engaged",
 };
 
+/** ADR-089 P7: where a rusher reached the quarterback from. */
+const FROM_WORDS: Readonly<Record<string, string>> = {
+  FRONT: "from the front",
+  SIDE: "from the side",
+  BEHIND: "from behind",
+};
+
+/** ADR-089 P7: a quarterback hit's line, by phase; a phase this viewer has no words for is shown in its own name. */
+function hitText(who: (id: string) => string, p: Extract<Ev, { type: "QB_HIT" }>["payload"]): string {
+  const phase: string = p.phase;
+  const rusher = who(p.rusher);
+  const qb = who(p.qb);
+  const what =
+    phase === "ARRIVAL"
+      ? `${rusher} gets to ${qb}`
+      : phase === "THROWING"
+        ? `${rusher} hits ${qb} as he throws`
+        : phase === "SHED"
+          ? `${qb} sheds ${rusher}`
+          : phase === "SACK"
+            ? `${rusher} sacks ${qb}`
+            : `${rusher} reaches ${qb} (${sentenceCase(phase).toLowerCase()})`;
+  const from = p.from === undefined ? "" : `, ${FROM_WORDS[p.from] ?? sentenceCase(p.from).toLowerCase()}`;
+  const unseen = p.seen === false ? ", unseen" : "";
+  const approachWords: Readonly<Record<string, string>> = APPROACH_WORDS;
+  const approach = p.approach === undefined ? "" : ` [${approachWords[p.approach] ?? sentenceCase(p.approach).toLowerCase()}]`;
+  return `${what} at ${seconds(p.contactSeconds)}${from}${unseen}${approach}`;
+}
+
+/** ADR-089 P6: an `arrival_contest` CHECK's second-arrival die (`.../<rusher>:contest2`, a bare d100 against 15). */
+function isSecondArrival(p: CheckPayload): boolean {
+  const kind: string = p.checkKind;
+  return kind === "arrival_contest" && p.roll?.rngLabel.endsWith(":contest2") === true;
+}
+
 // --- ADR-089 step 3: the late block, read by reference ----------------------------------------
 
 /**
@@ -333,8 +370,13 @@ function timelineText(file: GameFile, e: Ev, late: LateBlocks): string | undefin
       return `Decides: ${e.payload.choice.toLowerCase().replace("_", " ")}${e.payload.target === undefined ? "" : ` to ${who(e.payload.target)}`}`;
     case "QB_PURSUIT":
       return `Out of the pocket; pursuit due by tick ${e.payload.deadlineTick}`;
-    case "THROW":
-      return `Throws to ${who(e.payload.target)} (${e.payload.throwType.toLowerCase().replace("_", " ")}, ${sentenceCase(e.payload.accuracyTier).toLowerCase()})`;
+    case "THROW": {
+      // ADR-089 P8: when the ball left his hand, on a THROW that states it.
+      const released = e.payload.releaseSeconds === undefined ? "" : `; ball out at ${seconds(e.payload.releaseSeconds)}`;
+      return `Throws to ${who(e.payload.target)} (${e.payload.throwType.toLowerCase().replace("_", " ")}, ${sentenceCase(e.payload.accuracyTier).toLowerCase()})${released}`;
+    }
+    case "QB_HIT":
+      return hitText(who, e.payload);
     case "THROWAWAY":
       return `Throws it away (${sentenceCase(e.payload.cause).toLowerCase()})`;
     case "CATCH_RESOLUTION":
@@ -397,7 +439,8 @@ export function buildPlayDetail(file: GameFile, playId: string): PlayDetail {
       const missing = checkKind === "pass_rush_tick" ? "no die" : "missing roll";
       dice.push({
         // ADR-089 step 3: a late block's beat and ticks keep their kind and are marked as its.
-        kind: `${sentenceCase(p.checkKind)}${isLateBlockCheck(late, p) ? " (late block)" : ""}`,
+        // ADR-089 P6: the second-arrival die of an arrival_contest is marked as such.
+        kind: `${sentenceCase(p.checkKind)}${isLateBlockCheck(late, p) ? " (late block)" : isSecondArrival(p) ? " (second arrival)" : ""}`,
         who: p.actors.map((a) => nameOf(file, a)).join(" vs "),
         roll: p.roll === undefined ? missing : sayRoll(p.roll),
         // An opposed roll with no modifiers (a tick's bare d100s) adds nothing to the hover.

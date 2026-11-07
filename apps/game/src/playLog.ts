@@ -7,7 +7,12 @@
  * the log and the box score never disagree about what happened:
  *
  *  - a SACK is a dropback with no throw, no throwaway and no carry that lost ground;
- *  - the sacker is the last rusher the stream published as ARRIVED (a coverage sack has none);
+ *  - the sacker is the rusher of the play's `QB_HIT` of phase SACK when it has one (ADR-089 P7, the
+ *    man its `arrival_contest` credits), else the last rusher the stream published as ARRIVED (a
+ *    coverage sack has none);
+ *  - a quarterback hit (ADR-089 P7) is worded from its `QB_HIT`: hit as he threw (THROWING), a
+ *    rusher shed (SHED), a rusher who got to him (ARRIVAL, when that rusher has no other hit);
+ *  - the moment the ball left his hand is THROW's `releaseSeconds` (ADR-089 P8), when it has one;
  *  - an INTERCEPTION is a pass play that ended in a turnover; the man who made it is the defender
  *    in the contested catch banded INTERCEPTION, or whoever came up with a tipped ball.
  *
@@ -16,7 +21,7 @@
  */
 import type { MatchEvent, PenaltyOutcome, PocketStatus } from "@ff/contracts";
 import { nameOf, teamName, type GameFile } from "./gameFile.js";
-import { clock, downAndDistance, gain, gapWords, kickSpot, quarter, sentenceCase, spot } from "./words.js";
+import { clock, downAndDistance, gain, gapWords, kickSpot, quarter, seconds, sentenceCase, spot } from "./words.js";
 
 export type LineTag = "score" | "turnover" | "sack" | "pressure" | "penalty" | "big";
 
@@ -119,6 +124,28 @@ function all<T extends Ev["type"]>(events: readonly Ev[], type: T): Of<T>[] {
   return events.filter((e): e is Of<T> => e.type === type);
 }
 
+/**
+ * ADR-089 P7: a play's quarterback hits in words, in stream order. The SACK is the line's own
+ * sentence; an ARRIVAL is worded only for a rusher with no other hit on the play who is not the
+ * sacker. A phase this viewer has no words for (a newer file's) is shown in its own name,
+ * lower-cased.
+ */
+function hitWords(hits: readonly Of<"QB_HIT">[], who: (id: string) => string, sacker: string | undefined): string[] {
+  const words: string[] = [];
+  for (const h of hits) {
+    const p = h.payload;
+    const phase: string = p.phase;
+    if (phase === "SACK") continue;
+    if (phase === "ARRIVAL") {
+      if (p.rusher === sacker || hits.some((o) => o !== h && o.payload.rusher === p.rusher)) continue;
+      words.push(`${who(p.rusher)} got to him`);
+    } else if (phase === "THROWING") words.push(`hit as he threw by ${who(p.rusher)}`);
+    else if (phase === "SHED") words.push(`shed ${who(p.rusher)}`);
+    else words.push(`${who(p.rusher)}: ${sentenceCase(phase).toLowerCase()}`);
+  }
+  return words;
+}
+
 function describeSnap(file: GameFile, snap: SnapView, events: readonly Ev[]): { text: string; tags: LineTag[] } {
   const who = (id: string) => nameOf(file, id);
   const result = first(events, "PLAY_RESULT");
@@ -134,6 +161,7 @@ function describeSnap(file: GameFile, snap: SnapView, events: readonly Ev[]): { 
   const passer = snap.quarterback === undefined ? "The quarterback" : who(snap.quarterback);
 
   if (snap.kind === "PASS_PLAY_V1") {
+    let sacker: string | undefined;
     if (throwEvent !== undefined) {
       const target = throwEvent.payload.target;
       const tip = first(events, "TIPPED_BALL");
@@ -154,12 +182,19 @@ function describeSnap(file: GameFile, snap: SnapView, events: readonly Ev[]): { 
     } else if (run !== undefined) {
       parts.push(`${who(run.payload.carrier)} scrambles ${gain(yards)}`);
     } else if (yards < 0) {
-      const arrived = all(events, "RUSH_THREAT").filter((t) => t.payload.state === "ARRIVED").at(-1);
-      parts.push(`${passer} sacked${arrived === undefined ? "" : ` by ${who(arrived.payload.rusher)}`} ${gain(yards)}`);
+      // ADR-089 P7: the SACK hit names the man its arrival_contest credits, as the box score does.
+      const sackHit = all(events, "QB_HIT").find((h) => h.payload.phase === "SACK");
+      sacker = sackHit?.payload.rusher ?? all(events, "RUSH_THREAT").filter((t) => t.payload.state === "ARRIVED").at(-1)?.payload.rusher;
+      parts.push(`${passer} sacked${sacker === undefined ? "" : ` by ${who(sacker)}`} ${gain(yards)}`);
       tags.push("sack");
     } else {
       parts.push(`Pass play ${gain(yards)}`);
     }
+    // ADR-089 P8: when the ball left his hand, on a THROW that states it.
+    const released = throwEvent?.payload.releaseSeconds;
+    if (released !== undefined) parts[0] += `, ball out at ${seconds(released)}`;
+    const hits = hitWords(all(events, "QB_HIT"), who, sacker);
+    if (hits.length > 0) parts[0] += `, ${hits.join(", ")}`;
     const worst = all(events, "POCKET_STATUS").reduce<PocketStatus>(
       (w, p) => (POCKET_ORDER.indexOf(p.payload.status) > POCKET_ORDER.indexOf(w) ? p.payload.status : w),
       "CLEAN",

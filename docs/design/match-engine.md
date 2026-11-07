@@ -682,6 +682,43 @@ Results per Tick:
 > (petition P5): a free runner the clock timed carries the clock's pair (his path from his snap
 > spot, over his whole time from the snap), a won rep and a beaten late block the nominal pair, and
 > a free runner on today's set time neither. Legacy, s1 and s2 publish neither.
+>
+> **pocket-1.s4 (ADR-089 step 4, built behind the switch; refused until petitions P6, P7 and P8 are
+> in contracts, not measured, not the default).** Two more blocks: `pocket.contact` (the arrival
+> contest) and `throwExec.motion` (the throwing motion). While any of P6, P7 or P8 is outside
+> contracts, every bundle carrying either is refused before a die, and nothing writes the stream
+> shapes below. The rules: **throw first, FIGHT only.** The throw checks run before contact, as
+> today; a throw on a tick with a threat ARRIVED is a hit, `QB_HIT` ARRIVAL (P7), with no contest.
+> The automatic sack (§7.2) becomes the **arrival contest**, under the sack's own condition: the
+> arrived threats resolve in the grid's order (`etaTick`, then the priority alignment, then the
+> lower PlayerId). The play's first contact is a rated CHECK `arrival_contest` (P6) on
+> `rush/t<tick>/<rusherId>:contest`: two d100s, the rusher's (tackling/5 + speed/5) on that label
+> then the quarterback's (strength/5 + agility/5) on his own, `rush/t<tick>/<quarterbackId>:contest:<rusherId>`
+> (one label a roll, ADR-004), at most one approach tilt (BEHIND or NEVER: rusher +10,
+> the quarterback's agility not read; a seen PUSH or BLOCKED: quarterback +20, the rusher's speed
+> not read; the free-run clock: rusher +10), RUSHER_SACKS at a margin of `boundary` (5) or more,
+> else QB_SHEDS. Any contact after the play's first shed is the **second arrival**, one d100 on
+> `:contest2`, RUSHER_SACKS at 16 or more (0.85 at target 15). RUSHER_SACKS is the sack: a
+> `QB_HIT` SACK naming the CHECK stands right after it (its approach, from and `seen` on the stream;
+> a sack with no contest, as under rules without the contact block, writes none), and the box
+> score credits it to that CHECK's rusher. QB_SHEDS writes `QB_HIT` SHED
+> naming the CHECK and puts his existing threat back (PUSH 1.0 s, every other approach 0.5 s; no
+> new rep, beat or tick die), published DELAYED; the tick's threat list, its nearest arrival, the
+> status read on it and what forces him are then rebuilt before §7.2's move branch (no second
+> `POCKET_STATUS`). A man whose ARC threat was live when the quarterback stepped up comes from
+> BEHIND from that STEP_UP on. The **motion**: the ball leaves at the decision tick plus
+> `rho = rho0 - (release - 70) / rhoD` (0.3 s and 400; the quarterback's `release` rating), written
+> as `THROW.releaseSeconds` (P8) on every aimed throw (no throwaway, no motion after an escape). The
+> earliest rusher not ARRIVED whose contact time is at or before the release, compared in whole
+> milliseconds, is `QB_HIT` THROWING, and the throw takes the IMMEDIATE accuracy row with today's
+> poise refund; the ball still goes. A rusher's contact time (D21) is his free-run time; or the
+> breaking time (shape S's beat, or shape L's crossing of RUSHER_WINS_REP's margin between the
+> tick before the win and the win's) plus his travel; plus every DELAYED wait he served. Every
+> `QB_HIT` carries his approach, where he came from (FRONT, SIDE or BEHIND), `seen` and his
+> contact time. Kind T, today's line plus contact (the stamp, the approach card and the contact
+> block and nothing else), plays today's stem and count read and reads every contact time on the
+> published half-second grid. The only new dice are `:contest` (the rusher's and the quarterback's
+> `:contest:<rusherId>`) and `:contest2`.
 
 > **KNOWN ISSUE (logged July 2026, Phase 1 slice) — term asymmetry.**
 > The rusher above carries two-to-three attribute terms (`Pass Rush` plus a move

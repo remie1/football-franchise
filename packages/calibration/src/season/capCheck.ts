@@ -105,6 +105,8 @@ export interface CapCheckInput {
    * limbo sweep and `onYear`): what a checkpoint keeps. Watches only; it may throw to end the walk.
    */
   readonly onSeasonEnd?: (season: number, people: SeasonPeople) => void;
+  /** ADR-096 step 2: fans' and media's mood in the walk (franchise's mood step). Absent or false: none, as before. */
+  readonly mood?: boolean;
 }
 
 /** One position group's share of the money. OverTheCap's groups. */
@@ -383,6 +385,7 @@ export function runCapCheck(input: CapCheckInput): CapYear[] {
       ...players,
       ...coachingSteps,
       ...watchers(season),
+      ...(input.mood ? { mood: {} } : {}),
     });
     if (!run.complete || run.people === undefined) throw new Error(`cap check: season ${season} did not finish its league year`);
     people = run.people;

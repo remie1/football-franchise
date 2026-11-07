@@ -23,6 +23,7 @@ import { buildGameFixture } from "./gameFixtures.js";
 import type { Tunables } from "../src/tunables.js";
 import { PASS_FIXTURES, RULE_SETS, STEP1_RULE_SET_NAMES, isShapeS, isStep3 } from "./pocketTunables.js";
 import { callsUnder } from "./snapFixtures.js";
+import { S4C_TUNABLES, S4M_TUNABLES, S4S_TUNABLES, T_TUNABLES } from "./step4Fixtures.js";
 import {
   buildMixedCoverageScenario,
   buildScenario,
@@ -316,6 +317,59 @@ describe("ADR-007 #4 — RUSH_THREAT", () => {
         // After the escape the only RUSH_THREAT permitted is the RESET that
         // ends the threats the protection was carrying.
         if ((event.tick ?? 0) >= escapedAt) expect(event.payload.state).toBe("RESET");
+      }
+    }
+  });
+});
+
+/**
+ * ADR-089 P7: `QB_HIT`, from `pocket-1.s4`: a SHED or a SACK names, by `rollRef`, the
+ * `arrival_contest` CHECK right before it (cause before effect, ADR-004), with the same rusher; an
+ * ARRIVAL or THROWING hit names no roll and stands before its THROW. No other rule set writes one.
+ */
+describe("ADR-089 P7: QB_HIT", () => {
+  it("SHED and SACK name the arrival_contest CHECK right before them; ARRIVAL and THROWING name none and precede their THROW", () => {
+    const seen = new Set<string>();
+    for (const t of [S4S_TUNABLES, S4C_TUNABLES, S4M_TUNABLES, T_TUNABLES]) {
+      for (const [, build] of PASS_FIXTURES) {
+        for (let i = 0; i < 30; i++) {
+          const { state, calls } = build();
+          const events = simulatePassPlay(state, calls, `vocab-qbhit-${i}`, t).events;
+          events.forEach(({ event }, n) => {
+            if (event.type !== "QB_HIT") return;
+            const h = event.payload;
+            seen.add(h.phase);
+            expect(Object.keys(h)).toEqual(["qb", "rusher", "phase", "contactSeconds", ...(h.rollRef === undefined ? [] : ["rollRef"]), "approach", "from", "seen"]);
+            if (h.phase === "SHED" || h.phase === "SACK") {
+              const before = events[n - 1]?.event;
+              expect(before?.type).toBe("CHECK");
+              if (before?.type !== "CHECK") return;
+              expect(before.payload.checkKind).toBe("arrival_contest");
+              expect(before.payload.roll?.rngLabel).toBe(h.rollRef);
+              expect(before.payload.actors[0]).toBe(h.rusher);
+              expect(before.payload.band).toBe(h.phase === "SACK" ? "RUSHER_SACKS" : "QB_SHEDS");
+            } else {
+              expect(h.rollRef).toBeUndefined();
+              expect(events.slice(n + 1).some((e) => e.event.type === "THROW")).toBe(true);
+            }
+          });
+        }
+      }
+    }
+    expect([...seen].sort()).toEqual(["ARRIVAL", "SACK", "SHED", "THROWING"]);
+  });
+
+  it("no rule set of steps 1 to 3, nor legacy, writes a QB_HIT, an arrival_contest or releaseSeconds", () => {
+    for (const { name, tunables } of RULE_SETS) {
+      for (const [, build] of PASS_FIXTURES) {
+        for (let i = 0; i < 10; i++) {
+          const { state, calls } = build();
+          for (const { event } of simulatePassPlay(state, callsUnder(tunables, state, calls), `vocab-none-${i}`, tunables).events) {
+            expect(event.type, name).not.toBe("QB_HIT");
+            if (event.type === "CHECK") expect(event.payload.checkKind, name).not.toBe("arrival_contest");
+            if (event.type === "THROW") expect(Object.keys(event.payload), name).not.toContain("releaseSeconds");
+          }
+        }
       }
     }
   });

@@ -73,7 +73,7 @@ import {
   type ShapeS,
 } from "./clocks.js";
 import { centerOfEvents, clockKeyOf, onClockUnder, touchOfCheck, type Touch } from "./freeRunKey.js";
-import { overlayDigestOf, POCKET_1_S3_RULES, rulesOnPlayStart, type PlayStartRules } from "./rules.js";
+import { overlayDigestOf, readsStep3Facts, rulesOnPlayStart, type PlayStartRules } from "./rules.js";
 import { readS2Play, threatPartAt } from "./s2Stream.js";
 import { playsOf } from "./throwClass.js";
 
@@ -159,9 +159,12 @@ export interface S1Play {
   readonly rushers: readonly string[];
 }
 
-/** Whether a play's `PLAY_START.rules` names `pocket-1.s3` (step 3's readers widen only there). */
+/**
+ * Whether a play's `PLAY_START.rules` names `pocket-1.s3`, or from step 4 `pocket-1.s4`, which carries
+ * step 3's blocks (`readsStep3Facts`; step 3's readers widen only there).
+ */
 export function isS3Play(play: Pick<S1Play, "rules">): boolean {
-  return play.rules?.name === POCKET_1_S3_RULES;
+  return readsStep3Facts(play.rules?.name);
 }
 
 /**
@@ -224,7 +227,7 @@ function readS1Play(playId: string, events: readonly MatchEventEnvelope[]): S1Pl
   });
   if (!pass) return undefined;
 
-  const s3 = rules?.name === POCKET_1_S3_RULES;
+  const s3 = readsStep3Facts(rules?.name);
   const reps = new Map<string, CheckAt>();
   const beats = new Map<string, CheckAt>();
   const beatOfRep = new Map<string, CheckAt>();
@@ -1056,6 +1059,22 @@ function step3Hits(hit: Set<Mechanism>, play: S1Play, tunables: Tunables, mechan
   }
 }
 
+/** Step 4's two (plan §4): CONTACT and MOTION, read off the play's own events; any other leaves the play unread. */
+const STEP4_MECHANISMS: ReadonlySet<Mechanism> = new Set(["CONTACT", "MOTION"]);
+
+/**
+ * Step 4's two on one play: CONTACT, a play with an `arrival_contest` CHECK (P6); MOTION, a play with
+ * a `QB_HIT` of phase THROWING (P7), a hit inside the motion. Both are read by their type strings,
+ * which the contracts union does not name until the petitions are in contracts.
+ */
+function step4Hits(hit: Set<Mechanism>, play: S1Play, mechanisms: readonly Mechanism[]): void {
+  for (const { event } of play.events) {
+    const payload = (event as { readonly payload?: unknown }).payload as { readonly checkKind?: unknown; readonly phase?: unknown } | undefined;
+    if (mechanisms.includes("CONTACT") && event.type === "CHECK" && payload?.checkKind === "arrival_contest") hit.add("CONTACT");
+    if (mechanisms.includes("MOTION") && (event.type as string) === "QB_HIT" && payload?.phase === "THROWING") hit.add("MOTION");
+  }
+}
+
 /**
  * Counts the dropbacks each of `mechanisms` touched, on one game of the arm (`tunables` is the arm's):
  * S, a blocked dropback whose beat fell within the ticks played; the window, a dropback with a window
@@ -1063,12 +1082,13 @@ function step3Hits(hit: Set<Mechanism>, play: S1Play, tunables: Tunables, mechan
  * dropback with a tick before R whose band differs from the unscaled band of its own rolls; Heels and
  * Past only, a dropback with a BLOCKER_BEATEN or RUSHER_GAINING tick; the hold, the horizons and the
  * late free rushers, every dropback; step 2's four as `step2Hits` reads them; step 3's five as
- * `step3Hits` reads them.
+ * `step3Hits` reads them; step 4's two as `step4Hits` reads them.
  */
 export function foldAffectedGame(fold: AffectedFold, events: readonly MatchEventEnvelope[], tunables: Tunables, mechanisms: readonly Mechanism[]): void {
   const d = dialsOf(tunables);
   const step2 = mechanisms.some((m) => STEP2_MECHANISMS.has(m));
   const step3 = mechanisms.some((m) => STEP3_MECHANISMS.has(m));
+  const step4 = mechanisms.some((m) => STEP4_MECHANISMS.has(m));
   for (const play of s1PlaysOf(events)) {
     fold.dropbacks += 1;
     const hit = new Set<Mechanism>();
@@ -1104,6 +1124,7 @@ export function foldAffectedGame(fold: AffectedFold, events: readonly MatchEvent
     hit.add("LATE");
     if (step2) step2Hits(hit, play, tunables);
     if (step3) step3Hits(hit, play, tunables, mechanisms);
+    if (step4) step4Hits(hit, play, mechanisms);
     let any = false;
     for (const mech of mechanisms) {
       if (!hit.has(mech)) continue;

@@ -103,4 +103,7 @@ export const STORY_FACTS: Readonly<Record<string, readonly string[]>> = {
   COORDINATOR_ROUNDUP: ["count", "countWord", "teamCount"],
   LEAK: [...ONE_TEAM, "holder", "target"],
   RIFT: [...ONE_TEAM, "holder", "target"],
+  // ADR-094 step 5: the GM and his head coach split over the season's course. Jobs, never names.
+  COURSE_LEAK: ONE_TEAM,
+  DEADLINE_SPLIT: ONE_TEAM,
 };

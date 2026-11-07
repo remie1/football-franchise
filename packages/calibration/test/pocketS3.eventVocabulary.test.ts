@@ -19,7 +19,7 @@ import { describe, expect, it } from "vitest";
 import { armById, type ArmId } from "../src/pocket/arms.js";
 import { goldenGames } from "../src/pocket/corpus.js";
 import { GOLDEN_LEAGUES } from "../src/pocket/golden.js";
-import { overlayDigestOf, POCKET_1_S2_RULES, POCKET_1_S3_RULES, rulesOnPlayStart } from "../src/pocket/rules.js";
+import { overlayDigestOf, POCKET_1_S2_RULES, POCKET_1_S3_RULES, POCKET_1_S4_RULES, rulesOnPlayStart } from "../src/pocket/rules.js";
 import { DIELESS_TICK_KEYS, isS3Play, lateBeatLabelOf, s1PlaysOf } from "../src/pocket/s1Stream.js";
 
 const FIRST = 3;
@@ -173,6 +173,10 @@ describe("ADR-089 step 3: the s3 stream's vocabulary is the design bundle's (B3,
     expect(subset(v.types, b3.types)).toEqual([]);
     expect(subset(v.checkKinds, b3.checkKinds)).toEqual([]);
     expect(subset(v.threatStates, THREAT_STATES)).toEqual([]);
+    // Step 4's petitions (P6, P7, P8) are in contracts, and an s3 stream writes none of them.
+    expect(v.types.has("QB_HIT")).toBe(false);
+    expect(v.checkKinds.has("arrival_contest")).toBe(false);
+    for (const list of v.keyLists.get("THROW") ?? []) expect(list.split(",")).not.toContain("releaseSeconds");
     for (const [at, lists] of v.keyLists) {
       // RUSH_THREAT is read below: P5's pair is the one key list B3 lacks.
       if (at === "RUSH_THREAT") continue;
@@ -191,6 +195,26 @@ describe("ADR-089 step 3: the s3 stream's vocabulary is the design bundle's (B3,
     expect(v.s3Plays).toBe(v.passPlays);
     expect(v.misStamped).toEqual([]);
     expect(v.misKeyed).toEqual([]);
+  }, 600_000);
+
+  it("D1 (pocket-1.s4, after the lift): adds QB_HIT, the arrival_contest CHECK and THROW.releaseSeconds to C1's vocabulary, and nothing else", () => {
+    const c1 = vocabularyOf("C1");
+    const d1 = vocabularyOf("D1");
+    expect(armById("D1").rules).toBe(POCKET_1_S4_RULES);
+    expect(subset(d1.types, c1.types)).toEqual(["QB_HIT"]);
+    expect(subset(d1.checkKinds, c1.checkKinds)).toEqual(["arrival_contest"]);
+    expect(d1.misStamped).toEqual([]);
+    // QB_HIT's keys in the petition's order: qb, rusher, phase, contactSeconds, then the optional ones.
+    const qbHitOrder = ["qb", "rusher", "phase", "contactSeconds", "rollRef", "approach", "from", "seen"];
+    for (const list of d1.keyLists.get("QB_HIT") ?? []) {
+      const keys = list.split(",");
+      expect(keys.slice(0, 4), list).toEqual(qbHitOrder.slice(0, 4));
+      expect(keys, list).toEqual(qbHitOrder.filter((k) => keys.includes(k)));
+    }
+    // THROW gains releaseSeconds last, when present.
+    const throwLists = [...(d1.keyLists.get("THROW") ?? [])].map((l) => l.split(","));
+    expect(throwLists.some((keys) => keys.at(-1) === "releaseSeconds")).toBe(true);
+    for (const keys of throwLists) if (keys.includes("releaseSeconds")) expect(keys.at(-1)).toBe("releaseSeconds");
   }, 600_000);
 
   it("C3 (the free-run block without the late block): a threat has the pair or neither, and both kinds are published", () => {

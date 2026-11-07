@@ -50,6 +50,7 @@ import type { CallerVersion } from "../caller/anticipate.js";
 import { FROZEN_FOURTH_DOWN, FROZEN_TENDENCIES } from "../caller/frozenTendencies.js";
 import { runOneGame } from "../harness/runGame.js";
 import type { SimGameObservation } from "../metrics/collect.js";
+import type { RatingOverride } from "../pocket/ratingOverride.js";
 import { buildFixture, type GameFixture } from "../harness/schedule.js";
 import { buildFlatLeague } from "../league/flat.js";
 import type { AnyProvenancedLeague } from "../league/provenance.js";
@@ -82,6 +83,8 @@ export function officiatingFor(save: Pick<SaveFile, "world"> | undefined): Seaso
 export interface PlayerSwitches {
   readonly development?: boolean;
   readonly injuries?: boolean;
+  /** ADR-094 §9: each computer head coach's read of his hopes moves his lineup (off by default). */
+  readonly lineupHopes?: boolean;
 }
 const switchedOn = (s: PlayerSwitches | undefined): boolean => s?.development === true || s?.injuries === true;
 
@@ -104,6 +107,8 @@ export interface SeasonGamePassThrough {
   readonly tunables?: Tunables;
   /** ADR-089 M5 measurement arms only — see `RunGameInput.mirror`. */
   readonly mirror?: boolean;
+  /** ADR-089 step-4 probes only — see `RunGameInput.ratings`. */
+  readonly ratings?: readonly RatingOverride[];
 }
 
 export interface RealSimOptions {
@@ -121,10 +126,11 @@ export interface RealSimOptions {
 }
 
 /** `runOneGame`'s fields for a pass-through, written only where given (absent is today's game). */
-function passThrough(game: SeasonGamePassThrough | undefined): { readonly tunables?: Tunables; readonly mirror?: boolean } {
+function passThrough(game: SeasonGamePassThrough | undefined): { readonly tunables?: Tunables; readonly mirror?: boolean; readonly ratings?: readonly RatingOverride[] } {
   return {
     ...(game?.tunables === undefined ? {} : { tunables: game.tunables }),
     ...(game?.mirror === undefined ? {} : { mirror: game.mirror }),
+    ...(game?.ratings === undefined ? {} : { ratings: game.ratings }),
   };
 }
 
@@ -314,6 +320,8 @@ export interface RealSeasonInput {
    * steps' events up to its day, and that day, so no day's steps run twice.
    */
   readonly resume?: { readonly people: SeasonPeople; readonly events: readonly FranchiseEventEnvelope[]; readonly through: CalendarStamp };
+  /** ADR-096 step 2: with `players`, the fans' and media's mood in the walk. Absent or false: none. */
+  readonly mood?: boolean;
   /** ADR-089 step 0: sees each game with its snapshot. Watches only, like `onEvent`. See `SeasonGameWatcher`. */
   readonly onGame?: SeasonGameWatcher;
   /** ADR-089 step 0: passed through to every game. Measurement arms only. See `SeasonGamePassThrough`. */
@@ -344,6 +352,7 @@ export function runRealSeason(input: RealSeasonInput): { league: League; rated?:
   if (switched && rosters === "flat") throw new Error("runRealSeason: development and injuries need squads; the flat league has none");
   const season = seasonToPlay({ ...input, rosters });
   if (input.resume !== undefined && !switched) throw new Error("runRealSeason: carrying on a season's people needs the players' switches");
+  if (input.mood && !switched) throw new Error("runRealSeason: mood needs the players' switches (--development or --injuries)");
   let league: League = base;
   let rated: GeneratedLeague | StandInLeague | undefined;
   if (rosters === "generated") {
@@ -399,9 +408,11 @@ export function runRealSeason(input: RealSeasonInput): { league: League; rated?:
     players: {
       development,
       injuries: input.players?.injuries === true,
+      ...(input.players?.lineupHopes ? { lineupHopes: true } : {}),
       unfilled: (team, available, players) => unfilledPosition(squads, team, available, players),
     },
     ...(input.resume ? { resumeEvents: input.resume.events, stepsDoneThrough: input.resume.through } : {}),
+    ...(input.mood ? { mood: {} } : {}),
   });
   return { league, rated, run };
 }

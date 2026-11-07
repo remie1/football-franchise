@@ -1,5 +1,5 @@
 /**
- * The `pocket` script's entry point (ADR-089 steps 0, 1, 2 and 3):
+ * The `pocket` script's entry point (ADR-089 steps 0, 1, 2, 3 and 4):
  * `pnpm --filter @ff/calibration pocket -- --step 0 [--write-filed <filing.json>] [--out <file.json>]`;
  * `pnpm --filter @ff/calibration pocket -- --step 1 [--arms A1,A2] [--shard i/n] [--cache <dir>] [--seed-set 1|2] [--report <file.md>] [--out <file.json>]`;
  * `pnpm --filter @ff/calibration pocket -- --step 1 --digests --out <file.json>`;
@@ -8,9 +8,14 @@
  * `pnpm --filter @ff/calibration pocket -- --step 2 [--arms A1] [--cache <dir>] [--seed-set 1|2] --m2`;
  * `pnpm --filter @ff/calibration pocket -- --step 3 [--arms C1,C2] [--shard i/n] [--cache <dir>] [--seed-set 1|2] [--report <file.md>] [--out <file.json>]`;
  * `pnpm --filter @ff/calibration pocket -- --step 3 --digests --out <file.json>`;
- * `pnpm --filter @ff/calibration pocket -- --step 3 [--arms C1,C2] [--cache <dir>] [--seed-set 1|2] --part1`.
+ * `pnpm --filter @ff/calibration pocket -- --step 3 [--arms C1,C2] [--cache <dir>] [--seed-set 1|2] --part1`;
+ * `pnpm --filter @ff/calibration pocket -- --step 4 [--arms D1,D6] [--shard i/n] [--cache <dir>] [--seed-set 1|2] [--report <file.md>] [--out <file.json>]`;
+ * `pnpm --filter @ff/calibration pocket -- --step 4 --digests --out <file.json>`;
+ * `pnpm --filter @ff/calibration pocket -- --step 4 [--arms D1,D6] [--cache <dir>] [--seed-set 1|2] --part1`
+ * (P6, P7 and P8 are in contracts and AM-6 and AM-7 are filed, ADR-089 Appendix H, H.7 to H.9;
+ * a cut amendments file or a withheld petition is still refused by name).
  * The arguments and step 0 live in `step0.ts`, step 1 in `step1.ts`, step 2 in `step2.ts`, step 3
- * in `step3.ts`, where they are tested.
+ * in `step3.ts`, step 4 in `step4.ts`, where they are tested.
  */
 import { pocketCommand } from "./step0.js";
 

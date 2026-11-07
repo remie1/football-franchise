@@ -21,7 +21,8 @@ import type { StaffWorld } from "../staff/world.js";
 import { seatOf } from "../staff/world.js";
 import { findClashes, type ClashResult } from "./clash.js";
 import { bandOf, coordinatorReport } from "./coordinators.js";
-import { gmReport } from "./gm.js";
+import { gmReport, ORDERED } from "./gm.js";
+import { headCoachReport, tiltWindow } from "./headCoach.js";
 import { UNIT_OF, type MeetingGroup } from "./strength.js";
 import type { MeetingTruth } from "./truth.js";
 
@@ -30,6 +31,10 @@ export interface MeetingInput {
   gm: StaffState;
   oc?: StaffState;
   dc?: StaffState;
+  /** ADR-094 §7: the head coach, who speaks to next season's wins and the window. */
+  hc?: StaffState;
+  /** ADR-094 §7: each man's working lean, which tilts a borderline WINDOW read. Absent: no tilt. */
+  leans?: { gm: number; hc?: number; hcPressure?: number };
   truth: MeetingTruth;
   views?: readonly RelationshipView[];
   seed: string;
@@ -43,18 +48,32 @@ export interface MeetingOutcome {
   moves: MoveRequest[];
   /** The course the GM argues for (point 9). */
   gmWindow: TeamDirection;
+  /**
+   * The course the GM settles on: his own, or, when the head coach won their WINDOW argument and the
+   * GM thinks well of him (view 20 and up), one step toward the coach's (ADR-094 §7, §5's Q3 b).
+   */
+  direction: TeamDirection;
 }
+
+/** ADR-094 §7 with §5's Q3 b: the GM meets a coach who won the WINDOW argument when his view of him is at least this. */
+export const MEET_HALFWAY_VIEW = 20;
 
 const SIDE_GROUPS = (unit: "OFFENSE" | "DEFENSE"): ReadonlySet<string> =>
   new Set((Object.keys(UNIT_OF) as MeetingGroup[]).filter((g) => UNIT_OF[g] === unit));
 
 export function holdMeeting(input: MeetingInput): MeetingOutcome {
-  const { team, gm, oc, dc, truth, seed } = input;
+  const { team, gm, oc, dc, hc, truth, seed } = input;
   const takes: MeetingTake[] = gmReport({ gm, truth, seed });
+  if (input.leans) {
+    // §7: the GM's window read, tilted by his own working lean.
+    const w = takes.find((t) => t.claim.point === "WINDOW")!;
+    w.claim = { ...w.claim, direction: tiltWindow(w.claim.direction!, input.leans.gm, truth) };
+  }
   if (oc) takes.push(...coordinatorReport({ coach: oc, seat: "OC", truth, seed }));
   if (dc) takes.push(...coordinatorReport({ coach: dc, seat: "DC", truth, seed }));
+  if (hc) takes.push(...headCoachReport({ coach: hc, truth, seed, lean: input.leans?.hc ?? 50 }));
 
-  const staff = new Map([gm, oc, dc].filter((s): s is StaffState => s !== undefined).map((s) => [String(s.id), s]));
+  const staff = new Map([gm, oc, dc, hc].filter((s): s is StaffState => s !== undefined).map((s) => [String(s.id), s]));
   const viewMap = new Map((input.views ?? []).map((v) => [viewKey(v.from, v.of), v.score]));
   const lowerView = (a: StaffId, b: StaffId) => {
     const ab = viewMap.get(viewKey(a, { staff: b })), ba = viewMap.get(viewKey(b, { staff: a }));
@@ -63,6 +82,8 @@ export function holdMeeting(input: MeetingInput): MeetingOutcome {
   const jobOnLine = new Set<string>();
   if (oc && bandOf(truth.units.OFFENSE.rank) === "BOTTOM_10") jobOnLine.add(String(oc.id));
   if (dc && bandOf(truth.units.DEFENSE.rank) === "BOTTOM_10") jobOnLine.add(String(dc.id));
+  // ADR-094 §5: the head coach's job is on the line when his pressure is over a half.
+  if (hc && (input.leans?.hcPressure ?? 0) > 0.5) jobOnLine.add(String(hc.id));
   const sideGroups = new Map<string, ReadonlySet<string>>();
   if (oc) sideGroups.set(String(oc.id), SIDE_GROUPS("OFFENSE"));
   if (dc) sideGroups.set(String(dc.id), SIDE_GROUPS("DEFENSE"));
@@ -78,9 +99,17 @@ export function holdMeeting(input: MeetingInput): MeetingOutcome {
     moves.push({ move, from: b, of: { staff: a }, ...(losers.includes(b) ? { openRift: true } : {}) });
   }
   const window = takes.find((t) => t.speaker === gm.id && t.claim.point === "WINDOW")!.claim.direction!;
+  let direction = window;
+  if (hc) {
+    const argued = clashes.find((c) => c.point === "WINDOW" && c.between.includes(gm.id) && c.between.includes(hc.id));
+    const coachSays = takes.find((t) => t.speaker === hc.id && t.claim.point === "WINDOW")!.claim.direction!;
+    if (argued?.winner === hc.id && (viewMap.get(viewKey(gm.id, { staff: hc.id })) ?? 0) >= MEET_HALFWAY_VIEW) {
+      direction = ORDERED[ORDERED.indexOf(window) + Math.sign(ORDERED.indexOf(coachSays) - ORDERED.indexOf(window))]!;
+    }
+  }
   return {
     meeting: { team: team.id, season: truth.season, at: input.at, takes, clashes: clashes.map(({ point, between, heat }) => ({ point, between, heat })) },
-    clashes, moves, gmWindow: window,
+    clashes, moves, gmWindow: window, direction,
   };
 }
 
@@ -99,10 +128,13 @@ export function applyMeetingMoves(
 }
 
 /** The team's GM, offensive and defensive coordinator from a staff list. */
-export function meetingStaff(team: TeamId, staff: readonly StaffState[]): { gm: StaffState | undefined; oc: StaffState | undefined; dc: StaffState | undefined } {
+export function meetingStaff(
+  team: TeamId, staff: readonly StaffState[],
+): { gm: StaffState | undefined; oc: StaffState | undefined; dc: StaffState | undefined; hc: StaffState | undefined } {
   const on = staff.filter((s) => s.teamId === team && s.retiredAfter === undefined);
   return {
     gm: on.find((s) => s.role === "GM"),
+    hc: on.find((s) => seatOf(s) === "HEAD_COACH"),
     oc: on.find((s) => seatOf(s) === "OC"),
     dc: on.find((s) => seatOf(s) === "DC"),
   };

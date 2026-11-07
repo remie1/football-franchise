@@ -500,6 +500,13 @@ export const SURFACE: Record<CheckKind, CheckDescriptor> = {
       "rating cannot move this check at all. The flat range is the edge-threat and urgency " +
       "penalties, both situational rather than rating-driven.",
   },
+  arrival_contest: {
+    form: "UNIMPLEMENTED",
+    docRef: "ADR-089 §4.5",
+    note:
+      "pocket-1 only (from pocket-1.s4); OPPOSED d100 + tackling/5 + speed/5 against d100 + strength/5 + agility/5 at b = 5, " +
+      "each face on its own label, at most one tilt; :contest2 one d100 against 15, sacks at 16 or more",
+  },
 
   passing_lane: {
     form: "TARGET",

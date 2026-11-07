@@ -700,6 +700,37 @@ export function intGuard(base: IntMix, arm: IntMix, clock: GuardClock): GuardVer
   return { baseRate, armRate, rise, allowed, passes: rise <= allowed };
 }
 
+/**
+ * ADR-089 step 4's own-clock print (AM-6, plan §3.1; critique 4 B3): the rise the real rates predict
+ * when each side's mix is read on its own release clock, the base on `baseClock` and the arm on
+ * `armClock` (sum_i arm share_i * armRate_i - sum_i base share_i * baseRate_i). `mixPredictedRise`
+ * above, which reads both mixes on the arm's clock as §8 files it, is unchanged and is the graded
+ * reading; this one is printed beside, never graded: on a motion arm (raw seconds) against a step-3
+ * base (the tick) it gives an unchanged mix the difference of the two rate tables as allowance, which
+ * the sim cannot earn. With `baseClock === armClock` it equals `mixPredictedRise` on that clock.
+ */
+export function mixPredictedRiseOwnClock(baseAimedByBin: readonly number[], armAimedByBin: readonly number[], baseClock: GuardClock, armClock: GuardClock): number {
+  const rates = (clock: GuardClock): readonly number[] => (clock === "TICK" ? REAL.intPerAimedTick : REAL.intPerAimedRaw);
+  if (baseAimedByBin.length !== RELEASE_BINS.length || armAimedByBin.length !== RELEASE_BINS.length) throw new Error("mixPredictedRiseOwnClock: a mix has one count per release bin");
+  const nb = total(baseAimedByBin);
+  const na = total(armAimedByBin);
+  if (!(nb > 0) || !(na > 0)) throw new Error("mixPredictedRiseOwnClock: each mix needs at least one aimed throw");
+  const armRates = rates(armClock);
+  const baseRates = rates(baseClock);
+  let rise = 0;
+  for (let i = 0; i < RELEASE_BINS.length; i++) rise += (armAimedByBin[i]! / na) * armRates[i]! - (baseAimedByBin[i]! / nb) * baseRates[i]!;
+  return rise;
+}
+
+/** `intGuard` with the own-clock allowance (printed beside the graded reading, never graded). */
+export function intGuardOwnClock(base: IntMix, arm: IntMix, baseClock: GuardClock, armClock: GuardClock): GuardVerdict {
+  const baseRate = (100 * base.interceptions) / total(base.aimedByBin);
+  const armRate = (100 * arm.interceptions) / total(arm.aimedByBin);
+  const rise = armRate - baseRate;
+  const allowed = mixPredictedRiseOwnClock(base.aimedByBin, arm.aimedByBin, baseClock, armClock);
+  return { baseRate, armRate, rise, allowed, passes: rise <= allowed };
+}
+
 /** D28's aimed throw classes (ADR-089:1308): THROW_CLASSES without THROWAWAY, SCRAMBLE and SACK. */
 export const GUARD_CLASSES: readonly ThrowClass[] = THROW_CLASSES.filter((c) => c !== "THROWAWAY" && c !== "SCRAMBLE" && c !== "SACK");
 
