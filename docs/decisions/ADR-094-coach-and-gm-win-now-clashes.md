@@ -246,6 +246,24 @@ and how early, not by any edge.
   chance for both men, tuned to about 1 GM a year in midseason (counted, Appendix A); head coaches'
   midseason firings are counted at the build.
 
+## Build record
+
+**Step 1 (2026-11-07, thread "Design coach and GM win-now clashes").** In `packages/franchise`:
+- `src/winNow/lean.ts`: `drawWinNowLean`, `winNowLean` (the held `winNowLean` rating, else the draw),
+  `withWinNowLean`. Centers GM 40, head coach 60, spread 15, nudges fiery +10, demanding +5,
+  playersCoach 0, cerebral -5, quiet -10, on the fork `franchise:winNowLean` by id (all CHOSEN).
+- `src/winNow/pressure.ts`: `workingLean(lean, pressure)` (two thirds of the way to 100 at full
+  pressure) and `headCoachPressure(coach, seasonSoFar)`, the president's offseason formula on the
+  season so far, plus 0.15 in the last contract year. Before a team has played, the season reads as
+  even. GM pressure comes with step 2.
+- `src/staff/offseason.ts`: the president's verdict on his head coach moved, unchanged, into
+  `headCoachVerdict`, which the offseason and the midseason pressure both read. Check: the 20-season
+  `staff-check --views` report is identical before and after.
+- `src/relationships/ledger.ts`: each team's GM and head coach hold views of each other, and on the
+  user's team the GM views the user. The GM still holds none of the coordinators.
+- Nothing reads a lean or pressure yet; they are read from step 3 (the weekly stance) on.
+- Tests: `test/winNow.test.ts` (12).
+
 ## Appendix A: new GMs by season, 2018-2026 (counted from Wikipedia season pages)
 
 Background: FO = came up through a front office; Re = former GM; HC = head coach given GM power;
