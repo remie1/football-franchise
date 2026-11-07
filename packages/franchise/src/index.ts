@@ -160,10 +160,11 @@ export {
 } from "./meeting/gm.js";
 export { BAND_ORDER, COORDINATOR_POINTS, bandOf, coordinatorReport, type CoordinatorReportInput, type UnitBand } from "./meeting/coordinators.js";
 export { HEAT, TEMPER, findClashes, stepsApart, type ClashInput, type ClashResult } from "./meeting/clash.js";
+export { HEAD_COACH_POINTS, MEETING_LEAN, headCoachReport, tiltWindow, type HeadCoachReportInput } from "./meeting/headCoach.js";
 export {
-  applyMeetingMoves, holdMeeting, meetingStaff, reportCard, type MeetingInput, type MeetingOutcome, type ReportCardLine,
+  MEET_HALFWAY_VIEW, applyMeetingMoves, holdMeeting, meetingStaff, reportCard, type MeetingInput, type MeetingOutcome, type ReportCardLine,
 } from "./meeting/meeting.js";
-export { MEETING_STEP_PREFIX, meetingSteps, seasonOverAt, type MeetingStepsConfig } from "./meeting/steps.js";
+export { MEETING_STEP_PREFIX, meetingLeans, meetingSteps, seasonOverAt, type MeetingStepsConfig } from "./meeting/steps.js";
 // ADR-093 step 1: the league's officiating crews (made for a new league, carried into each new season).
 export { CREW_RULES } from "./officials/tables.js";
 export {

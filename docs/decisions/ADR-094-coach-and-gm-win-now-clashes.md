@@ -398,6 +398,31 @@ Midseason firings (Q13 a) come in the next PR.
   needs a player in this league), so the shares build over the first decades of a league.
 - Tests: `test/staff.formerPlayers.test.ts` (6).
 
+**Step 4 (2026-11-07, same thread; §7).** In `packages/franchise`; no contracts change. Behind the
+meeting's switch `headCoach` (`MeetingStepsConfig`), off by default: the cap thread asked (2026-11-07
+13:25Z) that `Team.direction` not move until its step 14 panels with the aging thread are graded,
+since the look-ahead, the room held back and the free agents chased all read it. Off, the meeting is
+exactly as before. On:
+- `src/meeting/headCoach.ts`: the head coach speaks to NEXT_WINS (a number of wins, read as the GM
+  reads it) and WINDOW, each rolled with his own point skill and the point's difficulty, his
+  personality tilting a wrong read as the GM's does. `tiltWindow`: at a working lean of 70 or more a
+  borderline read moves one step toward contend, at 30 or under one step toward rebuild; a read is
+  borderline when one win more (or fewer) next season and the season after would move the team's
+  true window that way. The GM's own WINDOW read is tilted by his working lean the same way.
+- Working leans (`meetingLeans` in `src/meeting/steps.ts`): each man's lean pushed by his pressure
+  on the whole season just played, a contract that runs out after next season counting as a last year.
+- `src/meeting/clash.ts`: two WINDOW reads clash by their steps apart; two men's win numbers clash
+  at 2 apart (one step) and 4 (two). The head coach's job is on the line in the heat when his
+  pressure is over a half (§5).
+- `src/meeting/meeting.ts`: the GM's final word sets the course; when the head coach won their
+  WINDOW argument and the GM's view of him is 20 or more, it moves one step toward the coach's
+  (§5's Q3 b). The views move through the meeting's moves as before.
+- Eight made-up seasons of the test league (seeds dir-0 to dir-7, 256 meetings): with the switch off
+  the courses are retool 43%, contend 25%, rebuild 33%; on, 39%, 25%, 36%, with a WINDOW argument in
+  161 of the 256 meetings (the window is the hardest point, so two reads differ often). GMs' leans
+  center on 40, so the tilt mostly nudges low-lean GMs toward rebuild.
+- Tests: `test/meeting.headCoach.test.ts` (6).
+
 ## Appendix A: new GMs by season, 2018-2026 (counted from Wikipedia season pages)
 
 Background: FO = came up through a front office; Re = former GM; HC = head coach given GM power;
