@@ -44,6 +44,7 @@
 import type { PlayerId, TeamId } from "@ff/contracts";
 import { isGameScoped } from "../game/events.js";
 import type { GameEventEnvelope, PlayScopedEvent } from "../game/events.js";
+import { ARRIVAL_CONTEST_KIND } from "../events.js";
 
 export interface PassingLine {
   readonly attempts: number;
@@ -242,6 +243,12 @@ interface PlayScratch {
   tipRecoveredBy: PlayerId | undefined;
   lastTackler: PlayerId | undefined;
   lastArrivedRusher: PlayerId | undefined;
+  /**
+   * ADR-089 step 4 (plan §2.3, critique 3 S8): the rusher of the play's last `arrival_contest`
+   * CHECK in band RUSHER_SACKS, the man at contact. Only a step-4 stream carries that CHECK, so under
+   * every other stream this stays `undefined` and the legacy rule credits the sack.
+   */
+  contactSacker: PlayerId | undefined;
   runCarrier: PlayerId | undefined;
   runCarryType: string | undefined;
   hadThrow: boolean;
@@ -408,6 +415,7 @@ function applyPlayEvent(
       tipRecoveredBy: undefined,
       lastTackler: undefined,
       lastArrivedRusher: undefined,
+      contactSacker: undefined,
       runCarrier: undefined,
       runCarryType: undefined,
       hadThrow: false,
@@ -455,6 +463,10 @@ function applyPlayEvent(
         // the carrier LOST. There is no TACKLE event and ADR-010 declined to add
         // one, on the grounds that this reducer is three lines. This is them.
         play.lastTackler = opponent;
+      }
+      // ADR-089 step 4 (P6): read structurally, since `arrival_contest` is not yet a contracts kind.
+      if (String(p.checkKind) === ARRIVAL_CONTEST_KIND && String(p.band) === "RUSHER_SACKS" && actor !== undefined) {
+        play.contactSacker = actor;
       }
       if (p.checkKind === "catch" && p.band !== undefined && p.band.startsWith("DROPPED")) {
         play.dropBy = actor;
@@ -538,7 +550,9 @@ function applyPlayEvent(
       if (isPass && !play.hadThrow && play.runCarrier === undefined && yards < 0) {
         // INFERENCE: the sacker is the last rusher the stream published as
         // ARRIVED. A coverage sack has none and is credited to nobody.
-        const sacker = play.lastArrivedRusher;
+        // ADR-089 step 4: on a stream with contact, the man whose contest sacked him (the last
+        // RUSHER_SACKS `arrival_contest`), never a man who was shed earlier; the legacy rule otherwise.
+        const sacker = play.contactSacker ?? play.lastArrivedRusher;
         if (sacker !== undefined) {
           const line = touch(sacker, teamFor(sacker));
           if (line !== undefined) line.defense.sacks += 1;

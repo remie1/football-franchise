@@ -80,6 +80,7 @@ export function renderPlay(events: readonly MatchEventEnvelope[], names: NameLoo
   lines.push(...renderRunBlocking(events, name));
   lines.push(...renderRoutes(events, name));
   lines.push(...renderPocketMovement(events, name));
+  lines.push(...renderContact(events, name));
   lines.push(...renderQbDecisionMaking(events, name));
   lines.push(...renderThrow(events, name));
   lines.push(...renderCatch(events, name));
@@ -552,6 +553,49 @@ function renderPocketMovement(events: readonly MatchEventEnvelope[], name: NameL
   return ["POCKET MOVEMENT (§7.2 throw / MOVE / take hit):", ...out, ""];
 }
 
+/**
+ * ADR-089 step 4 — CONTACT: each `arrival_contest` CHECK (P6) and each `QB_HIT` (P7), in stream
+ * order. Neither is a contracts type until the owner lifts P6 and P7, so both are read structurally
+ * here, and a stream without them (every stream today) prints no section at all.
+ */
+function renderContact(events: readonly MatchEventEnvelope[], name: NameLookup): string[] {
+  const out: string[] = [];
+  for (const { event } of events) {
+    const type: string = event.type;
+    const payload = (event as { payload?: unknown }).payload as Record<string, unknown> | undefined;
+    const tick = (event as { tick?: number }).tick;
+    if (payload === undefined) continue;
+    if (type === "CHECK" && String(payload["checkKind"]) === "arrival_contest") {
+      const actors = payload["actors"] as readonly PlayerId[];
+      const roll = payload["roll"] as RollDetail;
+      const opposed = payload["opposedRoll"] as RollDetail | undefined;
+      const rusher = actors[0];
+      const second = opposed === undefined;
+      out.push(
+        `  ├─ Tick ${tickLabel(tick)}: ${second ? "second arrival" : "arrival contest"}` +
+          (rusher === undefined ? "" : ` (${name(rusher)})`),
+      );
+      if (second) out.push(`  │    ${formatRoll(roll)} vs. target ${String(payload["target"])}`);
+      else {
+        out.push(`  │    Rusher: ${formatRoll(roll)}`);
+        out.push(`  │    QB:     ${formatRoll(opposed)} (sacks at ${signed(payload["target"] as number)} or more)`);
+      }
+      out.push(`  │    Result: ${String(payload["band"])} (${signed(payload["margin"] as number)})`);
+      out.push("  │");
+    }
+    if (type === "QB_HIT") {
+      const rusher = payload["rusher"] as PlayerId;
+      out.push(
+        `  ├─ Tick ${tickLabel(tick)}: QB_HIT ${String(payload["phase"])} by ${name(rusher)}` +
+          ` — ${String(payload["approach"])} from ${String(payload["from"])}, contact at ${String(payload["contactSeconds"])} s`,
+      );
+      out.push("  │");
+    }
+  }
+  if (out.length === 0) return [];
+  return ["CONTACT (ADR-089 step 4: throw first, then the contest):", ...out, ""];
+}
+
 function renderRoutes(events: readonly MatchEventEnvelope[], name: NameLookup): string[] {
   const routeNames = new Map<string, string>();
   const timeline = new Map<string, string[]>();
@@ -727,6 +771,10 @@ function renderThrow(events: readonly MatchEventEnvelope[], name: NameLookup): s
       (placement === undefined ? "" : ` — ${bandOf(placement.payload)} placement`),
     "  │",
   ];
+  // ADR-089 step 4 (P8): the release time, under the throwing motion only; read structurally until
+  // P8 is in contracts, and absent from every stream today.
+  const releaseSeconds = (thrown.payload as { releaseSeconds?: unknown }).releaseSeconds;
+  if (typeof releaseSeconds === "number") out.push(`  ├─ Released at ${String(releaseSeconds)} s`, "  │");
 
   // Rendered in design-doc order (§17.1): the zone defender's read of the
   // release, then the lane, then ball placement — regardless of the order the
