@@ -3,8 +3,8 @@
  * the human who runs the team: one view per direction (B2), a score from -100 to +100 that the owner
  * sees only as a word (B6).
  *
- * Views are held between the men seated on one staff (head coach and coordinators; the GM once
- * ADR-081 adds his seat). On the user's team the user stands where the head coach would: each staff
+ * Views are held between the men seated on one staff (head coach and coordinators), and between the
+ * team's GM and its head coach (ADR-094 §6; the GM holds none of the coordinators yet). On the user's team the user stands where the head coach would: each staff
  * member has a view of him, and he holds none (§3). Each week a view drifts 2% of the way back to
  * its rest point, set by the two men's personalities and coaching tree (§4); moves push it (§5); a
  * rift is a grudge that lowers the holder's rest point until something repairs it (§6).
@@ -72,14 +72,31 @@ export function viewHolders(world: StaffWorld, ctx: RelationshipContext = {}): M
   return out;
 }
 
-/** Every view there should be: each holder of each other holder, and of the user on his team. */
+/**
+ * Every view there should be: each holder of each other holder, and of the user on his team; and the
+ * GM and the head coach of each other (ADR-094 §6).
+ */
 function expectedViews(world: StaffWorld, ctx: RelationshipContext): Map<string, { from: StaffId; of: RelationshipParty }> {
   const out = new Map<string, { from: StaffId; of: RelationshipParty }>();
-  for (const [team, holders] of viewHolders(world, ctx)) {
+  const byTeam = viewHolders(world, ctx);
+  for (const [team, holders] of byTeam) {
     for (const a of holders) {
       for (const b of holders) if (a.id !== b.id) out.set(viewKey(a.id, { staff: b.id }), { from: a.id, of: { staff: b.id } });
       if (ctx.userTeam !== undefined && team === String(ctx.userTeam)) out.set(viewKey(a.id, { user: ctx.userTeam! }), { from: a.id, of: { user: ctx.userTeam! } });
     }
+  }
+  // ADR-094 §6: the team's GM and its head coach hold views of each other (the GM holds none of the
+  // coordinators yet). On the user's team the GM holds a view of the user, who stands where the
+  // head coach would.
+  for (const gm of world.staff) {
+    if (gm.role !== "GM" || gm.teamId === undefined || gm.retiredAfter !== undefined) continue;
+    const team = String(gm.teamId);
+    const hc = (byTeam.get(team) ?? []).find((s) => seatOf(s) === "HEAD_COACH");
+    if (hc) {
+      out.set(viewKey(gm.id, { staff: hc.id }), { from: gm.id, of: { staff: hc.id } });
+      out.set(viewKey(hc.id, { staff: gm.id }), { from: hc.id, of: { staff: gm.id } });
+    }
+    if (ctx.userTeam !== undefined && team === String(ctx.userTeam)) out.set(viewKey(gm.id, { user: ctx.userTeam }), { from: gm.id, of: { user: ctx.userTeam } });
   }
   return out;
 }

@@ -26,7 +26,7 @@ export { makeSave, readSave, SaveError, type MakeSaveInput, type LoadedSave } fr
 // ADR-080: coaching staffs, hiring and firing.
 export { buildStaff, freshStaff, recentreDisguise, type BuildStaffOptions, type BuiltStaff } from "./staff/buildStaff.js";
 export {
-  runStaffOffseason, headCoachFireChance, coordinatorFireChance, retireChance, seatScores,
+  runStaffOffseason, headCoachFireChance, headCoachVerdict, coordinatorFireChance, retireChance, seatScores,
   type StaffOffseasonInput, type StaffOffseasonResult, type StaffDecision, type StaffDecisionType,
   type StaffMove, type HireSource, type HeadCoachVerdict, type CoordinatorVerdict,
 } from "./staff/offseason.js";
@@ -154,3 +154,11 @@ export {
 } from "./officials/crews.js";
 export { assignWeek, crewWeek, weekRng, type AssignWeekInput } from "./officials/assign.js";
 export { seasonOfficials, type OfficiatingInput, type SeasonOfficials } from "./officials/season.js";
+
+// ADR-094: leans from patient to win-now, and job pressure.
+export {
+  LEAN_CENTER, LEAN_NUDGE, LEAN_SPREAD, WIN_NOW_LEAN, WIN_NOW_STREAM, drawWinNowLean, leanHolderOf, winNowLean, withWinNowLean,
+  type LeanHolder,
+} from "./winNow/lean.js";
+export { CONTRACT_YEAR_PRESSURE, PRESSURE_PUSH, headCoachPressure, workingLean, type SeasonSoFar } from "./winNow/pressure.js";
+

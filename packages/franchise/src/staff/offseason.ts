@@ -119,6 +119,32 @@ export interface HeadCoachVerdict {
   playoffs?: { wins: number; champion: boolean };
 }
 
+/**
+ * The president's verdict on a head coach from the seasons of his job, the last one the season being
+ * judged (§6): its win share against what the roster promised, the season before it, and credit from
+ * the earlier ones fading a year at a time. ADR-094 §2 reads it in midseason too, with the season so
+ * far as the last one. `correction` (0..1) is how fully the president adjusts for the roster.
+ */
+export function headCoachVerdict(
+  seasons: readonly StaffJob["seasons"][number][],
+  o: { played: number; teamCount: number; correction: number; politics: number; playoffs?: { wins: number; champion: boolean } },
+): HeadCoachVerdict {
+  const t = STAFF_TUNING;
+  const perf = (s: StaffJob["seasons"][number]) => winShare(s.record) - expectedShare(s.rosterRank, o.teamCount, o.correction);
+  const now = seasons[seasons.length - 1];
+  if (!now) throw new Error("staff: a head coach's verdict needs at least one season");
+  const prev = seasons.length >= 2 ? seasons[seasons.length - 2] : undefined;
+  let credit = 0;
+  for (const s of seasons.slice(0, -2)) {
+    credit += Math.pow(t.hcFireCreditDecay, o.played - s.season)
+      * (perf(s) + 0.03 * (s.playoffs?.wins ?? 0) + (s.playoffs?.champion ? 0.1 : 0));
+  }
+  return {
+    perf: perf(now), ...(prev ? { prevPerf: perf(prev) } : {}), credit, seasonsInJob: seasons.length,
+    politics: o.politics, ...(o.playoffs ? { playoffs: o.playoffs } : {}),
+  };
+}
+
 /** The president's chance of firing his head coach this offseason (§6). A champion is never fired. */
 export function headCoachFireChance(v: HeadCoachVerdict): number {
   const t = STAFF_TUNING;
@@ -324,19 +350,11 @@ export function runStaffOffseason(input: StaffOffseasonInput): StaffOffseasonRes
     const r = results.get(String(team.id))!;
     const correction = rating(president(team).attributes, "talentEvaluation") / 100;
     const job = currentJob(hc)!;
-    const perf = (s: StaffJob["seasons"][number]) => winShare(s.record) - expectedShare(s.rosterRank, teamCount, correction);
     const now = job.seasons[job.seasons.length - 1];
     if (now?.season !== played) throw new Error(`staff offseason: ${String(hc.id)} has no ${played} season on his résumé`);
-    const prev = job.seasons.length >= 2 ? job.seasons[job.seasons.length - 2] : undefined;
-    let credit = 0;
-    for (const s of job.seasons.slice(0, -2)) {
-      credit += Math.pow(t.hcFireCreditDecay, played - s.season)
-        * (perf(s) + 0.03 * (s.playoffs?.wins ?? 0) + (s.playoffs?.champion ? 0.1 : 0));
-    }
-    const p = headCoachFireChance({
-      perf: perf(now), ...(prev ? { prevPerf: perf(prev) } : {}), credit, seasonsInJob: job.seasons.length,
-      politics: rating(hc.attributes, "politics"), ...(r.playoffs ? { playoffs: r.playoffs } : {}),
-    });
+    const p = headCoachFireChance(headCoachVerdict(job.seasons, {
+      played, teamCount, correction, politics: rating(hc.attributes, "politics"), ...(r.playoffs ? { playoffs: r.playoffs } : {}),
+    }));
     hcRisk.set(String(team.id), p);
     judge(hc, team, "HEAD_COACH", p, "HEAD_COACH");
   }
