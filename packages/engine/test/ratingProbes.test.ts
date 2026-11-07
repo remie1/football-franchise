@@ -24,7 +24,7 @@ import { ATTR } from "../src/attrs.js";
 import type { Tunables } from "../src/tunables.js";
 import type { MatchGameState, PlayCalls } from "../src/types.js";
 import { L5_TUNABLES, PASS_FIXTURES, stamp } from "./pocketTunables.js";
-import { MOTION_FILED, S4C_TUNABLES, S4M_TUNABLES, T_TUNABLES, playStep4, withStep4 } from "./step4Fixtures.js";
+import { MOTION_FILED, S4C_TUNABLES, S4M_TUNABLES, T_TUNABLES, playStep4, withStep4, withoutStep4 } from "./step4Fixtures.js";
 import type { Step4Play, Step4Record } from "./step4Fixtures.js";
 
 const SEEDS = 30;
@@ -140,7 +140,9 @@ describe("ADR-089 step 4: the release probe on the engine's plays (AM-7 item 13)
       expect(rl === undefined, `${f.name} ${f.seed}`).toBe(rh === undefined);
       if (rl === undefined || rh === undefined) continue;
       aimed += 1;
-      expect(rl.at.seq, `${f.name} ${f.seed}`).toBe(rh.at.seq);
+      // The THROW stands at the same place in both plays, a THROWING hit before it aside.
+      const throwPlace = (p: Step4Play, seq: number): number => withoutStep4(p.events).findIndex((e) => e.seq === seq);
+      expect(throwPlace(lo, rl.at.seq), `${f.name} ${f.seed}`).toBe(throwPlace(hi, rh.at.seq));
       // The race is the first thing release can touch: a THROWING hit puts the throw on the IMMEDIATE
       // row, which the accuracy roll before the THROW reads; the play before the race is release-free.
       const raceOf = (p: Step4Play): number =>

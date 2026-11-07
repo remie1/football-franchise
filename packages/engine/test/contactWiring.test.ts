@@ -1,11 +1,10 @@
 /**
  * ADR-089 step 4 — CONTACT AND THE MOTION, WIRED (`sim/passPlay.ts`; plan §2.2, §7 R-4 and R-5).
  *
- * P6, P7 and P8 are not in contracts, so these plays run through the engine's test seam
- * (`simulatePassPlayWith`, the petitions granted, a recorder for what the stream will carry). On
- * corpora of the pass fixtures under the design's shape, shape S, shape L, kind T, contact alone and
- * the motion alone, they hold:
- *  - the gates: no recorder, no record (P6, P7 and P8's named errors, from the log itself);
+ * P6, P7 and P8 are in contracts, so these plays write their records on the stream (read back by
+ * `step4RecordsOf`). On corpora of the pass fixtures under the design's shape, shape S, shape L,
+ * kind T, contact alone and the motion alone, they hold:
+ *  - the gates are open: `simulatePassPlay` plays every step-4 bundle, and the log writes each record;
  *  - the contest (§4.5 items 2 to 5): its full labels, `:contest` first and `:contest2` only after
  *    the play's first shed, the bands against the margins, RUSHER_SACKS as the play's sack with a
  *    `QB_HIT` SACK naming the CHECK, QB_SHEDS as a `QB_HIT` SHED naming the CHECK and a DELAYED
@@ -21,7 +20,7 @@ import { getAttr } from "@ff/contracts";
 import type { MatchEventEnvelope, PlayerId } from "@ff/contracts";
 import { simulatePassPlay } from "../src/index.js";
 import { ATTR } from "../src/attrs.js";
-import { PetitionNotInContractsError, PlayEventLog } from "../src/events.js";
+import { PlayEventLog } from "../src/events.js";
 import { rho, toMilliseconds } from "../src/resolve/motion.js";
 import { simulatePassPlayWith } from "../src/sim/passPlay.js";
 import { PocketRulesError } from "../src/sim/pocketRules.js";
@@ -43,6 +42,7 @@ import {
   T_TUNABLES,
   playStep4,
   withStep4,
+  withoutStep4,
 } from "./step4Fixtures.js";
 import type { Step4Play, Step4Record } from "./step4Fixtures.js";
 
@@ -88,7 +88,7 @@ function latestThreat(events: readonly MatchEventEnvelope[], rusher: PlayerId, s
 
 const LABEL = /\/rush\/t(\d+\.\d)\/([^/]+):(contest2?)$/;
 
-/** Every roll label a play's stream and records carry. */
+/** Every roll label a play's stream carries (its contests included, since the lift). */
 function labelsOf(p: Step4Play): string[] {
   const out: string[] = [];
   for (const e of p.events) {
@@ -96,10 +96,6 @@ function labelsOf(p: Step4Play): string[] {
     const pl = payloadOf(e) as { roll?: { rngLabel: string }; opposedRoll?: { rngLabel: string } };
     if (pl.roll !== undefined) out.push(pl.roll.rngLabel);
     if (pl.opposedRoll !== undefined) out.push(pl.opposedRoll.rngLabel);
-  }
-  for (const c of contests(p)) {
-    out.push(c.payload.roll.rngLabel);
-    if (c.payload.opposedRoll !== undefined) out.push(c.payload.opposedRoll.rngLabel);
   }
   return out;
 }
@@ -119,40 +115,40 @@ const corpusOf = (name: string): Played[] => {
   return c;
 };
 
-describe("ADR-089 step 4 — the gates hold before the lift", () => {
-  it("pocketRulesOf refuses every step-4 bundle before the first die", () => {
-    const { state, calls } = PASS_FIXTURES[0]![1]();
-    for (const [, t] of SETS) expect(() => simulatePassPlay(state, calls, "gate", t)).toThrow(PocketRulesError);
-  });
-
-  it("the log refuses each record with no recorder, naming its petition, and writes nothing", () => {
-    const log = new PlayEventLog("g" as never, "p" as never, { season: 1, week: 1 } as never, 0);
-    expect(() => log.arrivalContest({} as never)).toThrow(PetitionNotInContractsError);
-    expect(() => log.arrivalContest({} as never)).toThrow(/petition P6 is not in contracts/);
-    expect(() => log.qbHit({} as never)).toThrow(/petition P7 is not in contracts/);
-    expect(() => log.throwBall("r" as never, "TOUCH" as never, "TIE" as never, "x", 1.25)).toThrow(/petition P8 is not in contracts/);
-    expect(log.drain()).toHaveLength(0);
-    // Without `releaseSeconds` the THROW is today's.
-    log.throwBall("r" as never, "TOUCH" as never, "TIE" as never, "x");
-    expect(log.drain()).toHaveLength(1);
-  });
-
-  it("granted petitions without a recorder: the first record throws its petition's error", () => {
-    const errors = new Set<string>();
+describe("ADR-089 step 4: the gates are open (P6, P7 and P8 in contracts)", () => {
+  it("simulatePassPlay plays every step-4 bundle, and its stream is the seam's", () => {
     for (const [, build] of PASS_FIXTURES) {
-      for (let i = 0; i < 30; i++) {
-        const { state, calls } = build();
-        for (const t of [T_TUNABLES, S4M_TUNABLES]) {
-          try {
-            simulatePassPlayWith(state, calls, `norec-${i}`, t, { petitions: GRANTED });
-          } catch (e) {
-            expect(e).toBeInstanceOf(PetitionNotInContractsError);
-            errors.add(String((e as Error).message).replace(/.*petition (P\d).*/, "$1"));
-          }
-        }
+      for (const [name, t, pictured] of SETS) {
+        const { state, calls: raw } = build();
+        const calls = pictured ? withPicture(state, raw) : raw;
+        const barrel = simulatePassPlay(state, calls, `open-${name}`, t);
+        const seam = simulatePassPlayWith(state, calls, `open-${name}`, t, { petitions: GRANTED });
+        expect(JSON.stringify(barrel.events)).toBe(JSON.stringify(seam.events));
       }
     }
-    expect([...errors].sort()).toEqual(["P6", "P7", "P8"]);
+  });
+
+  it("the log writes each record: the CHECK, the QB_HIT, and releaseSeconds last on its THROW", () => {
+    const log = new PlayEventLog("g" as never, "p" as never, { season: 1, week: 1 } as never, 0);
+    const roll = { die: "d100" as const, raw: 50, modifiers: [], total: 50, rngLabel: "g/rush/t2.0/r:contest2" };
+    log.arrivalContest({ checkKind: "arrival_contest", actors: ["r" as PlayerId, "q" as PlayerId], roll, target: 15, tier: "TIE", band: "QB_SHEDS", margin: 35, testsAttrs: [] });
+    log.qbHit({ qb: "q" as PlayerId, rusher: "r" as PlayerId, phase: "SHED", contactSeconds: 2, rollRef: roll.rngLabel, approach: "FREE", from: "FRONT", seen: true });
+    log.throwBall("w" as never, "TOUCH" as never, "TIE" as never, "x", 2.31);
+    log.throwBall("w" as never, "TOUCH" as never, "TIE" as never, "x");
+    const out = log.drain().map((e) => e.event);
+    expect(out.map((e) => e.type)).toEqual(["CHECK", "QB_HIT", "THROW", "THROW"]);
+    expect(Object.keys(out[0]!.payload as object)).toEqual(["checkKind", "actors", "roll", "tier", "margin", "testsAttrs", "target", "band"]);
+    expect(Object.keys(out[1]!.payload as object)).toEqual(["qb", "rusher", "phase", "contactSeconds", "rollRef", "approach", "from", "seen"]);
+    expect(Object.keys(out[2]!.payload as object)).toEqual(["target", "throwType", "accuracyTier", "rollRef", "releaseSeconds"]);
+    // Without `releaseSeconds` the THROW is today's, key for key.
+    expect(Object.keys(out[3]!.payload as object)).toEqual(["target", "throwType", "accuracyTier", "rollRef"]);
+  });
+
+  it("a test that withholds a petition still sees the joint gate refuse", () => {
+    const { state, calls } = PASS_FIXTURES[0]![1]();
+    for (const petition of ["P6", "P7", "P8"] as const) {
+      expect(() => simulatePassPlayWith(state, calls, "gate", T_TUNABLES, { petitions: { ...GRANTED, [petition]: false } })).toThrow(PocketRulesError);
+    }
   });
 });
 
@@ -223,8 +219,8 @@ describe("ADR-089 step 4 — the contest (§4.5 items 2 to 5)", () => {
         expect(hit.payload.rusher).toBe(c.payload.actors[0]);
         expect(hit.payload.qb).toBe(c.payload.actors[1]);
         expect(hit.payload.rollRef).toBe(c.payload.roll.rngLabel);
-        expect(hit.at).toEqual(c.at);
-        const after = p.events.filter((e) => e.seq >= c.at.seq);
+        expect(hit.at).toEqual({ seq: c.at.seq + 1, tick: c.at.tick });
+        const after = p.events.filter((e) => e.seq > hit.at.seq);
         expect(after.map(typeOf)).toEqual(["PLAY_RESULT"]);
         expect(payloadOf(after[0]!)["yards"]).toBe(-DEFAULT_TUNABLES.result.sackYardsLost);
       }
@@ -268,9 +264,9 @@ describe("ADR-089 step 4 — the contest (§4.5 items 2 to 5)", () => {
           expect(hit.payload.phase).toBe("SHED");
           expect(hit.payload.rusher).toBe(r.payload.actors[0]);
           expect(hit.payload.rollRef).toBe(r.payload.roll.rngLabel);
-          expect(hit.at).toEqual(r.at);
+          expect(hit.at).toEqual({ seq: r.at.seq + 1, tick: r.at.tick });
           const before = latestThreat(p.events, hit.payload.rusher, hit.at.seq);
-          const delayed = p.events.find((e) => e.seq === hit.at.seq);
+          const delayed = p.events.find((e) => e.seq === hit.at.seq + 1);
           expect(delayed && typeOf(delayed)).toBe("RUSH_THREAT");
           const d = payloadOf(delayed!);
           expect(d["rusher"]).toBe(hit.payload.rusher);
@@ -285,19 +281,20 @@ describe("ADR-089 step 4 — the contest (§4.5 items 2 to 5)", () => {
     expect(pushes).toBeGreaterThan(0);
   });
 
-  it("every contest label in a play is its own: unique, and drawn by nothing on the stream", () => {
+  it("every contest label in a play is its own: unique, and on the stream once, in its own CHECK", () => {
     let n = 0;
     for (const name of withContact) {
       for (const p of corpusOf(name)) {
         // Every RollDetail a contest writes has its own label (the rusher's face on `:contest`, the
-        // quarterback's on `<qb>:contest:<rusher>`); no two rolls of the play share one, records and
-        // stream together (ADR-004, as rollAccounting.test.ts holds it on the stream).
+        // quarterback's on `<qb>:contest:<rusher>`); no two rolls of the play share one (ADR-004, as
+        // rollAccounting.test.ts holds it on the stream), and nothing but its CHECK carries one.
         const own = contests(p).flatMap((c) => [c.payload.roll.rngLabel, ...(c.payload.opposedRoll === undefined ? [] : [c.payload.opposedRoll.rngLabel])]);
         n += own.length;
         expect(new Set(own).size).toBe(own.length);
-        const onStream = new Set(labelsOf({ ...p, records: [] }));
-        for (const l of own) expect(onStream.has(l)).toBe(false);
+        const others = new Set(labelsOf({ events: withoutStep4(p.events), records: [] }));
+        for (const l of own) expect(others.has(l)).toBe(false);
         const all = labelsOf(p);
+        for (const l of own) expect(all.filter((x) => x === l)).toHaveLength(1);
         expect(new Set(all).size, `${name} ${p.fixture} ${p.seed}`).toBe(all.length);
       }
     }
@@ -494,14 +491,22 @@ describe("ADR-089 step 4 — determinism and R-4's pairing", () => {
     }
   });
 
-  /** A stream with the fields a step-4 bundle adds by construction taken off: the stamp, the approach label. */
-  const normalized = (events: readonly MatchEventEnvelope[]): unknown[] =>
-    events.map((e) => {
+  /**
+   * A stream with what a step-4 bundle adds by construction taken off: the stamp, the approach label,
+   * the step-4 records themselves (`arrival_contest` CHECKs, `QB_HIT`s, `THROW.releaseSeconds`), with
+   * the events that stay numbered as they were before the lift put the records on the stream.
+   */
+  const normalized = (events: readonly MatchEventEnvelope[]): MatchEventEnvelope[] => {
+    const kept = withoutStep4(events);
+    const first = events[0]?.seq ?? 0;
+    return kept.map((e, i) => {
       const p = { ...payloadOf(e) };
       if (typeOf(e) === "PLAY_START") delete p["rules"];
       if (typeOf(e) === "RUSH_THREAT") delete p["approach"];
-      return { ...e, event: { ...e.event, payload: p } };
+      if (typeOf(e) === "THROW") delete p["releaseSeconds"];
+      return { ...e, seq: first + i, event: { ...e.event, payload: p } } as unknown as MatchEventEnvelope;
     });
+  };
 
   const pair = (base: Tunables, arm: Tunables, pictured: boolean, changes: (r: Step4Record) => boolean): { changed: number; same: number } => {
     let changed = 0;
@@ -514,17 +519,16 @@ describe("ADR-089 step 4 — determinism and R-4's pairing", () => {
         const a = normalized(simulatePassPlay(state, calls, seed, base).events);
         const b = playStep4(state, calls, seed, arm);
         const first = b.records.find(changes);
-        const bn = normalized(b.events);
         if (first === undefined) {
           same += 1;
-          expect(bn).toEqual(a);
+          expect(normalized(b.events)).toEqual(a);
         } else {
           changed += 1;
-          const upTo = (xs: unknown[]) => xs.filter((e) => (e as MatchEventEnvelope).seq < first.at.seq);
-          expect(upTo(bn)).toEqual(upTo(a));
+          const prefix = normalized(b.events.filter((e) => e.seq < first.at.seq));
+          expect(prefix).toEqual(a.slice(0, prefix.length));
           // The new dice are the contests' alone: every label the arm drew before it, the base drew too.
-          const baseLabels = new Set(labelsOf({ events: a as MatchEventEnvelope[], records: [] }));
-          for (const l of labelsOf({ events: upTo(bn) as MatchEventEnvelope[], records: [] })) expect(baseLabels.has(l)).toBe(true);
+          const baseLabels = new Set(labelsOf({ events: a, records: [] }));
+          for (const l of labelsOf({ events: prefix, records: [] })) expect(baseLabels.has(l)).toBe(true);
         }
       }
     }

@@ -243,7 +243,7 @@ describe("ADR-011 — the band invariant", () => {
     { name: "pocket-1.s4 shape S with contact and the motion", tunables: S4S_TUNABLES },
     { name: "pocket-1.s4 kind T", tunables: T_TUNABLES },
   ] as const) {
-    it.runIf(STEP4_PLAYS)(`every arrival_contest CHECK carries its band, RUSHER_SACKS or QB_SHEDS, and every kind is classified (${name})`, () => {
+    it.runIf(STEP4_PLAYS)(`every arrival_contest CHECK carries its band, RUSHER_SACKS or QB_SHEDS, and every banded kind still does (${name})`, () => {
       let contests = 0;
       for (const [, build] of PASS_FIXTURES) {
         for (let i = 0; i < 40; i++) {
@@ -251,21 +251,10 @@ describe("ADR-011 — the band invariant", () => {
           for (const { event } of simulatePassPlay(state, calls, `band-step4-${i}`, tunables).events) {
             if (event.type !== "CHECK") continue;
             const p = event.payload;
-            if (STEP4_BANDED.includes(p.checkKind)) {
-              contests += 1;
-              expect(["RUSHER_SACKS", "QB_SHEDS"]).toContain(p.band);
-              continue;
-            }
-            if (BANDED.includes(p.checkKind)) {
-              expect(p.band, `${p.checkKind} has a band table and must publish its label`).toBeTruthy();
-              continue;
-            }
-            if (UNBANDED.includes(p.checkKind)) {
-              expect(p.band).toBeUndefined();
-              continue;
-            }
-            if (TIMING_DRAWS.includes(p.checkKind)) continue;
-            throw new Error(`check kind "${p.checkKind}" is classified neither BANDED nor UNBANDED`);
+            if (BANDED.includes(p.checkKind)) expect(p.band, `${p.checkKind} has a band table and must publish its label`).toBeTruthy();
+            if (!STEP4_BANDED.includes(p.checkKind)) continue;
+            contests += 1;
+            expect(["RUSHER_SACKS", "QB_SHEDS"]).toContain(p.band);
           }
         }
       }

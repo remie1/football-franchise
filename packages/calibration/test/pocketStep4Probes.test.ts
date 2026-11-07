@@ -1,10 +1,10 @@
 /**
  * ADR-089 step 4: THE PROBES (`pocket/step4Probes.ts`, `runStep4Probes`; AM-7 items 13 and 14; review F9, F10).
  *
- * P6, P7 and P8 are not in contracts, so no probe plays a game in this build: every probe is refused
- * before its first die, as every D arm is. These tests:
- *  - hold the refusals (AM-6, AM-7, the pin, the gates, a dirty tree; the arm itself), none of which
- *    makes a cache;
+ * P6, P7 and P8 are in contracts, so a probe's arm builds; a graded probe run is still refused while
+ * AM-6 and AM-7 are not filed. These tests:
+ *  - hold the refusals (AM-6, AM-7, the pin, a test's withheld petition, a dirty tree; the arm
+ *    itself under a withheld petition), none of which makes a cache;
  *  - hold the probes' own run ids and cache: no arm id, no arm cache path, a stamp naming the overrides;
  *  - check the readings (pure) on hand-made figures: the release probe's 2 SE line in its direction,
  *    the paired SE, the play-level pairs and their verdicts;
@@ -44,6 +44,7 @@ import {
   playPairOf,
   playPlayLevelProbe,
   playProbeRun,
+  probeArmOf,
   probeFileOf,
   probeStampOf,
   releaseReading,
@@ -144,26 +145,29 @@ const granted = { pin: BOTH.pin, petitions: STEP4_PETITIONS_GRANTED };
 
 // --- the refusals ------------------------------------------------------------------------------------------
 
-describe("the probes are refused while the gates are false, as every step-4 run is", () => {
+describe("the probes are refused by name before anything plays, as every step-4 run is", () => {
   const nothing: ProbeGamesPlayer = () => {
     throw new Error("nothing plays");
   };
-  it("runStep4Probes: AM-6 first, then the gates, then a dirty tree; no cache is made", () => {
+  it("runStep4Probes: AM-6 first, then a withheld petition, then a dirty tree; no cache is made", () => {
     const parent = join(tempDir("refuse"), "probes");
     expect(() => runStep4Probes({ cacheParent: parent, filedPath: FILED, amendmentsPath: AMENDMENTS, env: ENV, playGames: nothing })).toThrow(/AM-6/);
-    expect(() => runStep4Probes({ cacheParent: parent, filedPath: FILED, amendmentsPath: BOTH.path, env: ENV, playGames: nothing, preflight: { pin: BOTH.pin } })).toThrow(STEP4_GATES_REFUSAL);
-    expect(() => runStep4Probes({ cacheParent: parent, filedPath: FILED, amendmentsPath: BOTH.path, env: ENV, playGames: nothing, preflight: { pin: BOTH.pin, petitions: { P6: true, P7: true } } })).toThrow(STEP4_GATES_REFUSAL);
+    expect(() => runStep4Probes({ cacheParent: parent, filedPath: FILED, amendmentsPath: BOTH.path, env: ENV, playGames: nothing, preflight: { pin: BOTH.pin, petitions: { P8: false } } })).toThrow(STEP4_GATES_REFUSAL);
+    expect(() => runStep4Probes({ cacheParent: parent, filedPath: FILED, amendmentsPath: BOTH.path, env: ENV, playGames: nothing, preflight: { pin: BOTH.pin, petitions: { P6: true, P7: true, P8: false } } })).toThrow(STEP4_GATES_REFUSAL);
+    expect(() => runStep4Probes({ cacheParent: parent, filedPath: FILED, amendmentsPath: BOTH.path, env: { ...ENV, dirty: true }, playGames: nothing, preflight: { pin: BOTH.pin } })).toThrow(STEP4_DIRTY_REFUSAL);
     expect(() => runStep4Probes({ cacheParent: parent, filedPath: FILED, amendmentsPath: BOTH.path, env: { ...ENV, dirty: true }, playGames: nothing, preflight: granted })).toThrow(STEP4_DIRTY_REFUSAL);
     expect(existsSync(parent)).toBe(false);
   });
 
-  it("a probe's own arm is refused by its petitions before its first die (D6 and D3)", () => {
-    expect(() => playProbeRun("PR-REL40", 1, { env: ENV, amendments: "x", playGames: nothing })).toThrow(/D6 waits on petitions P6, P7 and P8/);
-    expect(() => playProbeRun("PR-QB-STRENGTH", 2, { env: ENV, amendments: "x", playGames: nothing })).toThrow(/D3 waits on petitions P6, P7 and P8/);
+  it("a probe's own arm builds since the lift, and is refused under a withheld petition before its first die (D6 and D3)", () => {
+    expect(probeArmOf("D6").id).toBe("D6");
+    expect(probeArmOf("D3").id).toBe("D3");
+    expect(() => playProbeRun("PR-REL40", 1, { env: ENV, amendments: "x", playGames: nothing, petitions: { P6: false } })).toThrow(/P6/);
+    expect(() => playProbeRun("PR-QB-STRENGTH", 2, { env: ENV, amendments: "x", playGames: nothing, petitions: { P7: false } })).toThrow(/P7/);
     const golden: GoldenGamePlayer = () => {
       throw new Error("nothing plays");
     };
-    expect(() => playPlayLevelProbe({ env: ENV, amendments: "x", playGolden: golden })).toThrow(/D3 waits on petitions P6, P7 and P8/);
+    expect(() => playPlayLevelProbe({ env: ENV, amendments: "x", playGolden: golden, petitions: { P8: false } })).toThrow(/P8/);
   });
 
   it("--probes is step 4's flag and takes --shard, --cache, --report and --out only", () => {

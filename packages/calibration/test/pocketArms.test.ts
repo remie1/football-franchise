@@ -53,8 +53,8 @@
  *     arms of this build: `isAnyArmId` and `isRunIdOf(4, ...)` take them, `isArmId` and steps 1 to
  *     3's run lists do not; `ALL_ARM_IDS` gains them after step 3's, and steps 1 to 3's lists are
  *     unchanged. `STEP4_ARM_BASES` is plan §4's base column.
- * 20. Nothing defines or plays them: `armById` refuses a D id by name, `everyArm()` and the digests
- *     are steps 1 to 3's, and `pocket --step 4` is still refused.
+ * 20. Since P6, P7 and P8 are in contracts, every D arm is built and played: `armById` builds a D
+ *     id, `everyArm()` and the digests carry the D arms after step 3's, and `--arms` takes a D id.
  * 21. AM-6's base map (D1 on C1, D2 on C2, D6 on C2) on a stand-in entry names arms of this build;
  *     an id past D17 does not. The committed amendments file is read, never written.
  */
@@ -657,7 +657,7 @@ describe("step 3's arm lists (plan §5.1, §4.2)", () => {
     expect(STEP3_ARM_DEFS.map((d) => d.id)).toEqual([...STEP3_ARM_IDS]);
     // Every C arm is built, C14 too (P17 in contracts); everyArm() is the three steps' in order.
     expect(step3Arms().map((a) => a.id)).toEqual(BUILT_C);
-    expect(everyArm().map((a) => a.id)).toEqual([...ARM_IDS, ...STEP2_ARM_IDS, ...BUILT_C]);
+    expect(everyArm().map((a) => a.id)).toEqual([...ARM_IDS, ...STEP2_ARM_IDS, ...BUILT_C, ...STEP4_ARM_IDS]);
     // Step 1's and step 2's lists are as they were.
     expect(ARM_IDS).toHaveLength(17);
     expect(STEP1_RUN_IDS).toBe(ARM_IDS);
@@ -897,8 +897,8 @@ describe("step 3's built arms (plan §5.1, O28)", () => {
 
   it("has distinct digests over the whole union, and armOfDigest maps every stamped one", () => {
     const all = [...everyArm(), ...PROOF_OVERLAY_IDS.map((id) => proofOverlay(id))];
-    // Step 3's sixteen, C14 among them since P17 (E4b).
-    expect(all).toHaveLength(17 + 7 + 16 + 2);
+    // Step 3's sixteen, C14 among them since P17 (E4b), and step 4's seventeen since P6, P7 and P8.
+    expect(all).toHaveLength(17 + 7 + 16 + 17 + 2);
     expect(new Set(all.map((a) => a.digest)).size).toBe(all.length);
     for (const a of all) {
       expect(overlayDigestOf(a.tunables), a.id).toBe(a.digest);
@@ -927,8 +927,8 @@ describe("step 3's built arms (plan §5.1, O28)", () => {
 
 describe("C14 waits on petition P17, which is in contracts (plan §3.4, §5.1; E4b)", () => {
   it("is defined and built: no arm is refused, armById builds it, everyArm and step3Arms carry it", () => {
-    // Every arm but step 4's is played; every D arm waits on P6, P7 and P8 (ADR-089 step 4).
-    for (const id of ALL_ARM_IDS) expect(armRefusal(id) === undefined, id).toBe(!isStep4ArmId(id));
+    // Every arm is played, step 4's too since P6, P7 and P8 are in contracts (ADR-089 step 4).
+    for (const id of ALL_ARM_IDS) expect(armRefusal(id), id).toBeUndefined();
     const c14 = armById("C14");
     expect(c14.rules).toBe("pocket-1.s3");
     expect(c14.base).toBe("B5");
@@ -1025,16 +1025,15 @@ describe("step 4's arm ids, named and inert (plan §4, §5)", () => {
     expect([...STEP4_ARM_IDS]).toEqual(D);
     expect([...STEP4_RUN_IDS]).toEqual(["A0", "A14", "A1", "A11", "C1", "C2", "C14", ...STEP4_ARM_IDS]);
     expect(new Set(STEP4_RUN_IDS).size).toBe(STEP4_RUN_IDS.length);
-    // The re-played bases are arms this build defines; the D arms are not yet.
-    for (const id of STEP4_RUN_IDS.slice(0, 7)) expect(everyArm().some((a) => a.id === id), id).toBe(true);
-    for (const id of STEP4_ARM_IDS) expect(everyArm().some((a) => a.id === id), id).toBe(false);
+    // The re-played bases and the D arms are arms this build defines (the D arms since P6, P7 and P8).
+    for (const id of STEP4_RUN_IDS) expect(everyArm().some((a) => a.id === id), id).toBe(true);
     // Steps 1 to 3's lists are as they were.
     expect(ARM_IDS).toHaveLength(17);
     expect(STEP1_RUN_IDS).toBe(ARM_IDS);
     expect([...STEP2_RUN_IDS]).toEqual(["A0", "A14", "A1", "A5", "A11", "B1", "B2", "B3", "B4", "B5", "B6", "B7"]);
     expect([...STEP3_RUN_IDS]).toEqual(["A0", "A14", "A1", "A11", "B3", "B6", "B5", ...STEP3_ARM_IDS]);
     expect(STEP3_ARM_DEFS.map((d) => d.id)).toEqual([...STEP3_ARM_IDS]);
-    expect(everyArm().map((a) => a.id)).toEqual([...ARM_IDS, ...STEP2_ARM_IDS, ...STEP3_ARM_IDS]);
+    expect(everyArm().map((a) => a.id)).toEqual([...ARM_IDS, ...STEP2_ARM_IDS, ...STEP3_ARM_IDS, ...STEP4_ARM_IDS]);
   });
 
   it("STEP4_ARM_BASES is plan §4's base column, and every base is an arm of this build", () => {
@@ -1082,15 +1081,17 @@ describe("step 4's arm ids, named and inert (plan §4, §5)", () => {
     }
   });
 
-  it("defined and not played while P6, P7 or P8 is out: armById and --arms refuse a D id by its petitions, and --step 4 plays the bases", () => {
+  it("built and played since P6, P7 and P8 are in contracts: armById builds a D id, --arms takes it, and --step 4 parses", () => {
     for (const id of STEP4_ARM_IDS) {
-      expect(() => armById(id), id).toThrow(new RegExp(`^arms: ${id} waits on petitions P6, P7 and P8 \\(arrival_contest, QB_HIT, THROW\\.releaseSeconds\\).*: nothing plays it$`));
-      expect(armRefusal(id), id).toMatch(/waits on petitions P6, P7 and P8/);
-      expect(() => parsePocketArgs(["--step", "4", "--arms", id], "/"), id).toThrow(new RegExp(`^--arms: ${id} is not playable: ${id} waits on petitions P6, P7 and P8`));
+      expect(armRefusal(id), id).toBeUndefined();
+      const arm = armById(id);
+      expect(arm.id, id).toBe(id);
+      expect(arm.rules, id).toBe(POCKET_1_S4_RULES);
+      expect(parsePocketArgs(["--step", "4", "--arms", id], "/"), id).toEqual({ step: 4, arms: [id] });
     }
-    // The digests and the stamped map are steps 1 to 3's: no D arm is in the table.
+    // The digests and the stamped map carry the D arms after steps 1 to 3's.
     const all = [...everyArm(), ...PROOF_OVERLAY_IDS.map((id) => proofOverlay(id))];
-    expect(all).toHaveLength(17 + 7 + 16 + 2);
+    expect(all).toHaveLength(17 + 7 + 16 + 17 + 2);
     expect(parsePocketArgs(["--step", "4"], "/")).toEqual({ step: 4 });
     expect(() => parsePocketArgs(["--step", "5"], "/")).toThrow(/^ADR-089: steps 0, 1, 2, 3 and 4 are built .*; --step 5 is not$/);
     expect(() => parsePocketArgs(["--step", "3", "--arms", "D1"], "/")).toThrow(/^--arms: D1 is not an arm \(step 3's: A0, A14, A1, A11, B3, B6, B5, C1 to C16\)$/);
@@ -1133,9 +1134,10 @@ describe("step 4's arm definitions (K2b; ADR-089 step 4, plan §4)", () => {
     }
   });
 
-  it("refused before the lift; built under a test's granted petitions, D1 at the bundle's own digest and every D arm at its own", () => {
+  it("built since the lift, D1 at the bundle's own digest and every D arm at its own; a withheld petition still refuses", () => {
     const d1 = STEP4_DEFS.find((d) => d.id === "D1")!;
-    expect(() => buildArm(d1)).toThrow(/P6/);
+    expect(buildArm(d1).overlayDigest).toBe(POCKET_1_S4_DIGEST);
+    expect(() => buildArm(d1, { P6: false })).toThrow(/P6/);
     const built = STEP4_DEFS.map((d) => buildArm(d, STEP4_PETITIONS_GRANTED));
     expect(built[0]!.overlayDigest).toBe(POCKET_1_S4_DIGEST);
     expect(new Set(built.map((a) => a.tunablesDigest)).size).toBe(STEP4_DEFS.length);

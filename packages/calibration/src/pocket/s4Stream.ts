@@ -52,7 +52,7 @@
  *  - **AM-6's declared prints:** aimed throws and interceptions on throws hit inside the motion against
  *    unhit throws, by class; aimed throws after a shed by class with their interceptions.
  */
-import type { MatchEventEnvelope, RushAlignment, RushApproach } from "@ff/contracts";
+import type { CheckKind, MatchEvent, MatchEventEnvelope, QbHitPhase as ContractsQbHitPhase, RushAlignment, RushApproach } from "@ff/contracts";
 import type { Tunables } from "@ff/engine";
 import { releaseBinOf, RELEASE_BINS } from "../metrics/collect.js";
 import { fromOfApproach } from "./approach.js";
@@ -66,14 +66,17 @@ import { playsOf, readDropback, throwClassOf, type Dropback, type PlaySlice } fr
 /** How many failure lines a fold keeps; the count beside them is complete. */
 export const S4_PROBLEM_SAMPLE = 20;
 
-/** The CHECK kind P6 adds (the engine's `ARRIVAL_CONTEST_KIND`). */
-export const ARRIVAL_CONTEST = "arrival_contest";
-/** The event P7 adds. */
-export const QB_HIT = "QB_HIT";
+/** The CHECK kind P6 added (the engine's `ARRIVAL_CONTEST_KIND`). */
+export const ARRIVAL_CONTEST = "arrival_contest" as const satisfies CheckKind;
+/** The event P7 added. */
+export const QB_HIT = "QB_HIT" as const satisfies MatchEvent["type"];
 
 /** P7's phases, SACK included (contracts-guardian G-6): a SHED or a SACK names its `arrival_contest`. */
-export const QB_HIT_PHASES = ["ARRIVAL", "THROWING", "SHED", "SACK"] as const;
-export type QbHitPhase = (typeof QB_HIT_PHASES)[number];
+export const QB_HIT_PHASES = ["ARRIVAL", "THROWING", "SHED", "SACK"] as const satisfies readonly ContractsQbHitPhase[];
+export type QbHitPhase = ContractsQbHitPhase;
+/** Every contracts phase is listed: a phase added to `QbHitPhase` and not here fails to compile. */
+const _everyPhaseListed: readonly (typeof QB_HIT_PHASES)[number][] = [] as readonly ContractsQbHitPhase[];
+void _everyPhaseListed;
 
 /** The engine's `TiltClass` (`resolve/contact.ts`), restated: calibration reads it off the stream. */
 export const TILT_CLASSES = ["BEHIND_NEVER", "PUSH_BLOCKED", "FREE_RUN", "NONE"] as const;

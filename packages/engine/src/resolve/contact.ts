@@ -29,12 +29,11 @@
  * P(RUSHER_SACKS) = (100 - b)(101 - b)/20000 for b >= 1 (0.456 at 5) and
  * 1 - (99 + b)(100 + b)/20000 for b <= 0; the second arrival (100 - target)/100, 0.85 at 15.
  *
- * Until petitions P6 and P7 are in contracts (`sim/pocketRules.ts`), no bundle reaching a play may
- * carry the contact block, so nothing here runs in a game. The contracts names the result stands
- * in for: `ContestBand` is the `arrival_contest` CHECK's band (P6), `ContactFromClass` is P7's
- * `ContactFrom`.
+ * Only a bundle carrying the contact block (`pocket-1` from `pocket-1.s4`; petitions P6 and P7 are in
+ * contracts) runs any of it in a game. `ContestBand` is the `arrival_contest` CHECK's band (P6, a
+ * free string in contracts, ADR-011); `ContactFromClass` is P7's `ContactFrom`.
  */
-import type { AttrId, PlayerState, RollDetail, RollModifier, RushApproach } from "@ff/contracts";
+import type { AttrId, ContactFrom, PlayerState, RollDetail, RollModifier, RushApproach } from "@ff/contracts";
 import { ATTR } from "../attrs.js";
 import { actorAttrModifier, compact, flatModifier, sumModifiers } from "../rolls.js";
 import type { ContactTiltsTunables } from "../tunables.js";
@@ -46,11 +45,8 @@ import type { ArrivalClock } from "./rushThreat.js";
 /** The `arrival_contest` CHECK's two bands (P6): a sack, or he breaks free. */
 export type ContestBand = "RUSHER_SACKS" | "QB_SHEDS";
 
-/**
- * Where the hit came from, on §4.0's card: the engine's stand-in for contracts' `ContactFrom`
- * (P7), with the same three values.
- */
-export type ContactFromClass = "FRONT" | "SIDE" | "BEHIND";
+/** Where the hit came from, on §4.0's card: contracts' `ContactFrom` (P7). */
+export type ContactFromClass = ContactFrom;
 
 /** The three tilt classes of §4.5, and a contact that is of none of them. */
 export type TiltClass = "BEHIND_NEVER" | "PUSH_BLOCKED" | "FREE_RUN" | "NONE";

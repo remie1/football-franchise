@@ -32,8 +32,8 @@
  *       Strength and agility enter the contest the same way (each rating/5 on the quarterback's side),
  *       so their figures can match to the last count: that is the design, not a copied wiring.
  *  - **The refusals** are step 4's: nothing plays, and no cache is made, unless `preflightStep4`
- *    passes (AM-6, AM-7, the pin, P6, P7 and P8). While the gates are false every probe is refused
- *    before its first die, as every D arm is.
+ *    passes (AM-6, AM-7, the pin, P6, P7 and P8). Under a withheld petition (a test's set) every probe
+ *    is refused before its first die, as every D arm is.
  *  - **Their own run ids and cache.** The probes' run ids (`STEP4_PROBE_RUN_IDS`, each `PR-...`) are
  *    no arm's, and their records live in `data-cache/pocket-step4-probes/<fingerprint>/`, stamped
  *    with the overrides; no arm, cache entry or digest of any step moves. Same seed, same games.
@@ -280,7 +280,7 @@ export interface PlayProbeOptions {
   readonly env: Step1Env;
   readonly amendments: string;
   readonly corpus?: Step1Corpus;
-  /** Tests only: the petitions the arm is built under (default the constants: refused before the lift). */
+  /** Tests only: the petitions the arm is built under (default the constants, all in contracts since the lift). */
   readonly petitions?: Step4Petitions;
   /** Tests only: plays the games (default `playProbeCorpus`). */
   readonly playGames?: ProbeGamesPlayer;

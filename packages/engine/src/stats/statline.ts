@@ -464,8 +464,8 @@ function applyPlayEvent(
         // one, on the grounds that this reducer is three lines. This is them.
         play.lastTackler = opponent;
       }
-      // ADR-089 step 4 (P6): read structurally, since `arrival_contest` is not yet a contracts kind.
-      if (String(p.checkKind) === ARRIVAL_CONTEST_KIND && String(p.band) === "RUSHER_SACKS" && actor !== undefined) {
+      // ADR-089 P6: a RUSHER_SACKS contact is a sack credited to the rusher, `actors[0]`.
+      if (p.checkKind === ARRIVAL_CONTEST_KIND && p.band === "RUSHER_SACKS" && actor !== undefined) {
         play.contactSacker = actor;
       }
       if (p.checkKind === "catch" && p.band !== undefined && p.band.startsWith("DROPPED")) {

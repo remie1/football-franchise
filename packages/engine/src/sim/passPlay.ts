@@ -49,7 +49,7 @@ import type { PlayerId, PlayerState, Rng, RollModifier, RushThreatState } from "
 import { ATTR } from "../attrs.js";
 import { chemistryLevel } from "../chemistry.js";
 import { ARRIVAL_CONTEST_KIND, PlayEventLog } from "../events.js";
-import type { ArrivalContestEmission, QbHitRecord, Step4Recorder, ThreatApproach } from "../events.js";
+import type { ArrivalContestEmission, QbHitRecord, ThreatApproach } from "../events.js";
 import { clamp, flatModifier, tierFor } from "../rolls.js";
 import { TUNABLES } from "../tunables.js";
 import type { LateBlockTunables, Tunables } from "../tunables.js";
@@ -455,20 +455,18 @@ export function simulatePassPlay(
 }
 
 /**
- * ADR-089 step 4 (plan §6's "test-only recorder"): what a test hands `simulatePassPlayWith` to reach
- * the step-4 rules before petitions P6, P7 and P8 are in contracts: its own granted petitions
- * (`pocketRulesUnder`) and the recorder that receives the records the stream cannot carry yet.
+ * A test's own set of petitions (`pocketRulesUnder`), so a test can withhold one and see the gate
+ * refuse. Before the lift of P6, P7 and P8 it also carried a recorder for the step-4 records; those
+ * are on the stream now.
  */
 export interface PassPlayUnder {
   readonly petitions: ContractPetitions;
-  readonly step4Recorder?: Step4Recorder;
 }
 
 /**
  * `simulatePassPlay` with an optional test seam. ENGINE-INTERNAL: not in the barrel, and every game
  * and every caller of the barrel plays `simulatePassPlay`, which passes `undefined` and so reads the
- * petitions in contracts (`pocketRulesOf`) and writes through a log with no recorder. Only a test in
- * `engine/test` passes `under`.
+ * petitions in contracts (`pocketRulesOf`). Only a test in `engine/test` passes `under`.
  */
 export function simulatePassPlayWith(
   state: MatchGameState,
@@ -515,7 +513,7 @@ export function simulatePassPlayWith(
   }
 
   const playId = makePlayId(`${String(state.gameId)}:play:${state.playNumber}`);
-  const log = new PlayEventLog(state.gameId, playId, state.at, state.nextEventSeq, under?.step4Recorder);
+  const log = new PlayEventLog(state.gameId, playId, state.at, state.nextEventSeq);
   const qb = requirePlayer(state, state.quarterback);
 
   const playRng = createRng(seed, `game:${String(state.gameId)}`).fork(`play:${state.playNumber}`);

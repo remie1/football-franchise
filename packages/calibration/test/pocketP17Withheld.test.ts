@@ -16,7 +16,7 @@ vi.mock("../src/pocket/rules.js", async (importOriginal) => ({
   P17_IN_CONTRACTS: false,
 }));
 
-import { ALL_ARM_IDS, armById, armRefusal, everyArm, isStep4ArmId, step3Arms } from "../src/pocket/arms.js";
+import { ALL_ARM_IDS, armById, armRefusal, everyArm, step3Arms } from "../src/pocket/arms.js";
 import { EngineRulesError } from "../src/pocket/rules.js";
 import { parsePocketArgs } from "../src/pocket/step0.js";
 import { planStep3, STEP3_PLAYABLE } from "../src/pocket/step3.js";
@@ -29,11 +29,10 @@ describe("an arm whose petition is out (P17 withheld in this suite only)", () =>
     expect(armRefusal("C14")).toBe(REASON);
     expect(() => armById("C14")).toThrow(EngineRulesError);
     expect(() => armById("C14")).toThrow(/^arms: C14 waits on petition P17 .*: nothing plays it$/);
-    // Every other arm is played, but step 4's D arms, which wait on P6, P7 and P8 (ADR-089 step 4).
+    // Every other arm is played, step 4's D arms too since P6, P7 and P8 are in contracts (ADR-089 step 4).
     for (const id of ALL_ARM_IDS) {
       if (id === "C14") continue;
-      if (isStep4ArmId(id)) expect(armRefusal(id), id).toMatch(/^D\d+ waits on petitions P6, P7 and P8 /);
-      else expect(armRefusal(id), id).toBeUndefined();
+      expect(armRefusal(id), id).toBeUndefined();
     }
     expect(everyArm().some((a) => a.id === "C14")).toBe(false);
     expect(step3Arms().some((a) => a.id === "C14")).toBe(false);

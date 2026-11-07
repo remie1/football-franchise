@@ -313,22 +313,23 @@ export const S3_IN_CONTRACTS = true;
  * ADR-089 step 4 (plan §1.1, §6; `petitions.md`): the three contract petitions the step-4 blocks
  * wait on, restated from the engine (`P6_IN_CONTRACTS`, `P7_IN_CONTRACTS`, `P8_IN_CONTRACTS` in
  * `sim/pocketRules.ts`, off the barrel; `engineRules.test.ts` reads the engine's from its source and
- * fails while they differ), all false until the owner's typed yes naming each and contracts-guardian's
- * review land their text in `packages/contracts`:
+ * fails while they differ). All three are true: the owner's typed yes ("Yes, make contracts edits P6,
+ * P7 and P8.", 2026-11-07) and contracts-guardian's review landed their text in `packages/contracts`:
  *  - P6: `CheckKind` gains `"arrival_contest"` (the contact, the second arrival and the dodge);
  *  - P7: the `QB_HIT` event, with `QbHitPhase` and `ContactFrom`;
  *  - P8: `THROW.payload.releaseSeconds`.
- * While any is false, `checkStamp` refuses every tree carrying a step-4 block (`step4Refusal`), so no
- * calibration game is started under one; the engine refuses the same trees before its first die.
+ * The gate is joint: were any false, `checkStamp` would refuse every tree carrying a step-4 block
+ * (`step4Refusal`) and the engine the same trees before its first die. A test still withholds one
+ * through its own `Step4Petitions`. They flipped in the same commit as the engine's.
  */
-export const P6_IN_CONTRACTS = false;
-export const P7_IN_CONTRACTS = false;
-export const P8_IN_CONTRACTS = false;
+export const P6_IN_CONTRACTS = true;
+export const P7_IN_CONTRACTS = true;
+export const P8_IN_CONTRACTS = true;
 
 /**
  * A test's own set of the step-4 petitions (`P6`, `P7`, `P8`; one left out reads as its constant),
  * as `step4Refusal`, `checkStamp` and the engine's `pocketRulesUnder` take one. No caller outside a
- * test passes one, so the build plays nothing under a step-4 block while the constants are false.
+ * test passes one.
  */
 export interface Step4Petitions {
   readonly P6?: boolean;

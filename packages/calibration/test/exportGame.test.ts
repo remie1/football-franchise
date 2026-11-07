@@ -39,7 +39,7 @@ import { runOneGame } from "../src/harness/runGame.js";
 import { buildFixture, buildFixtures } from "../src/harness/schedule.js";
 import { buildFlatLeague } from "../src/league/flat.js";
 import { indexLeague } from "../src/league/snapshot.js";
-import { POCKET_1_S1_DIGEST, POCKET_1_S2_DIGEST, POCKET_1_S3_DIGEST, rulesTunables } from "../src/pocket/rules.js";
+import { POCKET_1_S1_DIGEST, POCKET_1_S2_DIGEST, POCKET_1_S3_DIGEST, POCKET_1_S4_DIGEST, rulesTunables } from "../src/pocket/rules.js";
 
 const SEED = "viewer:export-test";
 const game = exportGame({ seed: SEED });
@@ -234,6 +234,35 @@ describe("exportGame under pocket-1.s3 (ADR-089 step 3)", () => {
     expect(lateBeatsOf(stepThreeGame.events)).toBeGreaterThan(0);
     // pocket-1.s2's game on the same seed has none.
     expect(lateBeatsOf(stepTwoGame.events)).toBe(0);
+  });
+});
+
+describe("exportGame under pocket-1.s4 (ADR-089 step 4, after P6, P7 and P8)", () => {
+  const stepFourGame = exportGame({ seed: SEED, engineRules: "pocket-1.s4" });
+
+  it("stamps pocket-1.s4 with its overlay digest, saves runOneGame's stream untouched, and the stamp re-makes the file", () => {
+    expect(stepFourGame.engineRules).toBe("pocket-1.s4");
+    expect(stepFourGame.engineRulesDigest).toBe(POCKET_1_S4_DIGEST);
+    const observation = observedGame(SEED, rulesTunables("pocket-1.s4"));
+    expect(JSON.stringify(stepFourGame.events)).toBe(JSON.stringify(observation.events));
+    const remade = exportGame({ seed: stepFourGame.seed, callerVersion: stepFourGame.callerVersion, engineRules: stepFourGame.engineRules });
+    expect(JSON.stringify(remade)).toBe(JSON.stringify(stepFourGame));
+  });
+
+  it("carries QB_HIT, the arrival_contest CHECK and THROW.releaseSeconds, and they survive the file's JSON round trip", () => {
+    const types = new Set(stepFourGame.events.map(({ event }) => event.type));
+    expect(types.has("QB_HIT")).toBe(true);
+    const contests = stepFourGame.events.filter(({ event }) => event.type === "CHECK" && (event.payload as { checkKind?: string }).checkKind === "arrival_contest");
+    expect(contests.length).toBeGreaterThan(0);
+    const releases = stepFourGame.events.filter(({ event }) => event.type === "THROW" && (event.payload as { releaseSeconds?: number }).releaseSeconds !== undefined);
+    expect(releases.length).toBeGreaterThan(0);
+    const back = JSON.parse(JSON.stringify(stepFourGame)) as typeof stepFourGame;
+    expect(back.events).toEqual(stepFourGame.events);
+    // Today's games never carry them.
+    for (const other of [game, pocketGame, stepTwoGame, stepThreeGame]) {
+      expect(other.events.some(({ event }) => event.type === "QB_HIT")).toBe(false);
+      expect(other.events.some(({ event }) => event.type === "THROW" && "releaseSeconds" in (event.payload as object))).toBe(false);
+    }
   });
 });
 

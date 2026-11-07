@@ -25,7 +25,8 @@ import type {
   ThrowType,
 } from "@ff/contracts";
 import type { PocketStatusRung } from "./resolve/pocket.js";
-import type { ContactFromClass, ContestBand } from "./resolve/contact.js";
+import type { QbHitPhase as ContractsQbHitPhase } from "@ff/contracts";
+import type { ContestBand } from "./resolve/contact.js";
 import type { AtTheLineRecord, PassPlayStartPayload, RunPlayStartPayload } from "./types.js";
 
 /**
@@ -129,22 +130,16 @@ export interface ThreatGeometry {
 }
 
 /**
- * ADR-089 step 4 — WHAT CONTACT AND THE MOTION WILL WRITE, BEFORE PETITIONS P6, P7 AND P8 ARE IN
- * CONTRACTS (plan §2.3, §6; `petitions.md`).
- *
- * Contracts has no `arrival_contest` CheckKind (P6), no `QB_HIT` event (P7) and no
- * `THROW.payload.releaseSeconds` (P8) yet, so the engine names each in its own types below, field
- * for field as the petitions write them, and `PlayEventLog` refuses to put any of them on a stream:
- * `arrivalContest`, `qbHit` and `throwBall`'s `releaseSeconds` throw a named error while the log has
- * no `Step4Recorder`. `sim/pocketRules.ts` refuses every bundle carrying a step-4 block before the
- * first die, so no game reaches them. A test hands a recorder to the engine-internal entry
- * `simulatePassPlayWith` (`sim/passPlay.ts`, never in the barrel) with its own granted petitions;
- * the recorder receives what the stream will carry, and where. Once the petitions are in contracts,
- * each method becomes a `push` of the same payload (plan §9 commit 10).
+ * ADR-089 step 4: WHAT CONTACT AND THE MOTION WRITE (petitions P6, P7 and P8, in contracts since
+ * the owner's yes of 2026-11-07): an `arrival_contest` CHECK (P6), a `QB_HIT` (P7) and
+ * `THROW.payload.releaseSeconds` (P8). Before the lift the engine named each in its own stand-in
+ * types and refused to write them; they are now the contracts types, and `arrivalContest`, `qbHit`
+ * and `throwBall`'s `releaseSeconds` push them onto the stream. Only rules carrying a step-4 block
+ * (`pocket.contact` or `throwExec.motion`, `pocket-1` from `pocket-1.s4`) reach any of them.
  */
 
-/** The CHECK kind P6 adds: a rusher reaching the quarterback with the ball in his hand. */
-export const ARRIVAL_CONTEST_KIND = "arrival_contest";
+/** The CHECK kind P6 added: a rusher reaching the quarterback with the ball in his hand. */
+export const ARRIVAL_CONTEST_KIND = "arrival_contest" as const satisfies CheckKind;
 
 /**
  * An `arrival_contest` CHECK as P6 writes it. `actors` are the rusher, then the quarterback. On
@@ -165,24 +160,15 @@ export interface ArrivalContestEmission {
   readonly testsAttrs: readonly AttrId[];
 }
 
-/**
- * The CHECK payload an `ArrivalContestEmission` will be, in `checkPayload`'s key order for a CHECK
- * with a roll (`checkKind`, `actors`, `roll`, `tier`, `margin`, `testsAttrs`, `target`,
- * `opposedRoll`, `band`); no `rollRef` (a contact derives from no earlier roll).
- */
-export interface ArrivalContestPayload {
-  readonly checkKind: typeof ARRIVAL_CONTEST_KIND;
-  readonly actors: PlayerId[];
-  readonly roll: RollDetail;
-  readonly tier: ResultTier;
-  readonly margin: number;
-  readonly testsAttrs: AttrId[];
-  readonly target: number;
-  readonly opposedRoll?: RollDetail;
-  readonly band: ContestBand;
-}
+/** The contracts CHECK payload. */
+export type CheckPayload = Extract<MatchEvent, { type: "CHECK" }>["payload"];
 
-export function arrivalContestPayload(c: ArrivalContestEmission): ArrivalContestPayload {
+/**
+ * The CHECK payload an `ArrivalContestEmission` is, in `checkPayload`'s key order for a CHECK with a
+ * roll (`checkKind`, `actors`, `roll`, `tier`, `margin`, `testsAttrs`, `target`, `opposedRoll`,
+ * `band`); no `rollRef` (a contact derives from no earlier roll).
+ */
+export function arrivalContestPayload(c: ArrivalContestEmission): CheckPayload {
   return {
     checkKind: c.checkKind,
     actors: [...c.actors],
@@ -201,48 +187,15 @@ export function arrivalContestPayload(c: ArrivalContestEmission): ArrivalContest
  * free (QB_SHEDS), or the rusher won the contest (RUSHER_SACKS, the play his sack; contracts-guardian
  * G-6). A sack with no `arrival_contest` (rules without the contact block) carries no `QB_HIT`.
  */
-export type QbHitPhase = "ARRIVAL" | "THROWING" | "SHED" | "SACK";
+export type QbHitPhase = ContractsQbHitPhase;
 
 /**
  * A `QB_HIT` payload as P7 writes it, in its key order. `rollRef` is the `arrival_contest` CHECK
  * behind a SHED or a SACK (absent on ARRIVAL and THROWING); `approach`, `from` and `seen` are on
- * every hit under `pocket-1` (`seen` true until ADR-089 step 7).
+ * every hit under `pocket-1` (`seen` true until ADR-089 step 7). `contactSeconds` is D21's contact
+ * time, seconds from the snap (`sim/contactBook.ts`).
  */
-export interface QbHitRecord {
-  readonly qb: PlayerId;
-  readonly rusher: PlayerId;
-  readonly phase: QbHitPhase;
-  /** D21's contact time, seconds from the snap (`sim/contactBook.ts`). */
-  readonly contactSeconds: number;
-  readonly rollRef?: string;
-  readonly approach?: RushApproach;
-  readonly from?: ContactFromClass;
-  readonly seen?: boolean;
-}
-
-/**
- * Where a step-4 record stands in the stream: the `seq` the next event takes (the record would
- * stand just before it) and the tick; for `releaseSeconds`, the `seq` of the THROW that carries it.
- */
-export interface Step4Position {
-  readonly seq: number;
-  readonly tick: number | undefined;
-}
-
-/** What a test hands the log to receive the step-4 records the stream cannot carry yet. */
-export interface Step4Recorder {
-  arrivalContest(payload: ArrivalContestPayload, at: Step4Position): void;
-  qbHit(hit: QbHitRecord, at: Step4Position): void;
-  releaseSeconds(seconds: number, at: Step4Position): void;
-}
-
-/** The named refusals, one per petition (P6, P7, P8). */
-export class PetitionNotInContractsError extends Error {
-  constructor(petition: "P6" | "P7" | "P8", what: string) {
-    super(`@ff/engine: ${what} cannot be written: petition ${petition} is not in contracts (ADR-089 step 4)`);
-    this.name = "PetitionNotInContractsError";
-  }
-}
+export type QbHitRecord = Extract<MatchEvent, { type: "QB_HIT" }>["payload"];
 
 /**
  * A PRE-SNAP check (§5). Its own shape rather than a `CheckEmission`, because
@@ -357,11 +310,6 @@ export class PlayEventLog {
     private readonly playId: PlayId,
     private readonly at: CalendarStamp,
     startSeq: number,
-    /**
-     * ADR-089 step 4: a test's recorder for the records petitions P6, P7 and P8 will put on the
-     * stream (`Step4Recorder` above). Absent everywhere but `simulatePassPlayWith` under a test.
-     */
-    private readonly step4?: Step4Recorder,
   ) {
     this.seq = startSeq;
   }
@@ -578,32 +526,26 @@ export class PlayEventLog {
     accuracyTier: ResultTier,
     rollRef: string,
     /**
-     * ADR-089 step 4 (P8): the ball left his hand at this many seconds from the snap, under the
-     * throwing motion only. Refused while P8 is not in contracts, unless a test's recorder takes it.
+     * ADR-089 P8: the ball left his hand at this many seconds from the snap, in whole milliseconds,
+     * under the throwing motion only; written after `rollRef`, so a THROW without it keeps its bytes.
      */
     releaseSeconds?: number,
   ): void {
-    if (releaseSeconds !== undefined && this.step4 === undefined) {
-      throw new PetitionNotInContractsError("P8", "THROW.releaseSeconds");
-    }
     this.push({
       type: "THROW",
-      payload: { target, throwType, accuracyTier, rollRef },
+      payload: { target, throwType, accuracyTier, rollRef, ...(releaseSeconds === undefined ? {} : { releaseSeconds }) },
       ...this.base(),
     });
-    if (releaseSeconds !== undefined) this.step4?.releaseSeconds(releaseSeconds, { seq: this.seq - 1, tick: this.tick });
   }
 
-  /** ADR-089 step 4 (P6): an `arrival_contest` CHECK. Refused while P6 is not in contracts. */
+  /** ADR-089 P6: an `arrival_contest` CHECK. */
   arrivalContest(c: ArrivalContestEmission): void {
-    if (this.step4 === undefined) throw new PetitionNotInContractsError("P6", "an arrival_contest CHECK");
-    this.step4.arrivalContest(arrivalContestPayload(c), { seq: this.seq, tick: this.tick });
+    this.push({ type: "CHECK", payload: arrivalContestPayload(c), ...this.base() });
   }
 
-  /** ADR-089 step 4 (P7): a `QB_HIT`. Refused while P7 is not in contracts. */
+  /** ADR-089 P7: a `QB_HIT`, right after the `arrival_contest` CHECK it names (SHED, SACK) or before its THROW. */
   qbHit(hit: QbHitRecord): void {
-    if (this.step4 === undefined) throw new PetitionNotInContractsError("P7", "a QB_HIT");
-    this.step4.qbHit({ ...hit }, { seq: this.seq, tick: this.tick });
+    this.push({ type: "QB_HIT", payload: { ...hit }, ...this.base() });
   }
 
   /**

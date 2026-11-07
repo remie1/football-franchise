@@ -1,9 +1,9 @@
 /**
  * ADR-089 step 4 — THE SWITCH LEARNS CONTACT AND THE MOTION (`sim/pocketRules.ts`; plan §1.1, §1.2).
  *
- * 1. The gates: P6, P7 and P8 are not in contracts, so every bundle carrying `pocket.contact` or
- *    `throwExec.motion` is refused before the first die, naming the blocks and the petitions; a
- *    play handed one throws before a single event.
+ * 1. The gates: P6, P7 and P8 are in contracts, so every bundle carrying `pocket.contact` or
+ *    `throwExec.motion` plays; a test that withholds any of the three still sees the joint gate
+ *    refuse before the first die, naming the blocks and the petitions.
  * 2. With the three granted (a test's own petitions): shapes S and L read both blocks; kind T
  *    ("today's line plus contact") is the stamp, the approach card and the contact block and
  *    nothing else, with today's step-2 and step-3 parts.
@@ -54,14 +54,15 @@ function refusalUnder(tunables: Tunables, petitions: ContractPetitions | undefin
   throw new Error("expected a PocketRulesError");
 }
 
-describe("ADR-089 step 4 — the gates (P6, P7, P8 not in contracts)", () => {
-  it("the three constants are false in this build", () => {
-    expect(P6_IN_CONTRACTS).toBe(false);
-    expect(P7_IN_CONTRACTS).toBe(false);
-    expect(P8_IN_CONTRACTS).toBe(false);
+describe("ADR-089 step 4: the gates (P6, P7, P8 in contracts)", () => {
+  it("the three constants are true in this build", () => {
+    expect(P6_IN_CONTRACTS).toBe(true);
+    expect(P7_IN_CONTRACTS).toBe(true);
+    expect(P8_IN_CONTRACTS).toBe(true);
   });
 
-  it("every bundle carrying a step-4 block is refused, naming the blocks and the petitions", () => {
+  it("every bundle carrying a step-4 block is read by pocketRulesOf; with all three withheld it is refused, naming the blocks and the petitions", () => {
+    const withheld: ContractPetitions = { P5: true, P17: true, P6: false, P7: false, P8: false };
     const cases: readonly [Tunables, RegExp][] = [
       [withStep4(S_TUNABLES, { contact: CONTACT_FILED }), /^@ff\/engine: the contact block \(pocket\.contact\) is refused until petitions P6, P7 and P8 are in contracts \(not yet: P6, P7, P8\)/],
       [withStep4(S_TUNABLES, { motion: MOTION_FILED }), /^@ff\/engine: the throwing motion \(throwExec\.motion\) is refused until/],
@@ -70,9 +71,10 @@ describe("ADR-089 step 4 — the gates (P6, P7, P8 not in contracts)", () => {
       [todaysLine(), /the contact block \(pocket\.contact\) is refused until/],
     ];
     for (const [tunables, message] of cases) {
-      expect(refusalUnder(tunables)).toMatch(message);
-      // A test that gives only P5 and P17 sees the build's step-4 gate.
-      expect(refusalUnder(tunables, { P5: true, P17: true })).toMatch(message);
+      expect(pocketRulesOf(tunables).kind).not.toBe("LEGACY");
+      // A test that gives only P5 and P17 sees the build's step-4 gate, now open.
+      expect(pocketRulesUnder(tunables, { P5: true, P17: true }).kind).not.toBe("LEGACY");
+      expect(refusalUnder(tunables, withheld)).toMatch(message);
     }
   });
 
@@ -82,10 +84,10 @@ describe("ADR-089 step 4 — the gates (P6, P7, P8 not in contracts)", () => {
     expect(refusalUnder(withStep4(S_TUNABLES, { motion: MOTION_FILED }), { ...GRANTED, P6: false })).toMatch(/\(not yet: P6\)/);
   });
 
-  it("a play handed a step-4 bundle throws before a single event", () => {
+  it("a play handed a step-4 bundle plays", () => {
     const { state, calls } = buildScenario();
-    for (const tunables of [S4_TUNABLES, withStep4(S_TUNABLES, { contact: CONTACT_FILED }), todaysLine()]) {
-      expect(() => simulatePassPlay(state, calls, "step4-gate", tunables)).toThrow(PocketRulesError);
+    for (const tunables of [withStep4(S_TUNABLES, { contact: CONTACT_FILED }), withStep4(S_TUNABLES, { motion: MOTION_FILED }), todaysLine()]) {
+      expect(simulatePassPlay(state, calls, "step4-gate", tunables).events.length).toBeGreaterThan(0);
     }
   });
 

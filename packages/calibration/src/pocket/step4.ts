@@ -27,7 +27,7 @@
  *  - **The re-played bases** are checked against step 3's committed records
  *    (`reports/adr-089-step3.json`) on a stamp-free projection (`q4Projection`: the record less its
  *    format, its stamp, the s4 folds and C1's mirror); a difference is a structural failure.
- *  - **`--digests`** (R-1) is refused while P6, P7 or P8 is out: it plays the D arms.
+ *  - **`--digests`** (R-1) plays the D arms; it is refused when P6, P7 or P8 is withheld (a test's set).
  *  - **`--part1`** (a preview, never graded; AM-6 and AM-7 not needed) plays or reads the asked arms
  *    (default every playable arm) and fails on any build fault: C-1 on every s4 arm, the s4 stream's
  *    problems and the bases' replay. T_L's clamp and m(0) on D17 wait for the lift.

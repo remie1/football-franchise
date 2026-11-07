@@ -211,21 +211,21 @@ export const P5_IN_CONTRACTS = true;
 export const P17_IN_CONTRACTS = true;
 
 /**
- * ADR-089 step 4: the three contract petitions the step-4 rules wait on (plan §6, `petitions.md`),
- * as code constants, all false until the owner's typed yes naming each and contracts-guardian's
- * review land their text in `packages/contracts`:
+ * ADR-089 step 4: the three contract petitions the step-4 rules waited on (plan §6, `petitions.md`),
+ * as code constants. All three are true: the owner's typed yes ("Yes, make contracts edits P6, P7
+ * and P8.", 2026-11-07) and contracts-guardian's review landed their text in `packages/contracts`:
  *  - P6: `CheckKind` gains `"arrival_contest"` (the contact, the second arrival and the dodge);
  *  - P7: the `QB_HIT` event, with `QbHitPhase` and `ContactFrom`;
  *  - P8: `THROW.payload.releaseSeconds`.
- * While any of the three is false, `pocketRulesOf` refuses every bundle carrying a step-4 block
- * (`pocket.contact` or `throwExec.motion`) before the first die: both blocks write a `QB_HIT`, the
- * contact an `arrival_contest` CHECK and the motion `THROW.releaseSeconds`. The pure modules
- * (`resolve/contact.ts`, `resolve/motion.ts`) run and are tested meanwhile; a test reaches the rules
- * a granted petition opens through `pocketRulesUnder` with its own petitions.
+ * The gate is joint: while any of the three is false, `pocketRulesOf` refuses every bundle carrying a
+ * step-4 block (`pocket.contact` or `throwExec.motion`) before the first die, since both blocks write a
+ * `QB_HIT`, the contact an `arrival_contest` CHECK and the motion `THROW.releaseSeconds`. A test still
+ * withholds one through `pocketRulesUnder` with its own petitions. Calibration's own three constants
+ * (`calibration/src/pocket/rules.ts`) flipped in the same commit (`engineRulesS4.test.ts` ties them).
  */
-export const P6_IN_CONTRACTS = false;
-export const P7_IN_CONTRACTS = false;
-export const P8_IN_CONTRACTS = false;
+export const P6_IN_CONTRACTS = true;
+export const P7_IN_CONTRACTS = true;
+export const P8_IN_CONTRACTS = true;
 
 /**
  * Which petitions are in contracts: the constants above, or a test's own set. P6, P7 and P8 may be

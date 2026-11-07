@@ -1,17 +1,17 @@
 /**
- * ADR-089 step 4 — THE STEP-4 TEST BUNDLES AND THE RECORDER (plan §1.1, §2.2, §7).
+ * ADR-089 step 4: THE STEP-4 TEST BUNDLES AND THEIR RECORDS (plan §1.1, §2.2, §7).
  *
- * P6, P7 and P8 are not in contracts, so every bundle carrying `pocket.contact` or
- * `throwExec.motion` is refused by `pocketRulesOf` before the first die. The wired path is reached
- * only through the engine's test seam, `simulatePassPlayWith` with the three petitions granted and a
- * `Step4Recorder` that takes what the stream will carry once they are lifted (an `arrival_contest`
- * CHECK, a `QB_HIT`, `THROW.releaseSeconds`), each with the position it would have taken. Nothing
- * here is on any stream.
+ * P6, P7 and P8 are in contracts, so every bundle here plays through `simulatePassPlay` and writes
+ * its `arrival_contest` CHECKs, `QB_HIT`s and `THROW.releaseSeconds` on the stream. `playStep4`
+ * plays one through the engine's test seam (`simulatePassPlayWith`, the three petitions granted, as
+ * the build grants them) and reads those records back off the stream, each with its place: the
+ * `seq` and tick of the CHECK or `QB_HIT`, and for `releaseSeconds` those of the THROW that carries it.
+ * Before the lift the same records came from a test-only recorder, at the same places.
  */
-import type { MatchEventEnvelope } from "@ff/contracts";
+import type { MatchEventEnvelope, RollDetail } from "@ff/contracts";
 import type { MatchGameState, PlayCalls } from "../src/types.js";
 import { simulatePassPlayWith } from "../src/sim/passPlay.js";
-import type { ArrivalContestPayload, QbHitRecord, Step4Position, Step4Recorder } from "../src/events.js";
+import type { CheckPayload, QbHitRecord } from "../src/events.js";
 import type { ContractPetitions } from "../src/sim/pocketRules.js";
 import { DEFAULT_TUNABLES } from "../src/tunables.js";
 import type { ContactTunables, MotionTunables, Tunables } from "../src/tunables.js";
@@ -71,23 +71,39 @@ export const S4M_TUNABLES: Tunables = withStep4(restamped(S_TUNABLES, "fnv1a:7e0
 /** Kind T with the filed contact block. */
 export const T_TUNABLES: Tunables = todaysLine();
 
+/** Where a step-4 record stands in the stream: its own `seq` and tick (a release: its THROW's). */
+export interface Step4Position {
+  readonly seq: number;
+  readonly tick: number | undefined;
+}
+
+/** An `arrival_contest` CHECK's payload: it always carries its roll and its band. */
+export type ContestPayload = CheckPayload & { readonly roll: RollDetail; readonly band: string };
+
 export type Step4Record =
-  | { readonly kind: "CONTEST"; readonly payload: ArrivalContestPayload; readonly at: Step4Position }
+  | { readonly kind: "CONTEST"; readonly payload: ContestPayload; readonly at: Step4Position }
   | { readonly kind: "QB_HIT"; readonly payload: QbHitRecord; readonly at: Step4Position }
   | { readonly kind: "RELEASE"; readonly payload: number; readonly at: Step4Position };
 
-/** Takes every step-4 record in order, with the position it would have on the stream. */
-export class RecordingStep4 implements Step4Recorder {
-  readonly records: Step4Record[] = [];
-  arrivalContest(payload: ArrivalContestPayload, at: Step4Position): void {
-    this.records.push({ kind: "CONTEST", payload, at });
+/** Every step-4 record of a stream, in order, with its place. */
+export function step4RecordsOf(events: readonly MatchEventEnvelope[]): Step4Record[] {
+  const out: Step4Record[] = [];
+  for (const { seq, event } of events) {
+    const at: Step4Position = { seq, tick: (event as { readonly tick?: number }).tick };
+    if (event.type === "CHECK" && event.payload.checkKind === "arrival_contest") {
+      const payload = event.payload;
+      if (payload.roll === undefined || payload.band === undefined) throw new Error("an arrival_contest CHECK without its roll or band");
+      out.push({ kind: "CONTEST", payload: { ...payload, roll: payload.roll, band: payload.band }, at });
+    }
+    else if (event.type === "QB_HIT") out.push({ kind: "QB_HIT", payload: event.payload, at });
+    else if (event.type === "THROW" && event.payload.releaseSeconds !== undefined) out.push({ kind: "RELEASE", payload: event.payload.releaseSeconds, at });
   }
-  qbHit(hit: QbHitRecord, at: Step4Position): void {
-    this.records.push({ kind: "QB_HIT", payload: hit, at });
-  }
-  releaseSeconds(seconds: number, at: Step4Position): void {
-    this.records.push({ kind: "RELEASE", payload: seconds, at });
-  }
+  return out;
+}
+
+/** The stream with the step-4 records taken out (what the stream was before the lift, up to `seq`). */
+export function withoutStep4(events: readonly MatchEventEnvelope[]): MatchEventEnvelope[] {
+  return events.filter(({ event }) => !(event.type === "QB_HIT" || (event.type === "CHECK" && event.payload.checkKind === "arrival_contest")));
 }
 
 export interface Step4Play {
@@ -97,7 +113,6 @@ export interface Step4Play {
 
 /** One pass play through the seam, the petitions granted, with its records. */
 export function playStep4(state: MatchGameState, calls: PlayCalls, seed: string, tunables: Tunables): Step4Play {
-  const recorder = new RecordingStep4();
-  const { events } = simulatePassPlayWith(state, calls, seed, tunables, { petitions: GRANTED, step4Recorder: recorder });
-  return { events, records: recorder.records };
+  const { events } = simulatePassPlayWith(state, calls, seed, tunables, { petitions: GRANTED });
+  return { events, records: step4RecordsOf(events) };
 }

@@ -1,5 +1,5 @@
 /**
- * ADR-089 step 4 — `pocket-1.s4` AND TODAY'S LINE PLUS CONTACT (KIND T), BEHIND THE GATES
+ * ADR-089 step 4: `pocket-1.s4` AND TODAY'S LINE PLUS CONTACT (KIND T), AND THEIR GATES
  * (`src/pocket/rules.ts`; plan §1.1, §1.2, §9 commit 4).
  *
  *  1. The design's two blocks are plan §1.1's values (b 5, the three tilts on at +20, +10, +10, the
@@ -16,11 +16,10 @@
  *     digest; every other tree with no block clock is refused with its reason.
  *  5. The dials: each refusal the engine makes, made here first with the engine's words, and the
  *     engine (played through its barrel) refuses the same hand-stamped tree with the same words.
- *  6. The gates: calibration's P6, P7 and P8 are the engine's (read from its source), all false;
- *     `checkStamp`, `runOneGame`, `exportGame` and the command line's path refuse every step-4 tree
- *     before any game; handed straight to the engine, the bundle and a kind-T tree are refused at
- *     the first pass play with the engine's own error (`PocketRulesError`); a test's own petitions
- *     open the calibration gate (`step4Refusal`). The command line offers `pocket-1.s4` and never T.
+ *  6. The gates: calibration's P6, P7 and P8 are the engine's (read from its source), all true since
+ *     the lift; `checkStamp` passes every step-4 tree, and a calibration game under `pocket-1.s4` or
+ *     kind T plays and writes the step-4 records; a test's own petitions, withheld, shut the joint
+ *     gate (`step4Refusal`, `checkStamp`). The command line offers `pocket-1.s4` and never T.
  */
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -29,7 +28,6 @@ import { describe, expect, it } from "vitest";
 import { frozenCallerPair } from "../src/caller/frozen.js";
 import { FROZEN_FOURTH_DOWN, FROZEN_TENDENCIES } from "../src/caller/frozenTendencies.js";
 import { parseExportArgs } from "../src/export/cli.js";
-import { exportGame } from "../src/export/gameFile.js";
 import { runOneGame } from "../src/harness/runGame.js";
 import { buildFixture } from "../src/harness/schedule.js";
 import { goldenFixtures } from "../src/pocket/corpus.js";
@@ -137,14 +135,13 @@ function thrown(run: () => unknown): Error {
   throw new Error("expected a throw");
 }
 
+/** Every step-4 petition withheld: a test's own set, to see the joint gate refuse. */
+const WITHHELD = { P6: false, P7: false, P8: false } as const;
+
 const GATE_BOTH =
   "pocket.contact and throwExec.motion are refused before any game until petitions P6, P7 and P8 are in contracts (not yet: P6, P7, P8): a contact writes an arrival_contest CHECK and a QB_HIT, the throwing motion a QB_HIT and THROW.releaseSeconds (ADR-089 step 4)";
 const GATE_CONTACT =
   "pocket.contact is refused before any game until petitions P6, P7 and P8 are in contracts (not yet: P6, P7, P8): a contact writes an arrival_contest CHECK and a QB_HIT, the throwing motion a QB_HIT and THROW.releaseSeconds (ADR-089 step 4)";
-const ENGINE_GATE_BOTH =
-  "@ff/engine: the contact block (pocket.contact) and the throwing motion (throwExec.motion) are refused until petitions P6, P7 and P8 are in contracts (not yet: P6, P7, P8): a contact writes an arrival_contest CHECK and a QB_HIT, the throwing motion a QB_HIT and THROW.releaseSeconds";
-const ENGINE_GATE_CONTACT =
-  "@ff/engine: the contact block (pocket.contact) is refused until petitions P6, P7 and P8 are in contracts (not yet: P6, P7, P8): a contact writes an arrival_contest CHECK and a QB_HIT, the throwing motion a QB_HIT and THROW.releaseSeconds";
 
 describe("pocket-1.s4's blocks (plan §1.1)", () => {
   it("are the design's: b 5, the tilts on at +20, +10, +10, sheds 0.5 s and 1.0 s, the second arrival at 15, the contest after the throw; rho0 0.3, rhoD 400, continuous", () => {
@@ -359,8 +356,10 @@ describe("the step-4 dials, as the engine's (plan §1.1)", () => {
       expect(() => withOverlay(horizons(), "pocket-1.s4", overlay, POCKET_1_S2_FORCING), label).toThrow(`withOverlay(pocket-1.s4): ${message}`);
       expect(() => checkStamp(byHand(tree, "pocket-1.s4"), "pocket-1.s4", "runBatch"), label).toThrow(`runBatch: ${message}`);
     }
-    // The design's dials pass, and the motion's ends are the plan's (0.2275 s to 0.475 s): the gate is the only refusal.
-    expect(() => checkStamp(rulesTunables("pocket-1.s4"), "pocket-1.s4", "w")).toThrow(`w: ${GATE_BOTH}`);
+    // The design's dials pass, and the motion's ends are the plan's (0.2275 s to 0.475 s); with the
+    // petitions withheld the gate is the only refusal.
+    expect(checkStamp(rulesTunables("pocket-1.s4"), "pocket-1.s4", "w")).toBe(rulesTunables("pocket-1.s4"));
+    expect(() => checkStamp(rulesTunables("pocket-1.s4"), "pocket-1.s4", "w", WITHHELD)).toThrow(`w: ${GATE_BOTH}`);
   });
 
   it("the engine refuses the same hand-stamped trees with the same words (played through its barrel)", () => {
@@ -372,50 +371,52 @@ describe("the step-4 dials, as the engine's (plan §1.1)", () => {
   }, 120_000);
 });
 
-describe("the gates: refused before any game while P6, P7 and P8 are out (plan §1.1, §6)", () => {
-  it("calibration's P6, P7 and P8 are the engine's, and all false", () => {
+describe("the gates: open since P6, P7 and P8 are in contracts (plan §1.1, §6)", () => {
+  it("calibration's P6, P7 and P8 are the engine's, and all true", () => {
     const engineSource = readFileSync(fileURLToPath(new URL("../../engine/src/sim/pocketRules.ts", import.meta.url)), "utf8");
     for (const [name, ours] of [["P6", P6_IN_CONTRACTS], ["P7", P7_IN_CONTRACTS], ["P8", P8_IN_CONTRACTS]] as const) {
       const declared = [...engineSource.matchAll(new RegExp(`^export const ${name}_IN_CONTRACTS = (true|false);$`, "gm"))].map((x) => x[1]);
       expect(declared, `the engine declares ${name}_IN_CONTRACTS once, as a literal`).toHaveLength(1);
       expect(ours, `calibration's ${name}_IN_CONTRACTS (src/pocket/rules.ts) differs from the engine's (sim/pocketRules.ts)`).toBe(declared[0] === "true");
-      expect(ours, name).toBe(false);
+      expect(ours, name).toBe(true);
     }
   });
 
-  it("refuses pocket-1.s4 and kind T at every calibration entry, and only them", () => {
-    expect(rulesRefusal("pocket-1.s4")).toBe(GATE_BOTH);
-    for (const rules of ENGINE_RULES.filter((r) => r !== "pocket-1.s4")) expect(rulesRefusal(rules), rules).toBeUndefined();
-    expect(step4Refusal(kindT())).toBe(GATE_CONTACT);
-    expect(() => checkStamp(rulesTunables("pocket-1.s4"), "pocket-1.s4", "season")).toThrow(`season: ${GATE_BOTH}`);
-    expect(() => checkStamp(kindT(), "pocket-1.s4", "runBatch")).toThrow(`runBatch: ${GATE_CONTACT}`);
-    // exportGame and runOneGame refuse before any game (the stamp is checked first thing).
-    expect(() => exportGame({ seed: "s4:refused", engineRules: "pocket-1.s4" })).toThrow(`exportGame: ${GATE_BOTH}`);
-    const { index, fixtures, seeds } = goldenFixtures("flat");
-    const built = buildFixture(index, fixtures[0]!);
-    for (const [t, gate] of [[rulesTunables("pocket-1.s4"), GATE_BOTH], [kindT(), GATE_CONTACT]] as const) {
-      expect(() => runOneGame({ built, seed: seeds[0]!, tendencies: FROZEN_TENDENCIES, fourthDown: FROZEN_FOURTH_DOWN, tunables: t })).toThrow(`runOneGame: ${gate}`);
-    }
+  it("pocket-1.s4 and kind T pass every calibration entry; withheld, they are refused there, and only they", () => {
+    for (const rules of ENGINE_RULES) expect(rulesRefusal(rules), rules).toBeUndefined();
+    expect(step4Refusal(kindT())).toBeUndefined();
+    expect(checkStamp(rulesTunables("pocket-1.s4"), "pocket-1.s4", "season")).toBe(rulesTunables("pocket-1.s4"));
+    expect(checkStamp(kindT(), "pocket-1.s4", "runBatch")).toEqual(kindT());
+    expect(step4Refusal(rulesTunables("pocket-1.s4"), WITHHELD)).toBe(GATE_BOTH);
+    expect(step4Refusal(kindT(), WITHHELD)).toBe(GATE_CONTACT);
+    expect(() => checkStamp(rulesTunables("pocket-1.s4"), "pocket-1.s4", "season", WITHHELD)).toThrow(`season: ${GATE_BOTH}`);
+    expect(() => checkStamp(kindT(), "pocket-1.s4", "runBatch", WITHHELD)).toThrow(`runBatch: ${GATE_CONTACT}`);
+    for (const rules of ENGINE_RULES.filter((r) => r !== "pocket-1.s4")) expect(step4Refusal(rulesTunables(rules), WITHHELD), rules).toBeUndefined();
   });
 
-  it("a test's own petitions open the calibration gate, one at a time", () => {
+  it("a test's own petitions shut the calibration gate, one at a time", () => {
     const b = rulesTunables("pocket-1.s4");
     expect(step4Refusal(b, { P6: true, P7: true, P8: true })).toBeUndefined();
-    expect(step4Refusal(b, { P6: true, P7: true })).toBe(GATE_BOTH.replace("(not yet: P6, P7, P8)", "(not yet: P8)"));
-    expect(step4Refusal(b, { P7: true })).toBe(GATE_BOTH.replace("(not yet: P6, P7, P8)", "(not yet: P6, P8)"));
-    expect(step4Refusal(rulesTunables("pocket-1.s3"))).toBeUndefined();
-    expect(step4Refusal(DEFAULT_TUNABLES)).toBeUndefined();
+    expect(step4Refusal(b, {})).toBeUndefined();
+    expect(step4Refusal(b, { P8: false })).toBe(GATE_BOTH.replace("(not yet: P6, P7, P8)", "(not yet: P8)"));
+    expect(step4Refusal(b, { P6: false, P8: false })).toBe(GATE_BOTH.replace("(not yet: P6, P7, P8)", "(not yet: P6, P8)"));
+    expect(step4Refusal(rulesTunables("pocket-1.s3"), WITHHELD)).toBeUndefined();
+    expect(step4Refusal(DEFAULT_TUNABLES, WITHHELD)).toBeUndefined();
   });
 
-  it("handed straight to the engine, the bundle and kind T are refused at the first pass play with the engine's error", () => {
-    for (const [t, message] of [[rulesTunables("pocket-1.s4"), ENGINE_GATE_BOTH], [kindT(), ENGINE_GATE_CONTACT], [kindT(UNTILTED), ENGINE_GATE_CONTACT]] as const) {
-      const e = thrown(() => playThroughEngine(t));
-      expect(e.name).toBe("PocketRulesError");
-      expect(e.message).toBe(message);
+  it("a calibration game under pocket-1.s4 and under kind T plays, and its stream carries the step-4 records", () => {
+    const { index, fixtures, seeds } = goldenFixtures("flat");
+    const built = buildFixture(index, fixtures[0]!);
+    for (const [name, t, motion] of [["pocket-1.s4", rulesTunables("pocket-1.s4"), true], ["kind T", kindT(), false]] as const) {
+      const { observation } = runOneGame({ built, seed: seeds[0]!, tendencies: FROZEN_TENDENCIES, fourthDown: FROZEN_FOURTH_DOWN, tunables: t });
+      const events = observation.events.map((e) => e.event);
+      expect(events.some((e) => e.type === "CHECK" && e.payload.checkKind === "arrival_contest"), name).toBe(true);
+      expect(events.some((e) => e.type === "QB_HIT"), name).toBe(true);
+      expect(events.some((e) => e.type === "THROW" && e.payload.releaseSeconds !== undefined), name).toBe(motion);
     }
   }, 120_000);
 
-  it("the command line offers pocket-1.s4 (refused when it plays) and never kind T", () => {
+  it("the command line offers pocket-1.s4 and never kind T", () => {
     expect(parseExportArgs(["--seed", "a", "--engine-rules", "pocket-1.s4"])).toMatchObject({ seed: "a", engineRules: "pocket-1.s4" });
     // A name always plays its design bundle, never kind T.
     for (const rules of ENGINE_RULES) expect(isTodaysLinePlusContact(rulesTunables(rules)), rules).toBe(false);

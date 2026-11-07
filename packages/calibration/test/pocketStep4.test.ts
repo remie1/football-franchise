@@ -1,15 +1,16 @@
 /**
  * ADR-089 step 4 — THE STEP-4 HARNESS (`step4.ts`; plan §5, §8, §9 commit 8).
  *
- * AM-6 and AM-7 are not filed in this build, and P6, P7 and P8 are not in contracts, so no D arm
- * plays and every graded run is refused by name. These tests:
+ * AM-6 and AM-7 are not filed in this build, so every graded run is refused by name; P6, P7 and P8
+ * are in contracts, so the D arms are planned and built (the gates refuse only a test's withheld
+ * petition). These tests:
  *  - prove the refusals in their order (AM-6, AM-7, the pin, the gates) on temporary copies of the
  *    committed amendments file with stand-ins for AM-6 and AM-7 appended (the filing's §2.1 and §3.1
  *    texts; only these tests read them; nothing is filed);
  *  - grade hand-built records (step 3's committed records of the bases, re-formatted, and D records
  *    built from their bases' with hand-made s4 folds) with the gates passed in as granted;
- *  - check the stamp-free projection against step 3's records, the plan's refusal of a D arm, the
- *    cache's refusal from a dirty tree, `--digests`' refusal and the closed writes.
+ *  - check the stamp-free projection against step 3's records, the plan's D arms, the cache's
+ *    refusal from a dirty tree, `--digests`' refusal of a withheld petition and the closed writes.
  */
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -175,9 +176,11 @@ describe("the refusals, in order", () => {
     expect(() => preflightStep4(FILED, BOTH.path, { pin: "fnv1a:00000000" })).toThrow(/digests to fnv1a:[0-9a-f]{8}, not the pin fnv1a:00000000/);
   });
 
-  it("pinned: refused while P6, P7 or P8 is out; with all three given, the guard reads", () => {
-    expect(() => preflightStep4(FILED, BOTH.path, { pin: BOTH.pin })).toThrow(STEP4_GATES_REFUSAL);
-    expect(() => preflightStep4(FILED, BOTH.path, { pin: BOTH.pin, petitions: { P6: true, P7: true } })).toThrow(STEP4_GATES_REFUSAL);
+  it("pinned: refused when a test withholds P6, P7 or P8; with all three in contracts, the guard reads", () => {
+    for (const withheld of [{ P6: false }, { P7: false }, { P8: false }]) {
+      expect(() => preflightStep4(FILED, BOTH.path, { pin: BOTH.pin, petitions: withheld })).toThrow(STEP4_GATES_REFUSAL);
+    }
+    expect(preflightStep4(FILED, BOTH.path, { pin: BOTH.pin }).guard).toEqual(preflightStep4(FILED, BOTH.path, granted).guard);
     const g = preflightStep4(FILED, BOTH.path, granted).guard;
     expect(g).toMatchObject({ am6: "AM-6", am7: "AM-7", bases: { D1: "C1", D2: "C2", D6: "C2" }, lines: { zLeague: 2, zClass: 3, zSetSE0: 0 } });
   });
@@ -197,7 +200,7 @@ describe("the refusals, in order", () => {
       throw new Error("nothing plays");
     };
     expect(() => runStep4({ cacheParent: parent, filedPath: FILED, amendmentsPath: AMENDMENTS, env: ENV, play })).toThrow(/AM-6/);
-    expect(() => runStep4({ cacheParent: parent, filedPath: FILED, amendmentsPath: BOTH.path, env: ENV, play, preflight: { pin: BOTH.pin } })).toThrow(STEP4_GATES_REFUSAL);
+    expect(() => runStep4({ cacheParent: parent, filedPath: FILED, amendmentsPath: BOTH.path, env: ENV, play, preflight: { pin: BOTH.pin, petitions: { P7: false } } })).toThrow(STEP4_GATES_REFUSAL);
     expect(() => runStep4({ cacheParent: parent, filedPath: FILED, amendmentsPath: BOTH.path, env: { ...ENV, dirty: true }, play, preflight: granted })).toThrow(STEP4_DIRTY_REFUSAL);
     expect(existsSync(join(parent, ENV.fingerprint))).toBe(false);
   });
@@ -213,22 +216,26 @@ describe("the refusals, in order", () => {
 });
 
 describe("the plan, --part1, --digests and the closed writes", () => {
-  it("plays the bases only before the lift and refuses a D arm by its petitions", () => {
-    expect(STEP4_PLAYABLE_RUN_IDS).toEqual(["A0", "A14", "A1", "A11", "C1", "C2", "C14"]);
-    expect(STEP4_BASE_IDS).toEqual(STEP4_PLAYABLE_RUN_IDS);
-    expect(planStep4({}).complete).toHaveLength(14);
-    expect(planStep4({ shard: { index: 2, count: 3 } }).mine.map((t) => `${t.id}.${String(t.seedSet)}`)).toEqual(["A0.2", "A1.1", "A11.2", "C2.1", "C14.2"]);
-    for (const id of STEP4_ARM_IDS) expect(() => planStep4({ arms: [id] })).toThrow(new RegExp(`${id} is not playable: ${id} waits on petitions P6, P7 and P8`));
+  it("plays the bases and the D arms since the lift, and plans a D arm by name", () => {
+    expect(STEP4_BASE_IDS).toEqual(["A0", "A14", "A1", "A11", "C1", "C2", "C14"]);
+    expect(STEP4_PLAYABLE_RUN_IDS).toEqual([...STEP4_BASE_IDS, ...STEP4_ARM_IDS]);
+    expect(planStep4({}).complete).toHaveLength(48);
+    const all = STEP4_PLAYABLE_RUN_IDS.flatMap((id) => [`${id}.1`, `${id}.2`]);
+    expect(planStep4({ shard: { index: 2, count: 3 } }).mine.map((t) => `${t.id}.${String(t.seedSet)}`)).toEqual(all.filter((_, i) => i % 3 === 1));
+    expect(planStep4({ shard: { index: 2, count: 3 } }).mine.slice(0, 5).map((t) => `${t.id}.${String(t.seedSet)}`)).toEqual(["A0.2", "A1.1", "A11.2", "C2.1", "C14.2"]);
+    for (const id of STEP4_ARM_IDS) expect(planStep4({ arms: [id] }).targets.map((t) => t.id), id).toEqual([id, id]);
     expect(() => planStep4({ arms: ["B3"] })).toThrow(/B3 is not in this run/);
     expect(step4FoldsOf("C1")).toEqual({ m5: false });
   });
 
-  it("--part1 refuses a dirty tree before a cache is made, and --digests refuses while the gates are false", () => {
+  it("--part1 refuses a dirty tree before a cache is made, and --digests refuses a withheld petition before anything plays", () => {
     const parent = tempDir("p1");
     expect(() => runStep4Part1({ cacheParent: parent, filedPath: FILED, amendmentsPath: AMENDMENTS, env: { ...ENV, dirty: true } })).toThrow(STEP4_DIRTY_REFUSAL);
+    expect(() => runStep4Part1({ cacheParent: parent, filedPath: FILED, amendmentsPath: AMENDMENTS, env: { ...ENV, dirty: true }, arms: ["D1"] })).toThrow(STEP4_DIRTY_REFUSAL);
     expect(existsSync(join(parent, ENV.fingerprint))).toBe(false);
-    expect(() => runStep4Part1({ cacheParent: parent, filedPath: FILED, amendmentsPath: AMENDMENTS, env: ENV, arms: ["D1"] })).toThrow(/D1 is not playable/);
-    expect(() => runStep4Digests({ filedPath: FILED, amendmentsPath: AMENDMENTS, node: "v" })).toThrow(STEP4_DIGESTS_REFUSAL);
+    for (const withheld of [{ P6: false }, { P7: false }, { P8: false }]) {
+      expect(() => runStep4Digests({ filedPath: FILED, amendmentsPath: AMENDMENTS, node: "v", petitions: withheld })).toThrow(STEP4_DIGESTS_REFUSAL);
+    }
   });
 
   it("never writes over steps 1 to 3's committed records", () => {

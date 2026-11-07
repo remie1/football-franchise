@@ -29,7 +29,7 @@
  * list less any arm whose petition is not in contracts (`armRefusal`; none since P17, E4b), and its
  * `--part1` runs part 1's build check alone; `--step 4` (`Step4Args`) runs `step4.ts`'s
  * `step4Command`, loaded only then, its `--arms` takes step 4's run list less any arm refused until
- * its petitions are in contracts (every D arm until P6, P7 and P8 are, `armRefusal`), and its
+ * its petitions are in contracts (none since P6, P7 and P8 are, `armRefusal`), and its
  * `--part1` runs step 4's build checks alone. This module only exports; the script's entry is `main.ts`, which calls `pocketCommand` and does
  * nothing else (review finding CT-N6, as `export/main.ts` runs `export/cli.ts`), so importing this
  * module never runs the command.

@@ -303,8 +303,8 @@ export type Step3ArmId = (typeof STEP3_ARM_IDS)[number];
 
 /**
  * Step 4's seventeen arms (plan §4), in order. AM-6's base map names D1, D2 and D6 (plan §3.1), so
- * the ids are arms of this build before any D arm runs; `STEP4_ARM_DEFS` defines them, and nothing
- * in this build plays them while P6, P7 or P8 is out of contracts (`armRefusal`).
+ * the ids are arms of this build before any D arm runs; `STEP4_ARM_DEFS` defines them, and since
+ * P6, P7 and P8 are in contracts this build builds and plays them (`armRefusal` names none).
  */
 export const STEP4_ARM_IDS = ["D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8", "D9", "D10", "D11", "D12", "D13", "D14", "D15", "D16", "D17"] as const;
 export type Step4ArmId = (typeof STEP4_ARM_IDS)[number];
@@ -330,8 +330,8 @@ export type Step3RunId = (typeof STEP3_RUN_IDS)[number];
 /**
  * What `--step 4` plays (plan §4; its harness is `step4.ts`): the seven re-played bases, A0 and A14
  * for the cumulative line, A1 and A11 for the accepted state, C1, C2 and C14 as the D arms' bases,
- * then D1 to D17 (less any arm whose petitions are out, `armRefusal`: every D arm until P6, P7 and P8
- * are in contracts).
+ * then D1 to D17 (less any arm whose petitions are out, `armRefusal`: none since P6, P7 and P8 are in
+ * contracts).
  */
 export const STEP4_RUN_IDS = ["A0", "A14", "A1", "A11", "C1", "C2", "C14", ...STEP4_ARM_IDS] as const satisfies readonly ArmId[];
 export type Step4RunId = (typeof STEP4_RUN_IDS)[number];
@@ -352,7 +352,7 @@ export const ALL_ARM_IDS: readonly ArmId[] = Object.freeze([...ARM_IDS, ...STEP2
 
 /**
  * The arms this build defines: steps 1 to 4's, in order (`everyArm()`, the table). Step 4's are
- * defined and not built while P6, P7 or P8 is out (`armRefusal`).
+ * built and played since P6, P7 and P8 are in contracts (`armRefusal` names none).
  */
 const DEFINED_ARM_IDS: readonly ArmId[] = Object.freeze([...ARM_IDS, ...STEP2_ARM_IDS, ...STEP3_ARM_IDS, ...STEP4_ARM_IDS]);
 
