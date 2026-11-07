@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   teamId, DEFAULT_LEAGUE_RULES, SAVE_FORMAT_VERSION,
-  type StaffState, type StaffContract, type StaffId, type SaveFile, type FranchiseEvent,
+  type StaffState, type StaffContract, type StaffId, type SaveFile, type FranchiseEvent, type PlayerId,
 } from "../src/index.js";
 
 // ADR-080 P1-P4: the staff shapes are plain data and survive a save round-trip unchanged.
@@ -51,5 +51,11 @@ describe("staff shapes (ADR-080)", () => {
     const hired: FranchiseEvent = { type: "STAFF_HIRED", payload: { staff: id, team: teamId("T1"), role: "HEAD_COACH" } };
     const left: FranchiseEvent = { type: "STAFF_DEPARTED", payload: { staff: id, team: teamId("T1"), reason: "CONTRACT_EXPIRED" } };
     expect([hired.type, left.type]).toEqual(["STAFF_HIRED", "STAFF_DEPARTED"]);
+  });
+
+  it("ADR-094 W4: a coach who played here names the player he was, and survives JSON unchanged", () => {
+    const former: StaffState = { ...coach, formerPlayer: "P00042" as PlayerId };
+    expect(JSON.parse(JSON.stringify(former))).toEqual(former);
+    expect(coach.formerPlayer).toBeUndefined();
   });
 });

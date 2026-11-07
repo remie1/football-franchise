@@ -260,6 +260,7 @@ export interface StaffState {
   career: StaffJob[];              // ADR-080 P2: his résumé, oldest job first
   retiredAfter?: number;           // ADR-080 P2: the last season he coached, once retired
   disguise?: DefensiveDisguiseTendency; // ADR-080 P4 (ADR-075 §3.2): read only in the DC seat
+  formerPlayer?: PlayerId;         // ADR-094 W4: the player he was, if he played in this league
 }
 
 export type StaffDepartureReason = "FIRED" | "HIRED_AWAY" | "RETIRED" | "CONTRACT_EXPIRED"; // P3
