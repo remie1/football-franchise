@@ -34,6 +34,14 @@ const json = (x: unknown) => JSON.stringify(x, (_k, v) => (v instanceof Set ? [.
  * of the league, or a refresh of its contracts, may change this.
  */
 const FILE_BEFORE_RECORDS_SHA256 = "ffdd05762bae1b197794cb0099c8c0dd8f37a1767bd93034549bf001f7a4ea96";
+/**
+ * The committed league file at `standin-development/1`, before ADR-087 AB2 added the fade shifts, by
+ * its sha256: AB2's data diff is the shifts alone. Rebased onto 2241964 (main at 24a79aa), the /1
+ * file is main's: a7a6a66's growth records unchanged, the 2026 rookies' real deal lengths (#86) and
+ * the officiating block (#78). So the pin moved from a7a6a66's bb55709a… to main's c58c68ba…, and
+ * the file was regenerated from main's with `standin-development`, not merged.
+ */
+const FILE_AT_V1_SHA256 = "c58c68ba3b4859a4060cfd5819343189758b87928bc4c436d2a768ef27a910f3";
 
 /** The file as it was before the step: every record and the extras key taken off. */
 function stripped(): LeagueFileLike {
@@ -107,8 +115,30 @@ describe("the committed league file's growth records", () => {
       expect(shift).toEqual(drawFadeShift(stream(String(p.bio.id)).fork("aging")));
       for (const g of ABILITY_GROUPS) expect(Math.abs(shift[g]!)).toBeLessThanOrEqual(FADE_SHIFT.zClamp * FADE_SHIFT.sd[g]);
     }
-    // The fork layout: the record's other draws are where they were (growth and patience above, injuries below).
+    // The file's basis line names the draw (the fork layout itself is checked above: each man's shifts are
+    // drawFadeShift on his own stream's "aging" fork; growth and patience on theirs; injuries in the tests below).
     expect(file.startingDevelopment.basis.fadeShift).toMatch(/drawFadeShift/);
+  });
+
+  it("are the /1 file's records with the fade shifts added and nothing else: taking them off gives back the /1 file, to the byte (ADR-087 AB2)", () => {
+    // AB2's data diff, pinned: the version set back to /1, `basis.fadeShift`, `constants.fadeShift` and every
+    // man's `development.fadeShift` taken off. A regeneration that moved any growth, patience, snaps, body or
+    // injury record (or anything else in the file) fails here.
+    const f = JSON.parse(text) as LeagueFileLike & { startingDevelopment: StartingDevelopment };
+    const { fadeShift: _b, ...basis } = f.startingDevelopment.basis;
+    const { fadeShift: _c, ...constants } = f.startingDevelopment.constants;
+    const one = {
+      ...f,
+      startingDevelopment: { ...f.startingDevelopment, version: "standin-development/1", basis, constants },
+      league: {
+        ...f.league,
+        players: f.league.players.map((p) => {
+          const { fadeShift: _f, ...development } = p.attributes.development!;
+          return { ...p, attributes: { ...p.attributes, development } };
+        }),
+      },
+    };
+    expect(sha256(serializeLeagueFile(one))).toBe(FILE_AT_V1_SHA256);
   });
 
   it("put on the bio only the combine drills he actually ran", () => {

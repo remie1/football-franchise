@@ -6,6 +6,7 @@ import {
 } from "@ff/contracts";
 import { generateLeagueRosters, type FictionalProvenance, type GenerateLeagueInput } from "../src/fictional/generate.js";
 import { generateDraftClass, type GenerateDraftClassInput } from "../src/fictional/draftClass.js";
+import { ROSTER_SHAPE } from "../src/fictional/shape.js";
 import {
   CAREER_SNAPS, FADE_SHIFT, GROWTH, PATIENCE_SEASONS, careerSnaps, drawFadeShift, drawGrowth, drawPatience, seasonsPlayed, withDevelopment,
 } from "../src/fictional/development.js";
@@ -56,6 +57,20 @@ function strip(p: PlayerState): PlayerState {
 const WITH_GROWTH = {
   draftClass: "ff63aaf6283e0010d0e0c7df5c2975dae3be331d2ddc3a43c22299b45684c161",
   draftClass2: "318b54e46fd31c9cb880fc0984e55afe11983a90fcb24d2182d8ba40c6a7655d",
+} as const;
+
+/**
+ * sha256 of each input's whole growth-on output, records and all (growth, career snaps, body, patience,
+ * combine), MEASURED at a7a6a66 (ADR-087 AB1, before AB2 added the aging option) and unchanged by AB2.
+ * The default aging (absent or "position") must not move them (§12.2.7 test 5: "deep-equal to main"),
+ * and "ability" with the fade shifts taken off gives them too. They move with WITH_GROWTH, or when a
+ * development draw moves on purpose.
+ */
+const WITH_RECORDS = {
+  league: "740c3d6b576b7670e5ccdb9fff9c099dc0da54dc2d706ee8e45af17adddd8ff3",
+  league2: "000ffb6dc63675187f6419ce8dc59d8c013f579f1e0623b2d1e181cdbc506baa",
+  draftClass: "58b21c0ecc83c6407bfff921cb76fea454619a786e2e0d68bdf4f5303bd934de",
+  draftClass2: "a3096636270be64b5f34a1514667c1ac7c022ab951eb66fe7d85ce5e29028d65",
 } as const;
 
 const off = generateLeagueRosters(LEAGUE);
@@ -363,7 +378,7 @@ describe("each man's own fade shifts (ADR-087 §12.2.3, P7; AB2)", () => {
     expect(draws.some((d) => ABILITY_GROUPS.some((g) => d[g] === 0))).toBe(true);
   });
 
-  it("spreads each group by its sd (a little under, from the clamp), centred on 0", () => {
+  it("spreads each group by its sd (a little under, from the clamp), centered on 0", () => {
     for (const g of ABILITY_GROUPS) {
       const xs = column(g);
       const want = FADE_SHIFT.sd[g] * clampedSd;
@@ -434,6 +449,15 @@ describe("each man's own fade shifts (ADR-087 §12.2.3, P7; AB2)", () => {
     const classAbility = generateDraftClass({ ...CLASS, development: true, aging: "ability" });
 
     it("are drawn only with aging \"ability\": the default and \"position\" leave the league and the class as they were", () => {
+      // As they were at a7a6a66, before the option: the whole growth-on output, pinned.
+      expect(hash(on)).toBe(WITH_RECORDS.league);
+      expect(hash(classOn)).toBe(WITH_RECORDS.draftClass);
+      expect(hash(generateLeagueRosters({ ...LEAGUE_2, development: true }))).toBe(WITH_RECORDS.league2);
+      expect(hash(generateDraftClass({ ...CLASS_2, development: true }))).toBe(WITH_RECORDS.draftClass2);
+      expect(hash(generateLeagueRosters({ ...LEAGUE, development: true, aging: "position" }))).toBe(WITH_RECORDS.league);
+      expect(hash(generateDraftClass({ ...CLASS, development: true, aging: "position" }))).toBe(WITH_RECORDS.draftClass);
+      expect(hash(generateLeagueRosters({ ...LEAGUE_2, development: true, aging: "position" }))).toBe(WITH_RECORDS.league2);
+      expect(hash(generateDraftClass({ ...CLASS_2, development: true, aging: "position" }))).toBe(WITH_RECORDS.draftClass2);
       expect(json(generateLeagueRosters({ ...LEAGUE, development: true, aging: "position" }))).toBe(json(on));
       expect(json(generateDraftClass({ ...CLASS, development: true, aging: "position" }))).toBe(json(classOn));
       for (const p of [...on.players, ...classOn.players]) expect(p.attributes.development!.fadeShift).toBeUndefined();
@@ -449,10 +473,43 @@ describe("each man's own fade shifts (ADR-087 §12.2.3, P7; AB2)", () => {
       const on2 = generateLeagueRosters({ ...LEAGUE_2, development: true });
       const ability2 = generateLeagueRosters({ ...LEAGUE_2, development: true, aging: "ability" });
       expect(json({ ...ability2, players: ability2.players.map(unshifted) })).toBe(json(on2));
+      // And so the pinned growth-on output of a7a6a66, every field.
+      expect(hash({ ...ability, players: ability.players.map(unshifted) })).toBe(WITH_RECORDS.league);
+      expect(hash({ ...classAbility, players: classAbility.players.map(unshifted) })).toBe(WITH_RECORDS.draftClass);
+      expect(hash({ ...ability2, players: ability2.players.map(unshifted) })).toBe(WITH_RECORDS.league2);
+      const classAbility2 = generateDraftClass({ ...CLASS_2, development: true, aging: "ability" });
+      expect(hash({ ...classAbility2, players: classAbility2.players.map(unshifted) })).toBe(WITH_RECORDS.draftClass2);
       // So growth, snaps and patience are the same numbers, whichever option drew them.
       const growthOf = (ps: readonly PlayerState[]) => ps.map((p) => [p.attributes.development!.growth, p.attributes.development!.snaps, p.personality.patience]);
       expect(growthOf(ability.players)).toEqual(growthOf(on.players));
       expect(growthOf(classAbility.players)).toEqual(growthOf(classOn.players));
+    });
+
+    it("leave growth, career snaps and patience on their own forks of his development stream, whichever the option", () => {
+      // The layout §12.2.3 keeps: "growth", "snaps" and "patience" beside "aging", each made by its label alone.
+      const root = createRng(LEAGUE.seed, "attributes:fictional");
+      for (const league of [on, ability]) {
+        for (const p of league.players) {
+          const id = String(p.bio.id);
+          const dev = p.attributes.development!;
+          const stream = root.fork(`development/${id}`);
+          expect(dev.growth, id).toBe(drawGrowth(stream.fork("growth")));
+          expect(p.personality.patience, id).toBe(drawPatience(stream.fork("patience")));
+          // Career snaps: his roster slot is the generator's, before the depth sort; one slot of his position gives his snaps.
+          const seasons = seasonsPlayed(p.bio, LEAGUE.season);
+          const slots = Array.from({ length: ROSTER_SHAPE[p.bio.position] }, (_, slot) => careerSnaps(stream.fork("snaps"), seasons, slot));
+          expect(slots, id).toContain(dev.snaps);
+        }
+      }
+      const classRoot = createRng(CLASS.seed, `attributes:draft-class/${CLASS.draft}`);
+      for (const c of [classOn, classAbility]) {
+        for (const p of c.players) {
+          const stream = classRoot.fork(`development/${String(p.bio.id)}`);
+          expect(p.attributes.development!.growth).toBe(drawGrowth(stream.fork("growth")));
+          expect(p.personality.patience).toBe(drawPatience(stream.fork("patience")));
+          expect(p.attributes.development!.snaps).toBe(0);
+        }
+      }
     });
 
     it("give every league player and prospect all 12, from his development stream's \"aging\" fork", () => {

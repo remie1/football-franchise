@@ -214,6 +214,20 @@ function readOfficials(block: unknown, season: number): StandInOfficiating {
   };
 }
 
+/** The values `StandInSwitches.aging` may take; absent is `"position"`. */
+export const STAND_IN_AGING = ["position", "ability"] as const;
+
+/**
+ * Throws unless `aging` is absent, `"position"` or `"ability"`. `forSwitches` reads anything but
+ * `"ability"` as the default, so a misspelled value (from a flag or a file) would play the position
+ * path silently; it is refused here instead.
+ */
+export function assertAging(aging: unknown): void {
+  if (aging !== undefined && !(STAND_IN_AGING as readonly unknown[]).includes(aging)) {
+    throw new SyntaxError(`aging is "position" or "ability", not ${JSON.stringify(aging)}`);
+  }
+}
+
 /**
  * A player as a run with these switches sees him: what a switched-off step would read, left out.
  * Development off takes off his whole growth record (his fade shifts with it); development on at the
@@ -332,6 +346,7 @@ export function standInPracticeSquads(file: Pick<StandInFile, "league">): Map<st
  * both off, no team has one, as before.
  */
 export function buildStandInLeague(base: League, file: StandInFile, switches?: StandInSwitches): { league: League; rated: StandInLeague } {
+  assertAging(switches?.aging);
   const byId = new Map(file.league.teams.map((t) => [String(t.id), t]));
   const switched = switches?.development === true || switches?.injuries === true;
   const squads = switched ? standInPracticeSquads(file) : undefined;

@@ -21,7 +21,10 @@
  * never a graded one). `--build <fingerprint>` grades the rows of that build's folder instead of
  * the build the tree makes now (the report says which build it graded, and the command warns when
  * it is not the tree's); the grader and this command are not part of the fingerprint, so a change
- * to them alone keeps the rows. There is no flag for the Old card: its rows (the 34-and-over share,
+ * to them alone keeps the rows. The report names the league file the rows were played on, as their
+ * records name it, and the tree's file beside it when the two differ; rows played on two league
+ * files are refused (`gradedLeague`). A build's fingerprint covers the league file's sha256 and
+ * the source, so rows played before a step that changed either are graded with `--build`. There is no flag for the Old card: its rows (the 34-and-over share,
  * reaching ten seasons) always gate the flip, as the owner answered (ADR-087 §11). When grade seeds
  * are missing, the command lists the builds the cache holds.
  *
@@ -36,9 +39,9 @@ import type { CapCheckInput } from "./capCheck.js";
 import type { CareerCheckRows } from "./careerCheck.js";
 import {
   CAREER_ENGINE_RULES, CAREER_SEED_SETS, careerFingerprint, isCareerArm, listCareerBuilds, readCareerRecords, runCareerSeed, seedOf,
-  type CareerArm,
+  type CareerArm, type CareerSeedRecord,
 } from "./careerCheckRun.js";
-import { gradeCareerCheck, renderGradeJson, renderGradeMarkdown, type GradeWindows } from "./careerGrade.js";
+import { gradeCareerCheck, gradedLeague, renderGradeJson, renderGradeMarkdown, type GradeWindows } from "./careerGrade.js";
 import { readStandInFile } from "./standInLeague.js";
 
 interface Args {
@@ -150,14 +153,24 @@ if (!args.grade) {
   const build = args.build ?? treeFingerprint;
   if (build !== treeFingerprint) console.log(`career-check: grading build ${build}, not the tree's build ${treeFingerprint} (the rows were played on that build).`);
   const fingerprints: Record<string, string> = build === treeFingerprint ? { build } : { build, tree: treeFingerprint };
+  const read: CareerSeedRecord[] = [];
   const rowsOf = (arm: CareerArm, list: readonly string[]) => {
     const { records } = readCareerRecords(cacheOf(build), arm, list, args.seasons);
     for (const [s, r] of records) {
       if (r.fingerprint !== build) throw new Error(`career-check: ${arm}-${s} in build ${build}'s folder says it was played on build ${r.fingerprint}`);
+      read.push(r);
     }
     return new Map<string, CareerCheckRows>([...records].map(([s, r]) => [s, r.rows]));
   };
   const rows = rowsOf("both", seeds);
+  const incumbent = rowsOf("incumbent", coachSeeds);
+  const form = rowsOf("form", coachSeeds);
+  // The league the rows were played on, from their records, not the file on disk now (a --build grade of older rows).
+  const played = gradedLeague(read, league);
+  if (played.treeLeague !== undefined) {
+    console.log(`career-check: the rows were played on the league file ${played.league.path} (sha256 ${played.league.sha256.slice(0, 12)}), ` +
+      `not the tree's file now (${league.path}, sha256 ${league.sha256.slice(0, 12)}); the report names the rows' file.`);
+  }
   let windows: GradeWindows | undefined;
   if (args.smoke) {
     const any = [...rows.values()][0];
@@ -167,9 +180,12 @@ if (!args.grade) {
   }
   const grade = gradeCareerCheck({
     pass: args.pass!, seeds, rows,
-    coach: { seeds: coachSeeds, incumbent: rowsOf("incumbent", coachSeeds), form: rowsOf("form", coachSeeds) },
+    coach: { seeds: coachSeeds, incumbent, form },
     ...(windows ? { windows } : {}),
-    meta: { seasons: args.seasons, league, fingerprints, engineRules: CAREER_ENGINE_RULES, callerVersion, ...(args.smoke ? { smoke: true } : {}) },
+    meta: {
+      seasons: args.seasons, league: played.league, ...(played.treeLeague ? { treeLeague: played.treeLeague } : {}), fingerprints,
+      engineRules: CAREER_ENGINE_RULES, callerVersion, ...(args.smoke ? { smoke: true } : {}),
+    },
   });
   const base = args.report !== undefined ? fromCaller(args.report) : join(root, "reports", `career-check-pass${args.pass}`);
   mkdirSync(dirname(base), { recursive: true });

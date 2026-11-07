@@ -16,7 +16,7 @@ import { buildLeague, type SeasonRun } from "@ff/franchise";
 import { fieldedStarters } from "../src/season/playerChecks.js";
 import { rosterGroups } from "../src/season/playerChecksRun.js";
 import { DEFAULT_SEASON, runRealSeason, seasonToPlay } from "../src/season/realSeason.js";
-import { buildStandInLeague, forSwitches, readStandInFile, standInPracticeSquads, standInSeason } from "../src/season/standInLeague.js";
+import { assertAging, buildStandInLeague, forSwitches, readStandInFile, STAND_IN_AGING, standInPracticeSquads, standInSeason } from "../src/season/standInLeague.js";
 
 const FILE = join(__dirname, "..", "..", "attributes", "leagues", "standin-2026-10-23.json");
 const text = readFileSync(FILE, "utf8");
@@ -138,6 +138,16 @@ describe("the stand-in league file's records, read by switch", () => {
       expect(() => buildStandInLeague(base, broken, { development: true }), what).not.toThrow();
     }
     expect(() => buildStandInLeague(base, file, { development: true, aging: "ability" })).not.toThrow();
+  });
+
+  it("refuses an aging value that is neither \"position\" nor \"ability\", which forSwitches would read as the default", () => {
+    for (const aging of ["Ability", "abilty", "", "positon", null, 1]) {
+      const sw = { development: true, aging } as unknown as Parameters<typeof buildStandInLeague>[2];
+      expect(() => buildStandInLeague(base, file, sw), String(aging)).toThrow(/aging is "position" or "ability"/);
+      expect(() => buildStandInLeague(base, file, { ...sw, development: false }), String(aging)).toThrow(/aging is "position" or "ability"/);
+    }
+    for (const aging of [undefined, "position", "ability"] as const) expect(() => assertAging(aging)).not.toThrow();
+    expect([...STAND_IN_AGING]).toEqual(["position", "ability"]);
   });
 
   it("refuses development on a file without growth records, or with any part of one broken", () => {
