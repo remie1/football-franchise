@@ -1,9 +1,10 @@
 /**
  * ADR-085 §4: the league year as day steps in the season's walk (ADR-086 §2).
  *
- *   OFF_EVAL week 1 day 1       re-signing opens (late winter): cap casualties are cut and a team over
- *                               next season's cap gets under it; teams re-sign their own players,
- *                               making room as they go, and tender restricted free agents
+ *   OFF_EVAL week 1 day 7       re-signing opens (late winter), the season's credited seasons in: cap
+ *                               casualties are cut and a team over next season's cap gets under it;
+ *                               teams re-sign their own players, making room as they go, and tender
+ *                               restricted free agents
  *   OFF_EVAL week 2 day 1       the cap for next season is set (CAP_SET)
  *   OFF_EVAL week 3 day 1       the tag deadline: a last round of re-signing, then one franchise tag
  *   OFF_RESET_FA week 1 day 1   the new league year: deals run out, every team gets under the cap
@@ -42,8 +43,12 @@ import { floorShortfall, planWithFloor, teamCapPlan, type CapPlan } from "./lean
 export type CapForSeason = (season: number) => number;
 
 export const LEAGUE_YEAR_DAYS = {
-  /** Re-signing opens once the season is over: February's cap cuts, then the first round. */
-  reSignOpens: { phase: "OFF_EVAL", week: 1, day: 1 },
+  /**
+   * Re-signing opens a week after the season: February's cap cuts, then the first round. It comes after
+   * the season's credited seasons are in (the draft order's day, `DRAFT_DAYS.order`), so a man who has
+   * just played out his fourth season is judged as the unrestricted free agent he is about to be.
+   */
+  reSignOpens: { phase: "OFF_EVAL", week: 1, day: 7 },
   capSet: { phase: "OFF_EVAL", week: 2, day: 1 },
   /** The franchise tag's deadline, about a week before the new league year, after re-signing's last round. */
   reSign: { phase: "OFF_EVAL", week: 3, day: 1 },

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  DEFAULT_LEAGUE_RULES, playerId,
+  compareStamps, DEFAULT_LEAGUE_RULES, playerId,
   type CalendarStamp, type DeadMoneyCharge, type FranchiseEvent, type PlayerContract, type PlayerState, type Position, type SeasonState, type Team,
 } from "@ff/contracts";
 import {
@@ -8,6 +8,7 @@ import {
   type LeaguePeople,
 } from "../src/index.js";
 import { LEAGUE_YEAR_DAYS, MARKET } from "../src/cap/leagueYear.js";
+import { DRAFT_DAYS } from "../src/draft/steps.js";
 import { WANTED, type Rate } from "../src/draft/board.js";
 
 // The real re-signing windows (owner, 2026-11-07). Late winter: from the season's end to the new league
@@ -89,6 +90,13 @@ const total = (p: LeaguePeople, season: number) => teamCapTotal(T.id, season, p.
 const capNumberIn = (c: PlayerContract, season: number) => capNumber(c.years.find((y) => y.season === season)!);
 
 describe("late winter: re-signing from the season's end to the new league year", () => {
+  it("opens after the season's credited seasons are in, so each man is judged as the free agent he is about to be", () => {
+    // The season walk runs the league year's steps before the draft's on any one day, and the draft
+    // order's day credits the season just played: re-signing must open on a later day.
+    expect(compareStamps(OPENS, { season: 2026, ...DRAFT_DAYS.order })).toBeGreaterThan(0);
+    expect(compareStamps(OPENS, { season: 2026, ...LEAGUE_YEAR_DAYS.capSet })).toBeLessThan(0);
+  });
+
   it("opens when the season is over: that day cuts the cap casualties, their dead money counted in the new league year", () => {
     // A receiver past his prime, paid far more than the market would pay him now, with bonus still to count.
     const vet: Seat = { position: "WR", ovr: 50, age: 33, cs: 11, apy: 12_000_000, bonus: 0.3, id: "old-vet" };

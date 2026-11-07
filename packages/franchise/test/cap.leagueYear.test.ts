@@ -8,7 +8,7 @@ import {
   liveIn, countsForComp, adjustedCap, designatedIn, needWeights, offerWorth, valuePlayer, marketCurves, termFor, apyOf, newPayOf, percentileOf, quantile,
   type GameResolver, type LeaguePeople,
 } from "../src/index.js";
-import { MARKET } from "../src/cap/leagueYear.js";
+import { LEAGUE_YEAR_DAYS, MARKET } from "../src/cap/leagueYear.js";
 import { WANTED, type Rate } from "../src/draft/board.js";
 import { draftSteps } from "../src/draft/steps.js";
 
@@ -130,7 +130,7 @@ describe("the league year (ADR-085 §4)", () => {
   });
 
   it("re-signs on two days before the new league year, tags only at the deadline, and tears up no deal with a year left (camp extends those)", () => {
-    // The real windows (owner, 2026-11-07): re-signing opens when the season is over and runs to the tag
+    // The real windows (owner, 2026-11-07): re-signing opens a week after the season and runs to the tag
     // deadline; a man with a year left after 2026 keeps his deal through the winter.
     const lastIn = (c: PlayerContract) => Math.max(...c.years.filter((y) => !y.voidYear).map((y) => y.season));
     for (const o of people0.contracts!.filter((c) => lastIn(c) === 2027)) {
@@ -138,10 +138,11 @@ describe("the league year (ADR-085 §4)", () => {
       if (!now.ended) expect(lastIn(now), String(o.player)).toBe(2027);
     }
     const winter = year1.events.filter((e) => e.at.phase === "OFF_EVAL");
-    const days = (type: FranchiseEvent["type"]) => new Set(winter.filter((e) => e.event.type === type).map((e) => `week ${e.at.week} day ${e.at.day}`));
-    expect(days("CONTRACT_SIGNED").has("week 1 day 1")).toBe(true);
-    for (const d of days("CONTRACT_SIGNED")) expect(["week 1 day 1", "week 3 day 1"]).toContain(d);
-    for (const d of days("TAG_APPLIED")) expect(d).toBe("week 3 day 1");
+    const label = (d: { week: number; day: number }) => `week ${d.week} day ${d.day}`;
+    const days = (type: FranchiseEvent["type"]) => new Set(winter.filter((e) => e.event.type === type).map((e) => label(e.at)));
+    expect(days("CONTRACT_SIGNED").has(label(LEAGUE_YEAR_DAYS.reSignOpens))).toBe(true);
+    for (const d of days("CONTRACT_SIGNED")) expect([label(LEAGUE_YEAR_DAYS.reSignOpens), label(LEAGUE_YEAR_DAYS.reSign)]).toContain(d);
+    for (const d of days("TAG_APPLIED")) expect(d).toBe(label(LEAGUE_YEAR_DAYS.reSign));
     // Each tag just before its signing; every deal signed in the winter is for next season on.
     year1.events.forEach((e, i) => {
       if (e.event.type !== "TAG_APPLIED") return;
