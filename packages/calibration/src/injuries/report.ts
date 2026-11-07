@@ -355,6 +355,7 @@ export const AGE_AND_SPOT_CAVEATS: readonly string[] = [
   "Only these seasons: six regular seasons (2019-2024). The code reads back to 2013, but the older injury files would have to be downloaded; 2025 is held out and never read.",
   "Ages are one per player-season, on 23 October: a man who turns 26 in December is 25 all season.",
   "First concussion means the first seen in the window (since 2019), not his first ever: a man concussed in 2018 and again in 2020 has his 2020 one counted first.",
+  "Quick relapses: a second or later concussion that begins after one game back from the one before, on the same team in the same season, may be the same concussion counted twice. It sits in the second-or-later row and is also set apart; the first spell of such a pair, often short, sits in the first row.",
   "Depth-chart spot: the weekly roster's depth_chart_position is each man's position on the team's list in fine form, not the game-day depth chart's order or formation (nflverse's separate depth-chart table, not cached here, has those). A man who plays outside his listed spot on game day, such as a safety at corner in the nickel, is not seen.",
 ];
 
@@ -455,8 +456,17 @@ export function renderAgeAndSpot(r: InjuryRatesReport): string[] {
   ];
   out.push(table(
     ["Concussion", "Spells", "Median weeks out", "Out 2+ weeks", "Out 4+ weeks", "New in season: spells; out 4+ weeks"],
-    [conc("First seen in the window", rc.first), conc("Second or later", rc.later)],
+    [
+      conc("First seen in the window", rc.first), conc("Second or later", rc.later),
+      conc("... a quick relapse", rc.laterQuickRelapse), conc("... the rest", rc.laterApart),
+    ],
   ));
+  out.push("");
+  out.push(
+    `A quick relapse begins the team game after the one game that ended his previous concussion spell, on the same team in the same season (CHOSEN line: one game back). ` +
+      `Some of those may be one concussion counted twice, so the second-or-later row mixes them with the rest; a rule that later concussions heal slower is better built on the rest's row. ` +
+      `The first half of such a pair is in the first row: ${int(rc.firstFollowedByQuickRelapse)} first spells are followed by a quick relapse.`,
+  );
   out.push("");
 
   out.push("### By depth-chart spot");

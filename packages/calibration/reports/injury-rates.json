@@ -4035,7 +4035,16 @@
     "later": {
       "all": {"n": 89, "censored": 27, "median": 2, "p2Plus": 0.642857, "p4Plus": 0.304464, "p9Plus": 0.180893},
       "newInSeason": {"n": 86, "censored": 26, "median": 2, "p2Plus": 0.62963, "p4Plus": 0.304321, "p9Plus": 0.170835}
-    }
+    },
+    "laterQuickRelapse": {
+      "all": {"n": 12, "censored": 7, "median": null, "p2Plus": 0.916667, "p4Plus": 0.55, "p9Plus": 0.55},
+      "newInSeason": {"n": 9, "censored": 6, "median": null, "p2Plus": 0.888889, "p4Plus": 0.634921, "p9Plus": 0.634921}
+    },
+    "laterApart": {
+      "all": {"n": 77, "censored": 20, "median": 2, "p2Plus": 0.597222, "p4Plus": 0.263436, "p9Plus": 0.120056},
+      "newInSeason": {"n": 77, "censored": 20, "median": 2, "p2Plus": 0.597222, "p4Plus": 0.263436, "p9Plus": 0.120056}
+    },
+    "firstFollowedByQuickRelapse": 10
   },
   "byDepthChartGroup": {
     "seasons": [2019, 2020, 2021, 2022, 2023, 2024],
@@ -4531,6 +4540,7 @@
     "Only these seasons: six regular seasons (2019-2024). The code reads back to 2013, but the older injury files would have to be downloaded; 2025 is held out and never read.",
     "Ages are one per player-season, on 23 October: a man who turns 26 in December is 25 all season.",
     "First concussion means the first seen in the window (since 2019), not his first ever: a man concussed in 2018 and again in 2020 has his 2020 one counted first.",
+    "Quick relapses: a second or later concussion that begins after one game back from the one before, on the same team in the same season, may be the same concussion counted twice. It sits in the second-or-later row and is also set apart; the first spell of such a pair, often short, sits in the first row.",
     "Depth-chart spot: the weekly roster's depth_chart_position is each man's position on the team's list in fine form, not the game-day depth chart's order or formation (nflverse's separate depth-chart table, not cached here, has those). A man who plays outside his listed spot on game day, such as a safety at corner in the nickel, is not seen."
   ],
   "definitions": [

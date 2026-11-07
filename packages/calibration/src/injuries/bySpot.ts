@@ -87,7 +87,11 @@ export interface SpotSummary {
     readonly snaps: number;
     readonly snapShare: number;
     readonly newTimeLoss: number;
-    /** Player-games whose readable spot's group is not the group of that same week's listed position. */
+    /**
+     * Of `playerGames` (the spot group is not the team-season's listed group): those whose spot's group
+     * is not the group of that same week's listed position either. The rest are weeks whose own
+     * listing agrees with the spot, from a listed position that changed in the season.
+     */
     readonly fromThatWeeksListing: number;
   };
   /** Player-games with a blank or unreadable spot (counted at the listed group), by code as written. */
@@ -154,8 +158,9 @@ export function summariseBySpot(d: Derived, seasons: readonly number[]): SpotSum
       if (p.group !== t.group) {
         differ.playerGames++;
         differ.snaps += e.snaps;
+        // the spot is readable here (a blank spot counts at the listed group); a listing that changed in the season is the rest
+        if (p.read !== null && p.read !== positionGroup(e.rosterPosition)) differ.fromThatWeeksListing++;
       }
-      if (p.read !== null && p.read !== positionGroup(e.rosterPosition)) differ.fromThatWeeksListing++;
       if (p.read === null) {
         unknown.playerGames++;
         unknown.snaps += e.snaps;

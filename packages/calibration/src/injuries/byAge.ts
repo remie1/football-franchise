@@ -390,12 +390,32 @@ export interface RepeatConcussion {
   readonly first: ConcussionOrder;
   /** His second or later in the window. */
   readonly later: ConcussionOrder;
+  /**
+   * Of `later`: the quick relapses (`isQuickRelapse`), which begin the team game after the one game
+   * that ended his previous concussion spell, on the same team in the same season. Some may be one
+   * concussion counted twice (back for a game, then out again).
+   */
+  readonly laterQuickRelapse: ConcussionOrder;
+  /** Of `later`: the rest (a new team, a new season, or two or more team games between). */
+  readonly laterApart: ConcussionOrder;
+  /** First spells whose man's next concussion spell is a quick relapse (the first half of such a pair sits in `first`). */
+  readonly firstFollowedByQuickRelapse: number;
+}
+
+/**
+ * A quick relapse: `s` begins the team game right after the one game that ended `prev` (he was back
+ * on the 53 for one game, then missed again), on the same team in the same season. The gap is
+ * counted in team games, so a bye between does not matter. CHOSEN line: one game back.
+ */
+export function isQuickRelapse(prev: Spell | undefined, s: Spell): boolean {
+  return prev !== undefined && prev.season === s.season && prev.team === s.team && s.startIndex === prev.startIndex + prev.gamesMissed + 1;
 }
 
 /**
  * Concussions in order, per player: every football spell whose body part is concussion/head in
- * `seasons` (any onset, any group, kickers included), ordered by season and first missed week;
- * the first seen in the window against the second or later.
+ * `seasons` (any onset, any group, kickers included), ordered by season and first missed week (not
+ * by team: a man traded in the season keeps his own order); the first seen in the window against
+ * the second or later, and the later ones split into quick relapses and the rest.
  */
 export function summariseRepeatConcussion(d: Derived, seasons: readonly number[]): RepeatConcussion {
   const inSet = new Set(seasons);
@@ -403,12 +423,24 @@ export function summariseRepeatConcussion(d: Derived, seasons: readonly number[]
     .filter((s) => inSet.has(s.season) && s.cls === "FOOTBALL" && s.bodyPart === "concussion/head")
     .sort((a, b) => a.season - b.season || a.startWeek - b.startWeek);
   const seen = new Map<string, number>();
+  const previous = new Map<string, Spell>();
   const first: Spell[] = [];
   const later: Spell[] = [];
+  const relapse: Spell[] = [];
+  const apart: Spell[] = [];
+  let firstFollowedByQuickRelapse = 0;
   for (const s of conc) {
     const k = seen.get(s.gsisId) ?? 0;
     seen.set(s.gsisId, k + 1);
-    (k === 0 ? first : later).push(s);
+    if (k === 0) first.push(s);
+    else {
+      later.push(s);
+      const prev = previous.get(s.gsisId);
+      const quick = isQuickRelapse(prev, s);
+      (quick ? relapse : apart).push(s);
+      if (quick && k === 1) firstFollowedByQuickRelapse++;
+    }
+    previous.set(s.gsisId, s);
   }
   const order = (list: readonly Spell[]): ConcussionOrder => ({ all: weeksOut(list), newInSeason: weeksOut(list.filter(isNew)) });
   return {
@@ -418,5 +450,8 @@ export function summariseRepeatConcussion(d: Derived, seasons: readonly number[]
     menWith2Plus: [...seen.values()].filter((v) => v >= 2).length,
     first: order(first),
     later: order(later),
+    laterQuickRelapse: order(relapse),
+    laterApart: order(apart),
+    firstFollowedByQuickRelapse,
   };
 }

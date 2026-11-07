@@ -7,7 +7,7 @@
 import { describe, expect, it } from "vitest";
 import type { InjuryGameStatus, PracticeStatus } from "../src/ingest/sources/injuries.js";
 import {
-  AGE_BANDS, AGE_REFERENCE, BODY_CLASSES, BODY_CLASS_PARTS, ageBand, birthDates, bodyClass,
+  AGE_BANDS, AGE_REFERENCE, BODY_CLASSES, BODY_CLASS_PARTS, ageBand, birthDates, bodyClass, isQuickRelapse,
   summariseByAge, summariseByAgeClass, summariseRepeatConcussion,
 } from "../src/injuries/byAge.js";
 import { spotCode, spotGroup, summariseBySpot } from "../src/injuries/bySpot.js";
@@ -15,6 +15,7 @@ import type { BodyPart } from "../src/injuries/classify.js";
 import { derive, summarise } from "../src/injuries/measure.js";
 import { renderJson, renderMarkdown } from "../src/injuries/report.js";
 import type { GameRow, ReportRow, RosterRow, SnapRow } from "../src/injuries/rows.js";
+import type { Spell } from "../src/injuries/spells.js";
 import { buildTimelines } from "../src/injuries/timeline.js";
 
 // ---------------------------------------------------------------- the fixture
@@ -22,17 +23,18 @@ import { buildTimelines } from "../src/injuries/timeline.js";
 const SEASON = 2023;
 const WEEKS = [1, 2, 3, 4, 5, 6] as const;
 
-/** A player's week: roster status, report line, snaps, and (when they differ from the player's) listed position and spot. */
+/** A player's week: roster status (ABS: no roster row on this team), report line, snaps, and (when they differ from the player's) listed position and spot. */
 interface Cell {
-  readonly s: "P" | "INA" | "ACT0" | "IR";
+  readonly s: "P" | "INA" | "ACT0" | "IR" | "ABS";
   readonly rep?: readonly [InjuryGameStatus, PracticeStatus, string];
   readonly snaps?: number;
   readonly pos?: string;
   readonly spot?: string;
 }
-const STATUS: Record<Cell["s"], [string, string]> = { P: ["ACT", "A01"], INA: ["INA", "A01"], ACT0: ["ACT", "A01"], IR: ["RES", "R01"] };
+const STATUS: Record<Exclude<Cell["s"], "ABS">, [string, string]> = { P: ["ACT", "A01"], INA: ["INA", "A01"], ACT0: ["ACT", "A01"], IR: ["RES", "R01"] };
 const out = (text: string): Cell => ({ s: "INA", rep: ["OUT", "DNP", text] });
 const p = (snaps: number): Cell => ({ s: "P", snaps });
+const ABS: Cell = { s: "ABS" };
 
 interface FixturePlayer {
   readonly id: string;
@@ -70,14 +72,15 @@ const PLAYERS: readonly FixturePlayer[] = [
   },
 ];
 
-function fixtureRows(): { games: GameRow[]; rosters: RosterRow[]; reports: ReportRow[]; snaps: SnapRow[] } {
-  const games: GameRow[] = WEEKS.map((week) => ({ season: SEASON, week, gameId: `${SEASON}_${week}_AAA_BBB`, home: "BBB", away: "AAA" }));
+function fixtureRows(players: readonly FixturePlayer[] = PLAYERS, weeks: readonly number[] = WEEKS): { games: GameRow[]; rosters: RosterRow[]; reports: ReportRow[]; snaps: SnapRow[] } {
+  const games: GameRow[] = weeks.map((week) => ({ season: SEASON, week, gameId: `${SEASON}_${week}_AAA_BBB`, home: "BBB", away: "AAA" }));
   const rosters: RosterRow[] = [];
   const reports: ReportRow[] = [];
   const snaps: SnapRow[] = [];
-  for (const pl of PLAYERS) {
+  for (const pl of players) {
     pl.cells.forEach((cell, i) => {
-      const week = WEEKS[i]!;
+      const week = weeks[i]!;
+      if (cell.s === "ABS") return;
       const [status, code] = STATUS[cell.s];
       const position = cell.pos ?? pl.position;
       rosters.push({
@@ -102,6 +105,31 @@ const byClass = summariseByAgeClass(derived, [SEASON], births);
 const conc = summariseRepeatConcussion(derived, [SEASON]);
 const spot = summariseBySpot(derived, [SEASON]);
 const band = (b: (typeof AGE_BANDS)[number]) => byAge.bands.find((x) => x.band === b)!;
+
+/**
+ * A second hand-made league, eight games a team (weeks 1-8, no bye), for the order of concussions,
+ * the quick relapses and a week whose own listing differs from the team-season's listed group.
+ */
+const WEEKS_2 = [1, 2, 3, 4, 5, 6, 7, 8] as const;
+const PLAYERS_2: readonly FixturePlayer[] = [
+  // traded: concussed for BBB in week 2 (one week), then for AAA in week 4 (two weeks). Alphabetical
+  // team order is the reverse of time order. AAA's game index 3 is one game after BBB's spell ended
+  // (index 2), but on another team: not a quick relapse.
+  { id: "T1", team: "BBB", position: "WR", spot: "WR", cells: [p(30), out("Concussion"), p(30), ABS, ABS, ABS, ABS, ABS] },
+  { id: "T1", team: "AAA", position: "WR", spot: "WR", cells: [ABS, ABS, ABS, out("Concussion"), out("Concussion"), p(30), p(30), p(30)] },
+  // back one game (week 3), then out again two weeks: a quick relapse
+  { id: "R1", team: "AAA", position: "RB", spot: "RB", cells: [p(30), out("Concussion"), p(30), out("Concussion"), out("Concussion"), p(30), p(30), p(30)] },
+  // back two games (weeks 3-4), then out three weeks: not a quick relapse
+  { id: "R2", team: "BBB", position: "RB", spot: "RB", cells: [p(30), out("Concussion"), p(30), p(30), out("Concussion"), out("Concussion"), out("Concussion"), p(30)] },
+  // three: the second two games back (apart), the third one game back (a quick relapse of his second, not his first)
+  { id: "R3", team: "AAA", position: "TE", spot: "TE", cells: [p(30), out("Concussion"), p(30), p(30), out("Concussion"), p(30), out("Concussion"), p(30)] },
+  // listed DL at DE all season, but listed LB in week 3 (still at DE): the spot group is his
+  // team-season group, so the week is not a mover, though its spot is outside that week's listing
+  { id: "D1", team: "BBB", position: "DL", spot: "DE", cells: [p(40), p(40), { s: "P", snaps: 40, pos: "LB" }, p(40), p(40), p(40), p(40), p(40)] },
+];
+const derived2 = derive(buildTimelines(fixtureRows(PLAYERS_2, WEEKS_2)));
+const conc2 = summariseRepeatConcussion(derived2, [SEASON]);
+const spot2 = summariseBySpot(derived2, [SEASON]);
 
 // ---------------------------------------------------------------- tests
 
@@ -213,6 +241,47 @@ describe("repeat concussions on the fixture", () => {
     expect(conc.first.newInSeason.n).toBe(2);
     expect(conc.later.all).toEqual({ n: 1, censored: 1, median: null, p2Plus: 1, p4Plus: 1, p9Plus: 1 });
     expect(conc.later.newInSeason.n).toBe(1);
+    // M1 was back one game (week 4) between his two: his second is a quick relapse
+    expect(conc.laterQuickRelapse).toEqual(conc.later);
+    expect(conc.laterApart.all).toEqual({ n: 0, censored: 0, median: null, p2Plus: null, p4Plus: null, p9Plus: null });
+    expect(conc.firstFollowedByQuickRelapse).toBe(1);
+  });
+
+  it("orders a traded man's concussions by week, not by team", () => {
+    // T1's BBB spell (week 2, one week) is his first, his AAA spell (week 4, two weeks) his second
+    expect(conc2).toMatchObject({ spells: 9, men: 4, menWith2Plus: 4 });
+    // first: T1 at BBB, R1, R2, R3, all one week (T1's two-week AAA spell would make P(2+) 0.25)
+    expect(conc2.first.all).toEqual({ n: 4, censored: 0, median: 1, p2Plus: 0, p4Plus: 0, p9Plus: 0 });
+    expect(conc2.first.newInSeason.n).toBe(4);
+    // later: T1 at AAA 2 weeks, R1 2, R2 3, R3 1 and 1; T1's AAA one follows an absent week (onset unclear)
+    expect(conc2.later.all).toEqual({ n: 5, censored: 0, median: 2, p2Plus: 0.6, p4Plus: 0, p9Plus: 0 });
+    expect(conc2.later.newInSeason.n).toBe(4);
+  });
+
+  it("sets apart the quick relapses: one game back, same team, same season", () => {
+    // quick: R1's second (2 weeks), R3's third (1 week)
+    expect(conc2.laterQuickRelapse.all).toEqual({ n: 2, censored: 0, median: 1, p2Plus: 0.5, p4Plus: 0, p9Plus: 0 });
+    expect(conc2.laterQuickRelapse.newInSeason.n).toBe(2);
+    // the rest: T1 at AAA (another team), R2's second (two games back), R3's second (two games back)
+    expect(conc2.laterApart.all).toEqual({ n: 3, censored: 0, median: 2, p2Plus: 0.666667, p4Plus: 0, p9Plus: 0 });
+    expect(conc2.laterApart.newInSeason.n).toBe(2);
+    expect(conc2.laterQuickRelapse.all.n + conc2.laterApart.all.n).toBe(conc2.later.all.n);
+    // only R1's first is followed by a quick relapse (R3's relapse follows his second)
+    expect(conc2.firstFollowedByQuickRelapse).toBe(1);
+  });
+
+  it("reads a quick relapse off the spells: the game after the one game back, same team and season", () => {
+    const spell = (o: Partial<Spell>): Spell => ({
+      season: 2023, team: "AAA", gsisId: "x", group: "WR", startIndex: 2, startWeek: 3, onset: "AFTER_PLAYED", afterBye: false, cls: "FOOTBALL",
+      firstKind: "INACTIVE", ir: false, bodyPart: "concussion/head", gamesMissed: 2, weeksOut: 2, end: "RETURNED", censored: false, ...o,
+    });
+    const prev = spell({});
+    // prev missed games 2 and 3, played game 4: game 5 is a quick relapse, game 6 is not
+    expect(isQuickRelapse(prev, spell({ startIndex: 5, startWeek: 7 }))).toBe(true);
+    expect(isQuickRelapse(prev, spell({ startIndex: 6, startWeek: 8 }))).toBe(false);
+    expect(isQuickRelapse(prev, spell({ startIndex: 5, team: "BBB" }))).toBe(false);
+    expect(isQuickRelapse(prev, spell({ startIndex: 5, season: 2024 }))).toBe(false);
+    expect(isQuickRelapse(undefined, spell({ startIndex: 5 }))).toBe(false);
   });
 });
 
@@ -263,6 +332,13 @@ describe("rates by depth-chart spot on the fixture", () => {
     expect(spot.unknownSpot).toEqual({ playerGames: 3, snaps: 180, newTimeLoss: 1, codes: { "(blank)": 3 } });
   });
 
+  it("counts a spot outside that week's listing only among the player-games that moved", () => {
+    // D1's week 3: listed LB that week, at DE (DL), his team-season group DL: not a mover, so not counted
+    expect(spot2.differ).toEqual({ playerGames: 0, share: 0, snaps: 0, snapShare: 0, newTimeLoss: 0, fromThatWeeksListing: 0 });
+    expect(spot2.groups.find((x) => x.group === "DL")!.spot).toMatchObject({ playerGames: 7, snaps: 280 });
+    expect(spot2.groups.find((x) => x.group === "LB")!.spot.playerGames).toBe(0);
+  });
+
   it("gives the same rates by fine spot", () => {
     expect(spot.fine.map((f) => f.spot)).toEqual(["RB", "WR", "TE", "T", "DE", "DT", "ILB", "CB", "K", "unknown"]);
     const f = (name: string) => spot.fine.find((x) => x.spot === name)!;
@@ -285,6 +361,11 @@ describe("the new measures and their report", () => {
     expect(summariseByAgeClass(flipped, [SEASON], b)).toEqual(byClass);
     expect(summariseRepeatConcussion(flipped, [SEASON])).toEqual(conc);
     expect(summariseBySpot(flipped, [SEASON])).toEqual(spot);
+    const r2 = fixtureRows(PLAYERS_2, WEEKS_2);
+    const flipped2 = derive(buildTimelines({
+      games: [...r2.games].reverse(), rosters: [...r2.rosters].reverse(), reports: [...r2.reports].reverse(), snaps: [...r2.snaps].reverse(),
+    }));
+    expect(summariseRepeatConcussion(flipped2, [SEASON])).toEqual(conc2);
   });
 
   it("render as new JSON keys and a REAL section, with no ids or names", () => {
@@ -302,6 +383,9 @@ describe("the new measures and their report", () => {
     expect(md).toContain("## By age, body-part class and depth-chart spot (REAL)");
     expect(md).toContain("| 25 and under | 3 | 11 | 1 (1) | 2.500 | 0.0909 | 1.38 ± 1.38 | 0.64 ± 0.64 |");
     expect(md).toContain("| Second or later | 1 | - | 100.0% | 100.0% | 1; 100.0% |");
+    expect(md).toContain("| ... a quick relapse | 1 | - | 100.0% | 100.0% | 1; 100.0% |");
+    expect(md).toContain("| ... the rest | 0 | - | - | - | 0; - |");
+    expect(md).toContain("1 first spells are followed by a quick relapse.");
     expect(md).toContain("| LB | 2; 2 | 0.5000; 0.0000; -0.5000 | 12.500; 0.000; -12.500 |");
     expect(md.indexOf("## By age")).toBeLessThan(md.indexOf("## Definitions"));
     for (const pl of PLAYERS) {
