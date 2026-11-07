@@ -76,6 +76,12 @@ describe("ADR-089 step 4 — the renderer's CONTACT section and release line", (
     expect(text).toContain(`QB_HIT SHED by #${String(shed.payload.rusher)} — ${String(shed.payload.approach)} from ${shed.payload.from}, contact at ${shed.payload.contactSeconds} s`);
     const section = text.slice(text.indexOf("CONTACT ("));
     expect(section.indexOf("QB_HIT SHED")).toBeGreaterThan(section.indexOf("arrival contest"));
+    // The sack's own QB_HIT (contracts-guardian G-6), after the contest that sacked him.
+    const sack = p.records.find((r) => r.kind === "QB_HIT" && r.payload.phase === "SACK");
+    if (sack?.kind !== "QB_HIT") throw new Error("no QB_HIT SACK");
+    const sackLine = `QB_HIT SACK by #${String(sack.payload.rusher)} — ${String(sack.payload.approach)} from ${sack.payload.from}, contact at ${sack.payload.contactSeconds} s`;
+    expect(section).toContain(sackLine);
+    expect(section.indexOf(sackLine)).toBeGreaterThan(section.lastIndexOf("Result: RUSHER_SACKS"));
   });
 
   it("a THROWING hit and the release under the motion", () => {

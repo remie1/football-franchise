@@ -915,7 +915,7 @@ export function simulatePassPlayWith(
       from: contactFrom({ approach: t.approach, alignment: t.alignment, liveAtStepUp: liveAtStepUp.has(String(t.rusher)) }),
     };
   };
-  /** A `QB_HIT` (P7) for this threat: approach, from and seen on every hit; `rollRef` on a SHED. */
+  /** A `QB_HIT` (P7) for this threat: approach, from and seen on every hit; `rollRef` on a SHED or a SACK. */
   const qbHitOf = (t: RushThreat, phase: QbHitRecord["phase"], rollRef?: string): QbHitRecord => {
     if (book === undefined) throw new Error("@ff/engine: a QB_HIT outside a step-4 block");
     const { approach, from } = contactFactsOf(t);
@@ -934,8 +934,9 @@ export function simulatePassPlayWith(
    * §4.5 items 4 to 6: the arrived threats resolve in the grid's order. The play's first contact is
    * the rated contest on `rush/t<tick>/<rusherId>:contest`; any contact after the play's first shed
    * is the second arrival on `:contest2` (every one rated on `:contest` when the second arrival is
-   * off, D12). RUSHER_SACKS ends the play (the caller's sack); QB_SHEDS writes `QB_HIT` SHED and
-   * puts his existing threat back by approach (no new rep, beat or tick die), published DELAYED.
+   * off, D12). RUSHER_SACKS writes `QB_HIT` SACK naming the CHECK and ends the play (the caller's
+   * sack); QB_SHEDS writes `QB_HIT` SHED and puts his existing threat back by approach (no new rep,
+   * beat or tick die), published DELAYED. Each hit stands right after the CHECK it names.
    */
   const contestArrivals = (arrived: readonly RushThreat[]): "SACK" | "SHED" => {
     if (contact === undefined || book === undefined) throw new Error("@ff/engine: a contest outside the contact block");
@@ -982,7 +983,11 @@ export function simulatePassPlayWith(
         };
       }
       log.arrivalContest(check);
-      if (check.band === "RUSHER_SACKS") return "SACK";
+      if (check.band === "RUSHER_SACKS") {
+        // contracts-guardian G-6: the sack's own QB_HIT, so its approach, from and seen are on the stream.
+        log.qbHit(qbHitOf(t, "SACK", check.roll.rngLabel));
+        return "SACK";
+      }
       shedInPlay = true;
       log.qbHit(qbHitOf(t, "SHED", check.roll.rngLabel));
       const before = m.threat;

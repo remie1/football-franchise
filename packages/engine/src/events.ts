@@ -196,13 +196,17 @@ export function arrivalContestPayload(c: ArrivalContestEmission): ArrivalContest
   };
 }
 
-/** P7's `QbHitPhase`: the ball went on his arrival tick, inside the motion, or he broke free. */
-export type QbHitPhase = "ARRIVAL" | "THROWING" | "SHED";
+/**
+ * P7's `QbHitPhase`: the ball went on his arrival tick, inside the motion, the quarterback broke
+ * free (QB_SHEDS), or the rusher won the contest (RUSHER_SACKS, the play his sack; contracts-guardian
+ * G-6). A sack with no `arrival_contest` (rules without the contact block) carries no `QB_HIT`.
+ */
+export type QbHitPhase = "ARRIVAL" | "THROWING" | "SHED" | "SACK";
 
 /**
  * A `QB_HIT` payload as P7 writes it, in its key order. `rollRef` is the `arrival_contest` CHECK
- * behind a SHED (absent on ARRIVAL and THROWING); `approach`, `from` and `seen` are on every hit
- * under `pocket-1` (`seen` true until ADR-089 step 7).
+ * behind a SHED or a SACK (absent on ARRIVAL and THROWING); `approach`, `from` and `seen` are on
+ * every hit under `pocket-1` (`seen` true until ADR-089 step 7).
  */
 export interface QbHitRecord {
   readonly qb: PlayerId;

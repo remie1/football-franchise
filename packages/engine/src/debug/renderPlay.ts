@@ -554,8 +554,8 @@ function renderPocketMovement(events: readonly MatchEventEnvelope[], name: NameL
 }
 
 /**
- * ADR-089 step 4 — CONTACT: each `arrival_contest` CHECK (P6) and each `QB_HIT` (P7), in stream
- * order. Neither is a contracts type until the owner lifts P6 and P7, so both are read structurally
+ * ADR-089 step 4 — CONTACT: each `arrival_contest` CHECK (P6) and each `QB_HIT` (P7: ARRIVAL,
+ * THROWING, SHED or SACK, the last two right after the CHECK they name), in stream order. Neither is a contracts type until the owner lifts P6 and P7, so both are read structurally
  * here, and a stream without them (every stream today) prints no section at all.
  */
 function renderContact(events: readonly MatchEventEnvelope[], name: NameLookup): string[] {

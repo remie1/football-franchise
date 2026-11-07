@@ -698,8 +698,10 @@ Results per Tick:
 > the quarterback's agility not read; a seen PUSH or BLOCKED: quarterback +20, the rusher's speed
 > not read; the free-run clock: rusher +10), RUSHER_SACKS at a margin of `boundary` (5) or more,
 > else QB_SHEDS. Any contact after the play's first shed is the **second arrival**, one d100 on
-> `:contest2`, RUSHER_SACKS at 16 or more (0.85 at target 15). RUSHER_SACKS is the sack, with no
-> `QB_HIT`, and the box score credits it to that CHECK's rusher. QB_SHEDS writes `QB_HIT` SHED
+> `:contest2`, RUSHER_SACKS at 16 or more (0.85 at target 15). RUSHER_SACKS is the sack: a
+> `QB_HIT` SACK naming the CHECK stands right after it (its approach, from and `seen` on the stream;
+> a sack with no contest, as under rules without the contact block, writes none), and the box
+> score credits it to that CHECK's rusher. QB_SHEDS writes `QB_HIT` SHED
 > naming the CHECK and puts his existing threat back (PUSH 1.0 s, every other approach 0.5 s; no
 > new rep, beat or tick die), published DELAYED; the tick's threat list, its nearest arrival, the
 > status read on it and what forces him are then rebuilt before §7.2's move branch (no second

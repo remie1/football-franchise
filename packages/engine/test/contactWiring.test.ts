@@ -7,8 +7,9 @@
  * the motion alone, they hold:
  *  - the gates: no recorder, no record (P6, P7 and P8's named errors, from the log itself);
  *  - the contest (§4.5 items 2 to 5): its full labels, `:contest` first and `:contest2` only after
- *    the play's first shed, the bands against the margins, RUSHER_SACKS as the play's sack, QB_SHEDS
- *    as a `QB_HIT` SHED naming the CHECK and a DELAYED publication by approach; every label unique;
+ *    the play's first shed, the bands against the margins, RUSHER_SACKS as the play's sack with a
+ *    `QB_HIT` SACK naming the CHECK, QB_SHEDS as a `QB_HIT` SHED naming the CHECK and a DELAYED
+ *    publication by approach; a sack with no contest writes no `QB_HIT`; every label unique;
  *  - throw first: a throw on a tick with a threat ARRIVED is one `QB_HIT` ARRIVAL, no contest;
  *  - the motion: `releaseSeconds` on every aimed THROW, the race's THROWING hit and its IMMEDIATE row;
  *  - kind T reads the published grid; BEHIND after a STEP_UP; CONTEST_BEFORE_THROW and RATED;
@@ -202,7 +203,7 @@ describe("ADR-089 step 4 — the contest (§4.5 items 2 to 5)", () => {
     expect(seconds).toBeGreaterThan(0);
   });
 
-  it("RUSHER_SACKS ends the play in a sack, with no hit and no throw after it", () => {
+  it("RUSHER_SACKS ends the play in a sack: one QB_HIT SACK naming the CHECK right after it, then nothing but the result", () => {
     let sacks = 0;
     for (const name of withContact) {
       for (const p of corpusOf(name)) {
@@ -212,13 +213,45 @@ describe("ADR-089 step 4 — the contest (§4.5 items 2 to 5)", () => {
         sacks += 1;
         const c = cs[sackAt]!;
         expect(sackAt).toBe(cs.length - 1);
-        expect(p.records[p.records.length - 1]).toBe(c);
+        // contracts-guardian G-6: the sack's QB_HIT stands right after its CHECK and is the last record.
+        const n = p.records.indexOf(c);
+        expect(n).toBe(p.records.length - 2);
+        const hit = p.records[n + 1];
+        expect(hit?.kind).toBe("QB_HIT");
+        if (hit?.kind !== "QB_HIT") continue;
+        expect(hit.payload.phase).toBe("SACK");
+        expect(hit.payload.rusher).toBe(c.payload.actors[0]);
+        expect(hit.payload.qb).toBe(c.payload.actors[1]);
+        expect(hit.payload.rollRef).toBe(c.payload.roll.rngLabel);
+        expect(hit.at).toEqual(c.at);
         const after = p.events.filter((e) => e.seq >= c.at.seq);
         expect(after.map(typeOf)).toEqual(["PLAY_RESULT"]);
         expect(payloadOf(after[0]!)["yards"]).toBe(-DEFAULT_TUNABLES.result.sackYardsLost);
       }
     }
     expect(sacks).toBeGreaterThan(0);
+  });
+
+  it("a QB_HIT SACK only after a RUSHER_SACKS contest: one a sacking contest, none on a sack with no contest", () => {
+    let contactless = 0;
+    for (const [name] of SETS) {
+      for (const p of corpusOf(name)) {
+        const sackHits = hits(p).filter((h) => h.payload.phase === "SACK");
+        const sacking = contests(p).filter((c) => c.payload.band === "RUSHER_SACKS");
+        expect(sackHits.map((h) => h.payload.rollRef), `${name} ${p.fixture} ${p.seed}`).toEqual(sacking.map((c) => c.payload.roll.rngLabel));
+        const result = p.events.find((e) => typeOf(e) === "PLAY_RESULT");
+        const sacked =
+          result !== undefined &&
+          payloadOf(result)["yards"] === -DEFAULT_TUNABLES.result.sackYardsLost &&
+          !p.events.some((e) => typeOf(e) === "THROW" || typeOf(e) === "THROWAWAY");
+        if (sacked && sacking.length === 0) {
+          contactless += 1;
+          expect(sackHits).toHaveLength(0);
+        }
+      }
+    }
+    // The motion alone (no contact block) keeps today's automatic sack, with no contest and no hit.
+    expect(contactless).toBeGreaterThan(0);
   });
 
   it("QB_SHEDS: a QB_HIT SHED naming the CHECK, then his threat DELAYED by approach (PUSH 1.0 s, else 0.5 s)", () => {
@@ -364,7 +397,7 @@ describe("ADR-089 step 4 — throw first, and the motion", () => {
     }
   });
 
-  it("every hit carries approach, from and seen; rollRef on a SHED only", () => {
+  it("every hit carries approach, from and seen; rollRef on a SHED or a SACK only", () => {
     for (const [name] of SETS) {
       for (const p of corpusOf(name)) {
         for (const h of hits(p)) {
@@ -372,7 +405,7 @@ describe("ADR-089 step 4 — throw first, and the motion", () => {
           expect(h.payload.approach).toBeDefined();
           expect(["FRONT", "SIDE", "BEHIND"]).toContain(h.payload.from);
           expect(h.payload.seen).toBe(true);
-          expect(h.payload.rollRef !== undefined).toBe(h.payload.phase === "SHED");
+          expect(h.payload.rollRef !== undefined).toBe(h.payload.phase === "SHED" || h.payload.phase === "SACK");
         }
       }
     }
