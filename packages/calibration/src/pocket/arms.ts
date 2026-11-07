@@ -100,6 +100,7 @@ import {
   POCKET_1_S4_MOTION,
   POCKET_1_S4_RULES,
   checkStamp,
+  isStep5Rules,
   overlayDigestOf,
   step4PetitionsIn,
   rulesTunables,
@@ -1041,6 +1042,10 @@ function build(def: Omit<ArmDef, "id"> & { readonly id: ArmId | ProofOverlayId }
     tunables = isS3DesignArm(def, overlay)
       ? rulesTunables(POCKET_1_S3_RULES)
       : withOverlay(patches.reduce(applyTunablePatch, DEFAULT_TUNABLES), def.rules, withStep3(overlay, def.step3), def.forcing === undefined ? undefined : { rule: def.forcing });
+  } else if (def.rules !== undefined && isStep5Rules(def.rules)) {
+    // ADR-089 step 5 (plan §1.1, §5): step 5's arms are defined with their harness, which builds
+    // their bench and league bundles (`cleanBenchTunablesS5`, `step5Bundle`); this table builds none.
+    throw new EngineRulesError(`arm ${def.id}: no arm of this table is stamped ${def.rules}; step 5's arms are built by the step-5 harness`);
   } else if (def.step3 !== undefined) {
     throw new EngineRulesError(`arm ${def.id}: only a ${POCKET_1_S3_RULES} arm carries step 3's blocks`);
   } else if (def.rules === undefined || def.rules === POCKET_1_S1_RULES) {

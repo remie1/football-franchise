@@ -160,7 +160,9 @@ describe("pocket-1.s4's blocks (plan §1.1)", () => {
     // pocket-1.s3's overlay is untouched.
     expect(POCKET_1_S3_OVERLAY).toEqual({ ...POCKET_1_S1_OVERLAY, blitzPickup: { freeRun: POCKET_1_S3_FREE_RUN, lateBlock: POCKET_1_S3_LATE_BLOCK }, pocket: { climbLane: "FRONT" } });
     expect([...STEP4_BLOCKS]).toEqual(["pocket.contact", "throwExec.motion"]);
-    expect([...POCKET_BLOCKS].slice(-2)).toEqual([...STEP4_BLOCKS]);
+    // By name (step 5's block follows step 4's, step 5's plan §1.2).
+    expect([...POCKET_BLOCKS].filter((block) => (STEP4_BLOCKS as readonly string[]).includes(block))).toEqual([...STEP4_BLOCKS]);
+    expect([...POCKET_BLOCKS].indexOf("pocket.contact")).toBe([...POCKET_BLOCKS].indexOf("pocket.climbLane") + 1);
     expect([...CONTACT_ORDERS]).toEqual(["CONTEST_AFTER_THROW", "CONTEST_BEFORE_THROW"]);
     expect([...MOTION_READINGS]).toEqual(["CONTINUOUS", "GRID"]);
   });

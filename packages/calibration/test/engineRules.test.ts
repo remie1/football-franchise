@@ -689,8 +689,8 @@ describe("pocket-1.s3, step 3's bundle (plan §2.1, §4.4)", () => {
     expect([...FREE_RUN_ORIGINS]).toEqual(["UNBLOCKED", "BLOWN_UP", "LOOPER_FREE"]);
     expect([...FREE_RUN_PICTURES]).toEqual(["AS_RULED", "MUG_HEAD_ONLY"]);
     expect([...CLIMB_LANES]).toEqual(["FRONT"]);
-    // Step 4's two blocks follow step 3's (plan §1.1).
-    expect([...POCKET_BLOCKS]).toEqual(["passRush.beatClock", "passRush.repClock", "passRush.approach", "pocket.forcing", "blitzPickup.freeRun", "blitzPickup.lateBlock", "pocket.climbLane", "pocket.contact", "throwExec.motion"]);
+    // Step 4's two blocks follow step 3's (plan §1.1), and step 5's one follows them (step 5's plan §1.2).
+    expect([...POCKET_BLOCKS]).toEqual(["passRush.beatClock", "passRush.repClock", "passRush.approach", "pocket.forcing", "blitzPickup.freeRun", "blitzPickup.lateBlock", "pocket.climbLane", "pocket.contact", "throwExec.motion", "pocket.cleanPocket"]);
     expect([...STEP3_BLOCKS]).toEqual(["blitzPickup.freeRun", "blitzPickup.lateBlock", "pocket.climbLane"]);
   });
 
@@ -809,7 +809,7 @@ describe("pocket-1.s3, step 3's bundle (plan §2.1, §4.4)", () => {
       ],
       ["the forcing block in the overlay", () => withOverlay(horizons(), "pocket-1.s3", { ...POCKET_1_S1_OVERLAY, forcing: POCKET_1_S2_FORCING } as never), "withOverlay(pocket-1.s3): the overlay names forcing, which is not a pocket-1 block (beatClock, repClock, approach, blitzPickup, pocket, throwExec)"],
       ["an existing leaf under blitzPickup", () => s3With({ blitzPickup: { freeRunnerArrivalSeconds: 2.0 } } as never), "withOverlay(pocket-1.s3): the overlay names blitzPickup.freeRunnerArrivalSeconds, which is not a pocket-1 block (freeRun, lateBlock)"],
-      ["the forcing block under pocket", () => s3With({ pocket: { forcing: POCKET_1_S2_FORCING } } as never), "withOverlay(pocket-1.s3): the overlay names pocket.forcing, which is not a pocket-1 block (climbLane, contact)"],
+      ["the forcing block under pocket", () => s3With({ pocket: { forcing: POCKET_1_S2_FORCING } } as never), "withOverlay(pocket-1.s3): the overlay names pocket.forcing, which is not a pocket-1 block (climbLane, contact, cleanPocket)"],
       ["a blitzPickup that is not an object", () => s3With({ blitzPickup: "freeRun" } as never), "withOverlay(pocket-1.s3): the overlay's blitzPickup must be an object of freeRun, lateBlock, got freeRun"],
     ];
     for (const [label, run, message] of cases) {

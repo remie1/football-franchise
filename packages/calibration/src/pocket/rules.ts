@@ -60,6 +60,19 @@
  *    step-4 block, at every calibration entry and in `runOneGame`, before any game; the engine
  *    refuses the same trees before its first die. `withOverlay` and `rulesTunables` still build
  *    them, so the bundle's digest is recorded and its save name is `pocket-1.s4@<digest>`.
+ *  - **`pocket-1.s5a` and `pocket-1.s5b` (step 5, §4.6, §6.5; plan §1.1, §1.2)** are built as
+ *    `pocket-1.s4` is, with one more block in the overlay, `pocket.cleanPocket` (his count's
+ *    clean-pocket checklist and the drop floor: every part on, the reset 1.0 s, D23's bar 30, the
+ *    CHOSEN floor), and the three read-system deltas the 5a fit sets as existing leaves patched on
+ *    the base (`POCKET_1_S5A_LEAVES`, the `POCKET_1_S2_LEAVES` pattern); `pocket-1.s5b` is
+ *    `pocket-1.s5a` on the block clock the filed selection rule picks. The block rides only on a
+ *    stamped bundle with a block clock and only under the two step-5 names; under either, any
+ *    subset of the step-3, step-4 and step-5 blocks is a bundle (an arm carries one part alone).
+ *    The two names are stamped by the step-5 harness's arms (`withOverlay`, `checkStamp` and
+ *    `runOneGame` take them), but neither is in `ENGINE_RULES`, the list a run or a save may name,
+ *    until it is recorded: `pocket-1.s5a` at the fit commit and `pocket-1.s5b` at the selection
+ *    commit. Until then `rulesTunables` refuses each by name (`step5RulesRefusal`), so no save,
+ *    export or season is ever stamped with a digest that is later re-recorded.
  *  - **When it is written (O11).** The export file and `season --out` always write `engineRules`, so
  *    they say what played. The identity, the batch provenance and the save write it only when it is
  *    not `legacy`, so a legacy identity and a legacy save stay byte for byte today's. The overlay
@@ -105,15 +118,47 @@ export const POCKET_1_S3_RULES = "pocket-1.s3";
 export const POCKET_1_S4_RULES = "pocket-1.s4";
 
 /**
- * Every engine rules bundle this build names. `pocket-1.s4` is named and built, and refused before
- * any game while its petitions are out (`rulesRefusal`).
+ * ADR-089 step 5a's design bundle (plan §1.1): `pocket-1.s4` with his count's clean-pocket checklist
+ * and the drop floor (`pocket.cleanPocket`) and the three read-system deltas the 5a fit sets. Built
+ * and stamped by the step-5 harness; not in `ENGINE_RULES` until the fit is recorded.
+ */
+export const POCKET_1_S5A_RULES = "pocket-1.s5a";
+
+/**
+ * ADR-089 step 5b's design bundle (plan §1.1): `pocket-1.s5a` on the block clock the filed selection
+ * rule picks (b still 5). Built and stamped by the step-5 harness; not in `ENGINE_RULES` until the
+ * selection is recorded.
+ */
+export const POCKET_1_S5B_RULES = "pocket-1.s5b";
+
+/**
+ * Every engine rules bundle a run, an export or a save may name. `pocket-1.s4` is named and built,
+ * and refused before any game while its petitions are out (`rulesRefusal`). Step 5's two names are
+ * not here yet (plan §1.1): `pocket-1.s5a` joins at the fit commit and `pocket-1.s5b` at the
+ * selection commit, each once its bundle is recorded.
  */
 export const ENGINE_RULES = [LEGACY_RULES, POCKET_1_S1_RULES, POCKET_1_S2_RULES, POCKET_1_S3_RULES, POCKET_1_S4_RULES] as const;
 
 export type EngineRules = (typeof ENGINE_RULES)[number];
 
-/** A rules name that carries an overlay (every name but `legacy`). */
-export type OverlayRules = Exclude<EngineRules, typeof LEGACY_RULES>;
+/** Step 5's two rules names (plan §1.1), in order: 5a's, then 5b's. */
+export const STEP5_RULES = Object.freeze([POCKET_1_S5A_RULES, POCKET_1_S5B_RULES] as const);
+
+export type Step5Rules = (typeof STEP5_RULES)[number];
+
+/**
+ * Every rules name this build stamps a bundle with: `ENGINE_RULES` and step 5's two names (plan
+ * §1.1). `withOverlay`, `checkStamp` and `runOneGame` take any of them, so the step-5 harness's arms
+ * are stamped and played; a run, an export or a save names only `ENGINE_RULES` (`engineRulesNamed`,
+ * `rulesOfSave`), and `rulesTunables` refuses a step-5 name until its bundle is recorded.
+ */
+export type StampedRules = EngineRules | Step5Rules;
+
+/** `ENGINE_RULES` then step 5's names, each once (a step-5 name joins `ENGINE_RULES` when recorded). */
+export const STAMPED_RULES: readonly StampedRules[] = Object.freeze([...new Set<StampedRules>([...ENGINE_RULES, ...STEP5_RULES])]);
+
+/** A rules name that carries an overlay (every stamped name but `legacy`). */
+export type OverlayRules = Exclude<StampedRules, typeof LEGACY_RULES>;
 
 /** What a run plays when it names no rules: `legacy` until step 11's flip (ADR-089 §9). */
 export const DEFAULT_ENGINE_RULES: EngineRules = LEGACY_RULES;
@@ -126,6 +171,16 @@ export function isEngineRules(name: string): name is EngineRules {
   return (ENGINE_RULES as readonly string[]).includes(name);
 }
 
+/** Whether a name is one this build stamps a bundle with (`STAMPED_RULES`). */
+export function isStampedRules(name: string): name is StampedRules {
+  return (STAMPED_RULES as readonly string[]).includes(name);
+}
+
+/** Whether a name is one of step 5's two (plan §1.1). */
+export function isStep5Rules(name: string): name is Step5Rules {
+  return (STEP5_RULES as readonly string[]).includes(name);
+}
+
 /**
  * The rules a run names, checked: absent is `DEFAULT_ENGINE_RULES`; a name this build does not have
  * is refused, so nothing is ever stamped with a word ("default", a typo, a later step's bundle) in
@@ -136,6 +191,22 @@ export function engineRulesNamed(name: string | undefined, where: string): Engin
   if (!isEngineRules(name)) {
     throw new EngineRulesError(
       `${where}: engine rules ${JSON.stringify(name)} are not in this build, which has ${ENGINE_RULES.join(", ")} (ADR-089 §9)`,
+    );
+  }
+  return name;
+}
+
+/**
+ * The rules a stamp names, checked (ADR-089 step 5, plan §1.1): absent is `DEFAULT_ENGINE_RULES`, as
+ * `engineRulesNamed`; any name this build stamps is taken (`STAMPED_RULES`, step 5's two included,
+ * so the step-5 harness's arms play through `runOneGame`); any other name is refused with
+ * `engineRulesNamed`'s words. A run names its rules through `engineRulesNamed`, never this.
+ */
+export function stampedRulesNamed(name: string | undefined, where: string): StampedRules {
+  if (name === undefined) return DEFAULT_ENGINE_RULES;
+  if (!isStampedRules(name)) {
+    throw new EngineRulesError(
+      `${where}: engine rules ${JSON.stringify(name)} are not in this build, which has ${ENGINE_RULES.join(", ")} (ADR-089 §9), and stamps ${STEP5_RULES.join(" and ")} for the step-5 harness`,
     );
   }
   return name;
@@ -169,10 +240,19 @@ export interface PocketStep4Overlay {
  * and `approach` (§4.0's card), which a bundle carries as exactly one clock and the card (or, kind
  * T, the card alone with the contact block); from step 3, `blitzPickup.freeRun`,
  * `blitzPickup.lateBlock` and `pocket.climbLane` (`PocketStep3Overlay`); and from step 4,
- * `pocket.contact` and `throwExec.motion` (`PocketStep4Overlay`). Step 2's forcing block is
- * `withOverlay`'s fourth argument, as it was.
+ * `pocket.contact` and `throwExec.motion` (`PocketStep4Overlay`); and from step 5,
+ * `pocket.cleanPocket` (`PocketStep5Overlay`). Step 2's forcing block is `withOverlay`'s fourth
+ * argument, as it was.
  */
-export type PocketOverlay = Pick<Tunables["passRush"], "beatClock" | "repClock" | "approach"> & PocketStep3Overlay & PocketStep4Overlay;
+/**
+ * ADR-089 step 5's block (plan §1.2), typed from the engine's own `Tunables` as the others are (no new
+ * engine name): `pocket.cleanPocket` (his count's clean-pocket checklist and the drop floor).
+ */
+export interface PocketStep5Overlay {
+  readonly pocket?: Pick<Tunables["pocket"], "cleanPocket">;
+}
+
+export type PocketOverlay = Pick<Tunables["passRush"], "beatClock" | "repClock" | "approach"> & PocketStep3Overlay & PocketStep4Overlay & PocketStep5Overlay;
 
 /** The keys an overlay may carry, in `withOverlay`'s order (the check below keeps it whole). */
 const OVERLAY_KEYS = Object.freeze(["beatClock", "repClock", "approach", "blitzPickup", "pocket", "throwExec"] as const satisfies readonly (keyof PocketOverlay)[]);
@@ -182,7 +262,7 @@ void _everyOverlayKeyListed;
 const OVERLAY_PICKUP_KEYS = Object.freeze(["freeRun", "lateBlock"] as const satisfies readonly (keyof NonNullable<PocketStep3Overlay["blitzPickup"]>)[]);
 const _everyPickupKeyListed: readonly (typeof OVERLAY_PICKUP_KEYS)[number][] = [] as readonly (keyof NonNullable<PocketStep3Overlay["blitzPickup"]>)[];
 void _everyPickupKeyListed;
-const OVERLAY_POCKET_KEYS = Object.freeze(["climbLane", "contact"] as const satisfies readonly (keyof NonNullable<PocketOverlay["pocket"]>)[]);
+const OVERLAY_POCKET_KEYS = Object.freeze(["climbLane", "contact", "cleanPocket"] as const satisfies readonly (keyof NonNullable<PocketOverlay["pocket"]>)[]);
 const _everyPocketKeyListed: readonly (typeof OVERLAY_POCKET_KEYS)[number][] = [] as readonly (keyof NonNullable<PocketOverlay["pocket"]>)[];
 void _everyPocketKeyListed;
 /** The step-4 key under the overlay's `throwExec`. */
@@ -262,6 +342,14 @@ export const CONTACT_ORDERS = Object.freeze(["CONTEST_AFTER_THROW", "CONTEST_BEF
 const _everyContactOrderListed: readonly (typeof CONTACT_ORDERS)[number][] = [] as readonly ContactOrder[];
 void _everyContactOrderListed;
 export const MOTION_READINGS = Object.freeze(["CONTINUOUS", "GRID"] as const satisfies readonly MotionReading[]);
+
+/** ADR-089 step 5's clean-pocket block (plan §1.2), typed from the engine's `Tunables` (no new engine name). */
+export type PocketCleanPocket = NonNullable<Tunables["pocket"]["cleanPocket"]>;
+/** The drop floor inside it (§4.6, CHOSEN). */
+export type PocketDropFloor = NonNullable<PocketCleanPocket["dropFloor"]>;
+
+/** The clean-pocket block's switches, in plan §1.2's order (the engine checks the same five). */
+export const CLEAN_POCKET_SWITCHES = Object.freeze(["d23", "move", "bump", "breakOut", "d23OnRun"] as const satisfies readonly (keyof PocketCleanPocket)[]);
 const _everyMotionReadingListed: readonly (typeof MOTION_READINGS)[number][] = [] as readonly MotionReading[];
 void _everyMotionReadingListed;
 /** The tilts, each with the name of its size, in the engine's order. */
@@ -345,17 +433,12 @@ export function step4PetitionsIn(petitions: Step4Petitions = {}): boolean {
   return (petitions.P6 ?? P6_IN_CONTRACTS) && (petitions.P7 ?? P7_IN_CONTRACTS) && (petitions.P8 ?? P8_IN_CONTRACTS);
 }
 
-/** Step 5's two rules names, as the stamp predicates read them (plan §1.1; the bundles are built later). */
-const POCKET_1_S5A_NAME = "pocket-1.s5a";
-const POCKET_1_S5B_NAME = "pocket-1.s5b";
-
 /**
  * The ADR-089 step a `PLAY_START.rules` name belongs to (ADR-089 step 5, plan §1.3; critique 1 B1):
  * `pocket-1.s1` to `pocket-1.s4` are steps 1 to 4, and step 5's two names, `pocket-1.s5a` and
  * `pocket-1.s5b`, are both step 5 (each carries step 4's blocks and step 5's). `legacy`, an absent
- * name and any other name are `undefined`. The step-5 names are matched here as strings: this build
- * names them for the readers only, and no game is stamped with either (their bundles and
- * `ENGINE_RULES` entries come later, each refused until recorded).
+ * name and any other name are `undefined`. A step-5 name reads as step 5 whether or not its bundle
+ * is recorded yet (the harness stamps its arms with it before `ENGINE_RULES` takes it).
  */
 export function pocketStepOf(name: string | undefined): 1 | 2 | 3 | 4 | 5 | undefined {
   switch (name) {
@@ -367,8 +450,8 @@ export function pocketStepOf(name: string | undefined): 1 | 2 | 3 | 4 | 5 | unde
       return 3;
     case POCKET_1_S4_RULES:
       return 4;
-    case POCKET_1_S5A_NAME:
-    case POCKET_1_S5B_NAME:
+    case POCKET_1_S5A_RULES:
+    case POCKET_1_S5B_RULES:
       return 5;
     default:
       return undefined;
@@ -574,6 +657,113 @@ export const POCKET_1_S4_OVERLAY: PocketOverlay = deepFreeze({
  */
 export const POCKET_1_S4_DIGEST = "fnv1a:8edb4bad";
 
+/**
+ * `pocket-1.s5a`'s drop floor (ADR-089 §4.6, CHOSEN; plan §1.2): the earliest non-screen release by
+ * the depth class of the call's first read, QUICK 1.0 s, SHORT 1.5 s, INTERMEDIATE and DEEP 2.0 s.
+ */
+export const POCKET_1_S5A_DROP_FLOOR: PocketDropFloor = deepFreeze({ QUICK: 1.0, SHORT: 1.5, INTERMEDIATE: 2.0, DEEP: 2.0 } as const);
+
+/** D33's reset after a clean move (CHOSEN, never fitted): 1.0 s. */
+export const POCKET_1_S5A_RESET_SECONDS = 1.0;
+
+/**
+ * `pocket-1.s5a`'s clean-pocket block (ADR-089 §4.6, D23, D25, D26, D27, D33; plan §1.2): every part
+ * of the owner's checklist on (D23's checkdown at the bar 30, the one ranked pick with MOVE and
+ * ESCAPE, the window bump, D23 on the run), the reset 1.0 s and the drop floor. `pocket-1.s5b`
+ * carries the same block.
+ */
+export const POCKET_1_S5A_CLEAN_POCKET: PocketCleanPocket = deepFreeze({
+  d23: true,
+  expiryBar: 30,
+  move: true,
+  resetSeconds: POCKET_1_S5A_RESET_SECONDS,
+  bump: true,
+  breakOut: true,
+  d23OnRun: true,
+  dropFloor: POCKET_1_S5A_DROP_FLOOR,
+} as const);
+
+/**
+ * `pocket-1.s5a`'s overlay (plan §1.1): `pocket-1.s4`'s (step 1's clock S at theta 11 with the push
+ * window and the card, step 3's three blocks, step 4's two) with the clean-pocket block. The forcing
+ * block, must act per rusher, is `POCKET_1_S2_FORCING`, given apart; the three fitted deltas are leaf
+ * patches on the base (`POCKET_1_S5A_LEAVES`), never in the overlay.
+ */
+export const POCKET_1_S5A_OVERLAY: PocketOverlay = deepFreeze({
+  ...POCKET_1_S4_OVERLAY,
+  pocket: { climbLane: POCKET_1_S3_CLIMB_LANE, contact: POCKET_1_S4_CONTACT, cleanPocket: POCKET_1_S5A_CLEAN_POCKET },
+});
+
+/** The three reading systems whose `qb.readSystem.<system>.budgetDeltaSeconds` the 5a fit sets (§6.10), in the fit's order. */
+export const READ_SYSTEMS = Object.freeze(["HALF_FIELD", "FULL_FIELD", "CONCEPT"] as const);
+export type ReadSystem = (typeof READ_SYSTEMS)[number];
+
+/** Seconds added to each system's delta as it stands on the base (the fit's grid is offsets from today's values). */
+export type ReadSystemOffsets = Readonly<Record<ReadSystem, number>>;
+
+/** No offset: every delta as it stands. */
+export const NO_READ_SYSTEM_OFFSETS: ReadSystemOffsets = Object.freeze({ HALF_FIELD: 0, FULL_FIELD: 0, CONCEPT: 0 });
+
+const S5_EVIDENCE = "ADR-089 §6.10, the 5a fit (AM-9): the three read-system deltas on the clean release shape";
+const S5_EFFECT = "ADR-089 step 5's bundles and arms only, behind the switch; never in DEFAULT_TUNABLES (ADR-061)";
+
+/**
+ * The read-system deltas moved by `offsets`, as leaf patches on `base` (plan §1.1, §5.0): one patch a
+ * system whose offset is not 0, in `READ_SYSTEMS`' order, each written against the delta `base`
+ * carries, so an offset of 0 patches nothing (today's deltas are no patch, and an arm with them digests
+ * as one without). A non-finite offset is refused. These are the fit's dials and nothing else.
+ */
+export function readSystemDeltaLeaves(offsets: ReadSystemOffsets, base: Tunables = DEFAULT_TUNABLES): readonly LeafPatch[] {
+  const out: LeafPatch[] = [];
+  for (const system of READ_SYSTEMS) {
+    const offset = offsets[system];
+    if (!finiteNumber(offset)) throw new EngineRulesError(`readSystemDeltaLeaves: the ${system} offset must be a finite number of seconds, got ${String(offset)}`);
+    if (offset === 0) continue;
+    const current = base.qb.readSystem[system].budgetDeltaSeconds;
+    out.push({ tunableId: `qb.readSystem.${system}.budgetDeltaSeconds`, currentValue: current, proposedValue: current + offset, evidence: S5_EVIDENCE, expectedEffect: S5_EFFECT });
+  }
+  return deepFreeze(out);
+}
+
+// Step 5's records (plan §1.1). Each is a literal recorded by its own commit, never read from a file
+// at load; until then each is `undefined` and `rulesTunables` refuses the name it belongs to with the
+// message `step5RulesRefusal` gives. The `as` keeps each one's declared type, so a reader is checked
+// for the recorded case too.
+
+/** The three fitted deltas as leaf patches on Half and Follows: recorded at the 5a fit commit (a test derives them from the fit record). */
+export const POCKET_1_S5A_LEAVES = undefined as readonly LeafPatch[] | undefined;
+
+/** `pocket-1.s5a`'s overlay digest on this build's `DEFAULT_TUNABLES` (O28): recorded at the 5a fit commit. */
+export const POCKET_1_S5A_DIGEST = undefined as string | undefined;
+
+/** The digest of the committed 5a fit record (`reports/adr-089-step5a.fit.json`): recorded at the 5a fit commit. */
+export const POCKET_1_S5A_FIT_DIGEST = undefined as string | undefined;
+
+/** `pocket-1.s5b`'s overlay: `pocket-1.s5a`'s on the block clock the filed rule picks (`step5OverlayAt`); recorded at the selection commit. */
+export const POCKET_1_S5B_OVERLAY = undefined as PocketOverlay | undefined;
+
+/** `pocket-1.s5b`'s overlay digest (O28): recorded at the selection commit. */
+export const POCKET_1_S5B_DIGEST = undefined as string | undefined;
+
+/** A block clock for a step-5 overlay: shape S's `beatClock` or shape L's `repClock`, one of them. */
+export type Step5Clock = Pick<PocketOverlay, "beatClock"> | Pick<PocketOverlay, "repClock">;
+
+/**
+ * `pocket-1.s5a`'s overlay on another block clock (plan §1.1, §5.2: the 5b grid and the winner):
+ * the clean-pocket block and every other block as they are, `beatClock` (S) or `repClock` (L)
+ * replaced by `clock`, the card kept. At S theta 11 with k 2, beta 0.5 and the push window it is
+ * `POCKET_1_S5A_OVERLAY`'s value. Frozen; `withOverlay` checks the closed set and the dials.
+ */
+export function step5OverlayAt(clock: Step5Clock): PocketOverlay {
+  const { beatClock: _beatClock, repClock: _repClock, ...rest } = POCKET_1_S5A_OVERLAY;
+  const beatClock = "beatClock" in clock ? clock.beatClock : undefined;
+  const repClock = "repClock" in clock ? clock.repClock : undefined;
+  if ((beatClock === undefined) === (repClock === undefined)) {
+    throw new EngineRulesError("step5OverlayAt: a step-5 overlay runs one block clock, passRush.beatClock (shape S) or passRush.repClock (shape L)");
+  }
+  return deepFreeze({ ...copyData(rest), ...(beatClock === undefined ? {} : { beatClock: copyData(beatClock) }), ...(repClock === undefined ? {} : { repClock: copyData(repClock) }) });
+}
+
 /** O28: `stableDigest` of the tunables with the `engineRules` stamp removed. */
 export function overlayDigestOf(tunables: Tunables): string {
   const { engineRules: _stamp, ...dials } = tunables;
@@ -582,7 +772,7 @@ export function overlayDigestOf(tunables: Tunables): string {
 
 /**
  * Every `pocket-1` block, by path, in a fixed order: the `passRush` blocks (step 1), `pocket.forcing`
- * (step 2) and step 3's three.
+ * (step 2), step 3's three, step 4's two and step 5's one.
  */
 export const POCKET_BLOCKS = Object.freeze([
   "passRush.beatClock",
@@ -594,6 +784,7 @@ export const POCKET_BLOCKS = Object.freeze([
   "pocket.climbLane",
   "pocket.contact",
   "throwExec.motion",
+  "pocket.cleanPocket",
 ] as const);
 export type PocketBlock = (typeof POCKET_BLOCKS)[number];
 
@@ -604,6 +795,10 @@ export type Step3Block = (typeof STEP3_BLOCKS)[number];
 /** Step 4's blocks (plan §1.1), in `POCKET_BLOCKS`' order. */
 export const STEP4_BLOCKS = Object.freeze(["pocket.contact", "throwExec.motion"] as const satisfies readonly PocketBlock[]);
 export type Step4Block = (typeof STEP4_BLOCKS)[number];
+
+/** Step 5's block (plan §1.2), in `POCKET_BLOCKS`' order. */
+export const STEP5_BLOCKS = Object.freeze(["pocket.cleanPocket"] as const satisfies readonly PocketBlock[]);
+export type Step5Block = (typeof STEP5_BLOCKS)[number];
 
 /** A block's value in a tunables tree (undefined when absent). */
 function blockValue(tunables: Tunables, block: PocketBlock): unknown {
@@ -626,6 +821,8 @@ function blockValue(tunables: Tunables, block: PocketBlock): unknown {
       return tunables.pocket.contact;
     case "throwExec.motion":
       return tunables.throwExec.motion;
+    case "pocket.cleanPocket":
+      return tunables.pocket.cleanPocket;
     default: {
       const unhandled: never = block;
       throw new EngineRulesError(`no pocket-1 block ${String(unhandled)}`);
@@ -635,8 +832,8 @@ function blockValue(tunables: Tunables, block: PocketBlock): unknown {
 
 /**
  * The `pocket-1` blocks a tunables tree carries, by path, in `POCKET_BLOCKS`' order: the `passRush`
- * blocks (step 1), `pocket.forcing` (step 2; plan §1.8, C2-F2), step 3's three (plan §2.1) and step
- * 4's two (plan §1.1), so
+ * blocks (step 1), `pocket.forcing` (step 2; plan §1.8, C2-F2), step 3's three (plan §2.1), step
+ * 4's two (plan §1.1) and step 5's one (plan §1.2), so
  * `withOverlay`, `checkStamp`'s legacy case and the closed sets see every block.
  */
 function blocksOf(tunables: Tunables): string[] {
@@ -646,7 +843,8 @@ function blocksOf(tunables: Tunables): string[] {
 /**
  * Whether a tree is kind T, today's line plus contact (ADR-089 step 4, plan §1.2; arms D3 and D4):
  * stamped `pocket-1.s4`, with the approach card and the contact block, no block clock, no forcing
- * block, no step-3 block and no motion. The harness's only: no command line names it.
+ * block, no step-3 block, no motion and no clean-pocket block. The harness's only: no command line
+ * names it.
  */
 export function isTodaysLinePlusContact(tunables: Tunables): boolean {
   const { passRush } = tunables;
@@ -658,7 +856,8 @@ export function isTodaysLinePlusContact(tunables: Tunables): boolean {
     tunables.pocket.contact !== undefined &&
     tunables.pocket.forcing === undefined &&
     STEP3_BLOCKS.every((block) => blockValue(tunables, block) === undefined) &&
-    tunables.throwExec.motion === undefined
+    tunables.throwExec.motion === undefined &&
+    tunables.pocket.cleanPocket === undefined
   );
 }
 
@@ -672,6 +871,14 @@ function assertKindT(tunables: Tunables, rules: OverlayRules, where: string): vo
     throw new EngineRulesError(`${where}: ${message}`);
   };
   const contact = tunables.pocket.contact !== undefined;
+  if (tunables.pocket.cleanPocket !== undefined) {
+    // ADR-089 step 5 (plan §1.2), with the engine's words: the block is read on shapes S and L only.
+    fail(
+      contact
+        ? "the clean-pocket block (pocket.cleanPocket) on today's line plus contact (kind T), which has no block clock; it is read on shapes S and L only"
+        : "the clean-pocket block (pocket.cleanPocket) without a block clock (passRush.beatClock or passRush.repClock); it is a pocket-1 rule, read on shapes S and L only",
+    );
+  }
   if (rules !== POCKET_1_S4_RULES || !contact) {
     if (tunables.throwExec.motion !== undefined) {
       fail("the throwing motion (throwExec.motion) without a block clock (passRush.beatClock or passRush.repClock); today's line plus contact (kind T) runs the contact alone");
@@ -782,7 +989,48 @@ function assertDials(tunables: Tunables, where: string): void {
   assertForcing(tunables, where);
   assertStep3Dials(tunables, where);
   assertStep4Dials(tunables, where);
+  assertStep5Dials(tunables, where);
 }
+
+/**
+ * Step 5's dials (plan §1.2), checked here as the engine checks them once a play (`checkCleanPocket`
+ * in `sim/pocketRules.ts`, off the barrel, so restated, Iron Rule 1), with the engine's own words:
+ * the block an object; each part's switch true or false; D23's bar exactly 30; the reset 0 or more
+ * and a whole number of tenths of a second (the restated budget is rounded to the tenth); the drop
+ * floor, when present, exactly the four CHOSEN values. A block with every part off and no floor is a
+ * bundle (it plays today's count).
+ */
+function assertStep5Dials(tunables: Tunables, where: string): void {
+  const block: unknown = tunables.pocket.cleanPocket;
+  if (block === undefined) return;
+  const fail = (message: string): never => {
+    throw new EngineRulesError(`${where}: ${message}`);
+  };
+  if (!isObject(block)) fail(`the clean-pocket block (pocket.cleanPocket) must be an object, got ${String(block)}`);
+  const b = block as Readonly<Record<string, unknown>>;
+  const leaf = (name: string): string => `pocket.cleanPocket.${name}`;
+  for (const name of CLEAN_POCKET_SWITCHES) {
+    if (typeof b[name] !== "boolean") fail(`${leaf(name)} must be true or false, got ${String(b[name])}`);
+  }
+  if (b["expiryBar"] !== CLEAN_POCKET_EXPIRY_BAR) fail(`${leaf("expiryBar")} must be ${String(CLEAN_POCKET_EXPIRY_BAR)} (D23's bar), got ${String(b["expiryBar"])}`);
+  const reset = b["resetSeconds"];
+  if (!finiteNumber(reset) || reset < 0) fail(`${leaf("resetSeconds")} must be a finite number, 0 or more, got ${String(reset)}`);
+  const tenths = (reset as number) / 0.1;
+  if (!(Math.abs(tenths - Math.round(tenths)) < 1e-9)) {
+    fail(`${leaf("resetSeconds")} must be a whole number of tenths of a second (the restated budget is rounded to the tenth), got ${String(reset)}`);
+  }
+  const floor = b["dropFloor"];
+  if (floor !== undefined) {
+    if (!isObject(floor)) fail(`${leaf("dropFloor")} must be an object { QUICK, SHORT, INTERMEDIATE, DEEP }, got ${String(floor)}`);
+    for (const [depth, seconds] of Object.entries(POCKET_1_S5A_DROP_FLOOR)) {
+      const got = (floor as Readonly<Record<string, unknown>>)[depth];
+      if (got !== seconds) fail(`${leaf(`dropFloor.${depth}`)} must be ${String(seconds)} (the drop floor is CHOSEN, ADR-089 §4.6), got ${String(got)}`);
+    }
+  }
+}
+
+/** D23's bar (ADR-089 §4.6), the only value `pocket.cleanPocket.expiryBar` takes. */
+const CLEAN_POCKET_EXPIRY_BAR = 30;
 
 /**
  * Step 4's dials (plan §1.1), checked here as the engine checks them once a play (`checkContact` and
@@ -1033,11 +1281,15 @@ function assertForcing(tunables: Tunables, where: string): void {
  * `pocket-1.s2`). No name before `pocket-1.s4` carries a step-4 block (contact by approach and the
  * throwing motion are step 4's, plan §1.1); under `pocket-1.s4` any subset of the step-3 and step-4
  * blocks is a bundle (D5 carries the motion alone, D7 the contact alone; kind T is checked by the
- * closed set). (The engine is name-agnostic: it accepts any `pocket-1` name.)
+ * closed set). No name before step 5's carries the clean-pocket block (his count's checklist and the
+ * drop floor are step 5's, plan §1.2); under `pocket-1.s5a` and `pocket-1.s5b` any subset of the
+ * step-3, step-4 and step-5 blocks is a bundle (an arm carries one part alone, or the block with
+ * every part off). (The engine is name-agnostic: it accepts any `pocket-1` name.)
  */
 function assertBlocksUnderName(tunables: Tunables, rules: OverlayRules, where: string): void {
   const step3 = STEP3_BLOCKS.filter((block) => blockValue(tunables, block) !== undefined);
   const step4 = STEP4_BLOCKS.filter((block) => blockValue(tunables, block) !== undefined);
+  const step5 = STEP5_BLOCKS.filter((block) => blockValue(tunables, block) !== undefined);
   const noStep3 = (): void => {
     if (step3.length > 0) {
       throw new EngineRulesError(
@@ -1052,6 +1304,13 @@ function assertBlocksUnderName(tunables: Tunables, rules: OverlayRules, where: s
       );
     }
   };
+  const noStep5 = (): void => {
+    if (step5.length > 0) {
+      throw new EngineRulesError(
+        `${where}: ${rules} carries no step-5 block (${step5.join(", ")}); his count's clean-pocket checklist and the drop floor are ${POCKET_1_S5A_RULES}'s and ${POCKET_1_S5B_RULES}'s (ADR-089 step 5)`,
+      );
+    }
+  };
   switch (rules) {
     case POCKET_1_S1_RULES:
       if (tunables.pocket.forcing !== undefined) {
@@ -1059,15 +1318,22 @@ function assertBlocksUnderName(tunables: Tunables, rules: OverlayRules, where: s
       }
       noStep3();
       noStep4();
+      noStep5();
       return;
     case POCKET_1_S2_RULES:
       noStep3();
       noStep4();
+      noStep5();
       return;
     case POCKET_1_S3_RULES:
       noStep4();
+      noStep5();
       return;
     case POCKET_1_S4_RULES:
+      noStep5();
+      return;
+    case POCKET_1_S5A_RULES:
+    case POCKET_1_S5B_RULES:
       return;
     default: {
       const unhandled: never = rules;
@@ -1096,16 +1362,19 @@ function assertOverlayKeys(node: unknown, allowed: readonly string[], level: str
  * (ADR-089 step 2), the forcing block into `pocket` as `pocket.forcing`; and step 3's blocks into
  * `blitzPickup` and `pocket` as `blitzPickup.freeRun`, `blitzPickup.lateBlock` and `pocket.climbLane`
  * (plan §2.1); and step 4's into `pocket` and `throwExec` as `pocket.contact` and
- * `throwExec.motion` (plan §1.1). Each key is added only when given, never as `undefined`. Stamps the result with `name`
+ * `throwExec.motion` (plan §1.1); and step 5's into `pocket` as `pocket.cleanPocket` (plan §1.2). It
+ * takes any name this build stamps (`STAMPED_RULES`, step 5's two included). Each key is added only
+ * when given, never as `undefined`. Stamps the result with `name`
  * and its overlay digest (O28), and returns it deep-frozen (N7). The blocks are copied, never frozen
  * in the caller's hands. A forcing block under `pocket-1.s1`, a step-3 block under `pocket-1.s1`
- * or `pocket-1.s2`, and a step-4 block under any name but `pocket-1.s4`, are refused. A step-4
- * bundle is built while its petitions are out (`checkStamp` refuses to play it).
+ * or `pocket-1.s2`, a step-4 block under any name before `pocket-1.s4`, and the step-5 block under
+ * any name before `pocket-1.s5a`, are refused. A step-4 bundle is built while its petitions are out
+ * (`checkStamp` refuses to play it).
  */
 export function withOverlay(base: Tunables, name: OverlayRules, blocks: PocketOverlay, forcing?: PocketForcing): Tunables {
   const where = `withOverlay(${name})`;
-  if ((name as string) === LEGACY_RULES || !isEngineRules(name)) {
-    throw new EngineRulesError(`${where}: a bundle is stamped with a pocket-1 rules name this build has (${ENGINE_RULES.filter((r) => r !== LEGACY_RULES).join(", ")}); legacy carries no stamp`);
+  if ((name as string) === LEGACY_RULES || !isStampedRules(name)) {
+    throw new EngineRulesError(`${where}: a bundle is stamped with a pocket-1 rules name this build has (${STAMPED_RULES.filter((r) => r !== LEGACY_RULES).join(", ")}); legacy carries no stamp`);
   }
   if (base.engineRules !== undefined) {
     throw new EngineRulesError(`${where}: the base already carries the rules stamp ${base.engineRules.name}; a bundle is stamped once`);
@@ -1148,15 +1417,17 @@ export function withOverlay(base: Tunables, name: OverlayRules, blocks: PocketOv
  *  - any other name: a stamp naming exactly it, a bundle in the closed sets, and an overlay digest
  *    that `overlayDigestOf` recomputes from the tunables actually passed, so a leaf patched after
  *    stamping is refused (in a step-3 block too); no forcing block under `pocket-1.s1`, no
- *    step-3 block under `pocket-1.s1` or `pocket-1.s2`, and no step-4 block under any name but
- *    `pocket-1.s4`.
+ *    step-3 block under `pocket-1.s1` or `pocket-1.s2`, no step-4 block under any name before
+ *    `pocket-1.s4`, and no step-5 block under any name before `pocket-1.s5a`. A step-5 name is
+ *    taken here (the step-5 harness's arms are stamped with it); a run names it only once it is in
+ *    `ENGINE_RULES`.
  *  - and, last, any tree carrying a step-4 block while P6, P7 or P8 is not in contracts
  *    (`step4Refusal`): refused here, so no calibration game starts under one. `petitions` is a
  *    test's own set (`Step4Petitions`; `arms.ts`'s `buildArm` seam builds a D arm with it); no
  *    caller outside a test passes one.
  * Returns the tunables, for chaining.
  */
-export function checkStamp(tunables: Tunables, rules: EngineRules, where = "checkStamp", petitions: Step4Petitions = {}): Tunables {
+export function checkStamp(tunables: Tunables, rules: StampedRules, where = "checkStamp", petitions: Step4Petitions = {}): Tunables {
   const stamp = tunables.engineRules;
   const blocks = blocksOf(tunables);
   if (rules === LEGACY_RULES) {
@@ -1220,6 +1491,8 @@ let designBundle: Tunables | undefined;
 let stepTwoBundle: Tunables | undefined;
 let stepThreeBundle: Tunables | undefined;
 let stepFourBundle: Tunables | undefined;
+let stepFiveABundle: Tunables | undefined;
+let stepFiveBBundle: Tunables | undefined;
 
 /** `pocket-1.s1` on `DEFAULT_TUNABLES`, built once, its digest checked against the recorded literal. */
 function pocket1s1(): Tunables {
@@ -1293,17 +1566,95 @@ function pocket1s4(): Tunables {
 }
 
 /**
+ * A step-5 bundle on `DEFAULT_TUNABLES` (plan §1.1), built exactly as `pocket-1.s4` is: Half and
+ * Follows and then `leaves` (the three fitted deltas) applied to the base by `applyTunablePatch`, then
+ * `overlay` (`POCKET_1_S5A_OVERLAY`, or `pocket-1.s5b`'s from `step5OverlayAt`) and must act per
+ * rusher through `withOverlay`, stamped `name`. The recipe only: no digest is checked here, so the
+ * harness and the tests can build it before its literals are recorded; `rulesTunables` builds the
+ * recorded bundles through it and checks their digests.
+ */
+export function step5Bundle(name: Step5Rules, leaves: readonly LeafPatch[], overlay: PocketOverlay = POCKET_1_S5A_OVERLAY): Tunables {
+  return withOverlay([...POCKET_1_S2_LEAVES, ...leaves].reduce(applyTunablePatch, DEFAULT_TUNABLES), name, overlay, POCKET_1_S2_FORCING);
+}
+
+/**
+ * Why a step-5 name plays nothing yet, or `undefined` when its bundle is recorded (plan §1.1): until
+ * the fit commit records `POCKET_1_S5A_LEAVES`, `POCKET_1_S5A_DIGEST` and `POCKET_1_S5A_FIT_DIGEST`,
+ * `pocket-1.s5a` is refused; until the selection commit records `POCKET_1_S5B_OVERLAY` and
+ * `POCKET_1_S5B_DIGEST` (and `pocket-1.s5a` is recorded), `pocket-1.s5b` is refused. Every other name
+ * gives `undefined`.
+ */
+export function step5RulesRefusal(rules: StampedRules): string | undefined {
+  const s5aRecorded = POCKET_1_S5A_LEAVES !== undefined && POCKET_1_S5A_DIGEST !== undefined && POCKET_1_S5A_FIT_DIGEST !== undefined;
+  if (rules === POCKET_1_S5A_RULES && !s5aRecorded) {
+    return (
+      `${POCKET_1_S5A_RULES} is built but not recorded: it is recorded after the 5a fit (its three fitted deltas POCKET_1_S5A_LEAVES, POCKET_1_S5A_DIGEST and POCKET_1_S5A_FIT_DIGEST, ` +
+      "committed with the fit record), so no run, export or save names it before then (ADR-089 step 5, plan §1.1)"
+    );
+  }
+  if (rules === POCKET_1_S5B_RULES && !(s5aRecorded && POCKET_1_S5B_OVERLAY !== undefined && POCKET_1_S5B_DIGEST !== undefined)) {
+    return (
+      `${POCKET_1_S5B_RULES} is built but not recorded: it is recorded after the 5b selection (the block clock the filed rule picks, POCKET_1_S5B_OVERLAY and POCKET_1_S5B_DIGEST, ` +
+      "on pocket-1.s5a's recorded deltas), so no run, export or save names it before then (ADR-089 step 5, plan §1.1)"
+    );
+  }
+  return undefined;
+}
+
+/**
+ * `pocket-1.s5a` on `DEFAULT_TUNABLES` (plan §1.1): `step5Bundle` with the recorded leaves, built once,
+ * its digest checked against the recorded literal (K24); refused by name until recorded.
+ */
+function pocket1s5a(): Tunables {
+  if (stepFiveABundle !== undefined) return stepFiveABundle;
+  const refusal = step5RulesRefusal(POCKET_1_S5A_RULES);
+  if (refusal !== undefined || POCKET_1_S5A_LEAVES === undefined) throw new EngineRulesError(refusal ?? `${POCKET_1_S5A_RULES} is not recorded`);
+  const bundle = step5Bundle(POCKET_1_S5A_RULES, POCKET_1_S5A_LEAVES);
+  const digest = bundle.engineRules?.overlayDigest;
+  if (digest !== POCKET_1_S5A_DIGEST) {
+    throw new EngineRulesError(
+      `${POCKET_1_S5A_RULES} digests to ${String(digest)} on this build, not the recorded ${String(POCKET_1_S5A_DIGEST)}: re-record POCKET_1_S5A_DIGEST before step 5 merges, or name the changed rules anew (K24)`,
+    );
+  }
+  stepFiveABundle = bundle;
+  return bundle;
+}
+
+/**
+ * `pocket-1.s5b` on `DEFAULT_TUNABLES` (plan §1.1): `step5Bundle` with `pocket-1.s5a`'s recorded leaves
+ * and the recorded overlay, built once, its digest checked against the recorded literal (K24);
+ * refused by name until recorded.
+ */
+function pocket1s5b(): Tunables {
+  if (stepFiveBBundle !== undefined) return stepFiveBBundle;
+  const refusal = step5RulesRefusal(POCKET_1_S5B_RULES);
+  if (refusal !== undefined || POCKET_1_S5A_LEAVES === undefined || POCKET_1_S5B_OVERLAY === undefined) throw new EngineRulesError(refusal ?? `${POCKET_1_S5B_RULES} is not recorded`);
+  const bundle = step5Bundle(POCKET_1_S5B_RULES, POCKET_1_S5A_LEAVES, POCKET_1_S5B_OVERLAY);
+  const digest = bundle.engineRules?.overlayDigest;
+  if (digest !== POCKET_1_S5B_DIGEST) {
+    throw new EngineRulesError(
+      `${POCKET_1_S5B_RULES} digests to ${String(digest)} on this build, not the recorded ${String(POCKET_1_S5B_DIGEST)}: re-record POCKET_1_S5B_DIGEST before step 5 merges, or name the changed rules anew (K24)`,
+    );
+  }
+  stepFiveBBundle = bundle;
+  return bundle;
+}
+
+/**
  * What a rules name plays: `legacy` is `DEFAULT_TUNABLES` itself (the same reference, so a legacy
  * run's tunables, digests and stream are today's by construction); `pocket-1.s1`, `pocket-1.s2`,
  * `pocket-1.s3` and `pocket-1.s4` are their design bundles, deep-frozen and stamped (`pocket-1.s4`
- * built, and refused by `checkStamp` until its petitions are in contracts).
+ * built, and refused by `checkStamp` until its petitions are in contracts). `pocket-1.s5a` and
+ * `pocket-1.s5b` are refused by name (`step5RulesRefusal`) until their bundles are recorded.
  */
-export function rulesTunables(rules: EngineRules): Tunables {
+export function rulesTunables(rules: StampedRules): Tunables {
   if (rules === LEGACY_RULES) return DEFAULT_TUNABLES;
   if (rules === POCKET_1_S1_RULES) return pocket1s1();
   if (rules === POCKET_1_S2_RULES) return pocket1s2();
   if (rules === POCKET_1_S3_RULES) return pocket1s3();
   if (rules === POCKET_1_S4_RULES) return pocket1s4();
+  if (rules === POCKET_1_S5A_RULES) return pocket1s5a();
+  if (rules === POCKET_1_S5B_RULES) return pocket1s5b();
   const unhandled: never = rules;
   throw new EngineRulesError(`no bundle for engine rules ${String(unhandled)}`);
 }
