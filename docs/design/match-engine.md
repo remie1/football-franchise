@@ -719,6 +719,60 @@ Results per Tick:
 > block and nothing else), plays today's stem and count read and reads every contact time on the
 > published half-second grid. The only new dice are `:contest` (the rusher's and the quarterback's
 > `:contest:<rusherId>`) and `:contest2`.
+>
+> **pocket-1.s5a (ADR-089 step 5a, built behind the switch; not measured, not the default).** One
+> more block, `pocket.cleanPocket` (his count's clean-pocket checklist and the drop floor, §4.6; AM-9's
+> readings), read on shapes S and L only and refused under `legacy`, on kind T and without its
+> stamp. The engine calls `sim/cleanPocket.ts` only when the rules carry it, so `legacy`, every
+> `pocket-1.s1` to `.s4` bundle and kind T play exactly as before. **The drop floor:** before the
+> first read's floor no aimed pocket throw is decided and no checkdown look is taken, pressured or
+> clean; the floor is read once, from the depth class of the first read's route as run at the snap
+> (after any hot conversion, guardian C9): QUICK 1.0 s, SHORT 1.5 s, INTERMEDIATE and DEEP 2.0 s. A
+> screen (that route's declared `airYards` below 0: `BUBBLE_NOW` and `RB_SLIP_SCREEN` today) has
+> none. Throws on the run are not bound; every pocket throwaway already waits for 2.0 s; a pressured
+> must-act before the floor goes to today's movement pick. **What starts it (D26):** his count
+> spent or his reads spent, at or past the floor; what forces him is today's. **The clean expiry:**
+> that, while he is not forced and has not escaped, on a tick whose published `POCKET_STATUS` is
+> CLEAN and which ran no arrival contest (item g, guardian C2). On it: **(a)** anyone at the normal
+> bar throws, today's roll, rank push included; **(b, D23)** today's checkdown look, then the
+> candidates cut to men at 30 or more and today's decision roll on `t<tick>:decision`; the
+> desperation throw at 25 is not taken, and nobody at 30 goes on to the pick; **(c, D27)** the one
+> ranked pick between MOVE (offered once a play, with the climb lane open by step 3's FRONT rule
+> and step-ups under 2) and ESCAPE, at today's appeals and urgency 0 (asserted: a value above 0 on
+> a CLEAN tick is a bug and throws), today's band die and rank clamp, one d100 on
+> `movement/t<tick>:clean`, published as a `pocket_movement` CHECK of today's form (guardian C1).
+> With one option offered the die is still drawn and the band decides nothing (guardian C4); with
+> none, no die and today's end of tick. **(d) MOVE** is today's climb in full (`QB_DECISION`
+> STEP_UP, every live man into the BEHIND-for-ARC set, every EDGE threat delayed 1.0 s and
+> published DELAYED, one tick), then his reads restart at the first read and his count becomes the
+> move tick plus one tick plus the reset (1.0 s, D33), rounded to the tick. Only the read pointer
+> and the progression's read count restart; the play's `r<n>` and `a<n>` label counters keep
+> counting (guardian C8). Each read-order receiver past his break (his route's rep resolved and the
+> tick at or past his break) gains a window bump for the rest of the play, TRAILING +10 and EVEN +5
+> (IN_FRONT none, D25), added to his base inside the decayed openness before the clamp; it never
+> writes the contest position, and a misread's delta cancels it. **(e) ESCAPE** is today's escape
+> roll on `movement/t<tick>:scramble`: ESCAPED today's scramble (`QB_PURSUIT`, `QB_DECISION`
+> SCRAMBLE), CONTAINED the escape's own HOLD (he may break out again at a later clean expiry),
+> CAUGHT today's caught-escape sack. **D23 on the run:** after a clean break-out the desperation
+> throw at 25 is not taken; the normal-bar throw on the run stays. There is no clean HOLD and no
+> in-pocket clean throwaway: with MOVE or ESCAPE on, the pick always acts. Each part has its own
+> switch (`d23`, `move`, `bump`, `breakOut`, `d23OnRun`, and the floor's presence); with every part
+> off and no floor the block plays today's count. The three read-system budget deltas the 5a fit
+> sets stay the existing leaves `qb.readSystem.<system>.budgetDeltaSeconds`. **Dice:** the only new
+> family is `game:<id>/play:<n>/movement/t<tick>:clean`, at most once a tick, only on a clean
+> expiry, never on a tick with a `:movement` die or a `:decision` die (guardian C3, C7). Every
+> other die a clean play draws reuses an existing family (`t<tick>:decision/quality`,
+> `t<tick>:checkdown:<id>:read`, `t<tick>:r<n>:<id>:read`, `t<tick>:a<n>:<id>:anticipation`,
+> `movement/t<tick>:scramble`, the carrier's `scramble`, the rush ticks), and a label is drawn at
+> most once a play (guardian C10). Not drawn at 5a: `t<tick>:deadline`, `t<tick>:drill:<id>`,
+> `:contact`, `:dodge` and `:alarm`. The floor, the restart, the reset and the bump draw nothing.
+> No event kind and no payload field is added: the debug printout marks the pick's
+> `pocket_movement` line "(clean pocket)", read from its die's label alone.
+>
+> **pocket-1.s5b (ADR-089 step 5b, behind the switch; not measured, not the default).** `pocket-1.s5a`
+> with the block clock the filed rule picks (`passRush.beatClock` for shape S or `passRush.repClock`
+> for shape L at the winning point), the contest boundary still 5. No engine change: it plays the
+> s5a rules above on that clock, under its own stamp.
 
 > **KNOWN ISSUE (logged July 2026, Phase 1 slice) — term asymmetry.**
 > The rusher above carries two-to-three attribute terms (`Pass Rush` plus a move
