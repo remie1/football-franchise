@@ -322,7 +322,7 @@ export interface S4Fold {
   shedPlays: number;
   laterContactPlays: number;
   hitsByPhase: Record<string, number>;
-  /** `QB_HIT`s on plays ending in a scramble: reported, never in the construct. */
+  /** `QB_HIT`s on plays ending in a scramble, each hit once: reported, never in the construct. */
   hitsOnScramble: number;
   /** V1-42: dropbacks that are a sack, or a pass attempt with any `QB_HIT`; each once. */
   hitOrSack: number;
@@ -482,7 +482,7 @@ export function foldS4Play(fold: S4Fold, play: S4Play, tunables: Tunables): void
     if (h.approach === undefined || h.from === undefined || typeof h.seen !== "boolean") fold.qbHitsMissingFields += 1;
     if (h.phase === "SHED" && !play.contests.some((c) => c.rngLabel === h.rollRef && c.band === "QB_SHEDS")) fail(fold, where, `a QB_HIT SHED of ${h.rusher} names ${String(h.rollRef)}, which is no shed contest of the play`);
   }
-  if (play.hits.length > 0 && d.scramble) fold.hitsOnScramble += 1;
+  if (d.scramble) fold.hitsOnScramble += play.hits.length;
 
   // The construct (V1-42), C-1, and the credit.
   const attempt = d.throwTick !== undefined || d.throwawayTick !== undefined;

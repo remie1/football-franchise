@@ -214,6 +214,15 @@ describe("the s4 stream on hand-built plays (s4Stream.ts)", () => {
     expect(mergeS4Folds(escape, horizon)).toMatchObject({ sacks: 2, escapeSacks: 1, coverageSacks: 1 });
   });
 
+  it("hitsOnScramble counts the QB_HITs on plays ending in a scramble, each hit once (reported, never in the construct)", () => {
+    const base = readS4Play(sliceOf(built(S.cleanThrow.slice, S4, {}).events), KEY)!;
+    const hit = { tick: 1, rusher: "r", contactSeconds: 1, rollRef: undefined, approach: "FREE", from: "FRONT", seen: true };
+    const f = emptyS4Fold();
+    foldS4Play(f, { ...base, dropback: { ...base.dropback, scramble: true, throwTick: undefined }, hits: [{ ...hit, phase: "ARRIVAL" }, { ...hit, rusher: "s", phase: "THROWING" }] }, C1);
+    expect(f.hitsOnScramble).toBe(2);
+    expect(f.qbHits).toBe(2);
+  });
+
   it("a THROWING hit on a play with no arrival: V1-42 counts it, the stand-in does not, and C-1 still agrees (it compares ARRIVAL or SHED)", () => {
     const { events } = built(S.cleanThrow.slice, S4, { throwing: true });
     const f = emptyS4Fold();
