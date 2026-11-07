@@ -184,3 +184,9 @@ export {
   type WeekRead, type WeeklyStanceInput, type WeeklyStanceResult,
 } from "./winNow/stance.js";
 
+
+// ADR-096 step 2: fan and media mood.
+export { MOOD, MOOD_STREAM } from "./mood/rates.js";
+export { expectedPoints, readGame, type GameRead, type LeagueBase } from "./mood/game.js";
+export { emptyMoodMemory, type MoodMemory } from "./mood/memory.js";
+export { MOOD_STEP_PREFIX, moodSteps, seatedMen, subjectKey, type MoodStepsConfig } from "./mood/steps.js";
