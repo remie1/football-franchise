@@ -335,7 +335,7 @@ const threat = (at: Ev, rusher: string, origin: string, approach: string, etaTic
 const contactOf = (events: readonly Ev[], rusher: string): ContestAt => readS4Play(sliceOf(events), KEY)!.contests.find((c) => c.rusher === rusher)!;
 
 describe("the stream's class of a contact at its boundaries (code-tests CT4-4)", () => {
-  it("BEHIND: an ARC man ARRIVED at the STEP_UP's own tick was not live there, one still travelling was", () => {
+  it("BEHIND: an ARC man ARRIVED at the STEP_UP's own tick was not live there, one still traveling was", () => {
     const at = (eta: (t: number) => number): Ev[] =>
       withAfterFirstTick((e, t, qb) => [threat(e, "p:x:ARC1", "WON_REP", "ARC", eta(t)), like(e, "QB_DECISION", { choice: "STEP_UP" }), contestCheck(e, "p:x:ARC1", qb, t, "QB_SHEDS")]);
     expect(contactOf(at((t) => t), "p:x:ARC1").cls).toBe("NONE");
