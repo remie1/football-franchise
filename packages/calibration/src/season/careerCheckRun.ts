@@ -485,15 +485,46 @@ export function readCareerRecords(cacheDir: string, arm: CareerArm, seeds: reado
   return { records, missing };
 }
 
-/** Each build's folder under the cache root (`data-cache/career-check`) and how many finished rows it holds, by arm. */
-export function listCareerBuilds(cacheRoot: string): { fingerprint: string; rows: Record<string, number> }[] {
+/** One build's folder in the cache: its finished rows by arm, and the versions its first finished record holds. */
+export interface CareerBuild {
+  readonly fingerprint: string;
+  readonly rows: Record<string, number>;
+  /**
+   * The check version and rows version of the folder's first finished record (by file name), null
+   * with no finished record; a field the record lacks, or a record that does not parse, reads null.
+   */
+  readonly version: { readonly check: number | null; readonly rows: number | null } | null;
+  /** Its records are this build's versions (`CAREER_CHECK_VERSION`, `CAREER_ROWS_VERSION`), so the grader can read them (`checkRecordVersion`). */
+  readonly gradable: boolean;
+}
+
+/**
+ * Each build's folder under the cache root (`data-cache/career-check`), how many finished rows it
+ * holds by arm, and whether its records are of this check's versions: a folder of another version
+ * is refused by the grader (`checkRecordVersion`), so the command marks it rather than suggest it.
+ */
+export function listCareerBuilds(cacheRoot: string): CareerBuild[] {
   if (!existsSync(cacheRoot)) return [];
   return readdirSync(cacheRoot).sort().filter((f) => /^[0-9a-f]{16}$/.test(f) && statSync(join(cacheRoot, f)).isDirectory()).map((fingerprint) => {
     const rows: Record<string, number> = {};
+    let first: string | undefined;
     for (const f of readdirSync(join(cacheRoot, fingerprint)).sort()) {
       const arm = CAREER_ARMS.find((a) => f.startsWith(`${a}-`) && f.endsWith(".json") && !f.endsWith(".checkpoint.json"));
-      if (arm !== undefined) rows[arm] = (rows[arm] ?? 0) + 1;
+      if (arm === undefined) continue;
+      rows[arm] = (rows[arm] ?? 0) + 1;
+      first ??= f;
     }
-    return { fingerprint, rows };
+    let version: CareerBuild["version"] = null;
+    if (first !== undefined) {
+      const num = (x: unknown) => (typeof x === "number" ? x : null);
+      try {
+        const r = JSON.parse(readFileSync(join(cacheRoot, fingerprint, first), "utf8")) as { version?: unknown; rows?: { version?: unknown } };
+        version = { check: num(r?.version), rows: num(r?.rows?.version) };
+      } catch {
+        version = { check: null, rows: null };
+      }
+    }
+    const gradable = version !== null && version.check === CAREER_CHECK_VERSION && version.rows === CAREER_ROWS_VERSION;
+    return { fingerprint, rows, version, gradable };
   });
 }

@@ -15,9 +15,9 @@ import {
   type UsageCell,
 } from "../src/season/careerCheck.js";
 import {
-  bandCounts, CAREER_BANDS, groupSeasonReference, PLAN_WINDOWS, signedAgainCounts, WEEK_EIGHT_LEAGUE_YEARS, expectedCareer, familyLabel, gradeCareerCheck, gradeCheck,
+  agingRedesignRows, bandCounts, CAREER_BANDS, groupSeasonReference, NFL_ROOKIE_CUTS, PLAN_WINDOWS, signedAgainCounts, WEEK_EIGHT_LEAGUE_YEARS, expectedCareer, familyLabel, gradeCareerCheck, gradeCheck,
   medianOf, notResolvable, outsideBand, poolSeeds, renderGradeJson, renderGradeMarkdown, rowStatus, slopeOf, trendShare, weekEightLeagueReference, type BandRule, type CareerGrade,
-  type GradeInput,
+  type GradeInput, type NflRookieCuts,
 } from "../src/season/careerGrade.js";
 import { NFL_DRAFT } from "../src/season/draftCheck.js";
 import { NFL_INJURIES } from "../src/injuries/nflInjuries.js";
@@ -220,7 +220,7 @@ describe("the bands", () => {
       "share-31-group", "share-34-group", "signed-again", "back-on-53", "starters-gone", "retired-signed", "rookie-age", "availability", "nfl-count",
       // The aging redesign's measure-only rows (ADR-087 §12, AB1): reported with no band, none gates.
       "ability-age", "body-age", "at99-detail", "injury-age", "injury-spot", "concussion", "contact-spot", "availability-aligned", "retire-moment",
-      "team-overall", "d7-age",
+      "team-overall", "d7-age", "rookie-cut",
     ]);
     // A card names the rows its answer set, and only those.
     expect(CAREER_BANDS.filter((b) => b.card !== undefined).map((b) => `${b.id}:${b.card}`)).toEqual([
@@ -957,7 +957,11 @@ describe("the rows added for the owner's aging rulings (rows version 5)", () => 
 const groupsAt = (n: number, m: number, speed = m) =>
   Object.fromEntries(ABILITY_GROUPS.map((g) => [g, [n, n * (g === "SPEED" ? speed : m)]])) as Record<AbilityGroup, [number, number]>;
 
-/** Made-up rows version 6 readings, the same every season (year 0's SPEED and team spread apart). */
+/**
+ * Made-up rows version 6 readings, the same every season (year 0's SPEED and team spread apart; the
+ * game weeks and the team overall r change at 2033, the later window's start, the r in 2033 alone set
+ * apart, so a window read wrongly shows; year 0 has no rookie-cut row).
+ */
 function redesign(rows: Map<string, CareerCheckRows>): Map<string, CareerCheckRows> {
   const zeroGroups = Object.fromEntries(ABILITY_GROUPS.map((g) => [g, 0])) as Record<AbilityGroup, number>;
   return new Map([...rows].map(([s, r]) => [s, {
@@ -970,6 +974,7 @@ function redesign(rows: Map<string, CareerCheckRows>): Map<string, CareerCheckRo
     },
     perSeason: r.perSeason.map((x) => {
       const y0 = x.season === r.firstSeason;
+      const late = x.season >= 2033;
       const more: Partial<SeasonRow> = {
         wins: [6, 10, 8],
         ability: {
@@ -981,11 +986,23 @@ function redesign(rows: Map<string, CareerCheckRows>): Map<string, CareerCheckRo
           body: { "22": [2, 9.0, 14.0, 70, 40] },
         },
         durabilityByConcussions: { "0": [90, 90 * 80, 90 * 26], "1": [10, 10 * 70, 10 * 29], "2": [0, 0, 0], "3+": [0, 0, 0] },
-        teamOverall: { byTeam: [70, 72, 74], spread: y0 ? 2 : 1, r: 0.5 },
-        exposure: { cells: { "24": { QB: [1000, 1, 1], WR: [1000, 2, 1], K: [500, 1, 1] }, "31": { WR: [500, 2, 0], LT: [800, 1, 1] } }, notAfterPlayed: 3 },
+        teamOverall: { byTeam: [70, 72, 74], spread: y0 ? 2 : 1, r: x.season === 2033 ? 0.1 : late ? 0.9 : 0.5 },
+        exposure: {
+          cells: { "24": { QB: [1000, 1, 1, 20], WR: [1000, 2, 1, 25], K: [500, 1, 1, 50] }, "31": { WR: [500, 2, 0, 10], LT: [800, 1, 1, 16] } },
+          notAfterPlayed: 3,
+        },
         contact: { bySpot: { WR: [1000, 50], LT: [800, 400] }, at27: { entrants: [100, 300], all: [100, 200, 300, 400] } },
-        gameWeeks: { "24": [100, 20], "34": [50, 5] },
-        concussions: { first: [10, 2], repeat: [4, 2], byAge: { "24": [8, 2, 1], "31": [6, 2, 3] } },
+        gameWeeks: late ? { "24": [100, 40], "34": [50, 10] } : { "24": [100, 20], "34": [50, 5] },
+        teamGames: 2,
+        concussions: { first: [10, 2], repeat: [4, 2], byAge: { "24": [8, 2, 1], "31": [6, 2, 3] }, seen: { first: [12, 3], repeat: [2, 1] } },
+        rookieCut: y0 ? null : {
+          year: x.season,
+          byRound: {
+            "1": { n: 32, kept: 31, movedKept: 1, squad: 0, elsewhere: 0, gone: 0 },
+            "6": { n: 36, kept: 20, movedKept: 0, squad: 8, elsewhere: 3, gone: 5 },
+          },
+          gaps: { "6": [-8, -4, -2, 1] },
+        },
         retiredHow: {
           byMoment: {
             IMMEDIATE: { unsigned: 0, ownSigned: 2, ownUnsigned: 0 }, SLOW: { unsigned: 0, ownSigned: 0, ownUnsigned: 0 },
@@ -1001,7 +1018,9 @@ function redesign(rows: Map<string, CareerCheckRows>): Map<string, CareerCheckRo
 }
 
 describe("the aging redesign's measure-only rows (rows version 6, AB1)", () => {
-  const AB1 = ["ability-age", "body-age", "at99-detail", "injury-age", "injury-spot", "concussion", "contact-spot", "availability-aligned", "retire-moment", "team-overall", "d7-age"];
+  const AB1 = [
+    "ability-age", "body-age", "at99-detail", "injury-age", "injury-spot", "concussion", "contact-spot", "availability-aligned", "retire-moment", "team-overall", "d7-age", "rookie-cut",
+  ];
 
   it("are all REPORT with a report rule: every check REPORTED, never graded, the flip unmoved with or without their data", () => {
     for (const id of AB1) expect(CAREER_BANDS.find((b) => b.id === id)).toMatchObject({ mark: "REPORT", rule: { kind: "report" } });
@@ -1018,6 +1037,7 @@ describe("the aging redesign's measure-only rows (rows version 6, AB1)", () => {
     expect(check(old, "ability-age", "SPEED, 22 or under").sim).toBeNull();
     expect(check(old, "injury-age", "upTo25, per 1,000 snaps").sim).toBeNull();
     expect(check(old, "d7-age", "round 1, every age").sim).toBeNull();
+    expect(check(old, "rookie-cut", "round 6, share not kept at his first week 1 (REAL 25 of 126)").sim).toBeNull();
     expect(renderGradeMarkdown(gradeCareerCheck(passingInput(redesign(passing()))))).toContain("**measure-only**");
   });
 
@@ -1052,22 +1072,60 @@ describe("the aging redesign's measure-only rows (rows version 6, AB1)", () => {
     expect(check(g, "injury-age", "age31To32, observed / expected (spot-group mix)").sim).toBeCloseTo(9 / 7, 12);
     expect(check(g, "injury-age", "upTo25, hurt in the game alone, per 1,000 snaps").sim).toBe(1);
     expect(check(g, "injury-age", "not counted (no game played before it), a league-season").sim).toBe(3);
+    // Per player-game (K left out): 3 over 45 games at 24, 3 over 26 at 31; the real reference the same count over its player-games.
+    expect(check(g, "injury-age", "upTo25, per player-game")).toMatchObject({ sim: expect.closeTo(1 / 15, 12), ref: real.afterPlayed / real.playerGames });
+    expect(check(g, "injury-age", "upTo25, per player-game").seRef).toBeCloseTo(Math.sqrt(real.afterPlayed) / real.playerGames, 12);
+    expect(check(g, "injury-age", "age31To32, per player-game").sim).toBeCloseTo(3 / 26, 12);
+    const bands = Object.values(NFL_INJURIES.byAge);
+    expect(check(g, "injury-age", "every age, per player-game")).toMatchObject({
+      sim: expect.closeTo(6 / 71, 12), ref: expect.closeTo(bands.reduce((a, b) => a + b.afterPlayed, 0) / bands.reduce((a, b) => a + b.playerGames, 0), 12),
+    });
+    // Expected per player-game at the sim's own spot-group rates (QB 1/20, WR 4/35, OL 1/16): at 24, 20/20 + 25·4/35; at 31, 10·4/35 + 16/16.
+    expect(check(g, "injury-age", "upTo25, observed / expected per player-game (spot-group mix)")).toMatchObject({
+      sim: expect.closeTo(7 / 9, 12), ref: real.mixPerPlayerGame.ratio, seRef: real.mixPerPlayerGame.se,
+    });
+    expect(check(g, "injury-age", "age31To32, observed / expected per player-game (spot-group mix)").sim).toBeCloseTo(7 / 5, 12);
+    expect(check(g, "injury-age", "upTo25, observed / expected per player-game, later window 2033-2045").sim).toBeCloseTo(7 / 9, 12);
     expect(check(g, "injury-spot", "WR, per 1,000 snaps")).toMatchObject({ sim: expect.closeTo(4000 / 1500, 12), ref: expect.closeTo(1000 * 753 / 570306, 12) });
     expect(check(g, "injury-spot", "T, per 1,000 snaps").sim).toBe(1.25);
-    expect(check(g, "injury-spot", "K, per 1,000 snaps").sim).toBe(2);
+    expect(check(g, "injury-spot", "K, per 1,000 snaps (not comparable)").sim).toBe(2);
+    expect(check(g, "injury-spot", "LS, per 1,000 snaps (not comparable)").sim).toBeNull();
+    expect(byId(g, "injury-spot").checks.some((c) => c.label === "K, per 1,000 snaps")).toBe(false);
     expect(check(g, "injury-spot", "G, per 1,000 snaps").sim).toBeNull();
     expect(check(g, "injury-spot", "every spot, per 1,000 snaps").sim).toBeCloseTo(7000 / 3800, 12);
-    expect(check(g, "injury-spot", "WR, against every spot")).toMatchObject({
+    expect(check(g, "injury-spot", "WR, against every spot, per snap")).toMatchObject({
       sim: expect.closeTo((4000 / 1500) / (7000 / 3800), 12), ref: expect.closeTo(1.320344 / ((1000 * 5836) / 5233905), 12),
     });
+    // Per player-game by spot: WR 4 over 35 games, T 1 over 16, K 1 over 50; every spot 7 over 121.
+    const wr = NFL_INJURIES.bySpot.WR;
+    expect(check(g, "injury-spot", "WR, per player-game")).toMatchObject({ sim: expect.closeTo(4 / 35, 12), ref: wr.afterPlayed / wr.playerGames });
+    expect(check(g, "injury-spot", "T, per player-game").sim).toBe(1 / 16);
+    expect(check(g, "injury-spot", "K, per player-game (not comparable)").sim).toBe(1 / 50);
+    expect(check(g, "injury-spot", "every spot, per player-game").sim).toBeCloseTo(7 / 121, 12);
+    // Against its spot group: the receivers are their whole group (1), as the tackles are the sim's whole OL here.
+    expect(check(g, "injury-spot", "WR, against its spot group WR, per snap")).toMatchObject({
+      sim: 1, ref: expect.closeTo(wr.per1000Snaps / NFL_INJURIES.bySpotGroup.WR!.per1000Snaps, 12),
+    });
+    expect(check(g, "injury-spot", "T, against its spot group OL, per snap").sim).toBe(1);
   });
 
   it("concussions first and later and by age, durability by concussions had; contact by spot and the median career contact at 27", () => {
     const g = gradeCareerCheck(passingInput(redesign(passing())));
-    expect(check(g, "concussion", "first, out 4+ weeks")).toMatchObject({ sim: 0.2, ref: 0.159688, seRef: expect.closeTo(Math.sqrt((0.159688 * (1 - 0.159688)) / 452), 12) });
-    expect(check(g, "concussion", "later, out 4+ weeks (against the later ones, quick relapses set apart)")).toMatchObject({ sim: 0.5, ref: 0.263436 });
-    expect(check(g, "concussion", "later, out 4+ weeks (against every later one)").ref).toBe(0.304464);
-    expect(check(g, "concussion", "first concussions, a league-season").sim).toBe(10);
+    expect(check(g, "concussion", "first by every earlier draw (priorOfKind, AB6's split), out 4+ weeks")).toMatchObject({
+      sim: 0.2, ref: 0.159688, seRef: expect.closeTo(Math.sqrt((0.159688 * (1 - 0.159688)) / 452), 12),
+    });
+    expect(check(g, "concussion", "later by every earlier draw, out 4+ weeks (the sim's quick relapses in; against the real later ones with quick relapses set apart)"))
+      .toMatchObject({ sim: 0.5, ref: 0.263436 });
+    expect(check(g, "concussion", "later by every earlier draw, out 4+ weeks (against every real later one)").ref).toBe(0.304464);
+    expect(check(g, "concussion", "first concussions by every earlier draw, a league-season").sim).toBe(10);
+    expect(check(g, "concussion", "later concussions by every earlier draw, a league-season").sim).toBe(4);
+    // The real side's way (an earlier time-loss one counted): 3 of 12 firsts and 1 of 2 later ones out 4+ weeks.
+    expect(check(g, "concussion", "first the real side's way (no earlier time-loss one), out 4+ weeks")).toMatchObject({ sim: 0.25, ref: 0.159688 });
+    expect(check(g, "concussion", "later the real side's way, out 4+ weeks (against every real later one; quick relapses in on both sides)"))
+      .toMatchObject({ sim: 0.5, ref: 0.304464 });
+    expect(check(g, "concussion", "later the real side's way, out 4+ weeks (the sim's quick relapses in; against the real later ones with quick relapses set apart)").ref)
+      .toBe(0.263436);
+    expect(check(g, "concussion", "later concussions the real side's way, a league-season").sim).toBe(2);
     expect(check(g, "concussion", "upTo25, out 4+ weeks")).toMatchObject({ sim: 0.25, ref: 0.175149 });
     expect(check(g, "concussion", "age31To32, out 4+ weeks").sim).toBeCloseTo(1 / 3, 12);
     expect(check(g, "concussion", "upTo25, share that were later ones").sim).toBe(0.125);
@@ -1090,10 +1148,19 @@ describe("the aging redesign's measure-only rows (rows version 6, AB1)", () => {
 
   it("availability on the real side's game weeks, retirements by moment and years, team overall beside wins, D7 by age", () => {
     const g = gradeCareerCheck(passingInput(redesign(passing())));
-    expect(check(g, "availability-aligned", "upTo25")).toMatchObject({ sim: 0.2, ref: 0.194692, seRef: expect.closeTo(Math.sqrt((0.194692 * (1 - 0.194692)) / 97816), 12) });
-    expect(check(g, "availability-aligned", "from33").sim).toBe(0.1);
+    // 2029-32 at 20 of 100 and 5 of 50, 2033-45 at 40 of 100 and 10 of 50: the early window's counts pooled, the later window's alone.
+    expect(check(g, "availability-aligned", "upTo25")).toMatchObject({
+      sim: expect.closeTo(600 / 1700, 12), ref: 0.194692, seRef: expect.closeTo(Math.sqrt((0.194692 * (1 - 0.194692)) / 97816), 12),
+    });
+    expect(check(g, "availability-aligned", "from33").sim).toBeCloseTo(150 / 850, 12);
     const realK = 19044 + 10224 + 3630 + 1889 + 909, realN = 97816 + 55889 + 20353 + 10001 + 6172;
-    expect(check(g, "availability-aligned", "every age")).toMatchObject({ sim: expect.closeTo(25 / 150, 12), ref: expect.closeTo(realK / realN, 12) });
+    expect([realK, realN]).toEqual([35696, 190231]);
+    expect(check(g, "availability-aligned", "every age")).toMatchObject({ sim: expect.closeTo(750 / 2550, 12), ref: expect.closeTo(realK / realN, 12) });
+    expect(check(g, "availability-aligned", "upTo25, later window 2033-2045").sim).toBeCloseTo(0.4, 12);
+    expect(check(g, "availability-aligned", "from33, later window 2033-2045").sim).toBeCloseTo(0.2, 12);
+    // Per team game: 17 seasons of 150 game weeks over 2 team games each; missed 4·25 + 13·50 over 34. REAL 190,231 and 35,696 over 3,198.
+    expect(check(g, "availability-aligned", "game weeks per team game")).toMatchObject({ sim: 75, ref: expect.closeTo(190231 / 3198, 12), seRef: null });
+    expect(check(g, "availability-aligned", "missed hurt per team game")).toMatchObject({ sim: expect.closeTo(750 / 34, 12), ref: expect.closeTo(35696 / 3198, 12) });
     expect(check(g, "retire-moment", "IMMEDIATE, ownSigned, a season").sim).toBe(2);
     expect(check(g, "retire-moment", "SEASON_END, unsigned, a season").sim).toBe(5);
     expect(check(g, "retire-moment", "LATE, unsigned, a season").sim).toBe(0);
@@ -1105,7 +1172,10 @@ describe("the aging redesign's measure-only rows (rows version 6, AB1)", () => {
     expect(check(g, "retire-moment", "exp10Plus, final-week 53 retired within a year, any way").sim).toBe(0.4);
     expect(check(g, "retire-moment", "exp0, final-week 53 retired within a year, any way").sim).toBe(0.1);
     expect(check(g, "team-overall", "team overall spread, 2029-2045")).toMatchObject({ sim: 1, ref: 2 });
-    expect(check(g, "team-overall", "team overall year-to-year r, 2029-2045").sim).toBe(0.5);
+    // The year-to-year r over the pairs inside each window: 2030-45 (3 at 0.5, 2033's 0.1, 12 at 0.9), 2034-45 (all 0.9).
+    expect(check(g, "team-overall", "team overall year-to-year r, 2029-2045").sim).toBeCloseTo((3 * 0.5 + 0.1 + 12 * 0.9) / 16, 12);
+    expect(check(g, "team-overall", "team overall year-to-year r, later window 2033-2045").sim).toBeCloseTo(0.9, 12);
+    expect(check(g, "team-overall", "team overall spread, later window 2033-2045")).toMatchObject({ sim: 1, ref: 2 });
     expect(check(g, "team-overall", "team overall against wins, same season (r), 2029-2045").sim).toBeCloseTo(0.5, 12);
     expect(check(g, "team-overall", "win r, 2029-2045").ref).toBe(NFL_CAREERS.winYearOverYearR.r.value);
     expect(check(g, "d7-age", "round 1, every age")).toMatchObject({ sim: expect.closeTo(11 / 15, 12), ref: NFL_DRAFT.starterRate["1"] });
@@ -1113,5 +1183,34 @@ describe("the aging redesign's measure-only rows (rows version 6, AB1)", () => {
     expect(check(g, "d7-age", "round 1, aged 26-28").sim).toBeCloseTo(0.8, 12);
     expect(check(g, "d7-age", "round 4-7, every age").sim).toBe(0.25);
     expect(check(g, "d7-age", "round 2, every age").sim).toBeNull();
+  });
+
+  it("new picks not kept at their first week 1 by round: a moved pick never let go is kept; the per-class counts and the median gap; the real counts beside", () => {
+    const g = gradeCareerCheck(passingInput(redesign(passing())));
+    const r6 = NFL_ROOKIE_CUTS.byRound["6"];
+    expect(r6).toEqual({ cut: 25, n: 126 });
+    // Round 1: 31 kept and 1 moved and kept of 32, so none not kept; round 6: 8 + 3 + 5 of 36 each class.
+    expect(check(g, "rookie-cut", "round 1, share not kept at his first week 1 (REAL 0 of 95)")).toMatchObject({ sim: 0, ref: 0, seRef: 0, seeds: 4 });
+    expect(check(g, "rookie-cut", "round 6, share not kept at his first week 1 (REAL 25 of 126)")).toMatchObject({
+      sim: expect.closeTo(16 / 36, 12), ref: 25 / 126, seRef: expect.closeTo(Math.sqrt(((25 / 126) * (101 / 126)) / 126), 12),
+    });
+    expect(check(g, "rookie-cut", "round 7, share not kept at his first week 1 (REAL 37 of 120)").sim).toBeNull();
+    expect(check(g, "rookie-cut", "every round, share not kept (REAL 67 of 778)")).toMatchObject({ sim: expect.closeTo(16 / 68, 12), ref: 67 / 778 });
+    expect(check(g, "rookie-cut", "round 6, picks a class")).toMatchObject({ sim: 36, ref: 42 });
+    expect(check(g, "rookie-cut", "round 6, not kept a class")).toMatchObject({ sim: 16, ref: expect.closeTo(25 / 3, 12) });
+    expect(check(g, "rookie-cut", "round 6, on his drafting team's practice squad, a class").sim).toBe(8);
+    expect(check(g, "rookie-cut", "round 6, let go, then on another team's list, a class").sim).toBe(3);
+    expect(check(g, "rookie-cut", "round 6, on no team, a class").sim).toBe(5);
+    expect(check(g, "rookie-cut", "round 1, moved and kept (never let go: a trade), a class").sim).toBe(1);
+    // The gaps of every class in the window pooled: 17 copies of [-8, -4, -2, 1], median -3.
+    expect(check(g, "rookie-cut", "round 6, not kept: median overall less the weakest kept at his spot").sim).toBe(-3);
+    expect(check(g, "rookie-cut", "round 1, not kept: median overall less the weakest kept at his spot").sim).toBeNull();
+    expect(byId(g, "rookie-cut").checks).toHaveLength(7 + 1 + 7 * 2 + 7 * 5);
+    // Another real count (a made-up one) moves only the references.
+    const other = { classes: [2020, 2021], byRound: { ...NFL_ROOKIE_CUTS.byRound, "6": { cut: 10, n: 50 } } } as unknown as NflRookieCuts;
+    const rows = agingRedesignRows([...redesign(passing()).values()], PLAN_WINDOWS, NFL_CAREERS, NFL_DRAFT, NFL_INJURIES, other);
+    const cut = rows.find((x) => x.id === "rookie-cut")!;
+    expect(cut.checks.find((c) => c.label === "round 6, share not kept at his first week 1 (REAL 10 of 50)")).toMatchObject({ sim: expect.closeTo(16 / 36, 12), ref: 0.2 });
+    expect(cut.checks.find((c) => c.label === "round 6, picks a class")!.ref).toBe(25);
   });
 });

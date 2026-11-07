@@ -16,15 +16,24 @@
  *   terms on one side (`CONTACT_ROLL_SETS`), counted per game as the largest won + lost among each
  *   set's ratings, summed over the sets (`contactOf`): a lower bound on contests, never one counted
  *   twice.
- * - Injuries per snap by age and spot (`injuryExposure`), read the way the real side reads them.
+ * - Injuries per snap and per player-game by age and spot (`injuryExposure`), read the way the real
+ *   side reads them, on a narrower snap base: the sim credits special-teams snaps only to the kicker,
+ *   the punter and the returner (`participation.ts`), so its snaps hold no coverage, return-unit or
+ *   long-snapper snaps, and a punter's none of the holds; a man who plays only on special teams has
+ *   no snap there, and so no player-game.
  * - Availability by age read the real side's way (`addGameWeeks`).
  * - Concussion lengths, first and later (`concussionLengths`), and durability by how many
  *   concussions a man has had (`durabilityByConcussions`).
+ * - A request from the salary-cap thread (2026-11-07), measure-only too: the new draft picks not
+ *   kept at their first regular-season week 1, by round (`readPicks`, `rookieWeekOne`, `rookieCutOf`).
  *
  * Every number these give is MEASURED (the sim's). Each rule below that is not the real side's own is
  * CHOSEN, and says so.
  */
-import { ABILITY_GROUPS, type AbilityGroup, type CalendarStamp, type FranchiseEventEnvelope, type GameParticipation, type PlayerState, type Position, type Team } from "@ff/contracts";
+import {
+  ABILITY_GROUPS, compareStamps, positionOverall, type AbilityGroup, type CalendarStamp, type FranchiseEventEnvelope, type GameParticipation, type PlayerState,
+  type Position, type Team,
+} from "@ff/contracts";
 import type { SeasonPeople } from "./realSeason.js";
 
 const bumpBy = (m: Record<string, number>, k: string, by = 1) => { m[k] = (m[k] ?? 0) + by; };
@@ -208,10 +217,15 @@ export const CONTACT_RATINGS: readonly string[] = [
  *    tackles tackling alone), so the two share a set;
  *  - rush: a pass-rush rep's rusher rolls passRush with powerMove (or finesseMove, firstStep, strength,
  *    none of them contact ratings); protect: its blocker passBlock + footwork + anchor;
- *  - runBlock, runStuff, sustain, catchInTraffic and ballSecurity alone (no check names ballSecurity
- *    in an opposed roll today, so it counts 0).
- * A test walks the engine's term lists and a played game's opposed checks and fails if one side of
- * one check names contact ratings from two sets.
+ *  - runBlock, runStuff, sustain, catchInTraffic and ballSecurity alone.
+ * Two sets count 0 today, because participation credits opposed checks only (`participation.ts`):
+ * security (no check names ballSecurity in an opposed roll) and sustain (its one check, the
+ * second-level climb in `resolve/runBlock.ts`, rolls against a target, with no opposed roll).
+ * Tests walk the engine's term lists and a played game's opposed checks: they fail if one side of one
+ * check names contact ratings from two sets, and if a set of two or more ratings is never named
+ * together on one side (a set merged too far). AB6's franchise roll-set table must match this one:
+ * `CONTACT_ROLL_SETS_DIGEST` is the sha256 of its `JSON.stringify`, for AB6 to pin against, as
+ * `ABILITY_GROUP_DIGEST` is for AB3.
  */
 export const CONTACT_ROLL_SETS: Readonly<Record<string, readonly string[]>> = {
   carry: ["elusiveness", "power", "yac"],
@@ -224,6 +238,7 @@ export const CONTACT_ROLL_SETS: Readonly<Record<string, readonly string[]>> = {
   traffic: ["catchInTraffic"],
   security: ["ballSecurity"],
 };
+export const CONTACT_ROLL_SETS_DIGEST = "6a0b977a173d5523165035535e299f1c21652b3a0617a13349ca7699fa804a8c";
 
 /**
  * Contact one man took in one game's contests (`GameParticipation.contests`, each contest credited
@@ -242,14 +257,18 @@ export function contactOf(contests: GameParticipation["contests"]): number {
 
 // --- injuries per snap, by age and spot ----------------------------------------------------------
 
-/** One man's regular-season game: the week, his team, the spot he played at, his snaps of every kind (offense, defense, special teams). */
+/**
+ * One man's regular-season game: the week, his team, the spot he played at, his snaps of every kind
+ * (offense, defense, special teams: the sim's special-teams snaps are the kicker's, the punter's and
+ * the returner's alone).
+ */
 export interface PlayedGame { readonly week: number; readonly team: string; readonly spot: Position; readonly snaps: number }
 
 /**
  * Snaps and injuries by age (whole years in the season) then spot: [snaps, football time-loss injuries
- * after a game he played, of them hurt in the game itself].
+ * after a game he played, of them hurt in the game itself, player-games (games he took a snap in)].
  */
-export type ExposureCells = Record<string, Record<string, [number, number, number]>>;
+export type ExposureCells = Record<string, Record<string, [number, number, number, number]>>;
 
 /** An injury as the per-snap rows read it. */
 export interface InjuryRead {
@@ -272,10 +291,15 @@ export function injuryReads(events: readonly FranchiseEventEnvelope[]): InjuryRe
 }
 
 /**
- * Injuries per snap by age and spot, read the real side's way (`reports/injury-rates.md`, "By age"
- * and "By depth-chart spot"):
+ * Injuries per snap and per player-game by age and spot, read the real side's way
+ * (`reports/injury-rates.md`, "By age" and "By depth-chart spot"):
  *  - snaps: every regular-season snap he took (offense, defense, special teams), at the spot he played
- *    that game (`PlayedGame.spot`) and his age in the season;
+ *    that game (`PlayedGame.spot`) and his age in the season; a player-game is a game with a snap.
+ *    The base is narrower than the real side's, whose snaps are PFR's offense + defense + special
+ *    teams for all eleven men on every kick (about 17% of real snaps): the sim's special-teams snaps
+ *    are the kicker's, the punter's and the returner's alone (no coverage, return-unit or long-snapper
+ *    snaps; a punter's holds are not snaps), so a man who plays only on special teams has no snap,
+ *    and no player-game, in the sim;
  *  - injuries: football (GAME or PRACTICE; AWAY, which holds illness and the rest away from football,
  *    is left out, as the real count leaves out illness and the non-football list) time-loss (SHORT,
  *    LONG, MAJOR) injuries stamped in a regular-season week, counted after a game he played: the last
@@ -291,8 +315,15 @@ export function injuryExposure(
   ageOf: (id: string) => number | undefined,
 ): { cells: ExposureCells; notAfterPlayed: number } {
   const cells: ExposureCells = {};
-  const cell = (age: number | undefined, spot: string) => ((cells[age === undefined ? "?" : String(age)] ??= {})[spot] ??= [0, 0, 0]);
-  for (const [id, games] of played) for (const g of games) if (g.snaps > 0) cell(ageOf(id), g.spot)[0] += g.snaps;
+  const cell = (age: number | undefined, spot: string) => ((cells[age === undefined ? "?" : String(age)] ??= {})[spot] ??= [0, 0, 0, 0]);
+  for (const [id, games] of played) {
+    for (const g of games) {
+      if (g.snaps <= 0) continue;
+      const c = cell(ageOf(id), g.spot);
+      c[0] += g.snaps;
+      c[3]++;
+    }
+  }
   let notAfterPlayed = 0;
   for (const i of injuries) {
     if (i.at.phase !== "REGULAR_SEASON" || i.band === "DAY_TO_DAY" || i.setting === "AWAY") continue;
@@ -349,25 +380,42 @@ export const CONCUSSION_KIND = "concussion";
  * Concussion lengths: [time-loss football concussions in the regular season, of them out 4+ weeks],
  * first and later; and by age in the season, [concussions, out 4+ weeks, of them later ones], so a
  * longer absence with age can be told from the priors older men carry (§12.3.3, "Concussion: not yet").
+ * `first` and `repeat` split by `priorOfKind`'s reading (every earlier concussion draw); `seen` splits
+ * the same concussions the real side's way (an earlier one counted here: see `concussionLengths`).
  */
-export interface ConcussionTally { readonly first: [number, number]; readonly repeat: [number, number]; readonly byAge: Record<string, [number, number, number]> }
+export interface ConcussionTally {
+  readonly first: [number, number]; readonly repeat: [number, number]; readonly byAge: Record<string, [number, number, number]>;
+  readonly seen: { readonly first: [number, number]; readonly repeat: [number, number] };
+}
 
 /**
  * A season's concussions (its injuries in order), each read against how many concussions the man
- * had before it (`prior`, the walk's own count, carried between seasons): every concussion draw of the
- * walk counts as a prior (any phase, setting or band), as franchise's `priorOfKind` counts his past
- * injuries of the kind. The tally reads the time-loss (SHORT, LONG, MAJOR) football (GAME, PRACTICE)
- * concussions of the regular season, as the real side counts "every football spell with body part
- * concussion/head" in its regular seasons; out 4+ weeks reads the draw's length (`weeks` ≥ 4), as the
- * real side's Kaplan-Meier share out 4+ weeks. The league file's current injuries (`real:` kinds)
- * are not draws and count as no prior. Ages are `ageOf` (his age in the season; "?" not known).
- * Returns the tally and the counts after the season.
+ * had before it, two ways, each count the walk's own and carried between seasons:
+ *  - `prior`: every concussion draw of the walk (any phase, setting or band: a day-to-day one, one in
+ *    camp, the playoffs or away from football all count), as franchise's `priorOfKind` counts his past
+ *    injuries of the kind. This is the split §12.3.4's repeat rule (AB6) works on: `first`, `repeat`
+ *    and `byAge`'s later ones.
+ *  - `seen`: the earlier concussions this tally itself counts (time-loss football ones of a regular
+ *    season), the real side's "second or later" (`injury-rates.md`, "Repeat concussions": an earlier
+ *    time-loss spell seen in a regular season since 2019). A man whose only earlier one was day to day,
+ *    in camp, in the playoffs or away is later by `prior` and first by `seen`. One difference stays: a
+ *    camp concussion that costs regular-season games is a real spell (any onset) but is stamped in camp
+ *    here, so it is neither counted nor a `seen` prior.
+ * The tally reads the time-loss (SHORT, LONG, MAJOR) football (GAME, PRACTICE) concussions of the
+ * regular season, as the real side counts "every football spell with body part concussion/head" in its
+ * regular seasons; out 4+ weeks reads the draw's length (`weeks` ≥ 4), as the real side's Kaplan-Meier
+ * share out 4+ weeks. The league file's current injuries (`real:` kinds) are not draws and count as no
+ * prior either way. Ages are `ageOf` (his age in the season; "?" not known). Returns the tally and both
+ * counts after the season.
  */
 export function concussionLengths(
   injuries: readonly InjuryRead[], prior: ReadonlyMap<string, number>, ageOf: (id: string) => number | undefined = () => undefined,
-): { tally: ConcussionTally; counts: Map<string, number> } {
+  seenBefore: ReadonlyMap<string, number> = new Map(),
+): { tally: ConcussionTally; counts: Map<string, number>; seen: Map<string, number> } {
   const counts = new Map(prior);
+  const seen = new Map(seenBefore);
   const first: [number, number] = [0, 0], repeat: [number, number] = [0, 0];
+  const seenFirst: [number, number] = [0, 0], seenRepeat: [number, number] = [0, 0];
   const byAge: Record<string, [number, number, number]> = {};
   for (const i of injuries) {
     if (i.kind !== CONCUSSION_KIND) continue;
@@ -378,14 +426,22 @@ export function concussionLengths(
     const out4 = i.weeks >= 4;
     t[0]++;
     if (out4) t[1]++;
+    const seenAlready = seen.get(i.player) ?? 0;
+    seen.set(i.player, seenAlready + 1);
+    const ts = seenAlready === 0 ? seenFirst : seenRepeat;
+    ts[0]++;
+    if (out4) ts[1]++;
     const age = ageOf(i.player);
     const a = (byAge[age === undefined ? "?" : String(age)] ??= [0, 0, 0]);
     a[0]++;
     if (out4) a[1]++;
     if (before > 0) a[2]++;
   }
-  return { tally: { first, repeat, byAge: sortNumericKeys(byAge) }, counts };
+  return { tally: { first, repeat, byAge: sortNumericKeys(byAge), seen: { first: seenFirst, repeat: seenRepeat } }, counts, seen };
 }
+
+/** The registry id of the durability rating (`ATTRIBUTE_REGISTRY_V1`; a test holds it there). */
+export const DURABILITY = "durability";
 
 /** The classes of `durabilityByConcussions`: none, one, two, three or more. */
 export const CONCUSSION_CLASSES = ["0", "1", "2", "3+"] as const;
@@ -402,7 +458,7 @@ export function durabilityByConcussions(people: Pick<SeasonPeople, "teams" | "pl
   for (const t of people.teams) {
     for (const id of t.roster) {
       const p = byId.get(String(id));
-      const d = p?.attributes.values.durability;
+      const d = p?.attributes.values[DURABILITY];
       if (p === undefined || d === undefined) continue;
       const n = (history[String(id)] ?? []).filter((x) => x.kind === CONCUSSION_KIND).length;
       const c = out[CONCUSSION_CLASSES[Math.min(3, n)]!];
@@ -410,4 +466,129 @@ export function durabilityByConcussions(people: Pick<SeasonPeople, "teams" | "pl
     }
   }
   return out;
+}
+
+// --- new picks not kept at their first week 1 (the salary-cap thread's request, 2026-11-07) ----------
+
+/**
+ * A new draft pick of the walk, waiting for his first regular-season week 1: his drafting team (the
+ * `DRAFT_PICK_MADE` payload's), round, draft year (the season after the one whose offseason held the
+ * draft, as the draft check reads it), and whether his drafting team has let him go since his pick
+ * (a `PLAYER_RELEASED` by that team stamped before his first week 1's day 1).
+ */
+export interface PendingPick { readonly team: string; readonly round: number; readonly year: number; readonly released: boolean }
+
+/** The first day of a season's first regular-season week: the day the week-1 53s are read. */
+export const firstWeekOne = (season: number): CalendarStamp => ({ season, phase: "REGULAR_SEASON", week: 1, day: 1 });
+
+/**
+ * One season's stamped events, in order, into the picks waiting for their first week 1: each
+ * `DRAFT_PICK_MADE` of its draft adds a pick (draft year `season` + 1); each `PLAYER_RELEASED` of a
+ * waiting pick by his drafting team, before his first week 1's day 1, marks him let go. Season S's
+ * own events reach class S's picks too (cut-down day and camp, before week 1).
+ */
+export function readPicks(picks: Map<string, PendingPick>, events: readonly FranchiseEventEnvelope[], season: number): void {
+  for (const { at, event: e } of events) {
+    if (e.type === "DRAFT_PICK_MADE") {
+      picks.set(String(e.payload.player), { team: String(e.payload.team), round: e.payload.round, year: season + 1, released: false });
+    } else if (e.type === "PLAYER_RELEASED") {
+      const p = picks.get(String(e.payload.player));
+      if (p !== undefined && !p.released && String(e.payload.team) === p.team && compareStamps(at, firstWeekOne(p.year)) < 0) {
+        picks.set(String(e.payload.player), { ...p, released: true });
+      }
+    }
+  }
+}
+
+/** Where a pick is at his first week 1's day 1. */
+export type WeekOnePlace = "own" | "ownSquad" | "other" | "otherSquad" | "none";
+/** A pick read at his first week 1: where he is, and (not on his drafting team's 53 or reserve lists) his overall less the weakest kept at his spot. */
+export interface WeekOneRead { readonly place: WeekOnePlace; readonly gap: number | null }
+
+/**
+ * The picks of draft year `season` at that season's week 1, day 1 (the people as the day starts):
+ * on his drafting team's 53 (`roster`) or reserve lists (`reserve`); on its practice squad; on another
+ * team's 53 or reserve lists; on another team's practice squad; on no team's list. A pick not on his
+ * drafting team's 53 or reserve lists gets a gap (CHOSEN reading, both at the pick's listed position
+ * `bio.position`, `positionOverall`): his overall less the weakest overall among the men his drafting
+ * team charts at that key (`depthChart[bio.position]`) on its 53 that day, to a tenth of a point; null if
+ * he is not among the people or the team charts no one there.
+ */
+export function rookieWeekOne(
+  people: Pick<SeasonPeople, "teams" | "players">, picks: ReadonlyMap<string, PendingPick>, season: number,
+): Map<string, WeekOneRead> {
+  const byId = new Map(people.players.map((p) => [String(p.bio.id), p]));
+  const teamOf = new Map<string, { team: string; squad: boolean }>();
+  for (const t of people.teams) {
+    for (const id of [...t.roster, ...(t.reserve ?? [])]) teamOf.set(String(id), { team: String(t.id), squad: false });
+    for (const id of t.practiceSquad ?? []) if (!teamOf.has(String(id))) teamOf.set(String(id), { team: String(t.id), squad: true });
+  }
+  const teams = new Map(people.teams.map((t) => [String(t.id), t]));
+  const out = new Map<string, WeekOneRead>();
+  for (const [id, pick] of picks) {
+    if (pick.year !== season) continue;
+    const on = teamOf.get(id);
+    const place: WeekOnePlace = on === undefined ? "none" : on.team === pick.team ? (on.squad ? "ownSquad" : "own") : on.squad ? "otherSquad" : "other";
+    let gap: number | null = null;
+    const p = byId.get(id), t = teams.get(pick.team);
+    if (place !== "own" && p !== undefined && t !== undefined) {
+      const at = p.bio.position;
+      const onRoster = new Set(t.roster.map(String));
+      const kept = (t.depthChart[at] ?? []).map(String).filter((x) => onRoster.has(x) && x !== id).map((x) => byId.get(x))
+        .filter((q): q is PlayerState => q !== undefined).map((q) => positionOverall(at, q.attributes.values));
+      if (kept.length > 0) gap = Math.round(10 * (positionOverall(at, p.attributes.values) - Math.min(...kept))) / 10;
+    }
+    out.set(id, { place, gap });
+  }
+  return out;
+}
+
+/** A round's picks at their first week 1 (`rookieCutOf`). */
+export interface RookieCutCell {
+  /** Picks read. */
+  readonly n: number;
+  /** On his drafting team's 53 or reserve lists. */
+  readonly kept: number;
+  /** On another team's 53 or reserve lists, never let go by his drafting team (a trade): counted kept. */
+  readonly movedKept: number;
+  /** On his drafting team's practice squad. */
+  readonly squad: number;
+  /** Let go by his drafting team and on another team's 53, reserve lists or practice squad, or moved to another team's practice squad. */
+  readonly elsewhere: number;
+  /** On no team's list. */
+  readonly gone: number;
+}
+
+/** One class at its first week 1, by round: the counts, and the not-kept picks' gaps (`rookieWeekOne`). */
+export interface RookieCut { readonly year: number; readonly byRound: Record<string, RookieCutCell>; readonly gaps: Record<string, number[]> }
+
+/**
+ * Class `season` at its first week 1, by round: kept (his drafting team's 53 or reserve lists), moved
+ * and kept (another team's 53 or reserve lists, never let go by his drafting team: a trade, counted
+ * kept), on his drafting team's practice squad, elsewhere (let go, then on another team's list, or on
+ * another team's practice squad), or gone (no team). Not kept = n − kept − movedKept, the real side's
+ * "not on his team's week-1 roster or reserve lists". `gaps` holds each not-kept pick's gap, sorted.
+ * Null when no class of the walk reaches its week 1 that season: no pick has draft year `season` (the
+ * walk's first season, whose class was drafted before the walk), or no week 1 was walked (`weekOne` null).
+ */
+export function rookieCutOf(season: number, picks: ReadonlyMap<string, PendingPick>, weekOne: ReadonlyMap<string, WeekOneRead> | null): RookieCut | null {
+  if (weekOne === null || ![...picks.values()].some((p) => p.year === season)) return null;
+  const byRound: Record<string, { n: number; kept: number; movedKept: number; squad: number; elsewhere: number; gone: number }> = {};
+  const gaps: Record<string, number[]> = {};
+  for (const [id, pick] of picks) {
+    if (pick.year !== season) continue;
+    const r = String(pick.round);
+    const c = (byRound[r] ??= { n: 0, kept: 0, movedKept: 0, squad: 0, elsewhere: 0, gone: 0 });
+    c.n++;
+    const read = weekOne.get(id) ?? { place: "none" as const, gap: null };
+    const kept = read.place === "own" || (read.place === "other" && !pick.released);
+    if (read.place === "own") c.kept++;
+    else if (read.place === "other" && !pick.released) c.movedKept++;
+    else if (read.place === "ownSquad") c.squad++;
+    else if (read.place === "none") c.gone++;
+    else c.elsewhere++;
+    if (!kept && read.gap !== null) (gaps[r] ??= []).push(read.gap);
+  }
+  for (const xs of Object.values(gaps)) xs.sort((a, b) => a - b);
+  return { year: season, byRound: sortNumericKeys(byRound), gaps: sortNumericKeys(gaps) };
 }

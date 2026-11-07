@@ -63,14 +63,19 @@
  *    (`teamOverall`), whose spread and year-to-year r sit beside the win spread and win r.
  *  - Every regular-season game: the spot each man played at (`chartSpots`), his snaps and the contact
  *    he took there, counted by roll sets (`contactOf`); each team's game week, the real side's way, for
- *    availability (`addGameWeeks`: played, healthy on the 53 and not played, or missed hurt).
- *  - After each season: football time-loss injuries per snap by age and spot, counted after a game he
- *    played (`exposure`, `injuryExposure`); concussion lengths, first and later (`concussionLengths`);
- *    retirements by moment and way, and by years in the league (`retiredHow`); the walk's own
- *    draftees by round band and age at the season's end, read as the draft check reads its starter
- *    rate (`draftEnd`); career contact at 27 (`contact.at27`, the "free" value AB6 needs). The roster
- *    way's retired-within-a-year cohorts are also read by years in the league
- *    (`exits.retiredNextYearByYears`).
+ *    availability (`addGameWeeks`: played, healthy on the 53 and not played, or missed hurt), and the
+ *    team games read (`teamGames`). Every playoff game: the contact each man took, for his career
+ *    contact only (AB6's counter will count every game with a who-played report).
+ *  - Week 1, day 1: where each of the walk's new draft picks is at his first week 1 (`rookieWeekOne`),
+ *    for the salary-cap thread's measure of picks not kept, by round (`rookieCut`, `rookieCutOf`).
+ *  - After each season: football time-loss injuries per snap and per player-game by age and spot,
+ *    counted after a game he played (`exposure`, `injuryExposure`); concussion lengths, first and
+ *    later, by every earlier draw and by the real side's earlier time-loss spells
+ *    (`concussionLengths`); retirements by moment and way, and by years in the league (`retiredHow`);
+ *    the walk's own draftees by round band and age at the season's end, read as the draft check reads
+ *    its starter rate (`draftEnd`); career contact at 27 (`contact.at27`, the "free" value AB6 needs:
+ *    the walk's own entrants in the later window). The roster way's retired-within-a-year cohorts are
+ *    also read by years in the league (`exits.retiredNextYearByYears`).
  *
  * Ages. A man's age is his `bio.age` during the season (as read at week 8); the year turn at the end
  * of each walk adds one, so an age read after it (in `onRun`'s people) is next season's (`seasonAge`).
@@ -102,8 +107,9 @@ import { MIN_PAIRS_PER_AGE } from "../careers/usage.js";
 import { lastTeams, limboPlayers, runCapCheck, VETERAN_DEAL_KINDS, type CapCheckDayGames, type CapCheckInput, type CapCheckRun } from "./capCheck.js";
 import { draftReader, STARTING, type DraftCheckResult, type DraftReaderState } from "./draftCheck.js";
 import {
-  abilityPicture, addGameWeeks, chartSpots, concussionLengths, contactOf, durabilityByConcussions, injuryExposure, injuryReads, sortNumericKeys,
-  SPOT_ORDER, type AbilityPicture, type ConcussionTally, type ExposureCells, type PlayedGame,
+  abilityPicture, addGameWeeks, chartSpots, concussionLengths, contactOf, durabilityByConcussions, injuryExposure, injuryReads, readPicks, rookieCutOf,
+  rookieWeekOne, sortNumericKeys, SPOT_ORDER, type AbilityPicture, type ConcussionTally, type ExposureCells, type PendingPick, type PlayedGame, type RookieCut,
+  type WeekOneRead,
 } from "./careerAging.js";
 import { fieldedStarters } from "./playerChecks.js";
 import type { SeasonPeople } from "./realSeason.js";
@@ -1594,23 +1600,32 @@ export interface SeasonRow {
   readonly durabilityByConcussions: Record<string, [number, number, number]> | null;
   /** Each team's starters' mean overall at week 8 (`teamOveralls`), their spread and the r against last season's week 8 (`teamOverallRow`); null if the walk never got there. */
   readonly teamOverall: TeamOverallRow | null;
-  /** Football time-loss injuries per snap by age then spot (`injuryExposure`), and those not counted after a game he played. */
+  /**
+   * Football time-loss injuries per snap and per player-game by age then spot (`injuryExposure`:
+   * [snaps, injuries, of them in the game, player-games]), and those not counted after a game he played.
+   */
   readonly exposure: { readonly cells: ExposureCells; readonly notAfterPlayed: number };
   /**
-   * Contact taken (`contactOf`, by roll sets; information only): by spot played, [snaps, contact]; and
-   * of the men aged 27 this season with a regular-season snap, each man's career contact through this
-   * season (the walk's regular-season games; a league-file man's count starts at the walk's start, as
-   * AB6's counter starts at 0 for everyone), the walk's own entrants (drafted or undrafted) apart.
+   * Contact taken (`contactOf`, by roll sets; information only): by spot played in the regular season,
+   * [snaps, contact]; and of the men aged 27 this season with a regular-season snap, each man's career
+   * contact through this season (every game of the walk with a who-played report: the regular season
+   * and the playoffs, as AB6's counter in `playerSteps` will count every week with games; a league-file
+   * man's count starts at the walk's start, as AB6's counter starts at 0 for everyone), the walk's own
+   * entrants (drafted or undrafted) apart.
    */
   readonly contact: { readonly bySpot: ContactBySpot; readonly at27: { readonly entrants: number[]; readonly all: number[] } };
   /** Game weeks by age, the real side's way (`addGameWeeks`): [game weeks, missed hurt]. */
   readonly gameWeeks: AgeCounts;
-  /** Concussion lengths, first and later (`concussionLengths`). */
+  /** The regular-season team games read (each side of each game with a who-played report): `gameWeeks`' per-team-game base. */
+  readonly teamGames: number;
+  /** Concussion lengths, first and later, both splits (`concussionLengths`). */
   readonly concussions: ConcussionTally;
   /** The season's retirements by moment and way, and by way and years in the league (`retiredHow`). */
   readonly retiredHow: RetiredHow;
   /** The walk's own draftees on a 53 at the season's end, by round band then age in the season: [on a 53, of them started] (`draftByAge`). */
   readonly draftEnd: Record<string, AgeCounts>;
+  /** This season's class (drafted in last season's offseason) at its first week 1, by round (`rookieCutOf`); null in the walk's first season (its class was drafted before the walk) or with no week 1 walked. */
+  readonly rookieCut: RookieCut | null;
 }
 
 /** What the rows hold and the reader saves: a change to either starts a fresh version. */
@@ -1719,10 +1734,16 @@ export interface CareerReaderState {
   readonly on53: [number, string[]][];
   readonly retiredAt: [string, RetirementRead][];
   readonly exits: CareerCheckRows["exits"];
-  /** Rows version 6: last season's week-8 team overall by team; each man's concussions so far and career contact so far (men still in the league). */
+  /**
+   * Rows version 6: last season's week-8 team overall by team; each man's concussions so far (every
+   * draw, and the real side's way) and career contact so far (men still in the league); the new picks
+   * waiting for their first week 1.
+   */
   readonly lastTeamOverall: [string, number | null][] | null;
   readonly concussions: [string, number][];
+  readonly concussionsSeen: [string, number][];
   readonly contactCareer: [string, number][];
+  readonly pendingPicks: [string, PendingPick][];
 }
 
 /** The reader's watchers and what they wrote down; `rows` takes the draft check's rows to put beside its own. */
@@ -1779,9 +1800,13 @@ interface SeasonTally {
   /** The spot each man last played at this season. */
   lastSpot: Map<string, Position>;
   contactBySpot: ContactBySpot;
-  /** Each man's contact this season. */
+  /** Each man's contact this season: the regular season's, and the other games' (the playoffs). */
   contact: Map<string, number>;
+  otherContact: Map<string, number>;
   gameWeeks: AgeCounts;
+  teamGames: number;
+  /** The new picks at their first week 1, day 1 (`rookieWeekOne`); null until read. */
+  rookieWeekOne: Map<string, WeekOneRead> | null;
 }
 
 const newTally = (): SeasonTally => ({
@@ -1789,7 +1814,7 @@ const newTally = (): SeasonTally => ({
   week18: new Map(), snaps: new Map(), busiest: new Map(), groupReads: new Map(), ages: new Map(), lastSeen: new Map(), leanings: null,
   week8Nfl: null, week8NflWeeksLeft: null, nflCount: null, on53: new Set(), week18Nfl: new Set(), availability: {},
   ability: null, durabilityByConcussions: null, teamOverall: null, played: new Map(), teamWeeks: new Map(), lastSpot: new Map(),
-  contactBySpot: {}, contact: new Map(), gameWeeks: {},
+  contactBySpot: {}, contact: new Map(), otherContact: new Map(), gameWeeks: {}, teamGames: 0, rookieWeekOne: null,
 });
 
 /** The D5b reader: watchers for the cap check's walk and the rows they add up to. */
@@ -1821,7 +1846,10 @@ export function careerReader(input: CareerReaderInput): CareerReader {
   // Rows version 6: last season's week-8 team overall; each man's concussions and career contact so far.
   let lastTeamOverall: Map<string, number | null> | undefined;
   let concussionCounts = new Map<string, number>();
+  let concussionsSeen = new Map<string, number>();
   let contactCareer = new Map<string, number>();
+  /** The salary-cap thread's measure: the new picks waiting for their first week 1. */
+  let pendingPicks = new Map<string, PendingPick>();
   /** The cap by league year, as the walk's own (`capForecast` of the same seed: real history, then the seed's projection). */
   const cap = capForecast(input.seed);
   const switched = input.switches.development || input.switches.injuries;
@@ -1871,6 +1899,7 @@ export function careerReader(input: CareerReaderInput): CareerReader {
         charts.set(side, t === undefined ? new Map() : chartSpots(t));
         playedBy.set(side, new Set());
         (tally.teamWeeks.get(side) ?? tally.teamWeeks.set(side, new Set()).get(side)!).add(week);
+        tally.teamGames++;
       }
       for (const r of report) {
         const p = byId.get(String(r.player));
@@ -1934,8 +1963,19 @@ export function careerReader(input: CareerReaderInput): CareerReader {
       }
       tally.week18Nfl = new Set(nflRosterIds(people));
     }
+    if (day.phase === "REGULAR_SEASON" && day.week === 1 && day.day === 1) tally.rookieWeekOne = rookieWeekOne(people, pendingPicks, season);
     const regular = games.filter((g) => g.game.kind === "REGULAR");
     if (regular.length > 0) readGames(people, regular, day.week);
+    // Every other game with a who-played report (the playoffs): its contact, for career contact alone.
+    for (const g of games) {
+      if (g.game.kind === "REGULAR") continue;
+      const report = (g.extras as { participation?: readonly GameParticipation[] } | undefined)?.participation;
+      if (!Array.isArray(report)) continue;
+      for (const r of report) {
+        if (r.snaps.offense + r.snaps.defense + (r.snaps.special ?? 0) === 0) continue;
+        tally.otherContact.set(String(r.player), (tally.otherContact.get(String(r.player)) ?? 0) + contactOf(r.contests ?? []));
+      }
+    }
   };
 
   const onRun: CareerReader["onRun"] = (season, events, people, { run, before }) => {
@@ -2030,10 +2070,10 @@ export function careerReader(input: CareerReaderInput): CareerReader {
     // years, the draftees by age at the season's end, the teams' overall, contact at 27.
     const injuryList = injuryReads(run.events);
     const exposure = injuryExposure(tally.played, tally.teamWeeks, injuryList, (id) => tally.ages.get(id) ?? ageIn.get(id));
-    const concussed = concussionLengths(injuryList, concussionCounts, (id) => tally.ages.get(id) ?? ageIn.get(id));
+    const concussed = concussionLengths(injuryList, concussionCounts, (id) => tally.ages.get(id) ?? ageIn.get(id), concussionsSeen);
     const teamOverall = tally.teamOverall === null ? null : teamOverallRow(tally.teamOverall, teams, lastTeamOverall);
     lastTeamOverall = tally.teamOverall ?? undefined;
-    for (const [id, c] of tally.contact) contactCareer.set(id, (contactCareer.get(id) ?? 0) + c);
+    for (const m of [tally.contact, tally.otherContact]) for (const [id, c] of m) contactCareer.set(id, (contactCareer.get(id) ?? 0) + c);
     const at27 = { entrants: [] as number[], all: [] as number[] };
     for (const id of tally.played.keys()) {
       if (tally.ages.get(id) !== 27) continue;
@@ -2047,7 +2087,13 @@ export function careerReader(input: CareerReaderInput): CareerReader {
     // Men who left the league (retired, forgotten) are never read again.
     const still = new Set(people.players.map((p) => String(p.bio.id)));
     concussionCounts = new Map([...concussed.counts].filter(([id]) => still.has(id)));
+    concussionsSeen = new Map([...concussed.seen].filter(([id]) => still.has(id)));
     contactCareer = new Map([...contactCareer].filter(([id]) => still.has(id)));
+    // The salary-cap thread's measure: the season's releases before week 1 reach this season's class,
+    // which is then read (its week-1 places from day 1); the season's own draft adds next season's class.
+    readPicks(pendingPicks, run.events, season);
+    const rookieCut = rookieCutOf(season, pendingPicks, tally.rookieWeekOne);
+    pendingPicks = new Map([...pendingPicks].filter(([, p]) => p.year > season));
     rows.push({
       season,
       week8: tally.week8,
@@ -2081,9 +2127,11 @@ export function careerReader(input: CareerReaderInput): CareerReader {
       exposure,
       contact: { bySpot: Object.fromEntries(SPOT_ORDER.filter((x) => tally.contactBySpot[x] !== undefined).map((x) => [x, tally.contactBySpot[x]!])), at27 },
       gameWeeks: sortAges(tally.gameWeeks),
+      teamGames: tally.teamGames,
       concussions: concussed.tally,
       retiredHow: retiredHow(reads, yearsIn),
       draftEnd: draftByAge(season, people, (id) => ledger.draftOf(id)),
+      rookieCut,
     });
     tally = newTally();
   };
@@ -2173,7 +2221,9 @@ export function careerReader(input: CareerReaderInput): CareerReader {
       exits,
       lastTeamOverall: lastTeamOverall === undefined ? null : [...lastTeamOverall],
       concussions: [...concussionCounts],
+      concussionsSeen: [...concussionsSeen],
       contactCareer: [...contactCareer],
+      pendingPicks: [...pendingPicks],
     })) as CareerReaderState;
   };
 
@@ -2202,7 +2252,9 @@ export function careerReader(input: CareerReaderInput): CareerReader {
     exits = copy.exits;
     lastTeamOverall = copy.lastTeamOverall === null ? undefined : new Map(copy.lastTeamOverall);
     concussionCounts = new Map(copy.concussions);
+    concussionsSeen = new Map(copy.concussionsSeen);
     contactCareer = new Map(copy.contactCareer);
+    pendingPicks = new Map(copy.pendingPicks);
   };
 
   return { onDay, onRun, rows: rowsOf, save, restore };
