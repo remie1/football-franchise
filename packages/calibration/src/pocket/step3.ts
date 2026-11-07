@@ -158,8 +158,8 @@ export const STEP2_RECORDS_JSON = "reports/adr-089-step2.json";
 export const STEP2_CLOSED_RECORDS = ["reports/adr-089-step2.md", "reports/adr-089-step2.json"] as const;
 /** Step 3's records, relative to the package; once final they are never written over (plan §2.10). */
 export const STEP3_RECORDS = ["reports/adr-089-step3.md", "reports/adr-089-step3.json"] as const;
-/** False until the measuring stream commits step 3's records and closes the step; a named commit flips it. */
-export const STEP3_RECORDS_FINAL: boolean = false;
+/** True: step 3's records (d8247c9) are closed, flipped in a named commit with step 4's record (step-4 plan R17). */
+export const STEP3_RECORDS_FINAL: boolean = true;
 
 /** The graded set (set 1, as steps 1 and 2 graded); set 2 is printed beside it. */
 export const GRADED_SEED_SET: SeedSet = 1;

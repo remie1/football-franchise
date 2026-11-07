@@ -59,6 +59,7 @@ import {
   checkFilingForStep3,
   classifyStep3Miss,
   closedStep3Writes,
+  STEP3_RECORDS_FINAL,
   firstClockRunnerTenthsByPlay,
   firstFreeRunnerTenths,
   gradeStep3,
@@ -1360,6 +1361,11 @@ describe("the closed records no step-3 command writes over", () => {
     expect(closedStep3Writes({ report: "reports/adr-089-step3.md", out: "reports/adr-089-step3.json" }, PKG, PKG, true)).toEqual(["--report reports/adr-089-step3.md", "--out reports/adr-089-step3.json"]);
     expect(closedStep3Writes({ report: "/tmp/s3.md", out: "/tmp/s3.json" }, PKG, PKG)).toEqual([]);
     expect(closedStep3Writes({}, PKG, PKG)).toEqual([]);
+  });
+
+  it("step 3's records are final (d8247c9, closed with step 4's record, step-4 plan R17): refused by default", () => {
+    expect(STEP3_RECORDS_FINAL).toBe(true);
+    expect(closedStep3Writes({ report: "reports/adr-089-step3.md", out: "reports/adr-089-step3.json" }, PKG, PKG)).toEqual(["--report reports/adr-089-step3.md", "--out reports/adr-089-step3.json"]);
   });
 });
 
