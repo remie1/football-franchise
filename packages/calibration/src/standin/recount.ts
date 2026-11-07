@@ -333,6 +333,8 @@ export interface RealStudy {
   /** The day after the season's last game: the date a file fetched after the season would age everyone on. */
   readonly dayAfterLastGame: string;
   readonly realWeek8: RealReading;
+  /** The real count at the snapshot week (the real way, a team on its bye read from its nearest week before): the 23 October point read by the real rules. */
+  readonly realAtSnapshot: RealReading;
   readonly importer: {
     /** (i) A file fetched on 23 October: rows through the snapshot week. */
     readonly atSnapshot: ImporterReading;
@@ -372,6 +374,7 @@ export function studyRealSeason(
   const lastGame = schedule.reduce((m, w) => (w.last > m ? w.last : m), "");
   if (lastGame === "") throw new Error(`standin-recount: no ${season} schedule`);
   const real = realReading(regular, season);
+  const realSnap = realReading(regular, season, snap);
   const at = (throughWeek: number | null, gameTypes: "ALL" | "REG", date = ageDate) => importerReading(seasonRows, table, { throughWeek, gameTypes, ageDate: date }, real);
   const byWeek: WeekLine[] = [];
   const typeOf = new Map(schedule.map((w) => [w.week, w.gameType]));
@@ -394,6 +397,7 @@ export function studyRealSeason(
     lastWeek,
     dayAfterLastGame: dayAfter(lastGame),
     realWeek8: { week: real.week, byeFilled: real.byeFilled, the53: real.the53 },
+    realAtSnapshot: { week: realSnap.week, byeFilled: realSnap.byeFilled, the53: realSnap.the53 },
     importer: {
       atSnapshot: at(snap, "ALL"),
       week8: at(CROSS_SECTION_WEEK, "ALL"),
@@ -439,4 +443,39 @@ export function gapSteps(file: AgeShares, study: RealStudy): GapStep[] {
     diff("rows", file, snap),
     diff("seasonEnd", study.importer.latest.the53.league, w8),
   ];
+}
+
+/**
+ * The same gap split two more ways, for the steps' order and for what the file's rows held (each
+ * adds up to the gap exactly; the first row of each is the gap). `gapSteps` is split (a): the method
+ * at week 8, then the snapshot by the importer's rules, and it takes the file to have been read as
+ * the importer reads the final file, game-day inactives dropped.
+ *
+ * - (b) `snapshotFirst`: the snapshot by the real rules (the real count at the 23 October point
+ *   against week 8), then the method at the 23 October point (the importer there against the real
+ *   count there), then the rows as in (a). Only the order differs from (a).
+ * - (c) `fileReadRealWay`: the file taken to have been read as the real way reads its rows (its rows
+ *   still carried the game-day inactives when it was fetched, so the importer's drop of them did
+ *   not act): the snapshot as in (b), no method step, the rows against the real count at the
+ *   23 October point.
+ */
+export interface GapSplits {
+  readonly snapshotFirst: readonly GapStep[];
+  readonly fileReadRealWay: readonly GapStep[];
+}
+
+export function gapSplits(file: AgeShares, study: RealStudy): GapSplits {
+  const real = study.realWeek8.the53.league;
+  const realSnap = study.realAtSnapshot.the53.league;
+  const snap = study.importer.atSnapshot.the53.league;
+  return {
+    snapshotFirst: [diff("gap", file, real), diff("snapshot", realSnap, real), diff("method", snap, realSnap), diff("rows", file, snap)],
+    fileReadRealWay: [diff("gap", file, real), diff("snapshot", realSnap, real), diff("rows", file, realSnap)],
+  };
+}
+
+/** One step's 31+ part over every split: (a) `steps`, (b) and (c) `splits`; a split with no such step counts 0 (c has no method step). */
+export function stepRange(steps: readonly GapStep[], splits: GapSplits, step: "method" | "snapshot" | "rows"): { readonly min: number; readonly max: number } {
+  const xs = [steps, splits.snapshotFirst, splits.fileReadRealWay].map((s) => s.find((x) => x.step === step)?.from31 ?? 0);
+  return { min: Math.min(...xs), max: Math.max(...xs) };
 }

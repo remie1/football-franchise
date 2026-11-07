@@ -8,10 +8,12 @@
  * - the schedule (`games.csv`), one season's game days only, to place the file's 23 October point.
  *
  * The CSV scanner and row view are the ingest layer's, through the injury measurement's `scan`.
- * Only the season asked for is decoded; 2025 is held out (`calibration.md` §7) and the asset names
- * refuse it (`careers/data.ts`).
+ * Only the season asked for is decoded; 2025 is held out (`calibration.md` §7): the asset names
+ * refuse it (`careers/data.ts`), the command checks its study season before it reads anything
+ * (`checkStudySeason`), and the decoders here refuse a held-out season before they read a row.
  */
 
+import { FIRST_SEASON, HELD_OUT_FROM } from "../careers/data.js";
 import { scan } from "../injuries/rows.js";
 import type { PlayerTableRow, RecountRosterRow } from "./rules.js";
 
@@ -21,8 +23,26 @@ const ROSTER_EXTRA = [
   "draft_number", "rookie_year", "entry_year", "pfr_id",
 ] as const;
 
+/**
+ * A study season the command may read: a whole year from the first season the rosters are read
+ * for up to the last before the held-out ones (2012-2024; 2025 is held out, `calibration.md` §7).
+ * The command calls it on `--season` before it loads or decodes any file.
+ */
+export function checkStudySeason(season: number): number {
+  if (!Number.isInteger(season) || season < FIRST_SEASON || season >= HELD_OUT_FROM) {
+    throw new Error(`season ${season} is out of range: ${FIRST_SEASON}-${HELD_OUT_FROM - 1} (2025 is held out, calibration.md §7)`);
+  }
+  return season;
+}
+
+/** The decoders' own refusal, before a row is read: a held-out season is never decoded. */
+function refuseHeldOut(season: number): void {
+  if (!(season < HELD_OUT_FROM)) throw new Error(`season ${season} is held out (${HELD_OUT_FROM} and later, calibration.md §7): not decoded`);
+}
+
 /** One season's weekly-roster rows, every game type. A row with no GSIS id is kept (the importer's team weeks count it). */
 export function parseRecountRosters(text: string, season: number): RecountRosterRow[] {
+  refuseHeldOut(season);
   return scan(text, ROSTER_REQUIRED, ROSTER_EXTRA, (row) => {
     if (row.int("season") !== season) return null;
     return {
@@ -74,6 +94,7 @@ export interface ScheduleWeek {
 
 /** The weeks of `season` in `games.csv`, by week. Rows of any other season are dropped unread past their season. */
 export function parseScheduleWeeks(text: string, season: number): ScheduleWeek[] {
+  refuseHeldOut(season);
   const days = scan(text, ["season", "game_type", "week", "gameday"], [], (row) => {
     if (row.int("season") !== season) return null;
     return { week: row.int("week") ?? 0, gameType: row.text("game_type") ?? "REG", day: row.req("gameday") };

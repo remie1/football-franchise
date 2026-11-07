@@ -13,16 +13,16 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { playerId, teamId, type PlayerState, type Position, type Team } from "@ff/contracts";
-import { CAREER_GROUPS, foldPosition } from "../src/careers/groups.js";
+import { CAREER_GROUPS, foldPosition, type CareerGroup } from "../src/careers/groups.js";
 import { crossValues, weekEightRows, onA53 } from "../src/careers/measure.js";
 import type { CareerRosterRow } from "../src/careers/rows.js";
 import { CAREER_GROUP } from "../src/season/careerCheck.js";
 import {
-  gapSteps, importerReading, realCounted, realReading, recountFile, regularRows, shares, studyRealSeason, teamSizes,
-  type Counted, type StandInFileLike,
+  gapSplits, gapSteps, importerReading, reading, realCounted, realReading, recountFile, regularRows, shares, stepRange, studyRealSeason, teamSizes,
+  type Counted, type GapStep, type RealStudy, type StandInFileLike,
 } from "../src/standin/recount.js";
 import { buildRecountReport, mixCheck, renderJson, renderMarkdown, type StandInRecountReport } from "../src/standin/report.js";
-import { dayAfter, parsePlayerTable, parseRecountRosters, parseScheduleWeeks, snapshotWeek, type ScheduleWeek } from "../src/standin/rows.js";
+import { checkStudySeason, dayAfter, parsePlayerTable, parseRecountRosters, parseScheduleWeeks, snapshotWeek, type ScheduleWeek } from "../src/standin/rows.js";
 import {
   FALLBACK_ROOKIE_AGE, IMPORTER_ON_TEAM, MUST_FIELD, STANDIN_FILE_DATE, importerAge, importerAgeOn, importerLatestRows, importerMen,
   importerStatus, type PlayerTableRow, type RecountRosterRow,
@@ -212,6 +212,21 @@ describe("decoders", () => {
     expect(dayAfter("2024-12-31")).toBe("2025-01-01");
     expect(() => dayAfter("soon")).toThrow(/not a date/);
   });
+
+  it("refuses a held-out study season before anything is decoded", () => {
+    expect(checkStudySeason(2024)).toBe(2024);
+    expect(checkStudySeason(2012)).toBe(2012);
+    for (const bad of [2025, 2026, 2011, Number.NaN, 2024.5]) expect(() => checkStudySeason(bad)).toThrow(/out of range: 2012-2024 \(2025 is held out/);
+    // The decoders refuse before they scan: text whose header no scan accepts gets the held-out refusal for 2025, the scan's own error for 2024.
+    const games = "game_id,season,game_type,week,gameday\nx,2025,REG,8,2025-10-23";
+    for (const parse of [parseScheduleWeeks, parseRecountRosters]) {
+      expect(() => parse("no,such,header", 2025)).toThrow(/held out/);
+      expect(() => parse("no,such,header", 2024)).toThrow();
+      expect(() => parse("no,such,header", 2024)).not.toThrow(/held out/);
+    }
+    expect(() => parseScheduleWeeks(games, 2025)).toThrow(/held out/);
+    expect(parseScheduleWeeks(games, 2024)).toEqual([]);
+  });
 });
 
 // ---------------------------------------------------------------- counting
@@ -391,12 +406,132 @@ describe("the importer's rules on real rows, against the real count", () => {
     expect(s.byWeek.map((w) => w.week)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
     expect(s.byWeek[9]!.real).toBeNull();
     expect(s.byWeek[9]!.gameType).toBe("WC");
+    // The real count at the 23 October point: the real way at the snapshot week, as the week-by-week line reads it.
+    expect(s.realAtSnapshot.week).toBe(7);
+    expect(s.realAtSnapshot.the53.league).toEqual(s.byWeek[6]!.real);
+    expect(s.realAtSnapshot.the53.league.n).toBe(3); // a, e, f at week 7
+    expect(s.realWeek8.the53.league.n).toBe(3); // a, b, e at week 8
     const file = shares([man({ age: 31 }), man({ age: 25 }), man({ age: 35 })]);
     const steps = new Map(gapSteps(file, s).map((x) => [x.step, x]));
     for (const k of ["from31", "from34", "meanAge", "n"] as const) {
       expect(steps.get("gap")![k]).toBeCloseTo(steps.get("method")![k] + steps.get("snapshot")![k] + steps.get("rows")![k], 12);
     }
     expect(() => studyRealSeason(season, table, schedule.filter((w) => w.week > 8), SEASON)).toThrow(/no 2024 regular-season week/);
+  });
+});
+
+// ---------------------------------------------------------------- the steps and the mix, by value
+
+/**
+ * Distinct readings, each a few wide receivers and kickers, so that a step or a check that read the
+ * wrong reading, or swapped two, gives a different number. An old man is 34, a young one 25.
+ */
+function readingOf(groups: Partial<Record<CareerGroup, readonly [men: number, old: number]>>) {
+  const men: Counted[] = [];
+  for (const [g, [n, old]] of Object.entries(groups) as [CareerGroup, readonly [number, number]][]) {
+    for (let i = 0; i < n; i++) men.push(man({ group: g, age: i < old ? 34 : 25 }));
+  }
+  return reading(men);
+}
+
+describe("the steps and the mix check read the readings they name", () => {
+  const real8 = readingOf({ WR: [8, 1], K: [2, 1] }); // 10 men, 31+ 0.2; WR 0.125, K 0.5
+  const real7 = readingOf({ WR: [3, 0], K: [1, 1] }); // 4, 0.25
+  const imp8 = readingOf({ WR: [6, 1], K: [1, 1] }); // 7, 2/7
+  const imp7 = readingOf({ WR: [10, 2], K: [1, 0] }); // 11, 2/11; WR 0.2, K 0
+  const latest = readingOf({ WR: [7, 0], K: [1, 0] }); // 8, 0
+  const file = readingOf({ WR: [4, 1], K: [2, 2] }); // 6, 0.5; WR 0.25, K 1
+  const study = {
+    season: 2024,
+    realWeek8: { week: 8, byeFilled: 0, the53: real8 },
+    realAtSnapshot: { week: 7, byeFilled: 0, the53: real7 },
+    importer: { week8: { the53: imp8 }, atSnapshot: { the53: imp7 }, latest: { the53: latest } },
+  } as unknown as RealStudy;
+  const at = (xs: readonly GapStep[]) => new Map(xs.map((x) => [x.step, x]));
+
+  /** Split (a), (b) and (c) of `file` against `study`, worked out by hand. */
+  function expectSplits(steps: readonly GapStep[], splits: ReturnType<typeof gapSplits>): void {
+    const a = at(steps);
+    expect(a.get("gap")!.from31).toBeCloseTo(0.5 - 0.2, 12);
+    expect(a.get("method")!.from31).toBeCloseTo(2 / 7 - 0.2, 12); // importer week 8 against real week 8
+    expect(a.get("snapshot")!.from31).toBeCloseTo(2 / 11 - 2 / 7, 12); // importer 23 October against importer week 8
+    expect(a.get("rows")!.from31).toBeCloseTo(0.5 - 2 / 11, 12); // file against importer 23 October
+    expect(a.get("seasonEnd")!.from31).toBeCloseTo(0 - 2 / 7, 12); // importer latest against importer week 8
+    expect(steps.map((x) => x.n)).toEqual([6 - 10, 7 - 10, 11 - 7, 6 - 11, 8 - 7]);
+    expect(a.get("method")!.meanAge).toBeCloseTo((2 * 34 + 5 * 25) / 7 - (2 * 34 + 8 * 25) / 10, 12);
+    const b = at(splits.snapshotFirst);
+    expect(splits.snapshotFirst.map((x) => x.step)).toEqual(["gap", "snapshot", "method", "rows"]);
+    expect(b.get("gap")!.from31).toBeCloseTo(0.5 - 0.2, 12);
+    expect(b.get("snapshot")!.from31).toBeCloseTo(0.25 - 0.2, 12); // real 23 October against real week 8
+    expect(b.get("method")!.from31).toBeCloseTo(2 / 11 - 0.25, 12); // importer 23 October against real 23 October
+    expect(b.get("rows")!.from31).toBeCloseTo(0.5 - 2 / 11, 12);
+    const c = at(splits.fileReadRealWay);
+    expect(splits.fileReadRealWay.map((x) => x.step)).toEqual(["gap", "snapshot", "rows"]);
+    expect(c.get("snapshot")!.from31).toBeCloseTo(0.25 - 0.2, 12);
+    expect(c.get("rows")!.from31).toBeCloseTo(0.5 - 0.25, 12); // file against real 23 October
+    expect(c.get("rows")!.n).toBe(6 - 4);
+  }
+
+  it("splits (a), (b) and (c): each step is the difference of the two readings it names, and each split adds up", () => {
+    const steps = gapSteps(file.league, study);
+    const splits = gapSplits(file.league, study);
+    expectSplits(steps, splits);
+    for (const xs of [steps, splits.snapshotFirst, splits.fileReadRealWay]) {
+      const m = at(xs);
+      const parts = xs.filter((x) => x.step !== "gap" && x.step !== "seasonEnd");
+      for (const k of ["from31", "from34", "meanAge", "n"] as const) expect(parts.reduce((s, x) => s + x[k], 0)).toBeCloseTo(m.get("gap")![k], 12);
+    }
+  });
+
+  it("a step's range runs over (a), (b) and (c), the split with no method step counting 0", () => {
+    const steps = gapSteps(file.league, study);
+    const splits = gapSplits(file.league, study);
+    expect(stepRange(steps, splits, "method").min).toBeCloseTo(2 / 11 - 0.25, 12);
+    expect(stepRange(steps, splits, "method").max).toBeCloseTo(2 / 7 - 0.2, 12);
+    expect(stepRange(steps, splits, "snapshot").min).toBeCloseTo(2 / 11 - 2 / 7, 12);
+    expect(stepRange(steps, splits, "snapshot").max).toBeCloseTo(0.05, 12);
+    expect(stepRange(steps, splits, "rows").min).toBeCloseTo(0.25, 12);
+    expect(stepRange(steps, splits, "rows").max).toBeCloseTo(0.5 - 2 / 11, 12);
+    // With every method part above 0, (c)'s none is the least.
+    const up = { ...study, importer: { ...study.importer, atSnapshot: { the53: readingOf({ WR: [3, 1] }) } } } as unknown as RealStudy;
+    expect(stepRange(gapSteps(file.league, up), gapSplits(file.league, up), "method").min).toBe(0);
+  });
+
+  it("the group-mix check weights one count's group shares by the other's group sizes, and the extra men by each reference", () => {
+    const m = mixCheck(file, real8, imp7, 2024);
+    expect(m.season).toBe(2024);
+    expect(m.fileAtRealMix).toBeCloseTo(0.8 * 0.25 + 0.2 * 1, 12); // the real mix, the file's shares: 0.4
+    expect(m.realAtFileMix).toBeCloseTo((4 / 6) * 0.125 + (2 / 6) * 0.5, 12); // the file's mix, the real shares: 0.25
+    expect(m.excessOldMen.WR).toBeCloseTo(4 * (0.25 - 0.2), 12); // against the importer's 23 October share
+    expect(m.excessOldMen.K).toBeCloseTo(2 * (1 - 0), 12);
+    expect(m.excessOldMenAtRealRate.WR).toBeCloseTo(4 * (0.25 - 0.125), 12); // against the real week-8 share
+    expect(m.excessOldMenAtRealRate.K).toBeCloseTo(2 * (1 - 0.5), 12);
+    for (const g of CAREER_GROUPS.filter((x) => x !== "WR" && x !== "K")) {
+      expect(m.excessOldMen[g]).toBe(0);
+      expect(m.excessOldMenAtRealRate[g]).toBe(0);
+    }
+    // One count against itself: its own share, and no extra men.
+    const self = mixCheck(file, file, file, 2024);
+    expect(self.fileAtRealMix).toBeCloseTo(file.league.from31, 12);
+    for (const g of CAREER_GROUPS) expect(self.excessOldMen[g]).toBe(0);
+  });
+
+  it("the report hands each check the readings it names", () => {
+    const report = buildRecountReport({
+      measuredOn: "2026-11-07",
+      league: { file: "standin-test.json", sha256: "0".repeat(64), season: 2026, snapshotDate: "2026-10-23" },
+      file: { ...recountFile(FILE), the53: file },
+      realBySeason: [],
+      study,
+      sources: [],
+    });
+    expectSplits(report.steps, report.splits);
+    expect(report.stepRanges.method.max).toBeCloseTo(2 / 7 - 0.2, 12);
+    expect(report.stepRanges.rows.min).toBeCloseTo(0.25, 12);
+    expect(report.mix.fileAtRealMix).toBeCloseTo(0.4, 12);
+    expect(report.mix.realAtFileMix).toBeCloseTo(0.25, 12);
+    expect(report.mix.excessOldMen.K).toBeCloseTo(2, 12);
+    expect(report.mix.excessOldMenAtRealRate.K).toBeCloseTo(1, 12);
   });
 });
 
@@ -433,10 +568,16 @@ describe("the report", () => {
     assertNoNameKeys(JSON.parse(renderJson(report)));
   });
 
-  it("the group-mix check reweights one count's group shares by the other's group sizes", () => {
-    const m = mixCheck(report.file.the53, report.file.the53, report.file.the53, 2024);
-    expect(m.fileAtRealMix).toBeCloseTo(report.file.the53.league.from31, 12); // every man of the file is in a group
-    for (const g of CAREER_GROUPS) expect(m.excessOldMen[g]).toBe(0);
+  it("renders the other splits and the range of each step", () => {
+    const md = renderMarkdown(report);
+    expect(md).toMatch(/\| \(b\) Method at the 23 October point/);
+    expect(md).toMatch(/\| \(c\) Rows: the file against the real count at the 23 October point/);
+    expect(md).toMatch(/so the method's part is /);
+    expect(md).toMatch(/File's extra men 31\+ \(at the real 2024 week-8 rate\)/);
+    expect(md).toMatch(/\| Real at the 23 October point \(week 7, the real way\)/);
+    // A signed number that shows as zero carries no sign.
+    expect(md).not.toMatch(/[+−]0\.0+(?![0-9])/);
+    expect(md).toMatch(/\| 0\.0 \|/);
   });
 });
 
@@ -484,5 +625,29 @@ describe("committed report", () => {
     for (const k of ["from31", "from34", "meanAge", "n"] as const) {
       expect(Math.abs(steps.get("gap")![k] - (steps.get("method")![k] + steps.get("snapshot")![k] + steps.get("rows")![k]))).toBeLessThan(1e-3);
     }
+  });
+
+  it("its other splits add up, are read from the readings they name, and its ranges hold every split", () => {
+    const league = report.file.the53.league;
+    const real8 = report.study.realWeek8.the53.league;
+    const real7 = report.study.realAtSnapshot.the53.league;
+    const imp7 = report.study.importer.atSnapshot.the53.league;
+    for (const xs of [report.splits.snapshotFirst, report.splits.fileReadRealWay]) {
+      const m = new Map(xs.map((x) => [x.step, x]));
+      for (const k of ["from31", "from34", "meanAge", "n"] as const) {
+        const parts = xs.filter((x) => x.step !== "gap").reduce((s, x) => s + x[k], 0);
+        expect(Math.abs(m.get("gap")![k] - parts)).toBeLessThan(1e-3);
+      }
+      expect(m.get("snapshot")!.from31).toBeCloseTo(real7.from31 - real8.from31, 3);
+    }
+    expect(report.splits.snapshotFirst.find((x) => x.step === "method")!.from31).toBeCloseTo(imp7.from31 - real7.from31, 3);
+    expect(report.splits.fileReadRealWay.find((x) => x.step === "rows")!.from31).toBeCloseTo(league.from31 - real7.from31, 3);
+    expect(report.study.realAtSnapshot.week).toBe(report.study.snapshotWeek);
+    for (const k of ["method", "snapshot", "rows"] as const) {
+      const xs = [report.steps, report.splits.snapshotFirst, report.splits.fileReadRealWay].map((s) => s.find((x) => x.step === k)?.from31 ?? 0);
+      expect(report.stepRanges[k].min).toBeCloseTo(Math.min(...xs), 4);
+      expect(report.stepRanges[k].max).toBeCloseTo(Math.max(...xs), 4);
+    }
+    expect(report.stepRanges.method.min).toBeLessThanOrEqual(0);
   });
 });

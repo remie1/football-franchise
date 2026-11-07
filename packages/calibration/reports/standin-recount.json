@@ -246,6 +246,31 @@
         "old": {"n": 177, "aged": 177, "meanAge": 32.8362, "upTo22": 0, "from31": 1, "from34": 0.2938, "rookie": 0, "undrafted": 0.2881, "meanYears": 9.9661, "years9Plus": 0.7006, "entryAge": 22.8701}
       }
     },
+    "realAtSnapshot": {
+      "week": 7,
+      "byeFilled": 2,
+      "the53": {
+        "league": {"n": 1741, "aged": 1741, "meanAge": 26.3435, "upTo22": 0.0655, "from31": 0.1005, "from34": 0.0299, "rookie": 0.1539, "undrafted": 0.2499, "meanYears": 3.7111, "years9Plus": 0.0781, "entryAge": 22.6324},
+        "teams": {"teams": 32, "min": 53, "max": 55, "mean": 54.4063},
+        "byGroup": {
+          "QB": {"n": 80, "aged": 80, "meanAge": 28, "upTo22": 0.0375, "from31": 0.225, "from34": 0.1125, "rookie": 0.0875, "undrafted": 0.125, "meanYears": 5.275, "years9Plus": 0.1875, "entryAge": 22.725},
+          "RB": {"n": 126, "aged": 126, "meanAge": 25.5159, "upTo22": 0.127, "from31": 0.0476, "from34": 0, "rookie": 0.1587, "undrafted": 0.2937, "meanYears": 3.1825, "years9Plus": 0.0397, "entryAge": 22.3333},
+          "WR": {"n": 182, "aged": 182, "meanAge": 25.6429, "upTo22": 0.1044, "from31": 0.0769, "from34": 0, "rookie": 0.2033, "undrafted": 0.1978, "meanYears": 3.3187, "years9Plus": 0.0714, "entryAge": 22.3242},
+          "TE": {"n": 116, "aged": 116, "meanAge": 26.5172, "upTo22": 0.0345, "from31": 0.1121, "from34": 0.0259, "rookie": 0.1293, "undrafted": 0.2845, "meanYears": 3.6034, "years9Plus": 0.0603, "entryAge": 22.9138},
+          "OL": {"n": 295, "aged": 295, "meanAge": 26.2814, "upTo22": 0.0542, "from31": 0.1017, "from34": 0.0203, "rookie": 0.1763, "undrafted": 0.1932, "meanYears": 3.4746, "years9Plus": 0.0712, "entryAge": 22.8068},
+          "EDGE": {"n": 228, "aged": 228, "meanAge": 26.3772, "upTo22": 0.057, "from31": 0.0789, "from34": 0.0175, "rookie": 0.1316, "undrafted": 0.1798, "meanYears": 3.7763, "years9Plus": 0.0789, "entryAge": 22.6009},
+          "IDL": {"n": 136, "aged": 136, "meanAge": 26.8824, "upTo22": 0.0515, "from31": 0.125, "from34": 0.0294, "rookie": 0.1176, "undrafted": 0.1765, "meanYears": 4.2794, "years9Plus": 0.0882, "entryAge": 22.6029},
+          "LB": {"n": 144, "aged": 144, "meanAge": 26, "upTo22": 0.0486, "from31": 0.0833, "from34": 0.0278, "rookie": 0.1667, "undrafted": 0.3333, "meanYears": 3.3542, "years9Plus": 0.0625, "entryAge": 22.6458},
+          "CB": {"n": 192, "aged": 192, "meanAge": 25.5208, "upTo22": 0.1042, "from31": 0.0313, "from34": 0.0104, "rookie": 0.1927, "undrafted": 0.25, "meanYears": 3.0313, "years9Plus": 0.0208, "entryAge": 22.4896},
+          "S": {"n": 143, "aged": 143, "meanAge": 25.8322, "upTo22": 0.049, "from31": 0.0699, "from34": 0.014, "rookie": 0.1608, "undrafted": 0.2657, "meanYears": 3.3497, "years9Plus": 0.042, "entryAge": 22.4825},
+          "K": {"n": 33, "aged": 33, "meanAge": 28.697, "upTo22": 0.0606, "from31": 0.2424, "from34": 0.1212, "rookie": 0.0909, "undrafted": 0.4848, "meanYears": 5.7273, "years9Plus": 0.2424, "entryAge": 22.9697},
+          "P": {"n": 34, "aged": 34, "meanAge": 28.2941, "upTo22": 0, "from31": 0.2059, "from34": 0.1471, "rookie": 0.0882, "undrafted": 0.4706, "meanYears": 5.0882, "years9Plus": 0.1765, "entryAge": 23.2059},
+          "LS": {"n": 32, "aged": 32, "meanAge": 31.125, "upTo22": 0, "from31": 0.5, "from34": 0.2813, "rookie": 0.0313, "undrafted": 0.9688, "meanYears": 7.5625, "years9Plus": 0.375, "entryAge": 23.5625}
+        },
+        "noGroup": 0,
+        "old": {"n": 175, "aged": 175, "meanAge": 32.8571, "upTo22": 0, "from31": 1, "from34": 0.2971, "rookie": 0, "undrafted": 0.2857, "meanYears": 9.9886, "years9Plus": 0.7029, "entryAge": 22.8686}
+      }
+    },
     "importer": {
       "atSnapshot": {
         "throughWeek": 7,
@@ -625,7 +650,23 @@
     {"step": "rows", "from31": 0.0264, "from34": 0.0024, "meanAge": 0.1464, "n": 93},
     {"step": "seasonEnd", "from31": -0.0096, "from34": -0.001, "meanAge": -0.0816, "n": 145}
   ],
-  "mix": {"season": 2024, "fileAtRealMix": 0.1273, "realAtFileMix": 0.1037, "excessOldMen": {"QB": -1.5, "RB": 4, "WR": 2.9298, "TE": 4.6759, "OL": 2.8302, "EDGE": 4.5224, "IDL": 12.568, "LB": -2.4077, "CB": 2.9138, "S": 1.1203, "K": 5.25, "P": 3.2121, "LS": 1.5}},
+  "splits": {
+    "snapshotFirst": [
+      {"step": "gap", "from31": 0.0277, "from34": 0.0039, "meanAge": 0.2002, "n": -54},
+      {"step": "snapshot", "from31": -0.0015, "from34": -0.0001, "meanAge": 0.0005, "n": 6},
+      {"step": "method", "from31": 0.0028, "from34": 0.0016, "meanAge": 0.0532, "n": -153},
+      {"step": "rows", "from31": 0.0264, "from34": 0.0024, "meanAge": 0.1464, "n": 93}
+    ],
+    "fileReadRealWay": [{"step": "gap", "from31": 0.0277, "from34": 0.0039, "meanAge": 0.2002, "n": -54}, {"step": "snapshot", "from31": -0.0015, "from34": -0.0001, "meanAge": 0.0005, "n": 6}, {"step": "rows", "from31": 0.0292, "from34": 0.004, "meanAge": 0.1996, "n": -60}]
+  },
+  "stepRanges": {"method": {"min": 0, "max": 0.0054}, "snapshot": {"min": -0.0041, "max": -0.0015}, "rows": {"min": 0.0264, "max": 0.0292}},
+  "mix": {
+    "season": 2024,
+    "fileAtRealMix": 0.1273,
+    "realAtFileMix": 0.1037,
+    "excessOldMen": {"QB": -1.5, "RB": 4, "WR": 2.9298, "TE": 4.6759, "OL": 2.8302, "EDGE": 4.5224, "IDL": 12.568, "LB": -2.4077, "CB": 2.9138, "S": 1.1203, "K": 5.25, "P": 3.2121, "LS": 1.5},
+    "excessOldMenAtRealRate": {"QB": 1.3494, "RB": 4.432, "WR": 1.8415, "TE": 5.5478, "OL": 3.898, "EDGE": 4.44, "IDL": 13.1314, "LB": -2.6957, "CB": 1.5131, "S": 0, "K": 5.4848, "P": 3.2121, "LS": 1.5}
+  },
   "pooled": {
     "seasons": [2018, 2024],
     "league": {"meanAge": 26.1815, "from31": 0.1005, "from34": 0.0307},
@@ -670,6 +711,10 @@
     {
       "term": "Steps",
       "text": "The file's 53s (the real way) against the study season's real week-8 count, split into three parts that add up to it: method = importer (ii) − real week 8 (same rows, same team weeks); snapshot = importer (i) − importer (ii); rows = file − importer (i) (another season's rows read the same way at the same point). Season's end = importer (iii) − importer (ii), beside the sum."
+    },
+    {
+      "term": "Other splits",
+      "text": "The steps above are split (a), which takes the method at week 8 and the file to have been read as the importer reads the final file, game-day inactives dropped. (b) The snapshot first: snapshot = the real count at the 23 October point − real week 8 (the real rules), method = importer (i) − the real count at the 23 October point, rows = file − importer (i) as in (a). (c) The file read the real way, as if its rows still carried the game-day inactives when it was fetched, so the importer's drop of them did not act: snapshot as in (b), no method step, rows = file − the real count at the 23 October point. Each adds up to the gap exactly. A step's range is its least and greatest part over (a), (b) and (c), a split with no method step counting 0 there."
     }
   ],
   "chosen": [
@@ -677,12 +722,15 @@
     "Ages on 23 October of the study season for every reading but one, so the readings differ by who is counted, not by the date.",
     "LONG or MAJOR as out 4+ weeks.",
     "The group of a real row: careers/groups.ts's fold, the importer's game position folded into groups; the importer's must-field check reads QB, K, P and LS by group, where group and game position agree.",
-    "The steps' split, the group-mix check (each count's group weights against the other's group shares) and the file's extra men aged 31 or over by group (its men times the difference from the importer's 23 October share)."
+    "The steps' split, the group-mix check (each count's group weights against the other's group shares) and the file's extra men aged 31 or over by group (its men times the difference from the importer's 23 October share).",
+    "The order of the steps: the method and snapshot parts depend on it (the method read at week 8 in (a), at the 23 October point in (b)), and the method's part also on whether the importer's drop of the game-day inactives acted on the file ((c) takes it that it did not); the rows part is the same in (a) and (b). Each part is reported as its range over (a), (b) and (c).",
+    "The file's extra men aged 31 or over by group against the real week-8 share as well (its men times the difference from the real count's share in that group), the gap's own reference."
   ],
   "limits": [
     "The file was built from the 2026 rows, which are not read here (they are the importer's, under attributes); the study applies the same rules to the 2024 rows, so 'rows' is 2026's rows against 2024's read the same way, plus anything in the 2026 run these readings do not copy.",
     "The file does not record which ages came from the fallback; the bound given counts every man whose age equals 22 + years in the league.",
     "A weekly-roster file fetched during a week may hold that week's rows before its games; the final file holds each week as of its game day, so the 23 October reading is the nearest the final file allows.",
-    "The player table is today's, not as of the file's date; it fills only a few birth dates."
+    "The player table is today's, not as of the file's date; it fills only a few birth dates.",
+    "The file records no status codes, so whether the importer's drop of the game-day inactives acted on it is read only from its team sizes; that is why the method's part is given as a range over the three splits, split (c) taking it to be none."
   ]
 }

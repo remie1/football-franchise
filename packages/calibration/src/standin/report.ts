@@ -9,7 +9,9 @@ import { compactJson } from "../injuries/report.js";
 import { CAREER_GROUPS, type CareerGroup } from "../careers/groups.js";
 import { NFL_CAREERS } from "../careers/nflCareers.js";
 import { round } from "../careers/stats.js";
-import { gapSteps, type AgeShares, type FileRecount, type GapStep, type ImporterReading, type Reading, type RealReading, type RealStudy } from "./recount.js";
+import {
+  gapSplits, gapSteps, stepRange, type AgeShares, type FileRecount, type GapSplits, type GapStep, type ImporterReading, type Reading, type RealReading, type RealStudy,
+} from "./recount.js";
 
 /** The real week-8 count of one more season, for the range beside the file. */
 export interface RealSeason extends RealReading {
@@ -26,13 +28,23 @@ export interface PooledReference {
 /**
  * The file's 31+ share with the real season's group mix, and the real season's with the file's; and,
  * by group, how many more men aged 31 or over the file's 53s hold than they would at the importer's
- * 23 October rate for the study season (CHOSEN checks).
+ * 23 October rate for the study season, and than they would at the real week-8 rate (CHOSEN checks).
  */
 export interface MixCheck {
   readonly season: number;
   readonly fileAtRealMix: number;
   readonly realAtFileMix: number;
+  /** Against the importer's 23 October share in each group: the file's men × (its share − that share). */
   readonly excessOldMen: Record<CareerGroup, number>;
+  /** Against the real week-8 share in each group (the gap's own reference): the file's men × (its share − that share). */
+  readonly excessOldMenAtRealRate: Record<CareerGroup, number>;
+}
+
+/** Each step's 31+ part over the three splits (a, b, c): its least and greatest (`stepRange`). */
+export interface StepRanges {
+  readonly method: { readonly min: number; readonly max: number };
+  readonly snapshot: { readonly min: number; readonly max: number };
+  readonly rows: { readonly min: number; readonly max: number };
 }
 
 export interface StandInRecountReport {
@@ -41,7 +53,11 @@ export interface StandInRecountReport {
   readonly file: FileRecount;
   readonly realBySeason: readonly RealSeason[];
   readonly study: RealStudy;
+  /** Split (a): the method at week 8, then the snapshot by the importer's rules (`gapSteps`). */
   readonly steps: readonly GapStep[];
+  /** Splits (b) and (c) of the same gap (`gapSplits`). */
+  readonly splits: GapSplits;
+  readonly stepRanges: StepRanges;
   readonly mix: MixCheck;
   readonly pooled: PooledReference;
   readonly sources: readonly AssetManifest[];
@@ -67,15 +83,22 @@ export function mixCheck(file: Reading, real: Reading, atSnapshot: Reading, seas
     const total = CAREER_GROUPS.reduce((a, g) => a + weights.byGroup[g].n, 0);
     return total === 0 ? 0 : CAREER_GROUPS.reduce((a, g) => a + (weights.byGroup[g].n / total) * values.byGroup[g].from31, 0);
   };
-  const excessOldMen = {} as Record<CareerGroup, number>;
-  for (const g of CAREER_GROUPS) excessOldMen[g] = file.byGroup[g].aged * (file.byGroup[g].from31 - atSnapshot.byGroup[g].from31);
-  return { season, fileAtRealMix: at(real, file), realAtFileMix: at(file, real), excessOldMen };
+  const excess = (rate: Reading): Record<CareerGroup, number> => {
+    const out = {} as Record<CareerGroup, number>;
+    for (const g of CAREER_GROUPS) out[g] = file.byGroup[g].aged * (file.byGroup[g].from31 - rate.byGroup[g].from31);
+    return out;
+  };
+  return { season, fileAtRealMix: at(real, file), realAtFileMix: at(file, real), excessOldMen: excess(atSnapshot), excessOldMenAtRealRate: excess(real) };
 }
 
-export function buildRecountReport(input: Omit<StandInRecountReport, "steps" | "mix" | "pooled">): StandInRecountReport {
+export function buildRecountReport(input: Omit<StandInRecountReport, "steps" | "splits" | "stepRanges" | "mix" | "pooled">): StandInRecountReport {
+  const steps = gapSteps(input.file.the53.league, input.study);
+  const splits = gapSplits(input.file.the53.league, input.study);
   return {
     ...input,
-    steps: gapSteps(input.file.the53.league, input.study),
+    steps,
+    splits,
+    stepRanges: { method: stepRange(steps, splits, "method"), snapshot: stepRange(steps, splits, "snapshot"), rows: stepRange(steps, splits, "rows") },
     mix: mixCheck(input.file.the53, input.study.realWeek8.the53, input.study.importer.atSnapshot.the53, input.study.season),
     pooled: pooledReference(),
   };
@@ -103,6 +126,7 @@ export const DEFINITIONS: readonly { readonly term: string; readonly text: strin
   { term: "Group", text: "QB, RB (RB+FB), WR, TE, OL, EDGE, IDL, LB, CB, S, K, P, LS. A real row folds by careers/groups.ts (its depth_chart_position, else its position, the importer's way); a man in the file by his game position through careerCheck.ts's CAREER_GROUP, the same fold (a test holds them equal)." },
   { term: "Out 4+ weeks", text: "A copied injury of band LONG (4-8 weeks) or MAJOR (9 or more), as a man on injured reserve misses at least 4 games." },
   { term: "Steps", text: "The file's 53s (the real way) against the study season's real week-8 count, split into three parts that add up to it: method = importer (ii) − real week 8 (same rows, same team weeks); snapshot = importer (i) − importer (ii); rows = file − importer (i) (another season's rows read the same way at the same point). Season's end = importer (iii) − importer (ii), beside the sum." },
+  { term: "Other splits", text: "The steps above are split (a), which takes the method at week 8 and the file to have been read as the importer reads the final file, game-day inactives dropped. (b) The snapshot first: snapshot = the real count at the 23 October point − real week 8 (the real rules), method = importer (i) − the real count at the 23 October point, rows = file − importer (i) as in (a). (c) The file read the real way, as if its rows still carried the game-day inactives when it was fetched, so the importer's drop of them did not act: snapshot as in (b), no method step, rows = file − the real count at the 23 October point. Each adds up to the gap exactly. A step's range is its least and greatest part over (a), (b) and (c), a split with no method step counting 0 there." },
 ];
 
 /** What is CHOSEN here (everything else is counted from real rows or the file). */
@@ -112,6 +136,8 @@ export const CHOSEN: readonly string[] = [
   "LONG or MAJOR as out 4+ weeks.",
   "The group of a real row: careers/groups.ts's fold, the importer's game position folded into groups; the importer's must-field check reads QB, K, P and LS by group, where group and game position agree.",
   "The steps' split, the group-mix check (each count's group weights against the other's group shares) and the file's extra men aged 31 or over by group (its men times the difference from the importer's 23 October share).",
+  "The order of the steps: the method and snapshot parts depend on it (the method read at week 8 in (a), at the 23 October point in (b)), and the method's part also on whether the importer's drop of the game-day inactives acted on the file ((c) takes it that it did not); the rows part is the same in (a) and (b). Each part is reported as its range over (a), (b) and (c).",
+  "The file's extra men aged 31 or over by group against the real week-8 share as well (its men times the difference from the real count's share in that group), the gap's own reference.",
 ];
 
 export const LIMITS: readonly string[] = [
@@ -119,15 +145,20 @@ export const LIMITS: readonly string[] = [
   "The file does not record which ages came from the fallback; the bound given counts every man whose age equals 22 + years in the league.",
   "A weekly-roster file fetched during a week may hold that week's rows before its games; the final file holds each week as of its game day, so the 23 October reading is the nearest the final file allows.",
   "The player table is today's, not as of the file's date; it fills only a few birth dates.",
+  "The file records no status codes, so whether the importer's drop of the game-day inactives acted on it is read only from its team sizes; that is why the method's part is given as a range over the three splits, split (c) taking it to be none.",
 ];
 
 // ---------------------------------------------------------------- formatting
 
 const pct = (x: number, d = 1): string => `${(x * 100).toFixed(d)}%`;
-const pts = (x: number): string => `${x >= 0 ? "+" : "−"}${Math.abs(x * 100).toFixed(1)}`;
-const yrs = (x: number): string => `${x >= 0 ? "+" : "−"}${Math.abs(x).toFixed(2)}`;
+/** A signed number to `d` decimals; one that shows as zero carries no sign (not "−0.0"). */
+const signed = (x: number, d = 1): string => {
+  const shown = Math.abs(x).toFixed(d);
+  return Number(shown) === 0 ? shown : `${x >= 0 ? "+" : "−"}${shown}`;
+};
+const pts = (x: number): string => signed(x * 100, 1);
+const yrs = (x: number): string => signed(x, 2);
 const fix = (x: number, d = 2): string => x.toFixed(d);
-const signed = (x: number, d = 1): string => `${x >= 0 ? "+" : "−"}${Math.abs(x).toFixed(d)}`;
 const int = (x: number): string => Math.round(x).toLocaleString("en-US");
 const men = (n: number, one: string, many: string): string => `${int(n)} ${n === 1 ? one : many}`;
 
@@ -161,6 +192,7 @@ export function renderMarkdown(r: StandInRecountReport): string {
   const s = r.study;
   const imp = s.importer;
   const real = s.realWeek8.the53;
+  const realSnap = s.realAtSnapshot.the53;
   const seasons = r.realBySeason.map((x) => x.season);
   const out: string[] = [];
   out.push("# The stand-in league file, recounted the real way (ADR-087)");
@@ -222,30 +254,35 @@ export function renderMarkdown(r: StandInRecountReport): string {
   out.push("## 2. By group: the file against the real 53s");
   out.push("");
   out.push(table(
-    ["Group", "File men", `Real ${s.season} men`, "File mean age", "File 31+", `Real 31+ (${seasons.join(", ")})`, `Real 31+ ${p.seasons[0]}-${p.seasons[1]} ± SE`, "File 34+", `Real 34+ ${p.seasons[0]}-${p.seasons[1]} ± SE`, `File's extra men 31+ (at the ${s.season} 23 October rate)`],
+    ["Group", "File men", `Real ${s.season} men`, "File mean age", "File 31+", `Real 31+ (${seasons.join(", ")})`, `Real 31+ ${p.seasons[0]}-${p.seasons[1]} ± SE`, "File 34+", `Real 34+ ${p.seasons[0]}-${p.seasons[1]} ± SE`,
+      `File's extra men 31+ (at the importer's ${s.season} 23 October rate)`, `File's extra men 31+ (at the real ${s.season} week-8 rate)`],
     CAREER_GROUPS.map((g) => {
       const fg = f.the53.byGroup[g];
       const pg = p.byGroup[g];
       return [
         g, int(fg.n), int(real.byGroup[g].n), fix(fg.meanAge), pct(fg.from31),
         r.realBySeason.map((x) => pct(x.the53.byGroup[g].from31)).join(" / "),
-        `${pct(pg.from31)} ± ${pct(pg.se31)}`, pct(fg.from34), `${pct(pg.from34)} ± ${pct(pg.se34)}`, signed(r.mix.excessOldMen[g]),
+        `${pct(pg.from31)} ± ${pct(pg.se31)}`, pct(fg.from34), `${pct(pg.from34)} ± ${pct(pg.se34)}`, signed(r.mix.excessOldMen[g]), signed(r.mix.excessOldMenAtRealRate[g]),
       ];
     }),
   ));
   out.push("");
+  const sum = (x: Record<CareerGroup, number>): number => CAREER_GROUPS.reduce((a, g) => a + x[g], 0);
+  // A group is below its reference when its column shows a minus (a part that shows as 0.0 is not).
+  const below = (x: Record<CareerGroup, number>): string => CAREER_GROUPS.filter((g) => signed(x[g]).startsWith("−")).join(", ") || "none";
   out.push(
     `Group mix (CHOSEN check): with the real ${r.mix.season} week-8 group mix, the file's 31+ share would be ${pct(r.mix.fileAtRealMix)} (it is ${pct(f.the53.league.from31)}); ` +
       `with the file's mix, the real ${r.mix.season} share would be ${pct(r.mix.realAtFileMix)} (it is ${pct(real.league.from31)}). ` +
-      `The last column is the file's men aged 31 or over less its men times the importer's ${s.season} 23 October share in that group: ` +
-      `${signed(CAREER_GROUPS.reduce((a, g) => a + r.mix.excessOldMen[g], 0))} men in all, of ${int(f.the53.league.aged)}.`,
+      `The last two columns are the file's men aged 31 or over less its men times a reference share in that group: the importer's ${s.season} 23 October share ` +
+      `(${signed(sum(r.mix.excessOldMen))} men in all, of ${int(f.the53.league.aged)}; groups below it: ${below(r.mix.excessOldMen)}), ` +
+      `and the real ${s.season} week-8 share, the gap's own reference (${signed(sum(r.mix.excessOldMenAtRealRate))} men in all; groups below it: ${below(r.mix.excessOldMenAtRealRate)}).`,
   );
   out.push("");
 
   out.push(`## 3. The importer's rules on the real ${s.season} rows`);
   out.push("");
   out.push(
-    `The same file of ${s.season} weekly rosters read six ways. Ages on ${s.ageDate} except where said. A file fetched on ${s.ageDate} holds rows through week ${s.snapshotWeek}, ` +
+    `The same file of ${s.season} weekly rosters read seven ways. Ages on ${s.ageDate} except where said. A file fetched on ${s.ageDate} holds rows through week ${s.snapshotWeek}, ` +
       `the last week whose first game had been played by then. The regular season ends at week ${s.lastRegularWeek}; the file's last week is ${s.lastWeek}. ` +
       "'Weeks read' gives each week the teams were read at, with the number of teams.",
   );
@@ -261,6 +298,8 @@ export function renderMarkdown(r: StandInRecountReport): string {
     ["Reading", "Weeks read (teams)", "Men", "Per team (min-max, mean)", "Mean age", "22 or under", "31 or over", "34 or over", "Rookies", "Undrafted", "31+ against real week 8"],
     [
       ["Real week 8 (the real way)", `8 (${real.teams.teams - s.realWeek8.byeFilled}), earlier (${s.realWeek8.byeFilled})`, int(real.league.n), teamCell(real), ...shareCells(real.league), "-"],
+      [`Real at the 23 October point (week ${s.snapshotWeek}, the real way)`, `${s.snapshotWeek} (${realSnap.teams.teams - s.realAtSnapshot.byeFilled}), earlier (${s.realAtSnapshot.byeFilled})`,
+        int(realSnap.league.n), teamCell(realSnap), ...shareCells(realSnap.league), pts(realSnap.league.from31 - real.league.from31)],
       ...rows.map(([label, x]) => [label, weeksCell(x), int(x.the53.league.n), teamCell(x.the53), ...shareCells(x.the53.league), pts(x.the53.league.from31 - real.league.from31)]),
     ],
   ));
@@ -287,8 +326,8 @@ export function renderMarkdown(r: StandInRecountReport): string {
   out.push("By group, 31 or over (men in brackets):");
   out.push("");
   out.push(table(
-    ["Group", "Real week 8", "(ii) Importer, week 8", "(i) Importer, 23 October", "(iii) Importer, latest", "File, the real way"],
-    CAREER_GROUPS.map((g) => [g, cell31(real.byGroup[g]), cell31(imp.week8.the53.byGroup[g]), cell31(imp.atSnapshot.the53.byGroup[g]), cell31(imp.latest.the53.byGroup[g]), cell31(f.the53.byGroup[g])]),
+    ["Group", "Real week 8", `Real, 23 October point (week ${s.snapshotWeek})`, "(ii) Importer, week 8", "(i) Importer, 23 October", "(iii) Importer, latest", "File, the real way"],
+    CAREER_GROUPS.map((g) => [g, cell31(real.byGroup[g]), cell31(realSnap.byGroup[g]), cell31(imp.week8.the53.byGroup[g]), cell31(imp.atSnapshot.the53.byGroup[g]), cell31(imp.latest.the53.byGroup[g]), cell31(f.the53.byGroup[g])]),
   ));
   out.push("");
   out.push("Week by week: the importer's way on rows through each week, and the real way at that week (regular season only):");
@@ -302,26 +341,50 @@ export function renderMarkdown(r: StandInRecountReport): string {
 
   out.push("## 4. What moves the file's 31-and-over share");
   out.push("");
-  out.push(`Points of share (31 or over, 34 or over), years (mean age) and men. The first row is the sum of the next three, exactly; the last is beside them. Real side: ${s.season}.`);
+  out.push(`Split (a). Points of share (31 or over, 34 or over), years (mean age) and men. The first row is the sum of the next three, exactly; the last is beside them. Real side: ${s.season}.`);
+  out.push("");
+  const stepRow = (label: string, x: GapStep): string[] => [label, pts(x.from31), pts(x.from34), yrs(x.meanAge), `${x.n >= 0 ? "+" : "−"}${int(Math.abs(x.n))}`];
+  out.push(table(["Step", "31 or over", "34 or over", "Mean age", "Men"], r.steps.map((x) => stepRow(STEP_TEXT[x.step], x))));
+  out.push("");
+  const pick = (xs: readonly GapStep[], k: GapStep["step"]): GapStep => xs.find((x) => x.step === k)!;
+  const step = (k: GapStep["step"]) => pick(r.steps, k);
+  out.push(
+    "Split (a) reads the method at week 8 and takes the file to have been read as the importer reads the final file, its game-day inactives dropped. " +
+      "Two more splits of the same gap, each adding up to it exactly (CHOSEN, like the first): (b) the snapshot first, by the real rules, then the method at the 23 October point; " +
+      "(c) the file read the real way, as if its rows still carried the game-day inactives when it was fetched, so no method step.",
+  );
   out.push("");
   out.push(table(
     ["Step", "31 or over", "34 or over", "Mean age", "Men"],
-    r.steps.map((x) => [STEP_TEXT[x.step], pts(x.from31), pts(x.from34), yrs(x.meanAge), `${x.n >= 0 ? "+" : "−"}${int(Math.abs(x.n))}`]),
+    [
+      stepRow("(b) Snapshot, the real rules: the real count at the 23 October point against week 8", pick(r.splits.snapshotFirst, "snapshot")),
+      stepRow("(b) Method at the 23 October point: the importer there against the real count there", pick(r.splits.snapshotFirst, "method")),
+      stepRow("(b) Rows: the file against the importer at the 23 October point (as in a)", pick(r.splits.snapshotFirst, "rows")),
+      stepRow("(c) Snapshot, the real rules (as in b)", pick(r.splits.fileReadRealWay, "snapshot")),
+      stepRow("(c) Rows: the file against the real count at the 23 October point", pick(r.splits.fileReadRealWay, "rows")),
+    ],
   ));
   out.push("");
-  const step = (k: GapStep["step"]) => r.steps.find((x) => x.step === k)!;
+  const range = (x: { readonly min: number; readonly max: number }): string => (pts(x.min) === pts(x.max) ? pts(x.min) : `${pts(x.min)} to ${pts(x.max)}`);
   out.push(
-    `Read: the file's 31+ share is ${pts(step("gap").from31)} points from the real ${s.season} week-8 count. The import method moves it ${pts(step("method").from31)}, ` +
-      `reading the rows at 23 October rather than week 8 ${pts(step("snapshot").from31)}, and ${pts(step("rows").from31)} is left for the rows themselves ` +
-      `(the ${r.league.season} rows against the ${s.season} rows, read the same way at the same point). Reading the file at its latest week instead would move it ${pts(step("seasonEnd").from31)}.`,
+    `Read: the file's 31+ share is ${pts(step("gap").from31)} points from the real ${s.season} week-8 count. ` +
+      "How much of that the import method makes depends on the order of the steps and on whether the importer's drop of the game-day inactives acted on the file: " +
+      `${pts(step("method").from31)} read at week 8 (a), ${pts(pick(r.splits.snapshotFirst, "method").from31)} read at the 23 October point (b), and none if the file's rows still carried those men (c), ` +
+      `so the method's part is ${range(r.stepRanges.method)}. Reading the rows at 23 October rather than week 8 moves it ${range(r.stepRanges.snapshot)}, ` +
+      `and ${range(r.stepRanges.rows)} is left for the rows themselves (the ${r.league.season} rows against the ${s.season} rows at the same point). ` +
+      `Reading the file at its latest week instead would move it ${pts(step("seasonEnd").from31)}.`,
   );
   out.push("");
   const inactive = Object.entries(imp.week8.versusReal.onlyReal.codes).filter(([c]) => /^(ACT|INA)\/I/.test(c)).reduce((a, [, n]) => a + n, 0);
+  const nearerReal = Math.abs(f.the53.teams.mean - real.teams.mean) < Math.abs(f.the53.teams.mean - imp.atSnapshot.the53.teams.mean);
   out.push(
     `The method's part comes from the game-day inactives: in the final ${s.season} file a week's rows carry their I codes, which the importer drops ` +
       `(${int(inactive)} men at week 8, ${fix(inactive / Math.max(1, real.teams.teams), 1)} a team, ${pct(imp.week8.versusReal.onlyReal.shares.from31)} of them 31 or over). ` +
-      `A file fetched in mid-week may not carry them yet: the file holds ${fix(f.the53.teams.mean, 1)} men a team on its 53s against the importer's ${fix(imp.week8.the53.teams.mean, 1)} ` +
-      `and the real count's ${fix(real.teams.mean, 1)} here, so in the file the method's part is likely smaller than at week 8 of the final ${s.season} file.`,
+      `A file fetched in mid-week may not carry them yet. The file holds ${fix(f.the53.teams.mean, 1)} men a team on its 53s, against the importer's ` +
+      `${fix(imp.atSnapshot.the53.teams.mean, 1)} at the 23 October point (${fix(imp.week8.the53.teams.mean, 1)} at week 8) and the real count's ${fix(real.teams.mean, 1)} here: ` +
+      (nearerReal
+        ? "nearer the real count's, so the file's rows likely still carried most of those men, and the method's part in the file is likely nearer (c)'s none than (a)'s."
+        : "nearer the importer's, so the drop likely acted on the file, and the method's part in the file is likely nearer (a)'s than (c)'s none."),
   );
   out.push("");
 

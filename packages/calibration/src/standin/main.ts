@@ -21,7 +21,7 @@ import { GAMES_ASSET, loadAsset, type AssetManifest } from "../injuries/data.js"
 import { readStandInFile } from "../season/standInLeague.js";
 import { realReading, recountFile, regularRows, studyRealSeason } from "./recount.js";
 import { buildRecountReport, renderJson, renderMarkdown, type RealSeason } from "./report.js";
-import { parsePlayerTable, parseRecountRosters, parseScheduleWeeks } from "./rows.js";
+import { checkStudySeason, parsePlayerTable, parseRecountRosters, parseScheduleWeeks } from "./rows.js";
 
 const DEFAULT_LEAGUE = fileURLToPath(new URL("../../../attributes/leagues/standin-2026-10-23.json", import.meta.url));
 /** The study season: the importer's rules are tried on its rows. */
@@ -37,7 +37,8 @@ function argValue(argv: readonly string[], name: string): string | undefined {
 async function main(argv: readonly string[]): Promise<void> {
   const fromCaller = (path: string) => resolve(process.env.INIT_CWD ?? process.cwd(), path);
   const leaguePath = argValue(argv, "--league") === undefined ? DEFAULT_LEAGUE : fromCaller(argValue(argv, "--league")!);
-  const season = Number(argValue(argv, "--season") ?? DEFAULT_SEASON);
+  // Checked before anything is loaded or decoded: 2025 and later are held out (calibration.md §7).
+  const season = checkStudySeason(Number(argValue(argv, "--season") ?? DEFAULT_SEASON));
   const out = resolve(argValue(argv, "--out") ?? "reports/standin-recount");
   const log = (line: string) => process.stderr.write(line + "\n");
   const opts = { fetcher: httpFetcher(), refresh: argv.includes("--refresh"), log };
