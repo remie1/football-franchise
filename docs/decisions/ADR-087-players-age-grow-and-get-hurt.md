@@ -970,7 +970,7 @@ The REAL sources are:
 - the week-8 rookie count in that same report.
 
 The MEASURED sources are:
-- "toy": the scratch model, variant D. Its report is `/mnt/project-files/design/aging-redesign/curve-model-report.md`. The model's own files cited below (`model/...`, `check.ts`, `cohort.ts`, `model.ts`, `fast.ts`, `ninety9.ts`, `options.ts` and `out/tables.md`) are the ones that report lists, not repository paths;
+- "toy": the scratch model, variant D. Its report is `/mnt/project-files/design/aging-redesign/curve-model-report.md`, and the model's files (its code, and the tables it wrote in `out/`, with version 1's in `out/v1/`) are kept beside it in `/mnt/project-files/design/aging-redesign/model/`. The model files cited below (`model/...`, `check.ts`, `cohort.ts`, `model.ts`, `fast.ts`, `ninety9.ts`, `options.ts` and `out/tables.md`) are in that folder, not repository paths. The code's imports name the worktree it ran in, so it does not run from there as it stands;
 - "grade": `/mnt/project-files/design/d5b/class-talent-tune-with.md`, the 20-season check on main plus class talent, 4 tune seeds.
 
 Code paths are checked against main at 760b8f6, plus the class-talent commit 5253037.
@@ -1162,7 +1162,7 @@ The default is off. Tuning arm AB9-T3 turns it on. It is judged on the peak-usag
   - his side comes from the chart key that lists him this week (the same `spotOf` as §12.3.1; K, P and LS mean special teams);
   - a man on no key takes the side where most of his snaps came this week (ties: offense, then defense, then special; CHOSEN), and a man with no snaps and no key takes no coordinator and a share of 0, as a man with no snaps does today;
   - the coordinator and `playShare` both follow that side.
-  
+
   Retirement's "lost his job" input (§12.4.3) counts starts by the same rule. With `aging: "position"` the line stays as it is.
 - **Specialists two years older.** In the made-up league, `generate.ts:168` makes `21 + (specialist ? 2 : 0) + …`. With `aging: "ability"`, the made-up age follows §12.5 for every man, with no specialist term.
 - **Overall when judging.** `overallWithCarry` (`positionOverall` at `bio.position`) stays. It only *judges* a man, which R1 allows. Nothing in the ability path reads it to set a curve.
@@ -1589,7 +1589,7 @@ Every PR follows these rules:
 - tests in the same PR (Iron Rule 8);
 - an inertness proof in the PR text.
 
-**Inertness proof** (every step from AB1 on):
+**Inertness proof** (every step from AB1 on; AB-L is not inert and re-pins instead):
 1. **Growth off.** With growth off, these are byte-identical to main:
    - `season --seed homie-1 --out` → `season.json`;
    - `--stop-after 9 --save` / `--load`;
@@ -1603,19 +1603,21 @@ Every PR follows these rules:
 | Step | What | Where | Off / inert by | Rows it should move (when switched on) |
 |---|---|---|---|---|
 | AB0 | P7, E6, P8 types, and W1 wording; type pins | contracts, docs | Optional fields only; nothing reads them | none |
+| AB-L | NEW-2 (§12.7): the INSIDE_LB profile swaps gapDiscipline for acceleration. Waits for the owner's "yes on NEW-2" | contracts `measures.ts` `POSITION_PROFILES` (attributes `fictional/profiles.ts` generates from it as `PROFILES`) | **Not inert**: it changes how inside linebackers are rated, charted, drafted and kept with growth off too. The golden game digests, the committed calibration records, the stand-in league's charts and player-checks are re-pinned in the same PR, and its PR text lists every re-pinned value | LB share 31 and over (toy D 9.9% → 5.4%, about 11.2% → 6.7% in the sim, GUESS); with growth off, inside linebackers' overalls and charts |
 | AB1 | Reader v6 (`CAREER_ROWS_VERSION` 6, `CAREER_CHECK_VERSION` 6), measure-only rows: ability means by age; 99s by rating / group / age; injuries per snap by age and spot; concussion lengths; contact per snap by spot (counted by roll sets, §12.3.6, from the participation rows; information only); team-overall spread and r; availability's REAL reference merged and aligned. Re-run the baseline on the 4 tune seeds | calibration | Reads only; the season output is unchanged | none (baseline) |
 | AB2 | Draw `fadeShift` (generator, under `aging`); importer `/2` with the `"aging"` fork, `injuryHistory` kept out until AB7; loader knows `/2`; the loader's refusal test moves to an unknown version | attributes, calibration loader | `aging: "position"` leaves it absent; `forSwitches` drops it with development off (loader pin unchanged); the file is reviewed as a data diff | none |
 | AB3 | Variant D as one fitted set (Q2): the ability curves, learning floor, workouts, smarts and passing snaps, slow smarts at c = 0.2, elusiveness/yac move; variant B's set kept as the T2 arm; `techniqueKnee` off; `playerWeeks` side from the chart key on the ability path; `expectedOverallChange/Path` `aging` option | franchise `players/aging.ts` (new), `development.ts`, `developmentTables.ts`, `steps.ts` | `aging: "position"` default | peak-usage, at99, share-31-group, careers/reach 5, decline order, passing rows, D7 (re-check) |
 | AB4 | Rookie ages and the specialist rule dropped | attributes `draftClass.ts`, `generate.ts` | `aging: "position"` | rookie-age, share-22, age-league, undrafted, D7 (slight) |
 | AB5 | Injury risk by spot (chart key; `expectedAvailability` with no spot reads the chart key), the new age factor, the spot path's own `bySpot.perSnap` refit | franchise `injuries.ts`, `injuryTables.ts`, `availability.ts` (`spot?`) | `injuryRisk: "group"`; `INJURY_RATES.game.perSnap` untouched | availability, injuries per snap by age/spot |
 | AB6 | Concussion mark (`CONCUSSION_MARK`) and repeat weights; back/ribs healing at 31+ (`HEALING_BY_AGE`); `injuryRisk` threaded through `gameInjuries`, `weekInjuries`, `healWeek`, `drawInjury`, `lastingMark`; wear (`PlayerMemory.contact` by roll sets, kept only with `aging: "ability"`; `perContact` 0 until tuned) | franchise | `injuryRisk: "group"` reads none of the new tables (`INJURY_KINDS` unchanged); wear 0 | concussion rows, availability 31+, durability by concussions |
-| AB7 | P8 history: a new importer reader builds spells from past injury reports and weekly rosters into `provenance.history` (`import-real`), and `standin-development` writes P8 from it at `/3`; the loader knows `/3` and keeps it only with injuries on and `injuryRisk: "spot"`; franchise seeds memory once on the spot path; the kind mapping also covers the copied current injury | attributes importer, calibration loader, franchise | Stripped unless injuries are on with `injuryRisk: "spot"` (loader pin unchanged; the file is a data diff) | stand-in league's injuries by age in years 1-3 |
+| AB7 | P8 history: a new importer reader builds spells from past injury reports and weekly rosters into `provenance.history` (`import-real`), and `standin-development` writes P8 from it at `/3`; the loader knows `/3` and keeps it only with injuries on and `injuryRisk: "spot"` (`forSwitches` drops `injuryHistory` otherwise, and `stripStartingDevelopment` drops it too, so a second `standin-development` run changes nothing; both pinned); franchise seeds memory once on the spot path; the kind mapping also covers the copied current injury | attributes importer, calibration loader, franchise | Stripped unless injuries are on with `injuryRisk: "spot"` (loader pin unchanged; the file is a data diff) | stand-in league's injuries by age in years 1-3 |
 | AB8 | Retirement by choice (after M1's answer); `retire()` money path; E6 sent | franchise `retirement.ts`, `draft/money.ts`, `steps.ts` | `retirement: "unsigned"` | retired-signed; back-on-53 and starters-gone (slightly worse, expected) |
 | AB9 | 20-season grade: `--ability-rules` on the 4 tune seeds; tuning arms T1 base (variant D as fitted, slow smarts on), T2 slow smarts off (variant B's whole fitted set), T3 `techniqueKnee`, T4 O2 (smarts snaps halved), T5 wear on, T6 back/ribs healing off; then pass 2 on the 12 grade seeds (`career-check -- --grade --pass 2`) | calibration (runs only) | Runs only | all of the above |
 | AB10 | Real veterans aged once at league start under the ability curves: a copy of the curves in attributes, pinned by digest against franchise's; the tables freeze for this (D5b tuning limits) | attributes importer | Writes a new stand-in league file at `/4` (the Aged card: "a new league file, the old one kept"); `standin-2026-10-23.json` is left unchanged, so every run on it is unchanged | stand-in league's ages and ratings (on the new file) |
 | AB11 | The new rules become the growth-on defaults: `ability` / `spot` / `choice` (already ruled, R1-R3); `AGING_PROFILES` and the position path deleted. Lands when AB9 and AB10 are done and graded. Growth off is still unchanged; switching growth and injuries on by default stays Q8's, for the owner | franchise, attributes, calibration | Growth off unchanged | the whole card |
 
-The order is AB0 → AB1 → AB2 → AB3 → AB4 → AB5 → AB6 → AB7 → AB8 → AB9 → AB10 → AB11.
+The order is AB0 → AB1 → AB2 → AB3 → AB4 → AB5 → AB6 → AB7 → AB8 → AB9 → AB10 → AB11, with AB-L after AB0 and before AB9.
+- AB-L lands once the owner types "yes on NEW-2", at any point after AB0; the AB9 panels wait for it, AB1 to AB8 do not. The steps after it prove inertness against main with AB-L in it.
 - AB4 and AB5 may run in parallel after AB3.
 - AB8 waits on M1.
 
@@ -1655,7 +1657,7 @@ retirements after being let go."*
 | Q3 | Retirement's rating-fall term reads his true ratings (NEW-1), or his drop in playing time instead? | **Yes** (NEW-1) | The rating-fall term reads true ratings (§12.4.3). NEW-1's line in contracts still waits for its typed name ("yes on NEW-1"), so it is not made yet |
 | Q4 | Inside linebackers: swap gap discipline for acceleration in their profile (NEW-2) now, or leave it as a known miss? | **Change it now** | NEW-2 lands as its own step, AB-L, after AB0 and before the AB9 panels, once its typed name ("yes on NEW-2") comes (§12.7). It is not inert |
 | Q5 | Long snappers: a snapping rating (NEW-3) now, or wait until bad snaps are part of the game? | **Wait until bad snaps are part of the game** | No NEW-3. LS 31 and over is reported as a known miss (§12.7) |
-| Q6 | Tune retiring to the real retired list alone, and send the exit gap to the money and market thread? | **Yes**, with no allowance above the list | Own-choice retiring of rostered men is tuned on `retired-signed` to the real retired-list rates as they are (§12.4.5). §6.1's rule already retires the men nobody signs within two seasons, so quiet retirements after being let go need no allowance. The all-exits target goes to M4 (§12.11) |
+| Q6 | Tune retiring to the real retired list alone, and send the exit gap to the money and market thread? (The plan proposed aiming a little above the list, for men who retire quietly after being let go.) | **Yes**, with no allowance above the list | Own-choice retiring of rostered men is tuned on `retired-signed` to the real retired-list rates as they are (§12.4.5). §6.1's rule already retires the men nobody signs within two seasons, so quiet retirements after being let go need no allowance. The all-exits target goes to M4 (§12.11) |
 
 **Told to the owner with the questions** (no answer needed beyond Q2 and Q6):
 - The injury rates "by spot" were counted by each man's fine listed position (corner, free safety,

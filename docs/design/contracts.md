@@ -171,7 +171,7 @@ export interface PlayerState {
 export interface PlayerCondition {
   stamina: number;                 // 0..100 current, vs. stamina attribute = recovery rate
   morale: number;                  // -100..100; narrative writes via NarrativeEffect only
-  injury?: { kind: string; weeksRemaining: number; playable: boolean; inGamePenalty?: AttributeMap };
+  injury?: Injury;                 // ADR-087 P3: { kind, weeksRemaining, playable, inGamePenalty?, setting, band, since }
   injuryHistory?: InjuryRecord[];  // ADR-087 P8: injuries before the league's first day, oldest first
 }
 
@@ -436,7 +436,7 @@ export interface RollDetail {
 
 ### 6.2 Franchise event types (v0 set)
 
-`CALENDAR_PHASE_ENTERED`, `DEADLINE_REACHED`, `CONTRACT_SIGNED / RESTRUCTURED / EXPIRED` (`CONTRACT_SIGNED` may carry `kind`, `years`, `value`, `guaranteed`; `CONTRACT_EXPIRED` is `{ player, team }`, ADR-085 K6), `CAP_SET` (`{ season, cap }`) and `OPTION_EXERCISED` (`{ player, team, season }`) (ADR-085 K6), `PLAYER_RELEASED / RETIRED (immediate|slow|late per design notes)`, `TAG_APPLIED`, `TRADE_PROPOSED / EXECUTED / REJECTED`, `DRAFT_PICK_MADE`, `SCOUT_REPORT_FILED` (perception delta), `INJURY_OCCURRED / RECOVERED`, `MORALE_CHANGED`, `PRESSURE_EVENT` (owner mandate / hot seat), `PRESS_STORY_PUBLISHED`, `AWARD_GIVEN`, `GAME_SCHEDULED / COMPLETED`, `STAFF_HIRED` (`{ staff, team, role: StaffRole }`) and `STAFF_DEPARTED` (`{ staff, team, reason: StaffDepartureReason }`), typed by ADR-080 P3.
+`CALENDAR_PHASE_ENTERED`, `DEADLINE_REACHED`, `CONTRACT_SIGNED / RESTRUCTURED / EXPIRED` (`CONTRACT_SIGNED` may carry `kind`, `years`, `value`, `guaranteed`; `CONTRACT_EXPIRED` is `{ player, team }`, ADR-085 K6), `CAP_SET` (`{ season, cap }`) and `OPTION_EXERCISED` (`{ player, team, season }`) (ADR-085 K6), `PLAYER_RELEASED / RETIRED (immediate|slow|late|season end; ADR-087 E4/E6)`, `TAG_APPLIED`, `TRADE_PROPOSED / EXECUTED / REJECTED`, `DRAFT_PICK_MADE`, `SCOUT_REPORT_FILED` (perception delta), `INJURY_OCCURRED / RECOVERED`, `MORALE_CHANGED`, `PRESSURE_EVENT` (owner mandate / hot seat), `PRESS_STORY_PUBLISHED`, `AWARD_GIVEN`, `GAME_SCHEDULED / COMPLETED`, `STAFF_HIRED` (`{ staff, team, role: StaffRole }`) and `STAFF_DEPARTED` (`{ staff, team, reason: StaffDepartureReason }`), typed by ADR-080 P3.
 
 The draft (ADR-086 C5): `DRAFT_PICK_MADE` may carry `overall` and `kind`; `COMPENSATORY_PICKS_AWARDED` (`{ draft, picks: { team, round, kind }[] }`), `DRAFT_PICK_CONDITION_SETTLED` (`{ draft, originalTeam, owner, round, text }`) and `WAIVER_CLAIMED` (`{ player, from, to }`).
 

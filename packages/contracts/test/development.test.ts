@@ -94,11 +94,13 @@ describe("aging by ability: the AB0 edits (ADR-087 §12)", () => {
       true as Is<OptionalKeys<PlayerDevelopment>, "fadeShift">,
       true as Is<UndefinedKeys<PlayerDevelopment>, never>,
       true as Is<NonNullable<PlayerDevelopment["fadeShift"]>, Partial<Record<AbilityGroup, number>>>,
+      // Two all-optional records are each assignable to the other whatever their keys, so the keys are pinned on their own.
+      true as Is<keyof NonNullable<PlayerDevelopment["fadeShift"]>, AbilityGroup>,
     ];
     expect(Object.keys(development)).not.toContain("fadeShift");
     expect(JSON.parse(JSON.stringify(shifted))).toEqual(shifted);
     expect([notAGroup, undef, swapped]).toHaveLength(3);
-    expect(pins).toHaveLength(5);
+    expect(pins).toHaveLength(6);
   });
 
   it("P8: a past injury has exactly its four keys, and the history before the first day is optional", () => {
