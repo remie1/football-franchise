@@ -175,6 +175,30 @@ describe("late winter: re-signing from the season's end to the new league year",
     expect(next.type === "CONTRACT_SIGNED" && String(next.payload.player) === "star" && next.payload.kind === "FRANCHISE_TAG").toBe(true);
   });
 
+  it("re-signs a man whose bonus runs on into void years: a void year is played by nobody, so his deal still ends now", () => {
+    const change: Partial<Record<Position, Seat[]>> = { WR: [...wr([80, 79, 60, 57, 56]), { position: "WR", ovr: 74, years: 1, bonus: 0.3, id: "keeper" }] };
+    const plain = world(change, 2026);
+    // The same deal with half its bonus spread into a void year after the season, as real deals do.
+    const withVoid: LeaguePeople = {
+      ...plain,
+      contracts: plain.contracts!.map((c) => {
+        if (String(c.player) !== "keeper") return c;
+        const y = c.years[0]!;
+        const half = Math.round(y.signingBonusProration / 2);
+        return withCapHits({
+          ...c,
+          years: [
+            { ...y, signingBonusProration: y.signingBonusProration - half },
+            { season: 2027, baseSalary: 0, signingBonusProration: half, guarantees: { fullyGuaranteed: false }, capHit: 0, voidYear: true },
+          ],
+        });
+      }),
+    };
+    expect(withVoid.contracts!.find((c) => String(c.player) === "keeper")!.years.filter((y) => y.voidYear).map((y) => y.season)).toEqual([2027]);
+    expect(signedBy(run("re-sign", plain, OPENS), "keeper")).toHaveLength(1);
+    expect(signedBy(run("re-sign", withVoid, OPENS), "keeper")).toHaveLength(1);
+  });
+
   it("extends nobody early: a man with a year left after next season is left for camp", () => {
     const w = world({ WR: [{ position: "WR", ovr: 80, age: 26, cs: 4, years: 2, id: "a-year-left" }, ...wr([66, 64, 62, 60, 58])] }, 2026);
     for (const day of [OPENS, DEADLINE]) expect(signedBy(run("re-sign", w, day), "a-year-left")).toEqual([]);

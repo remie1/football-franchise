@@ -419,6 +419,10 @@ const endsAfter = (c: PlayerContract, season: number): boolean =>
 const hasDealIn = (book: readonly PlayerContract[], player: string, season: number): boolean =>
   book.some((c) => String(c.player) === player && liveIn(c, season));
 
+/** A deal he plays under in `season`. A void year only spreads a bonus: nobody plays it, so it is no deal. */
+const playsUnderIn = (book: readonly PlayerContract[], player: string, season: number): boolean =>
+  book.some((c) => String(c.player) === player && liveIn(c, season) && c.years.some((y) => y.season === season && !y.voidYear));
+
 // ---------- re-signing, tenders and tags (OFF_EVAL) ----------
 
 /**
@@ -487,8 +491,9 @@ function reSign(
     const roster = playersOf(team, byId);
     const grade = (p: PlayerState) => teamGrade(team.id, p, skill, config.ahead.forTeam(team.id), ctx.seed, ctx.season);
     // Kept: every man with a deal for next season (one re-signed when re-signing opened among them)
-    // or whose deal does not end now; the rest are its own free agents to be.
-    const kept = roster.filter((p) => hasDealIn(book.contracts, String(p.bio.id), next)
+    // or whose deal does not end now; the rest are its own free agents to be. A deal whose bonus runs
+    // on into void years still ends now: the void years are played by nobody, so he is a free agent to be.
+    const kept = roster.filter((p) => playsUnderIn(book.contracts, String(p.bio.id), next)
       || !book.contracts.some((c) => String(c.player) === String(p.bio.id) && endsAfter(c, ctx.season)));
     const expiring = roster.filter((p) => !kept.includes(p)).map((p) => ({ p, g: grade(p) }));
     // Step 14, §3.4: seats held for the team's own coming picks count as men at their positions.
