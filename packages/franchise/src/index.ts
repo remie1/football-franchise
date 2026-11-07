@@ -130,6 +130,11 @@ export { CAP_LEANING, capLeaning, capPlan, floorShortfall, planWithFloor, presid
 // ADR-087: players age, grow and get hurt (off unless runSeason's `players` switches them on).
 export { PLAYER_STEP_PREFIX, playerSteps, playerWeeks, emergencySignings, type PlayerStepsConfig, type PlayerGameExtras } from "./players/steps.js";
 export { developmentWeek, learningRate, RATING_GROUPS, type DevelopmentWeekInput, type DevelopmentWeekResult } from "./players/development.js";
+// ADR-087 §12.2 (AB3): aging by ability, behind `aging: "ability"` (default "position").
+export {
+  ABILITY_CURVES, ABILITY_GROUP_MEMBERS, TECHNIQUE_KNEE, abilityRules,
+  type AbilityCurveName, type AbilityCurves, type AgingOptions, type AgingRule,
+} from "./players/aging.js";
 // ADR-087 §5, for the cap thread: expected availability over the regular-season games ahead (draw-free).
 export {
   EXPECTED_BACKUP_SNAPS_PER_GAME, expectedAvailability, type Availability, type AvailabilityOptions,

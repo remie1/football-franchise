@@ -77,8 +77,20 @@ export interface PlayerMemory {
   weeksInJob: Record<string, number>;
   /** When each free agent became unsigned (first day seen without a team), by player id. */
   unsignedSince: Record<string, CalendarStamp>;
-  /** Which switches the steps ran with, so a loaded season carries on with the same ones. Set by `steps.ts`. */
-  switches?: { development: boolean; injuries: boolean };
+  /**
+   * Which switches the steps ran with, so a loaded season carries on with the same ones. Set by
+   * `steps.ts`. ADR-087 §12.1: the aging options are written only when they are not the default and
+   * act (development on, `aging: "ability"`; `aging.ts` `agingSwitches`), so a save made at the
+   * defaults is main's to the byte, and a save without them carries on under today's rules.
+   */
+  switches?: {
+    development: boolean;
+    injuries: boolean;
+    aging?: "position" | "ability";
+    abilityCurves?: "D" | "B";
+    techniqueKnee?: boolean;
+    smartsSnaps?: number;
+  };
   /**
    * ADR-096: fan and media mood's own memory (rest points, the watch list's quiet weeks, grade gaps),
    * kept here because this is the save's slot for the steps' memory. Absent until mood runs.

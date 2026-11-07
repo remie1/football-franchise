@@ -34,7 +34,7 @@ import { buildLeague, buildStaff, capForecast, runSeason, teamCapTotal, type Lea
 import { generateDraftClass } from "@ff/attributes";
 import type { CallerVersion } from "../caller/anticipate.js";
 import { unfilledPosition } from "./lineup.js";
-import { peopleResolver, type PlayerSwitches, type SeasonPeople } from "./realSeason.js";
+import { agingOf, peopleResolver, type PlayerSwitches, type SeasonPeople } from "./realSeason.js";
 import { buildStandInLeague, type readStandInFile } from "./standInLeague.js";
 
 type StandInFile = ReturnType<typeof readStandInFile> & {
@@ -342,8 +342,10 @@ export function runCapCheck(input: CapCheckInput): CapYear[] {
   };
   // With development on, each class comes with growth records, or the players drafted in the walk
   // would never grow or age.
+  // ADR-087 AB3: with aging "ability" too, each prospect's fade shifts (the generator's own fork).
+  const ability = development && input.players?.aging === "ability";
   const makeClass = (draft: number, usedNames: ReadonlySet<string>) => {
-    const made = generateDraftClass({ seed: input.seed, draft, usedNames, ...(development ? { development: true } : {}) });
+    const made = generateDraftClass({ seed: input.seed, draft, usedNames, ...(development ? { development: true } : {}), ...(ability ? { aging: "ability" as const } : {}) });
     return { draftClass: made.draftClass, players: made.players };
   };
   // The players' steps, as `runRealSeason` runs them for the stand-ins (ADR-087 §10); switched off, none.
@@ -352,6 +354,8 @@ export function runCapCheck(input: CapCheckInput): CapYear[] {
       development,
       injuries: input.players?.injuries === true,
       unfilled: (team, available, ps) => unfilledPosition(rated, team, available, ps),
+      // ADR-087 §12.1: the aging options, only when given (absent, the steps are as before).
+      ...agingOf(input.players),
     },
   } : {};
   // The coaches' steps (ADR-084: views, weekly drift, the carousel) and the end-of-season meeting

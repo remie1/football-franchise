@@ -55,6 +55,13 @@ describe("the arms and the seeds", () => {
     expect(armInput("incumbent").players).toEqual({ development: true, injuries: true });
     expect(armInput("form").players).toEqual({ development: true, injuries: true });
     expect(armInput("both").staffTransform).toBeUndefined();
+    // ADR-087 AB3: the aging options join every arm's switches; at the defaults nothing is added.
+    expect(armInput("both", {})).toEqual({ players: { development: true, injuries: true } });
+    expect(Object.keys(armInput("development", {}).players!)).toEqual(["development", "injuries"]);
+    const ability = { aging: "ability", abilityCurves: "B", techniqueKnee: true, smartsSnaps: 0.225 } as const;
+    expect(armInput("both", ability).players).toEqual({ development: true, injuries: true, ...ability });
+    expect(armInput("development", ability).players).toEqual({ development: true, injuries: false, ...ability });
+    expect(armInput("form", ability).players).toEqual({ development: true, injuries: true, ...ability });
   });
 
   it("a coach-style arm sets every sitting head coach's leanings, and no one else's", () => {
@@ -117,6 +124,18 @@ describe("the fingerprint", () => {
     }
     const paths = careerCachePaths("/c", "both", "s", 20);
     expect(careerCachePaths("/c", "form", "s", 20).rows).not.toBe(paths.rows);
+  });
+
+  it("covers the aging options by name when they are not the default, and is unchanged at the defaults (ADR-087 AB3)", () => {
+    const fp = careerFingerprint(base).fingerprint;
+    expect(careerFingerprint({ ...base, aging: {} }).fingerprint).toBe(fp);
+    expect(careerFingerprint({ ...base, aging: { aging: "position" } }).fingerprint).toBe(fp);
+    const ability = careerFingerprint({ ...base, aging: { aging: "ability" } }).fingerprint;
+    expect(ability).not.toBe(fp);
+    expect(careerFingerprint({ ...base, aging: { aging: "ability", abilityCurves: "D" } }).fingerprint).toBe(ability);
+    const others = [{ abilityCurves: "B" as const }, { techniqueKnee: true }, { smartsSnaps: 0.225 }]
+      .map((o) => careerFingerprint({ ...base, aging: { aging: "ability", ...o } }).fingerprint);
+    expect(new Set([fp, ability, ...others]).size).toBe(5);
   });
 
   it("leaves out only files the walk never reaches: the grader, the command, the real-NFL side", () => {
@@ -473,6 +492,38 @@ describe("one seed: the cache and the checkpoint (made-up seasons)", () => {
     } finally {
       rmSync(dirA, { recursive: true, force: true });
       rmSync(dirB, { recursive: true, force: true });
+    }
+  }, 300_000);
+
+  it("a seed played under aging options records them, keeps them in its checkpoint, carries on under them, and refuses others (AB3)", () => {
+    const dir = scratch();
+    const handed: unknown[] = [];
+    hook.runSeason = ((i: SeasonInput) => { handed.push(i.players); return madeUp(i); }) as never;
+    try {
+      const aging = { aging: "ability", techniqueKnee: true } as const;
+      const opts = { file, league, seed: "resume-aging", arm: "both" as const, seasons: 2, fingerprint: "0123456789abcdef", cacheDir: dir };
+      const paths = careerCachePaths(dir, "both", "resume-aging", 2);
+      expect(() => runCareerSeed({ ...opts, aging, stopAfter: 1 })).toThrow(CareerCheckStopped);
+      expect((JSON.parse(readFileSync(paths.checkpoint, "utf8")) as { aging?: unknown }).aging).toEqual(aging);
+      // The walk's switches carried them to the season.
+      expect(handed.map((x) => (x as { aging?: string }).aging)).toEqual(["ability"]);
+      expect(handed[0]).toMatchObject({ development: true, injuries: true, techniqueKnee: true });
+      expect(() => runCareerSeed(opts)).toThrow(/another set of aging options/);
+      expect(() => runCareerSeed({ ...opts, aging: { aging: "ability" } })).toThrow(/another set of aging options/);
+      const resumed = runCareerSeed({ ...opts, aging });
+      expect(resumed.from).toBe("resumed");
+      expect(resumed.record.aging).toEqual(aging);
+      expect(handed.map((x) => (x as { aging?: string }).aging)).toEqual(["ability", "ability"]);
+      expect(runCareerSeed({ ...opts, aging }).from).toBe("cache");
+      expect(() => runCareerSeed(opts)).toThrow(/other aging options/);
+      // A default seed's record and checkpoint name none.
+      const plain = runCareerSeed({ ...opts, seed: "resume-plain", seasons: 1 });
+      expect("aging" in plain.record).toBe(false);
+      expect(handed.at(-1)).toMatchObject({ development: true, injuries: true });
+      expect(Object.keys(handed.at(-1) as object).filter((k) => ["aging", "abilityCurves", "techniqueKnee", "smartsSnaps"].includes(k))).toEqual([]);
+    } finally {
+      hook.runSeason = undefined;
+      rmSync(dir, { recursive: true, force: true });
     }
   }, 300_000);
 

@@ -62,6 +62,7 @@ import { fullStrength, indexLeague, type LeagueIndex, type WeekRoster } from "..
 import { buildGeneratedLeague, type GeneratedLeague } from "./generatedLeague.js";
 import { unfilledPosition } from "./lineup.js";
 import { participationFrom } from "./participation.js";
+import type { AgingSwitches } from "./agingFlags.js";
 import { buildStandInLeague, standInSeason, type readStandInFile, type StandInLeague } from "./standInLeague.js";
 
 /** The league's people as `runSeason` carries them (ADR-086 §2), read off the resolver's type. */
@@ -122,12 +123,29 @@ export function standInOfficialsLine(
   return undefined;
 }
 
-/** The players' switches (ADR-087 §9). */
-export interface PlayerSwitches {
+/**
+ * The players' switches (ADR-087 §9), with the aging options (§12.1, AB3; `agingFlags.ts`), which act
+ * only with development on and `aging: "ability"`. They go everywhere the switches go: to franchise's
+ * players' steps, to the stand-in loader (`buildStandInLeague`, whose `forSwitches` keeps each man's
+ * fade shifts only with development on and `aging: "ability"`), and to the generator for the made-up
+ * league, the reserve pool and the walk's draft classes, which draw the shifts only then.
+ */
+export interface PlayerSwitches extends AgingSwitches {
   readonly development?: boolean;
   readonly injuries?: boolean;
   /** ADR-094 §9: each computer head coach's read of his hopes moves his lineup (off by default). */
   readonly lineupHopes?: boolean;
+}
+
+/** The aging options of these switches, to hand on; empty at the defaults (so nothing new is passed). */
+export function agingOf(s: PlayerSwitches | undefined): AgingSwitches {
+  if (s === undefined) return {};
+  return {
+    ...(s.aging === undefined ? {} : { aging: s.aging }),
+    ...(s.abilityCurves === undefined ? {} : { abilityCurves: s.abilityCurves }),
+    ...(s.techniqueKnee === undefined ? {} : { techniqueKnee: s.techniqueKnee }),
+    ...(s.smartsSnaps === undefined ? {} : { smartsSnaps: s.smartsSnaps }),
+  };
 }
 const switchedOn = (s: PlayerSwitches | undefined): boolean => s?.development === true || s?.injuries === true;
 
@@ -310,9 +328,9 @@ export const RESERVE_TEAMS = 3;
  * stays, so the street has specialists). CHOSEN. Their ids (`p:FA1:…`) cannot meet the league's
  * (`p:T01:…`).
  */
-export function reservePool(league: League, season: number, development: boolean): PlayerState[] {
+export function reservePool(league: League, season: number, development: boolean, aging?: "position" | "ability"): PlayerState[] {
   const stubs: Team[] = league.teams.slice(0, RESERVE_TEAMS).map((t, i) => ({ ...t, id: teamId(`FA${i + 1}`), roster: [], depthChart: {} }));
-  const made = buildGeneratedLeague({ ...league, seed: `${league.seed}/free-agents`, teams: stubs }, { season, development });
+  const made = buildGeneratedLeague({ ...league, seed: `${league.seed}/free-agents`, teams: stubs }, { season, development, ...(aging === undefined ? {} : { aging }) });
   const best = new Set(made.league.teams.flatMap((t) => Object.values(t.depthChart).filter((ids) => (ids?.length ?? 0) > 1).map((ids) => String(ids![0]))));
   return made.league.players.filter((p) => !best.has(String(p.bio.id))).map(({ teamId: _team, ...p }) => p);
 }
@@ -420,6 +438,8 @@ export function runRealSeason(input: RealSeasonInput): { league: League; rated?:
       season,
       ...(input.teamStrengthSd === undefined ? {} : { teamStrengthSd: input.teamStrengthSd }),
       ...(switched && input.players?.development === true ? { development: true } : {}),
+      // ADR-087 AB3: the fade shifts only with development on and aging "ability" (the generator's own fork).
+      ...(switched && input.players?.development === true && input.players.aging === "ability" ? { aging: "ability" as const } : {}),
     });
     league = { ...base, teams: rated.league.teams };
   } else if (rosters === "standin") {
@@ -448,7 +468,7 @@ export function runRealSeason(input: RealSeasonInput): { league: League; rated?:
   const squads = rated;
   const development = input.players?.development === true;
   const people: SeasonPeople = input.resume?.people ?? (() => {
-    const pool = reservePool(base, season, development);
+    const pool = reservePool(base, season, development, development && input.players?.aging === "ability" ? "ability" : undefined);
     return {
       teams: league.teams,
       players: [...squads.league.players, ...pool],
@@ -470,6 +490,8 @@ export function runRealSeason(input: RealSeasonInput): { league: League; rated?:
       injuries: input.players?.injuries === true,
       ...(input.players?.lineupHopes ? { lineupHopes: true } : {}),
       unfilled: (team, available, players) => unfilledPosition(squads, team, available, players),
+      // ADR-087 §12.1: the aging options, only when given (absent, the steps are as before).
+      ...agingOf(input.players),
     },
     ...(input.resume ? { resumeEvents: input.resume.events, stepsDoneThrough: input.resume.through } : {}),
     ...(input.mood ? { mood: {} } : {}),

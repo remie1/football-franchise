@@ -1679,6 +1679,117 @@ The order is AB0 → AB1 → AB2 → AB3 → AB4 → AB5 → AB6 → AB7 → AB8
   - Caches and records AB2 moves: career-check's and player-checks' keys (both hash the source and the league file's sha256, so player-checks on the made-up league moves too, on the code alone); the ADR-089 pocket step 1-3 arm caches (the source only, never the league file; a pocket re-run on AB2 replays them, about 15, 25 and 57 minutes). Four committed report files name the `/1` file's sha256 `bb55709a…`: `reports/player-checks-standin.{md,json}` and `reports/standin-recount.{md,json}`. `cap-check.*` and `draft-check.*` name only the file's path. The four stay as records of when they were made.
   - On the final tree: the builder's first pair of season runs began while two AB2 source files were still being saved, so its run A may not have played the committed code. Run A (`season --seed homie-1 --out`) and run E (the stand-in league, `--development --injuries --out`) were played again on the committed d316c69 by the reviewer. A, D (the stand-in league, switches off) and E were then played on the review-fix tree. Each run matched the base every time: A `63febe8b…`, D `a6798279…`, E `a3b82c8b…` (MEASURED, sha256 of the out file).
 
+**AB3 built (2026-11-07; behind `aging: "ability"`).** Variant D as one fitted set, played only with development on and `aging: "ability"`. At the default (`"position"`) every output is main's to the byte (the inertness proof at the end of this note). What it built:
+- **Franchise.**
+  - `players/aging.ts` (new) holds the ability path. It reads no listed position: a test greps it for `bio.position`, `POSITION_GROUP`, `sideOf(` and `AGING_PROFILES`.
+    - The options: `AgingOptions` (`aging`, `abilityCurves`, `techniqueKnee`, `smartsSnaps`), read once by `abilityRules`, which throws a `RangeError` on a value the options do not take.
+    - The two sets. `ABILITY_CURVES.D` and `.B` are §12.2.1's numbers (CHOSEN, fitted in the toy). D's equal the toy's `fit-D.json` params, every one.
+    - `TECHNIQUE_KNEE`: knee at 31 (CHOSEN, the owner's), `perAfterKnee` 0.6 (GUESS).
+    - The groups. `ABILITY_GROUP_MEMBERS` is calibration's `ABILITY_GROUP_COPY` key for key, so the two give one sha256, `ABILITY_GROUP_DIGEST` `35bf298a…`. Franchise's test pins the literal, and calibration's test reads that literal and checks it equals its own digest (test 11).
+    - `ABILITY_FOLLOWS` is body.ts `FOLLOWS` plus elusiveness (speed .3, agility .6) and yac (.4 / .4), "Leaving SKILL".
+    - The curves: `yearsPast`, `fadeLoss` (with the knee), `abilityYear`, `abilityWorkoutsYear`, `abilityBodyWeek`, `abilityLearningRate`, `legLossYear`, `slowSmartsWeek` and `abilityRatingDeltas`.
+    - The side rule: `SPOT_ORDER`, `SPOT_SIDE`, `chartSpots` and `weekSide`.
+  - `players/curves.ts` (new): `curveAt`, `weeklyShare` and `workoutShare`, moved out of `development.ts` unchanged so `aging.ts` can use them without an import cycle. `development.ts` re-exports `curveAt` and `weeklyShare`.
+  - `development.ts`: `DevelopmentWeekInput` and `ExpectedChangeOptions` take `AgingOptions`. With `aging: "ability"`, `developOne` and `expectedWalk` call the ability functions in place of `bodyWeek` / `ratingDeltas`. They use the same wobble stream in the same order. `weekInputs` takes the set's learning floor and smarts snaps.
+  - `body.ts`: `changeBody(player, delta, follows = FOLLOWS)`.
+  - `steps.ts`:
+    - `PlayerStepsConfig extends AgingOptions`, and `playerWeeks(people, ctx, reports, aging = "position")`.
+    - `playerSteps` checks the options, and plays the ability path only with development on.
+    - It writes `aging`, `abilityCurves`, `techniqueKnee` and `smartsSnaps` into `PlayerMemory.switches` (`types.ts`) only when they act and are not the default.
+  - `index.ts` exports `ABILITY_CURVES`, `ABILITY_GROUP_MEMBERS`, `TECHNIQUE_KNEE`, `abilityRules` and their types.
+- **Calibration.**
+  - `season/agingFlags.ts` (new) holds the flags:
+    - `--aging position|ability`;
+    - `--ability-curves D|B`;
+    - `--technique-knee`;
+    - `--smarts-snaps <n>` (points per 1,000 snaps, 0 or more; O2 is 0.225);
+    - `--ability-rules`.
+
+    A value a flag does not take is refused. The three tuning flags are refused off the ability path, and `--ability-rules` is refused beside `--aging position`. The defaults are dropped, so a run at the defaults passes exactly what it passed before. `agingLabel` names the options for cache keys and file names: `ability`, `ability-B`, `ability-knee`, `ability-smarts0.225`, joined with hyphens.
+  - `season` (`main.ts`) takes the flags. It refuses them with `--load`, since the save's own options come back from `PlayerMemory.switches` (`agingFromRecord`, which refuses a value it does not know). It refuses `--aging ability` without `--development`.
+  - `career-check` (`careerCheckMain.ts`, `careerCheckRun.ts`) takes the flags for a run and for `--grade`. With them, the default report is `career-check-pass<N>-<label>.md`.
+    - The label joins the fingerprint (`add("aging", label)`), only when it is defined.
+    - The checkpoint and the record carry `aging` when it is not the default.
+    - A resume takes the checkpoint's options and refuses others. It also checks them against the people's `playerMemory.switches`.
+    - A cached record played under other options is refused.
+  - `player-checks` (`playerChecksMain.ts`, `playerChecksRun.ts`): the flags act on the arms with development on (`agingActsOn`). Those arms cache to `<arm>-<label>-<seed>.json`, and the report is `player-checks[-standin]-<label>.md`.
+  - `PlayerSwitches extends AgingSwitches` (`realSeason.ts`, `agingOf`). So the options reach:
+    - `buildStandInLeague` (AB2's trap);
+    - the generated league (`generatedLeague.ts`);
+    - the reserve pool;
+    - `runCapCheck`'s draft classes (`capCheck.ts`);
+    - franchise's steps.
+  - `careerAging.ts`: its doc now says both sides of the digest are pinned.
+- **Tests.**
+  - Franchise `test/players.aging.test.ts` (new, 28 tests):
+    - §12.2.7 tests 1-3 and 7-10;
+    - test 11's franchise pin;
+    - the options and the default path;
+    - determinism;
+    - a season on the ability path that stops at week 9, goes through JSON and resumes to the straight run.
+  - Calibration `test/agingFlags.test.ts` (new, 11 tests):
+    - the flags, labels and records;
+    - the copy pin;
+    - AB2's trap: a stand-in run with `--aging ability` reaches `playerSteps` with all 12 shifts on every man, and none at the default;
+    - a `/1` file is refused through `runRealSeason` and through `runCapCheck`;
+    - the walk's draft classes and the made-up league draw shifts.
+  - Calibration `test/careerCheckRun.test.ts` (extended): the fingerprint, the arm input, the checkpoint and resume, and the cache.
+
+The choices it fixed (CHOSEN unless marked):
+- **The side** (§12.2.6) is read off the team's chart as it stands when the week's growth runs: before the week's own chart rebuild, the moment the position path reads `bio.position`. A man listed at two keys takes the first in `SPOT_ORDER`.
+  - A man on no key with no snaps this week (the practice squad, or anyone else off every key) takes no coordinator and a share of 0, as §12.2.6 says. On the position path such a man still takes his listed side's coordinator's coaching in practice. On the ability path he reads as a neutral coach (skill 50, no points either way; `COACHING.neutral`), so a practice-squad man under a good coordinator learns a little less than today, and under a poor one a little more (at most about 0.6 of a point a year either way, at learning rate 1, for a coordinator rated 100 or 0: `(skill − 50) × 1.0 / 80`). AB9 may want to give him a coordinator by the side he practises at; nothing records that side today.
+  - A man on no key with snaps takes the side where most of them came (ties: offense, then defense, then special).
+- **Slow smarts** read `PlayerWeek.playShare`: his snaps over his side's team snaps that week, capped at 1, the same input the play points read. §12.2.4 words it as snaps over 65 a game. For a starter both are 1, and the expected path gives a starter 1 a game.
+  - Every week with a game counts, playoffs included. So a playoff starter gains a little more than `c ×` his yearly leg loss: each extra game week adds `1/gamesPerSeason` of it.
+- **Passing from snaps** (`passingSnaps`, × growth, not × the learning rate) goes to accuracy, touch, release and improvisation for any man with snaps. No position is read, so a man who never throws gains them too. Only judging him at QB reads them.
+- **The own curves** (ARM, LEG, STAMINA, DURABILITY) gain at his age × growth, as today. Where the curve at his age is a loss, the loss is read at his shifted age (`age − shift`, plus wear for DURABILITY). It is 0 if the shifted age still gains.
+- **Wear** is 0 for every man (`NO_WEAR`) until AB6 counts contact.
+- **Injuries' lasting marks** keep body.ts `FOLLOWS` on both paths. Only the ability path's development week moves elusiveness and yac with the body.
+- **The money side stays on the position path** (M2). `cap/ahead.ts` calls `expectedOverallPath` with no `aging` option, so cap values do not move with `--aging ability`. That thread decides when to pass it.
+- **The made-up league's ages** (`generate.ts`'s specialist term) are left to AB4, as the plan has it.
+- **`--ability-rules`** is built now, as the shorthand for `--aging ability` alone. AB5 adds `--injury-risk spot` to it and AB8 `--retirement choice`.
+
+Where it departs from the plan:
+- **`developmentTables.ts` is unchanged.** The ability path's numbers live in `aging.ts` (`ABILITY_CURVES`, `TECHNIQUE_KNEE`, `ABILITY_GROUP_MEMBERS`), beside the rules that read them. So the position path's tables file stays the same bytes until AB11 deletes `AGING_PROFILES`.
+- **Test 9's rewrites.**
+  - Lines 505 (the RB at 40) and 521 ("each position's decline") of `players.development.test.ts` stay as the position path's pins, since that path is still the default and still played. Their ability-path counterparts are in `players.aging.test.ts`: each ability group's decline starts at its own age, plus test 1.
+  - Lines 372 and 604 (the backup's about-70% share) are re-checked on the ability path there. Technique shares are 0.62-0.75 at 22-24 at WR, CB, LT, DE and SS (MEASURED, 16 men; the position path gives 0.65-0.74).
+  - The quarterback's passing share falls with age on the ability path: 0.67, 0.60 and 0.55 at 22, 23 and 24, against 0.72, 0.71 and 0.71 on the position path (MEASURED, 16 men). The passing snaps go to the man who plays, and the learning beside them shrinks toward the lower floor. The test pins the direction: below the position path, falling, above 0.45. AB9 should read the backup-quarterback rows with this in mind.
+- **The body week's signature.** It is `abilityBodyWeek(age, development, growth, withTeam, phase, rules, ability, wear)`, against §12.2.6's `(age, development, withTeam, phase, rules)`. It takes his growth, since the workouts scale by it as `bodyWeek`'s do, and the rules read from the options.
+- **Slow smarts' yearly leg loss** (`legLossYear`) nets a full year's workouts at the set's own workout ages (`abilityWorkoutsYear`). §12.2.4 names main's `yearOfWorkouts`, but the set's workout ages are part of the fit. The toy nets the year's own workout share, 1.0625 for a team that misses the playoffs. The two differ only while workouts are above 0 (to 28): at most 0.0017 points a year on the typical starter (the toy check below).
+
+**The toy check** (MEASURED, 2026-11-07). `expectedOverallPath` with `aging: "ability"` against the toy's variant D on its typical starter: talent 0.6, entering at 21, every snap, camp to camp, grouped by `ROSTER_SHAPE`. Each was read at shift 0 and averaged over the toy's `SPREAD` with its 7-node Gauss-Hermite.
+- **Peaks are equal in all 13 groups, both ways.** Peak here is the typical starter's overall peak (`paths.md`'s Peak column), not §12.2.8's peak-usage ages. With the spread: RB, WR, CB 26; EDGE, LB, S 27; TE 28; OL 29; IDL 30; QB 34; K, P, LS 31.
+- **Worst yearly difference.**
+  - 0.0017 points at shift 0 (QB at 25), from the workout share above.
+  - 0.028 with the spread (RB at 37): the earliest QUICKNESS nodes take agility below 0, which franchise clamps and the toy does not. Every other group is 0.004 or less.
+- **The harness on today's rules** gives 0.0000, apart from the clamps the toy lacks.
+
+**Smokes** (MEASURED, homie-1 and d5b-t1, 2026-11-07; one seed each, so these show that it runs, not what it does to the league).
+- **Season.** `season --seed homie-1 --development --injuries --aging ability` played the year (champion Marlow Rattlers, against Port Royal Peaks at the default).
+  - The week-9 save records `{"development":true,"injuries":true,"aging":"ability"}`, and `--load` carries on under it.
+  - Carried on to week 12, the save gives the straight run's `world.players` and `depthMemory` exactly, and the same 5,191 non-staff events. Only the staff world's argued courses and stances differ, which the save does not carry. That gap is older than AB3: it is on the default path too.
+  - Mean true overall at week 9, ability against position: 64.15 / 64.20 at 24 and under, 63.54 / 63.59 at 25-28, 62.87 / 62.89 at 29-31, 62.30 / 62.28 at 32 and over.
+- **Career-check.** `career-check -- --league packages/attributes/leagues/standin-2026-10-23.json --seed-set tune --index 1 --seasons 3 --aging ability` (d5b-t1, arm `both`) played in 378 s, under build `0bc33befc3d7ca47`, a folder of its own; the record carries `"aging":{"aging":"ability"}`. Week-8 numbers, ability against the default (the 2-season run above):
+  - 2026: mean overall 66.43 / 66.45, pooled sd 7.65 / 7.64, mean age 26.53 / 26.53.
+  - 2027: 66.49 / 66.67, sd 7.75 / 7.88, age 26.25 / 26.26, win spread 2.68 / 2.69.
+  - 2028 (ability only): 66.61, sd 7.60, age 26.19, win spread 2.44.
+  - The ability-group means of the men aged 32 in 2027 (the reader's plain group means): SPEED 43.5 / 45.6, QUICKNESS 32.0 / 35.1, TECHNIQUE 32.6 / 31.2, SMARTS 35.5 / 35.7. The legs fade sooner, as variant D means them to.
+- **Player-checks.** `player-checks -- --seeds 1 --arms development --aging ability` played spread-1 in 54 s, cached as `development-ability-spread-1.json`, and wrote `player-checks-ability.md` (win spread 2.66). Its report and cache were then deleted.
+
+**Inertness** (MEASURED, against de6ea07 in a separate worktree, the same commands).
+- **The nine season runs are byte-identical**, each also matching AB2's reference where AB2 took it. The sha256 of each out or save file:
+  - A, growth off: `63febe8b…`
+  - B, `--stop-after 9 --save`: `66108c69…`
+  - B, `--load`: `8f7f112a…`
+  - D, the stand-in league, growth off: `a6798279…`
+  - C, `--development --injuries`: `036372a3…`
+  - E, the stand-in league, `--development --injuries`: `a3b82c8b…`
+  - F, growth on, `--save`: `e1dafb12…`
+  - F, growth on, `--load`: `5cb45b6f…`
+  - G, `--development` alone: `4a51db00…`
+- **The 2-season career-check** of d5b-t1 (arm `both`) gives rows sha256 `7ee56f89…` on both trees: builds `732b0029141dc692` and `8b94ed11052a956e`, with no `aging` key in either record.
+
 ### 12.10 NEW contracts edits (not approved; each needs the owner's typed yes)
 
 | Edit | What | Why | Recommendation |

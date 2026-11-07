@@ -1,6 +1,7 @@
 /**
  * `pnpm --filter @ff/calibration career-check -- --league <file> (--seed <seed> | --seed-set tune|grade --index <n>) [--arm both|development|incumbent|form] [--seasons 20] [--out <file>]`
  * `pnpm --filter @ff/calibration career-check -- --grade --pass 1|2 --league <file> [--seasons 20] [--seeds a,b] [--coach-seeds a,b] [--build <fingerprint>] [--report <path>] [--smoke]`
+ *   either with `[--aging position|ability] [--ability-curves D|B] [--technique-knee] [--smarts-snaps <n>] [--ability-rules]`
  *
  * ADR-087 §9, row D5b: the 20-season check. Plays ONE seed of the stand-in league with growth and
  * injuries switched on (the cap check's walk, `careerCheckRun.ts`) and keeps its rows under
@@ -28,6 +29,13 @@
  * reaching ten seasons) always gate the flip, as the owner answered (ADR-087 §11). When grade seeds
  * are missing, the command lists the builds the cache holds.
  *
+ * Aging (ADR-087 §12.1, AB3): `--aging ability` plays every arm with the players aging by ability
+ * group (`--ability-curves`, `--technique-knee`, `--smarts-snaps` tune it, `--ability-rules` is the
+ * shorthand; `agingFlags.ts`). The options join the build's fingerprint by name when not the default,
+ * so their rows keep a folder of their own and a default run's folder is what it was; a seed's
+ * record and checkpoint name them, and a resumed seed plays under its checkpoint's. `--grade` with
+ * them grades that folder, and writes `career-check-pass<N>-<name>` unless `--report` says where.
+ *
  * Paths given on the command line are read from the folder the command was typed in.
  */
 import { createHash } from "node:crypto";
@@ -43,6 +51,7 @@ import {
 } from "./careerCheckRun.js";
 import { gradeCareerCheck, gradedLeague, renderGradeJson, renderGradeMarkdown, type GradeWindows } from "./careerGrade.js";
 import { readStandInFile } from "./standInLeague.js";
+import { agingLabel, readAgingFlag, settleAging, type AgingFlags, type AgingSwitches } from "./agingFlags.js";
 
 interface Args {
   readonly league: string;
@@ -57,12 +66,15 @@ interface Args {
   readonly report?: string;
   readonly smoke: boolean;
   readonly build?: string;
+  /** The aging options, settled (AB3); `{}` at the defaults. */
+  readonly aging: AgingSwitches;
 }
 
 function parse(argv: readonly string[]): Args {
   let league: string | undefined, seed: string | undefined, set: string | undefined, index: number | undefined;
   let arm = "both", seasons = 20, grade = false, pass: number | undefined, out: string | undefined, report: string | undefined, smoke = false;
   let seeds: string[] | undefined, coachSeeds: string[] | undefined, build: string | undefined;
+  const agingFlags: AgingFlags = {};
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]!;
     const next = (): string => {
@@ -71,6 +83,7 @@ function parse(argv: readonly string[]): Args {
       return v;
     };
     if (arg === "--") continue;
+    else if (readAgingFlag(arg, next, agingFlags)) continue;
     else if (arg === "--league") league = next();
     else if (arg === "--seed") seed = next();
     else if (arg === "--seed-set") set = next();
@@ -90,13 +103,14 @@ function parse(argv: readonly string[]): Args {
   if (league === undefined) throw new SyntaxError("--league <file> is required (the stand-in league)");
   if (!Number.isInteger(seasons) || seasons < 1) throw new SyntaxError("--seasons must be a whole number, 1 or more");
   if (!isCareerArm(arm)) throw new SyntaxError(`unknown arm ${arm}: both, development, incumbent or form`);
+  const aging = settleAging(agingFlags);
   if (grade) {
     if (pass !== 1 && pass !== 2) throw new SyntaxError("--grade needs --pass 1 or --pass 2");
     if (seed !== undefined || set !== undefined) throw new SyntaxError("--grade reads the grade seeds' rows; name others with --seeds a,b");
     if (build !== undefined && !/^[0-9a-f]{16}$/.test(build)) throw new SyntaxError("--build names a build's fingerprint: 16 hex digits");
     return {
       league, seasons, grade, pass, arm, smoke, ...(seeds ? { seeds } : {}), ...(coachSeeds ? { coachSeeds } : {}), ...(report ? { report } : {}),
-      ...(build ? { build } : {}),
+      ...(build ? { build } : {}), aging,
     };
   }
   if (build !== undefined) throw new SyntaxError("--build is for --grade");
@@ -107,7 +121,7 @@ function parse(argv: readonly string[]): Args {
     seed = seedOf(set, index);
   }
   if (seed === undefined) throw new SyntaxError("give --seed <seed>, or --seed-set tune|grade --index <n>");
-  return { league, seasons, grade, arm, seed, smoke, ...(out ? { out } : {}) };
+  return { league, seasons, grade, arm, seed, smoke, ...(out ? { out } : {}), aging };
 }
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
@@ -121,7 +135,11 @@ const leagueSha = createHash("sha256").update(leagueBytes).digest("hex");
 const leaguePath = (() => { const rel = relative(repoRoot, leagueFull); return rel.startsWith("..") || isAbsolute(rel) ? basename(leagueFull) : rel; })();
 const league = { path: leaguePath, sha256: leagueSha };
 const callerVersion = DEFAULT_CALLER_VERSION;
-const treeFingerprint = careerFingerprint({ repoRoot, leagueSha256: leagueSha, engineRules: CAREER_ENGINE_RULES, callerVersion }).fingerprint;
+const agingName = agingLabel(args.aging);
+const treeFingerprint = careerFingerprint({
+  repoRoot, leagueSha256: leagueSha, engineRules: CAREER_ENGINE_RULES, callerVersion, ...(agingName === undefined ? {} : { aging: args.aging }),
+}).fingerprint;
+if (agingName !== undefined) console.log(`career-check: players age by ability (${agingName}; ADR-087 §12)`);
 const cacheRoot = join(root, "data-cache", "career-check");
 const cacheOf = (fingerprint: string) => join(cacheRoot, fingerprint);
 
@@ -133,6 +151,7 @@ if (!args.grade) {
   const started = Date.now();
   const { record, from } = runCareerSeed({
     file, league, seed: args.seed!, arm: args.arm, seasons: args.seasons, cacheDir, fingerprint,
+    ...(agingName === undefined ? {} : { aging: args.aging }),
     onSeason: (season, seconds) => console.log(`  season ${season} done (${seconds.toFixed(0)} s)`),
   });
   const wall = (Date.now() - started) / 1000;
@@ -187,7 +206,8 @@ if (!args.grade) {
       engineRules: CAREER_ENGINE_RULES, callerVersion, ...(args.smoke ? { smoke: true } : {}),
     },
   });
-  const base = args.report !== undefined ? fromCaller(args.report) : join(root, "reports", `career-check-pass${args.pass}`);
+  const base = args.report !== undefined ? fromCaller(args.report)
+    : join(root, "reports", `career-check-pass${args.pass}${agingName === undefined ? "" : `-${agingName}`}`);
   mkdirSync(dirname(base), { recursive: true });
   writeFileSync(`${base}.md`, renderGradeMarkdown(grade));
   writeFileSync(`${base}.json`, renderGradeJson(grade));

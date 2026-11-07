@@ -101,8 +101,11 @@ const clampTo = (v: number, b: { min: number; max: number }) => Math.max(b.min, 
  * change is a few hundredths of a pound), so show it rounded. A player with no development record
  * has no body to move: his following ratings move by the same amounts, rounded (an injury's lasting
  * mark with development switched off).
+ *
+ * `follows`: what moves with the body; `FOLLOWS` unless given. ADR-087 §12.2.1: the ability path's
+ * development week passes its own (`aging.ts` `ABILITY_FOLLOWS`, which adds elusiveness and yac).
  */
-export function changeBody(player: PlayerState, delta: BodyChange): BodyResult {
+export function changeBody(player: PlayerState, delta: BodyChange, follows: Readonly<Record<string, Readonly<Partial<Record<BodyRating, number>>>>> = FOLLOWS): BodyResult {
   const dev = player.attributes.development;
   const weightFrom = player.bio.weightLb;
   const weightTo = clampTo(weightFrom + (delta.weightLb ?? 0), BODY_BOUNDS.weightLb);
@@ -125,7 +128,7 @@ export function changeBody(player: PlayerState, delta: BodyChange): BodyResult {
   const values: AttributeMap = { ...player.attributes.values };
   const carry: Record<string, number> = dev ? { ...(dev.carry as Record<string, number>) } : {};
   const changes: RatingMove[] = [];
-  for (const [attr, shares] of Object.entries(FOLLOWS)) {
+  for (const [attr, shares] of Object.entries(follows)) {
     let d = 0;
     for (const [from, share] of Object.entries(shares) as [BodyRating, number][]) d += share * moved[from];
     if (d === 0) continue;
