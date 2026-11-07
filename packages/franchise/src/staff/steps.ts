@@ -17,7 +17,7 @@ import { isDay, type DayStep, type LeaguePeople } from "../season/people.js";
 import { driftWeek, seatRelationships, type RelationshipContext } from "../relationships/ledger.js";
 import { lineupFor } from "../players/lineup.js";
 import { DAYS_PER_WEEK } from "../calendar/clock.js";
-import { runStaffOffseason } from "./offseason.js";
+import { runStaffOffseason, type StaffOffseasonInput } from "./offseason.js";
 import { summariseSeason } from "./summarise.js";
 import { seatOf } from "./world.js";
 
@@ -30,6 +30,8 @@ export const STAFF_DAYS = {
 export interface StaffStepsConfig {
   /** The human's team and trait (ADR-084 §3, ADR-083). Absent: every team is run by the computer. */
   readonly context?: RelationshipContext;
+  /** ADR-094 §8 (Q10 a): the user's calls on his own GM (absent: he stays, and the computer fills an open chair). */
+  readonly gm?: StaffOffseasonInput["gm"];
 }
 
 /** Give a newly seated head coach his depth-chart leanings when the league's head coaches have them (ADR-087 C1). */
@@ -64,6 +66,7 @@ export function staffSteps(config: StaffStepsConfig = {}): DayStep[] {
         });
         const r = runStaffOffseason({
           world: { ...coaching.world, teams }, results: summariseSeason(day.state), seed: day.seed, players,
+          ...(ctx.userTeam !== undefined ? { userTeam: ctx.userTeam } : {}), ...(config.gm ? { gm: config.gm } : {}),
           ...(coaching.relationships ? { relationships: { views: coaching.relationships, context: ctx } } : {}),
         });
         const world = { ...r.world, staff: withLineups(coaching.world.staff, r.world.staff, day.seed) };

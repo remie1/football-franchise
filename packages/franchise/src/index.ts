@@ -28,8 +28,14 @@ export { buildStaff, freshStaff, recentreDisguise, type BuildStaffOptions, type 
 export {
   runStaffOffseason, headCoachFireChance, headCoachVerdict, coordinatorFireChance, retireChance, seatScores,
   type StaffOffseasonInput, type StaffOffseasonResult, type StaffDecision, type StaffDecisionType,
-  type StaffMove, type HireSource, type HeadCoachVerdict, type CoordinatorVerdict,
+  type StaffMove, type HireSource, type HeadCoachVerdict, type CoordinatorVerdict, type GmMove,
 } from "./staff/offseason.js";
+// ADR-094 §8: GMs hired and fired, and the front office they come from.
+export {
+  GM_TUNING, LADDER_ROLES, drawGmSource, gmCandidate, gmCandidateReport, gmFireChance, gmSalary, gmScore, gmSourceOf, gmVerdict,
+  isFrontOfficeRole, ladderJob, makeLadderMan, makeOutsider,
+  type GmCandidateReport, type GmSource, type GmVerdict, type LadderRole,
+} from "./staff/frontOffice.js";
 export {
   candidateReport, readResume, reputation, experiencePoints, inTree, firedStigma, hasRunSomething,
   sideLean, unprovenPenalty, expectedShare, rosterExpectation,

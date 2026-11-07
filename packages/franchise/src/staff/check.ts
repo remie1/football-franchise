@@ -6,7 +6,10 @@
 import { buildLeague } from "../league/buildLeague.js";
 import { averageSkill, seatScore } from "./ratings.js";
 import { buildStaff } from "./buildStaff.js";
-import { runStaffOffseason, type HireSource, type StaffMove } from "./offseason.js";
+import { runStaffOffseason, type GmMove, type HireSource, type StaffMove } from "./offseason.js";
+import { makeGm } from "../meeting/gm.js";
+import { currentJob } from "./world.js";
+import type { GmSource } from "./frontOffice.js";
 import { standInSeason } from "./standIn.js";
 import { isRetired, seatOf, offseasonStamp, type StaffWorld } from "./world.js";
 import { driftWeek, seatRelationships, wordFor } from "../relationships/ledger.js";
@@ -30,6 +33,8 @@ export interface SeasonTally {
   walked?: number;
   /** With views: how many views stood in each word after the offseason. */
   words?: Record<string, number>;
+  /** With GMs (ADR-094 §8): GM changes, why the old ones left, where the new ones came from, and the sitting GMs' seasons in the job. */
+  gm?: { changes: number; reasons: Record<string, number>; sources: Partial<Record<GmSource, number>>; medianTenure: number; cleanSweeps: number };
 }
 
 export interface Band { mean: number; min: number; max: number }
@@ -51,6 +56,18 @@ export interface TurnoverReport {
     poolSize: Band;
     meanHcAge: Band;
     exHeadCoaches: { atStart: { OC: number; DC: number }; OC: Band; DC: Band };
+    /** With GMs (ADR-094 §8), after a ten-season warm-up (every GM starts the check new in the job). */
+    gm?: {
+      changesPerYear: Band;
+      reasons: Record<string, number>;
+      sourceShares: Partial<Record<GmSource, number>>;
+      /** GM jobs that ended during the check: seasons held. */
+      tenure: { ended: number; mean: number; median: number };
+      /** The sitting GMs' median seasons in the job, averaged over the seasons. */
+      sittingMedian: number;
+      /** Seasons where a team changed its GM and its head coach in the same offseason. */
+      cleanSweepsPerYear: number;
+    };
   };
 }
 
@@ -108,13 +125,41 @@ function tally(world: StaffWorld, season: number, moves: StaffMove[]): SeasonTal
  * With `views`, every staff's views are carried too (ADR-084): drifted a calendar year (52 weeks)
  * before each offseason and read by the carousel to decide who stays (§7.1).
  */
-export function staffTurnoverCheck(opts: { seed: string; seasons?: number; firstSeason?: number; views?: boolean }): TurnoverReport {
+function gmTally(world: StaffWorld, moves: StaffMove[], gmMoves: GmMove[]): NonNullable<SeasonTally["gm"]> {
+  const reasons: Record<string, number> = {};
+  const sources: Partial<Record<GmSource, number>> = {};
+  let changes = 0;
+  for (const m of gmMoves) {
+    if (m.kind === "HIRED") { changes++; if (m.source) sources[m.source] = (sources[m.source] ?? 0) + 1; }
+    else if (m.reason) reasons[m.reason] = (reasons[m.reason] ?? 0) + 1;
+  }
+  const newGm = new Set(gmMoves.filter((m) => m.kind === "HIRED").map((m) => String(m.team)));
+  const cleanSweeps = new Set(moves.filter((m) => m.kind === "HIRED" && m.seat === "HEAD_COACH" && newGm.has(String(m.team))).map((m) => String(m.team))).size;
+  // Seasons served, as a sitting GM's tenure is reported: a man just hired has 0.
+  const tenures = world.staff.filter((s) => s.role === "GM" && s.teamId !== undefined)
+    .map((s) => currentJob(s)?.seasons.length ?? 0).sort((a, b) => a - b);
+  return { changes, reasons, sources, medianTenure: tenures[Math.floor(tenures.length / 2)] ?? 0, cleanSweeps };
+}
+
+/** Every GM starts the check new in the job, with contracts ending together; ten seasons wash that out. */
+const GM_WARMUP = 10;
+
+export function staffTurnoverCheck(opts: { seed: string; seasons?: number; firstSeason?: number; views?: boolean; gms?: boolean }): TurnoverReport {
   const seasons = opts.seasons ?? 50;
   const firstSeason = opts.firstSeason ?? 2026;
   const league = buildLeague(opts.seed);
   const built = buildStaff(league, { firstSeason, seed: opts.seed });
   let world = built.world;
   let standIn = built.standIn;
+  if (opts.gms) {
+    // ADR-081 G1's GMs, as the meeting makes them, each starting the check new in the job.
+    const gms = world.teams.map((t) => {
+      const gm = makeGm(t, opts.seed);
+      gm.career = [{ ...gm.career[0]!, firstSeason: world.season }];
+      return gm;
+    });
+    world = { ...world, teams: world.teams.map((t, i) => ({ ...t, staff: [...t.staff, gms[i]!.id] })), staff: [...world.staff, ...gms] };
+  }
 
   const coords = [...seated(world, "OC"), ...seated(world, "DC")];
   const hcsAtStart = seated(world, "HEAD_COACH");
@@ -138,6 +183,7 @@ export function staffTurnoverCheck(opts: { seed: string; seasons?: number; first
     const r = runStaffOffseason({ world, results: played.summaries, seed: opts.seed, ...(views ? { relationships: { views } } : {}) });
     world = r.world;
     const row = tally(world, season, r.moves);
+    if (opts.gms) row.gm = gmTally(world, r.moves, r.gmMoves);
     if (r.relationships) {
       views = r.relationships;
       row.walked = r.moves.filter((m) => m.walked).length;
@@ -165,6 +211,31 @@ export function staffTurnoverCheck(opts: { seed: string; seasons?: number; first
   for (const [k, v] of Object.entries(sources)) shares[k as HireSource] = v / Math.max(1, hcHires);
   const coordinatorHires = perSeason.reduce((sum, p) => sum + p.coordinatorHires, 0);
   const treeHires = perSeason.reduce((sum, p) => sum + p.treeHires, 0);
+
+  let gm: TurnoverReport["summary"]["gm"];
+  if (opts.gms) {
+    const rows = perSeason.slice(Math.min(GM_WARMUP, Math.max(0, perSeason.length - 1))).map((p) => p.gm!);
+    const reasons: Record<string, number> = {};
+    const srcs: Partial<Record<GmSource, number>> = {};
+    for (const g of rows) {
+      for (const [k, v] of Object.entries(g.reasons)) reasons[k] = (reasons[k] ?? 0) + v;
+      for (const [k, v] of Object.entries(g.sources)) srcs[k as GmSource] = (srcs[k as GmSource] ?? 0) + v;
+    }
+    const hires = rows.reduce((n, g) => n + g.changes, 0);
+    const sourceShares: Partial<Record<GmSource, number>> = {};
+    for (const [k, v] of Object.entries(srcs)) sourceShares[k as GmSource] = v / Math.max(1, hires);
+    const ended: number[] = [];
+    for (const s of world.staff) for (const job of s.career) {
+      if (job.level === "NFL" && job.role === "GM" && job.lastSeason !== undefined && job.firstSeason >= firstSeason + GM_WARMUP) ended.push(job.seasons.length);
+    }
+    ended.sort((a, b) => a - b);
+    gm = {
+      changesPerYear: band(rows.map((g) => g.changes)), reasons, sourceShares,
+      tenure: { ended: ended.length, mean: mean(ended), median: ended[Math.floor(ended.length / 2)] ?? 0 },
+      sittingMedian: mean(rows.map((g) => g.medianTenure)),
+      cleanSweepsPerYear: mean(rows.map((g) => g.cleanSweeps)),
+    };
+  }
 
   return {
     seed: opts.seed, firstSeason, seasons, perSeason,
@@ -195,6 +266,7 @@ export function staffTurnoverCheck(opts: { seed: string; seasons?: number; first
         OC: band(perSeason.map((p) => p.exHeadCoaches.OC)),
         DC: band(perSeason.map((p) => p.exHeadCoaches.DC)),
       },
+      ...(gm ? { gm } : {}),
     },
   };
 }

@@ -4,7 +4,8 @@
  * ADR-080 C5: builds a league's coaches with their made-up history, runs `--seasons` more
  * offseasons on stand-in results, and prints the turnover next to the REPORTED NFL figures.
  * With `--views`, the staffs' views are carried and read (ADR-084 §7.1). With `--out`, saves the
- * whole report as JSON.
+ * whole report as JSON. With `--gms`, every team has a GM, hired and fired by the carousel (ADR-094
+ * §8), and the GM rows print next to the COUNTED NFL figures (ADR-094 Appendix A).
  */
 import { writeFileSync } from "node:fs";
 import { staffTurnoverCheck, type Band } from "./check.js";
@@ -14,6 +15,7 @@ function parse(argv: readonly string[]) {
   let seasons = 50;
   let out: string | undefined;
   let views = false;
+  let gms = false;
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]!;
     const next = (): string => {
@@ -26,15 +28,16 @@ function parse(argv: readonly string[]) {
     else if (arg === "--seasons") seasons = Number(next());
     else if (arg === "--out") out = next();
     else if (arg === "--views") views = true;
+    else if (arg === "--gms") gms = true;
     else throw new SyntaxError(`unknown argument ${arg}`);
   }
   if (!Number.isInteger(seasons) || seasons < 1) throw new SyntaxError("--seasons must be a whole number above 0");
-  return { seed, seasons, out, views };
+  return { seed, seasons, out, views, gms };
 }
 
 const args = parse(process.argv.slice(2));
 const started = Date.now();
-const r = staffTurnoverCheck({ seed: args.seed, seasons: args.seasons, views: args.views });
+const r = staffTurnoverCheck({ seed: args.seed, seasons: args.seasons, views: args.views, gms: args.gms });
 const s = r.summary;
 const b = (x: Band) => `${x.mean.toFixed(1)} a year (from ${x.min} to ${x.max})`;
 const pct = (x: number | undefined) => `${Math.round((x ?? 0) * 100)}%`;
@@ -62,6 +65,16 @@ if (args.views) {
   const all = Object.values(words).reduce((a, b) => a + b, 0);
   console.log(`Views (ADR-084): ${(walked / r.seasons).toFixed(2)} coordinators a year refused a new contract; views after each offseason: ` +
     ["close", "good", "professional", "strained", "broken"].map((w) => `${w} ${pct1((words[w] ?? 0) / Math.max(1, all))}`).join(", "));
+}
+if (s.gm) {
+  const g = s.gm;
+  const left = Object.entries(g.reasons).map(([k, v]) => `${k.toLowerCase().replace(/_/g, " ")} ${v}`).join(", ");
+  console.log(`GM changes (after 10 seasons) ${b(g.changesPerYear)}   NFL: 36 in 2018-2026, about 4 a year (from 2 to 7), counted`);
+  console.log(`                            why the old GM left: ${left}`);
+  const gs = g.sourceShares;
+  console.log(`New GMs came from           front offices ${pct(gs.FRONT_OFFICE)} (NFL 78%), former GMs ${pct(gs.RETREAD)} (NFL 14%), head coaches ${pct(gs.COACH)} (NFL 6%), outside ${pct(gs.OUTSIDE)} (NFL 3%)`);
+  console.log(`GM tenure                   ${g.tenure.mean.toFixed(1)} seasons on average, median ${g.tenure.median} (${g.tenure.ended} jobs ended); sitting GMs' median ${g.sittingMedian.toFixed(1)} seasons served   NFL: about 3 (reported, 2024); about 4 from Appendix A's hires (2026)`);
+  console.log(`Clean sweeps (GM and head coach changed together): ${g.cleanSweepsPerYear.toFixed(1)} a year   NFL: no count on file`);
 }
 if (args.out) {
   writeFileSync(args.out, JSON.stringify(r, null, 2));
