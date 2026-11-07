@@ -1,6 +1,7 @@
 /** Player, staff, team, and contract shapes. Cap math lives in franchise. */
 import type { PlayerId, TeamId, StaffId, Position, AttrId, CoachAttrId } from "./ids.js";
-import type { TeamDirection } from "./meeting.js";
+import type { TeamDirection, TeamStance } from "./meeting.js";
+import type { MoodReading } from "./mood.js";
 import type { AttributeMap, TraitSet } from "./registry.js";
 import type { CalendarStamp } from "./calendar.js";
 import type { DefensiveDisguiseTendency, StaffJob } from "./staff.js";
@@ -260,6 +261,13 @@ export interface Team {
   staffBudget: { limit: number; committed: number };
   /** ADR-081 G3: the course set after the end-of-season meeting. Absent until one is set. */
   direction?: TeamDirection;
+  /** ADR-094 W1: the GM's stance after the latest regular-season week's games. Absent until one is set. */
+  stance?: TeamStance;
+  /**
+   * ADR-096 M2: fans' and media's latest moods about the team, its seats and its watch list (the
+   * PLAYER readings). Absent, or a subject missing, reads as 0.
+   */
+  mood?: MoodReading[];
 }
 
 export interface ContractYear {
@@ -306,6 +314,8 @@ export interface PlayerContract {
   fifthYearOption?: { season: number; price: number; exercised?: boolean };
   /** ADR-085 K2: set once the contract is over. A post-June-1 release splits its dead money over two seasons. */
   ended?: { at: CalendarStamp; reason: ContractEndReason; postJune1?: boolean };
+  /** ADR-095 X3: he cannot be traded unless he waives it. Absent = no clause. */
+  noTradeClause?: boolean;
 }
 
 export type { AttrId, CoachAttrId };

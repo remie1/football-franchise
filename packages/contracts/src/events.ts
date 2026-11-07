@@ -3,15 +3,16 @@
  * Debug text, calibration stats, UI replay, and narrative triggers are all
  * consumers of this stream. Streams are append-only and read-only to consumers.
  */
-import type { GameId, PlayId, PlayerId, TeamId, StaffId, StorylineId, AttrId, TraitId, Position } from "./ids.js";
+import type { GameId, PlayId, PlayerId, TeamId, StaffId, StorylineId, AttrId, TraitId, Position, TradeId } from "./ids.js";
 import type { CalendarStamp } from "./calendar.js";
-import type { DraftPickKind, GameKind, GameResult, PlayoffBracket } from "./league.js";
+import type { DraftPickKind, GameKind, GameResult, PlayoffBracket, PhysicalResult, TradeDirection, TradePiece, TradeReason } from "./league.js";
 import type { StaffRole, ContractKind, InjuryBand, InjurySetting } from "./players.js";
 import type { StaffDepartureReason } from "./staff.js";
 import type { RelationshipParty, RelationshipWord } from "./relationships.js";
 import type { OfficiatingCrew } from "./officials.js";
 import type { FoulKind, FoulTiming, PenaltyEnforcement, PenaltyOutcome } from "./penalties.js";
-import type { MeetingPoint, StaffMeeting, TeamDirection } from "./meeting.js";
+import type { MeetingPoint, StaffMeeting, TeamDirection, TeamStance } from "./meeting.js";
+import type { MoodReading } from "./mood.js";
 import type { SidelineAdjustmentPayload, StemPayload } from "./stem.js";
 
 export interface RollModifier {
@@ -815,7 +816,28 @@ export type FranchiseEvent =
    */
   | { type: "PLAYER_RETIRED"; payload: { player: PlayerId; timing: "IMMEDIATE"|"SLOW"|"LATE"|"SEASON_END"; reason?: "UNSIGNED" } }
   | { type: "TAG_APPLIED"; payload: { player: PlayerId; tagType: string } }
-  | { type: "TRADE_EXECUTED"; payload: { teams: TeamId[] } }
+  /**
+   * ADR-095 X1: a trade went through. `talk`, `pieces` and `capMoves` are optional so older senders
+   * still type-check. `capMoves`: each team's cap change by season, in dollars (+ adds to its cap
+   * total: salary taken on, or the sender's accelerated bonus as dead money).
+   */
+  | { type: "TRADE_EXECUTED"; payload: { teams: TeamId[]; talk?: TradeId; pieces?: TradePiece[]; capMoves?: { team: TeamId; season: number; change: number }[] } }
+  /** ADR-095 X1 §2: a team calls another, saying which way it leans and what it is asking about. */
+  | { type: "TRADE_CALL"; payload: { talk: TradeId; from: TeamId; to: TeamId; direction: TradeDirection; about: TradePiece[] } }
+  /** ADR-095 X1 §2: an offer or a counter on the table, with the offering GM's plain-words reasons. */
+  | { type: "TRADE_OFFER"; payload: { talk: TradeId; by: TeamId; pieces: TradePiece[]; reasons?: TradeReason[]; counter: boolean } }
+  /** ADR-095 X1 §2: both sides agreed; the trade now waits on the physicals. */
+  | { type: "TRADE_AGREED"; payload: { talk: TradeId; pieces: TradePiece[] } }
+  /** ADR-095 X1 §6: a receiving team's physical of a player, as its medical staff read it. */
+  | { type: "TRADE_PHYSICAL"; payload: { talk: TradeId; player: PlayerId; examiningTeam: TeamId; result: PhysicalResult } }
+  /** ADR-095 X1 §6: the terms were changed after a physical (less in return, a condition, or more from the sender). */
+  | { type: "TRADE_ADJUSTED"; payload: { talk: TradeId; by: TeamId; pieces: TradePiece[] } }
+  /**
+   * ADR-095 X1 §6: an agreed trade called off. `reason` is the one given. `pretext` (P2): the
+   * voiding GM's own motive was second thoughts, not the finding; it is his truth, never shown to the
+   * user as fact (the news may only doubt the reason).
+   */
+  | { type: "TRADE_VOIDED"; payload: { talk: TradeId; by: TeamId; reason: "FAILED_PHYSICAL" | "PHYSICAL_CONCERN" | "ADJUSTMENT_REFUSED"; pretext: boolean } }
   /** ADR-086 C5: `overall` and `kind` added (optional). */
   | { type: "DRAFT_PICK_MADE"; payload: { team: TeamId; player: PlayerId; round: number; pick: number; overall?: number; kind?: DraftPickKind } }
   /** ADR-086 C5: the compensatory picks for one draft, announced together. */
@@ -906,6 +928,24 @@ export type FranchiseEvent =
   | { type: "MEETING_CERTAINTY_ASKED"; payload: { team: TeamId; season: number; speaker: StaffId; point: MeetingPoint; certainty: number } }
   /** ADR-081 G3: a team's course set (or changed). */
   | { type: "TEAM_DIRECTION_SET"; payload: { team: TeamId; season: number; direction: TeamDirection; authority: "COACH" | "GM" | "PRESIDENT" } }
+  /** ADR-094 W1: a team's stance set (or changed) by its GM after a regular-season week's games. */
+  | { type: "TEAM_STANCE_SET"; payload: { team: TeamId; season: number; week: number; stance: TeamStance; authority: "GM" } }
+  /**
+   * ADR-094 W2: the GM and the head coach argued the team's stance after a week's games. `winner`
+   * is absent when neither carried the day on politics; `outcome` is the stance the GM then set.
+   * The views move through `RELATIONSHIP_CHANGED`, as at the meeting.
+   */
+  | { type: "COURSE_ARGUED"; payload: {
+        team: TeamId; season: number; week: number; gm: StaffId; coach: StaffId;
+        gmStance: TeamStance; coachStance: TeamStance; heat: "POLITE" | "OPEN_ARGUMENT" | "RIFT";
+        winner?: StaffId; outcome: TeamStance;
+      } }
+  /**
+   * ADR-096 M1: a team's fan and media moods after a week's games or an offseason moment (`week`
+   * absent then). `readings` carries every subject's latest reading, so the newest event is the
+   * whole picture. Public.
+   */
+  | { type: "PUBLIC_MOOD_UPDATED"; payload: { team: TeamId; season: number; week?: number; readings: MoodReading[] } }
   | { type: "AWARD_GIVEN"; payload: { award: string; subject: PlayerId | StaffId } }
   /** ADR-078 C6: widened to carry the teams; nothing emitted the old shape. */
   | { type: "GAME_COMPLETED"; payload: { result: GameResult; kind: GameKind } }

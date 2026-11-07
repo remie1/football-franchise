@@ -12,7 +12,11 @@
  * `TEAM_DIRECTION_SET` with the GM's window read (authority GM). `people.meetings` keeps each team's
  * last meeting.
  */
-import { compareStamps, type CalendarStamp, type FranchiseEvent, type SeasonState, type StaffMeeting, type TeamId } from "@ff/contracts";
+import { compareStamps, type CalendarStamp, type FranchiseEvent, type SeasonState, type StaffMeeting, type StaffState, type TeamId } from "@ff/contracts";
+import type { StaffWorld } from "../staff/world.js";
+import { rating } from "../staff/ratings.js";
+import { winNowLean } from "../winNow/lean.js";
+import { gmPressure, headCoachPressure, workingLean } from "../winNow/pressure.js";
 import type { DayStep, LeaguePeople } from "../season/people.js";
 import type { RelationshipContext } from "../relationships/ledger.js";
 import { makeGm } from "./gm.js";
@@ -24,6 +28,12 @@ export const MEETING_STEP_PREFIX = "meeting:";
 export interface MeetingStepsConfig {
   /** The human's team (ADR-084 §3). Absent: every team is run by the computer. */
   readonly context?: RelationshipContext;
+  /**
+   * ADR-094 §7: the head coach joins the meeting, each man's working lean tilts a borderline window
+   * read, and a winning coach the GM thinks well of moves the course a step. Off by default until the
+   * cap thread's step 14 panels are graded (it reads `Team.direction`); off, the meeting is as before.
+   */
+  readonly headCoach?: boolean;
 }
 
 /** When a team's season is over, the day of its last game; undefined while it has games left. */
@@ -82,10 +92,12 @@ export function meetingSteps(config: MeetingStepsConfig = {}): DayStep[] {
         const meetings = new Map((people.meetings ?? []).map((m) => [String(m.team), m]));
         const directions = new Map<string, StaffMeeting["takes"][number]["claim"]["direction"]>();
         for (const team of due) {
-          const { gm, oc, dc } = meetingStaff(team.id, coaching.world.staff);
+          const { gm, oc, dc, hc } = meetingStaff(team.id, coaching.world.staff);
           if (!gm) continue;
+          const withCoach = config.headCoach === true;
           const out = holdMeeting({
-            team, gm, ...(oc ? { oc } : {}), ...(dc ? { dc } : {}), truth: truths.get(String(team.id))!,
+            team, gm, ...(oc ? { oc } : {}), ...(dc ? { dc } : {}), ...(withCoach && hc ? { hc } : {}), truth: truths.get(String(team.id))!,
+            ...(withCoach ? { leans: meetingLeans(coaching.world, team.id, gm, hc, day.state, day.season, day.seed) } : {}),
             ...(views ? { views } : {}), seed: day.seed, at: day.day,
           });
           events.push({ type: "STAFF_MEETING_HELD", payload: { meeting: out.meeting } });
@@ -95,8 +107,8 @@ export function meetingSteps(config: MeetingStepsConfig = {}): DayStep[] {
             events.push(...r.events.map((e) => e.event));
           }
           if (team.id !== ctx.userTeam) {
-            directions.set(String(team.id), out.gmWindow);
-            events.push({ type: "TEAM_DIRECTION_SET", payload: { team: team.id, season: day.season, direction: out.gmWindow, authority: "GM" } });
+            directions.set(String(team.id), out.direction);
+            events.push({ type: "TEAM_DIRECTION_SET", payload: { team: team.id, season: day.season, direction: out.direction, authority: "GM" } });
           }
           meetings.set(String(team.id), out.meeting);
         }
@@ -109,4 +121,30 @@ export function meetingSteps(config: MeetingStepsConfig = {}): DayStep[] {
       },
     },
   ];
+}
+
+/**
+ * ADR-094 §7: the GM's and head coach's working leans at the meeting: each man's win-now lean pushed
+ * by his pressure, read on the whole season just played, his contract running out after next season
+ * counting as a last year (how short his leash is for next season).
+ */
+export function meetingLeans(
+  world: StaffWorld, team: TeamId, gm: StaffState, hc: StaffState | undefined, state: SeasonState, season: number, seed: string,
+): { gm: number; hc?: number; hcPressure?: number } {
+  const row = state.standings.find((r) => r.team === team);
+  const president = world.staff.find((s) => s.role === "PRESIDENT" && s.teamId === team);
+  const now = {
+    season, record: row?.overall ?? { wins: 0, losses: 0, ties: 0 }, teamCount: world.teams.length,
+    presidentTalent: president ? rating(president.attributes, "talentEvaluation") : 50,
+  };
+  const lastYear = (s: StaffState) => world.contracts.some((c) => c.staff === s.id && c.team === team && c.terminated === undefined && c.lastSeason <= season + 1);
+  const out: { gm: number; hc?: number; hcPressure?: number } = {
+    gm: workingLean(winNowLean(gm, seed), gmPressure(gm, { ...now, lastContractYear: lastYear(gm) })),
+  };
+  if (hc) {
+    const p = headCoachPressure(hc, { ...now, lastContractYear: lastYear(hc) });
+    out.hc = workingLean(winNowLean(hc, seed), p);
+    out.hcPressure = p;
+  }
+  return out;
 }

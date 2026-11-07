@@ -67,7 +67,7 @@ describe("a real-sim season with the players' switches on", () => {
     expect(straight.run.officiating!.assignments).toHaveLength(32);
   });
 
-  it("plays the same weeks with the whole coaching world (ADR-084 step 1), its views seated and still", () => {
+  it("plays the same weeks with the whole coaching world (ADR-084 step 1), its views moved only by the weekly course arguments", () => {
     const world = buildStaff(base, { firstSeason: season, historySeasons: 0, lineups: true }).world;
     const coached = runRealSeason({ seed, season, players, coaching: { world }, stopAfter: week(2) });
     expect(JSON.stringify(coached.run.state)).toBe(JSON.stringify(straight.run.state));
@@ -76,7 +76,9 @@ describe("a real-sim season with the players' switches on", () => {
     const after = coached.run.people!.coaching!.world;
     expect(after.staff.filter((s) => s.role !== "GM")).toEqual(world.staff);
     expect(after.staff.filter((s) => s.role === "GM")).toHaveLength(world.teams.length);
-    expect(coached.run.events.some((e) => e.event.type === "RELATIONSHIP_CHANGED")).toBe(false);
+    // Seated at rest, the views drift nowhere; only the GM and head coach's weekly arguments move them (ADR-094 §6).
+    const causes = new Set(coached.run.events.flatMap((e) => (e.event.type === "RELATIONSHIP_CHANGED" ? [e.event.payload.cause] : [])));
+    for (const c of causes) expect(["POLITE_DISAGREEMENT", "OPEN_ARGUMENT", "OVERRULED_ON_COURSE"]).toContain(c);
   });
 
   it("refuses the flat league, which has no squads", () => {

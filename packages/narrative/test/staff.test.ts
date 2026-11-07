@@ -139,3 +139,90 @@ describe("grudges", () => {
     expect(s[0]!.teams.map(String)).toEqual([String(T.B2 as TeamId)]);
   });
 });
+
+describe("the GM and his head coach (ADR-094 step 5)", () => {
+  const gm = (t: TeamId) => sid(`G-${String(t)}`);
+  const hc = (t: TeamId) => sid(`H-${String(t)}`);
+  const WITH_GMS: StaffSeat[] = [...SEATS, ...Object.values(T).map((team) => ({ id: gm(team), team, role: "GM" as const }))];
+  const argued = (when: CalendarStamp, team: TeamId, coachStance: "BUY" | "HOLD" | "SELL", outcome: "BUY" | "HOLD" | "SELL", heat: "POLITE" | "OPEN_ARGUMENT" | "RIFT") =>
+    at(when, { type: "COURSE_ARGUED", payload: {
+      team, season: when.season, week: when.week, gm: gm(team), coach: hc(team), gmStance: outcome, coachStance, heat, outcome,
+    } });
+
+  it("seats the GM on the beat: his sour views leak, by job, and his moves stay out of the coordinator roundup", () => {
+    const views: StaffView[] = Object.values(T).map((team) => ({ from: gm(team), of: { staff: hc(team) }, word: "broken" }));
+    const events: FranchiseEventEnvelope[] = [];
+    for (let w = 1; w <= 52 * 3; w++) {
+      events.push(at({ season: 2027 + Math.floor((w - 1) / 52), phase: "OFF_SUMMER", week: ((w - 1) % 52) + 1, day: 1 },
+        { type: "CALENDAR_DEADLINE_REACHED", payload: { deadline: "x" } } as unknown as FranchiseEvent));
+    }
+    const leaks = stories(writeNews({ ...input(sched, "gm-leaks"), staff: WITH_GMS, views }, events)).filter((s) => s.kind === "LEAK");
+    expect(leaks.length).toBeGreaterThan(10); // 8 men, 3 years, about once a year each
+    for (const s of leaks) {
+      expect(s.headline).toMatch(/general manager|front office/i);
+      expect(s.headline).not.toMatch(/G-|H-/);
+    }
+    const w = offDay(1);
+    const moves = [
+      at(w, { type: "STAFF_DEPARTED", payload: { staff: gm(T.A1!), team: T.A1!, reason: "FIRED" } }),
+      at(w, { type: "STAFF_HIRED", payload: { staff: sid("NEW-GM"), team: T.A1!, role: "GM" } }),
+    ];
+    expect(stories(writeNews({ ...input(sched), staff: WITH_GMS }, moves)).some((s) => s.kind === "COORDINATOR_ROUNDUP")).toBe(false);
+  });
+
+  it("leaks an open argument over the course now and then, the week the split starts, and never a polite one", () => {
+    const count = (heat: "POLITE" | "OPEN_ARGUMENT" | "RIFT") => {
+      let leaks = 0;
+      for (let i = 0; i < 400; i++) {
+        const when: CalendarStamp = { season: 2027 + i, phase: "OFF_SUMMER", week: 1, day: 1 };
+        const s = stories(writeNews({ ...input(sched, `course-${i}`), staff: WITH_GMS }, [argued(when, T.B3!, "BUY", "HOLD", heat)]));
+        leaks += s.filter((x) => x.kind === "COURSE_LEAK").length;
+        for (const x of s) expect(x.headline).not.toMatch(/G-|H-/);
+      }
+      return leaks;
+    };
+    expect(count("POLITE")).toBe(0);
+    const open = count("OPEN_ARGUMENT"), rift = count("RIFT");
+    expect(open).toBeGreaterThan(60); // 400 x 0.25
+    expect(open).toBeLessThan(140);
+    expect(rift).toBeGreaterThan(200); // 400 x 0.6
+    expect(rift).toBeLessThan(280);
+  });
+
+  it("does not leak the same split again the next week, but does when it widens", () => {
+    let again = 0, wider = 0;
+    for (let i = 0; i < 300; i++) {
+      const w1: CalendarStamp = { season: 2027, phase: "OFF_SUMMER", week: 1, day: 1 };
+      const w2: CalendarStamp = { ...w1, week: 2 };
+      const same = stories(writeNews({ ...input(sched, `again-${i}`), staff: WITH_GMS }, [
+        argued(w1, T.A2!, "BUY", "HOLD", "RIFT"), argued(w2, T.A2!, "BUY", "HOLD", "RIFT"),
+      ]));
+      again += same.filter((x) => x.kind === "COURSE_LEAK").length > 1 ? 1 : 0;
+      const grew = stories(writeNews({ ...input(sched, `again-${i}`), staff: WITH_GMS }, [
+        argued(w1, T.A2!, "BUY", "HOLD", "RIFT"), argued(w2, T.A2!, "BUY", "SELL", "RIFT"),
+      ]));
+      wider += grew.filter((x) => x.kind === "COURSE_LEAK").length > 1 ? 1 : 0;
+    }
+    expect(again).toBe(0);
+    expect(wider).toBeGreaterThan(60); // both weeks leak about 0.6 x 0.6 of the time
+  });
+
+  it("runs a deadline-week headline for each team still split after the last games before the deadline", () => {
+    const events = [...seasonEvents(sched, "deadline")];
+    const ins = (e: FranchiseEventEnvelope) => {
+      const i = events.findIndex((x) => compareAt(x.at, e.at) > 0);
+      events.splice(i < 0 ? events.length : i, 0, e);
+    };
+    const compareAt = (a: CalendarStamp, b: CalendarStamp) => a.week - b.week || a.day - b.day;
+    ins(argued(day(8, 7), T.A3!, "BUY", "SELL", "POLITE")); // split in week 8, made up by week 9
+    ins(argued(day(9, 7), T.A1!, "BUY", "HOLD", "POLITE"));
+    ins(argued(day(9, 7), T.B2!, "HOLD", "SELL", "OPEN_ARGUMENT"));
+    ins(argued(day(9, 7), T.B4!, "BUY", "BUY", "POLITE")); // the GM met him all the way: no split
+    ins(at(day(10, 2), { type: "DEADLINE_REACHED", payload: { deadlineId: "TRADE_DEADLINE", autoResolved: true } }));
+    const s = stories(writeNews({ ...input(sched), staff: WITH_GMS }, events)).filter((x) => x.kind === "DEADLINE_SPLIT");
+    expect(s.map((x) => x.label)).toEqual(["Week 10", "Week 10"]);
+    expect(s.map((x) => String(x.teams[0])).sort()).toEqual([String(T.A1), String(T.B2)]);
+    expect(s.find((x) => String(x.teams[0]) === String(T.A1))!.headline).toMatch(/Ashford|Anchors/);
+    for (const x of s) expect(x.headline).not.toMatch(/G-|H-/);
+  });
+});

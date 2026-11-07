@@ -58,12 +58,23 @@ export function stepsApart(a: MeetingTake, b: MeetingTake, sideGroups?: Readonly
       return !listB.includes(firstA) && !listA.includes(firstB) ? 1 : 0;
     }
     case "NEXT_WINS": {
+      // ADR-094 §7: two men's wins (the GM's and the head coach's): 2 apart is one step, 4 two. CHOSEN.
+      if (ca.wins !== undefined && cb.wins !== undefined) {
+        const d = Math.abs(ca.wins - cb.wins);
+        return d >= 4 ? 2 : d >= 2 ? 1 : 0;
+      }
       // The GM's wins against a coordinator's band.
       const wins = ca.wins ?? cb.wins, band = ca.verdict ?? cb.verdict;
       if (wins === undefined || band === undefined) return 0;
       if ((band === "TOP_10" && wins <= 6) || (band === "BOTTOM_10" && wins >= 11)) return 2;
       if ((band === "TOP_10" && wins <= 8) || (band === "BOTTOM_10" && wins >= 9)) return 1;
       return 0;
+    }
+    case "WINDOW": {
+      // ADR-094 §7: the GM's course against the head coach's, one step or two apart.
+      const order = ["REBUILD", "RETOOL", "CONTEND"];
+      if (ca.direction === undefined || cb.direction === undefined) return 0;
+      return Math.abs(order.indexOf(ca.direction) - order.indexOf(cb.direction));
     }
     default:
       return 0;

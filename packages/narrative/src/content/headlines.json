@@ -674,6 +674,104 @@
       "punchy": [
         "Bad blood on the {team} staff"
       ]
+    },
+    "LEAK.gmOnCoach": {
+      "straight": [
+        "Sources: {teamCity} general manager losing patience with head coach"
+      ],
+      "punchy": [
+        "Front office souring on the {team} head coach, sources say"
+      ]
+    },
+    "LEAK.coachOnGm": {
+      "straight": [
+        "Sources: {teamCity} head coach frustrated with general manager"
+      ],
+      "punchy": [
+        "Trouble upstairs? {team} head coach unhappy with the front office"
+      ]
+    },
+    "RIFT.gmOnCoach": {
+      "straight": [
+        "{teamCity} general manager and head coach fall out, sources say"
+      ],
+      "punchy": [
+        "Rift in {teamCity}: front office and head coach split"
+      ]
+    },
+    "RIFT.coachOnGm": {
+      "straight": [
+        "{teamCity} head coach and general manager fall out, sources say"
+      ],
+      "punchy": [
+        "Rift in {teamCity}: head coach and front office split"
+      ]
+    },
+    "COURSE_LEAK.push": {
+      "straight": [
+        "Sources: {teamCity} head coach pushing front office to go for it now",
+        "{teamCity} head coach wants help now, general manager not convinced, sources say"
+      ],
+      "punchy": [
+        "Win-now tug of war in {teamCity}",
+        "{team} head coach lobbying for reinforcements, sources say"
+      ]
+    },
+    "COURSE_LEAK.patience": {
+      "straight": [
+        "Sources: {teamCity} head coach urging patience as front office eyes this season"
+      ],
+      "punchy": [
+        "Not so fast: {team} head coach wary of the front office's push"
+      ]
+    },
+    "COURSE_LEAK": {
+      "straight": [
+        "Sources: {teamCity} head coach and general manager split on the season's course"
+      ],
+      "punchy": [
+        "Front office and head coach at odds in {teamCity}"
+      ]
+    },
+    "DEADLINE_SPLIT.hold.push": {
+      "straight": [
+        "{team} stand pat at the deadline over head coach's push for help"
+      ],
+      "punchy": [
+        "Deadline day: {team} front office says no to the head coach's wish list"
+      ]
+    },
+    "DEADLINE_SPLIT.hold.patience": {
+      "straight": [
+        "{teamCity} front office holds course at the deadline as head coach eyes next year"
+      ],
+      "punchy": [
+        "{team} stay the course at the deadline, head coach not sold"
+      ]
+    },
+    "DEADLINE_SPLIT.sell.push": {
+      "straight": [
+        "{teamCity} front office looks to next year at the deadline, head coach wanted to push on"
+      ],
+      "punchy": [
+        "Deadline split in {teamCity}: front office folds the season, head coach fumes"
+      ]
+    },
+    "DEADLINE_SPLIT.buy.patience": {
+      "straight": [
+        "{teamCity} front office goes for it at the deadline despite head coach's doubts"
+      ],
+      "punchy": [
+        "All in? {team} front office bets on this season, head coach less sure"
+      ]
+    },
+    "DEADLINE_SPLIT": {
+      "straight": [
+        "{teamCity} general manager and head coach split at the deadline"
+      ],
+      "punchy": [
+        "Deadline divide on the {team} staff"
+      ]
     }
   }
 }

@@ -1,5 +1,5 @@
 import type { CalendarStamp } from "./calendar.js";
-import type { DraftClass, DraftPick, LeagueStructure, SeasonState } from "./league.js";
+import type { DraftClass, DraftPick, LeagueStructure, MedicalFinding, PendingPhysical, SeasonState, TradeTalk } from "./league.js";
 import type { GameId, OfficiatingCrewId, PlayerId, TeamId } from "./ids.js";
 import type { Team, PlayerState, StaffState, PlayerContract, PerceivedAttributes, DeadMoneyCharge } from "./players.js";
 import type { StaffContract } from "./staff.js";
@@ -41,6 +41,12 @@ export interface SaveFile {
       classes: DraftClass[];
       freeAgentMoves: { player: PlayerId; from: TeamId; to: TeamId; apy: number; signedAt: CalendarStamp }[];
     };
+    /**
+     * ADR-095 X4: trades in progress. Open talks (ended and done ones may be dropped), agreed trades
+     * waiting on a physical, and what physicals have found (leaked or not), so a save made mid-talk
+     * loads the same talk. Optional, so older saves still load; absent, no trade talk is open.
+     */
+    trades?: { talks: TradeTalk[]; physicals: PendingPhysical[]; findings: MedicalFinding[] };
     contracts: PlayerContract[];
     /** ADR-085 K3: every dead-money charge, past and future seasons. Optional, so older saves still load. */
     deadMoney?: DeadMoneyCharge[];

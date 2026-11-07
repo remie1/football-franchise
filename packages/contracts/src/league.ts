@@ -4,7 +4,7 @@
  * logic (contracts.md §10).
  */
 import type { CalendarStamp } from "./calendar.js";
-import type { AttrId, ConferenceId, DivisionId, GameId, PlayerId, TeamId } from "./ids.js";
+import type { AttrId, ConferenceId, DivisionId, GameId, PlayerId, TeamId, TradeId } from "./ids.js";
 import type { GameEndReason } from "./events.js";
 
 // C2 — structure is data, not constants (Spec #5 §14.1).
@@ -135,3 +135,78 @@ export interface DraftPick {
 
 // ADR-086 C2 — a draft class: the prospects of one draft, before anyone owns them.
 export interface DraftClass { draft: number; prospects: PlayerId[] }
+
+// ADR-095 X2 — trades: the pieces that move, and a talk between two teams as it stands.
+
+/** One thing a trade moves from one team to the other: a player under contract, or a pick. */
+export type TradePiece =
+  | { kind: "PLAYER"; player: PlayerId; from: TeamId; to: TeamId }
+  | {
+      kind: "PICK";
+      /** The pick, named as `DraftPick` names it (draft year, round, whose it was). */
+      draft: number; round: number; originalTeam: TeamId; pickKind: DraftPickKind;
+      from: TeamId; to: TeamId;
+      /** A condition the trade puts on the pick (ADR-086 N2), in the words of the deal and the rule that settles it. */
+      condition?: { text: string; rule: PickCondition };
+    };
+
+/**
+ * ADR-095 §2: which way the calling team leans. Shopping or buying a player, moving up or down in a
+ * draft, or OPEN (just asking).
+ */
+export type TradeDirection = "SHOPPING_PLAYER" | "BUYING_PLAYER" | "MOVING_UP" | "MOVING_DOWN" | "OPEN";
+
+/**
+ * ADR-095 §2: the plain-words reasons a GM gives with an offer, drawn from the terms of his value
+ * (§3, §4). Never his numbers. A weak GM's reasons can mislead.
+ */
+export type TradeReason =
+  | "HELP_NOW" | "FUTURE_VALUE" | "SALARY" | "PICK_TIMING" | "FIT" | "PRICE";
+
+/** ADR-095 §2: how far a talk has come. ENDED = either side walked away, or the window closed. */
+export type TradeTalkStage = "CALL" | "ASKING_PRICE" | "OFFER" | "AGREED" | "PHYSICAL" | "DONE" | "ENDED";
+
+/** ADR-095 §2: one talk between two teams, from the first call to its end. */
+export interface TradeTalk {
+  id: TradeId;
+  teams: [TeamId, TeamId];
+  openedBy: TeamId;
+  openedAt: CalendarStamp;
+  direction: TradeDirection;
+  /** What the call is about (named, with no terms yet). */
+  about: TradePiece[];
+  stage: TradeTalkStage;
+  /** The latest proposal on the table, by whom, with his reasons. */
+  offer?: { by: TeamId; pieces: TradePiece[]; reasons?: TradeReason[] };
+  /** Offers and counters made so far. */
+  rounds: number;
+  lastAt: CalendarStamp;
+}
+
+/** ADR-095 §6: what a physical found, as the examining team read it. */
+export type PhysicalResult = "CLEAN" | "CONCERN" | "FAIL";
+
+/** ADR-095 §6: an agreed trade waiting on the receiving team's physical (seven days at most). */
+export interface PendingPhysical {
+  talk: TradeId;
+  player: PlayerId;
+  examiningTeam: TeamId;
+  agreedAt: CalendarStamp;
+  dueBy: CalendarStamp;
+}
+
+/**
+ * ADR-095 §6: what a team's medical staff concluded from a physical, in their eyes (not the truth).
+ * `gamesLess` and `yearsLess`: how much the finding lowered their expectation (games a season,
+ * good years). `leaked`: the finding reached the other teams, whose own guesses then drop.
+ */
+export interface MedicalFinding {
+  player: PlayerId;
+  examiningTeam: TeamId;
+  at: CalendarStamp;
+  result: PhysicalResult;
+  gamesLess?: number;
+  yearsLess?: number;
+  leaked: boolean;
+}
+
