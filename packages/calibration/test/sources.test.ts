@@ -13,8 +13,11 @@ import {
   AVAILABILITY_SOURCE_IDS,
   COARSE_STATUS,
   depthChartsSource,
+  FIRST_FTN_PARTICIPATION_SEASON,
   ftnChartingSource,
   injuriesSource,
+  isFtnChartedPressureRow,
+  isFtnChartedPressureSeason,
   isSuspension,
   ngsPassingSource,
   normaliseGameStatus,
@@ -193,6 +196,22 @@ describe("participation", () => {
 
   it("drops rows belonging to another season's games", () => {
     expect(parse(participationSource, "pbp_participation_sample.csv", 2022 as Season)).toHaveLength(0);
+  });
+
+  // Backlog 173: nflverse's participation data is NGS's before 2023 and FTN's from 2023 on, and a
+  // `was_pressure` read keeps FTN seasons only. The sample is a 2023 game, so every row passes;
+  // the same rows under a 2022 game id do not.
+  it("admits a was_pressure row only from an FTN season (2023 on), read off the game id", () => {
+    expect(FIRST_FTN_PARTICIPATION_SEASON).toBe(2023);
+    expect(isFtnChartedPressureSeason(2022)).toBe(false);
+    expect(isFtnChartedPressureSeason(2023)).toBe(true);
+    expect(isFtnChartedPressureSeason(2025)).toBe(true);
+    expect(rows.length).toBeGreaterThan(0);
+    for (const r of rows) {
+      expect(isFtnChartedPressureRow(r)).toBe(true);
+      expect(isFtnChartedPressureRow({ gameId: r.gameId.replace(/^2023_/, "2022_") })).toBe(false);
+    }
+    expect(isFtnChartedPressureRow({ gameId: "g" })).toBe(false);
   });
 });
 
