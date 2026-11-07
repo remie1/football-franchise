@@ -13505,23 +13505,25 @@ Derived by grep at the step-3 record head (`d8247c9`), not recalled. Each line i
   40 to 55), `s4.contact.flat.share` (73.85 and 73.58 against 50 to 65), and `s4.motion.curveRises` (aimed-weighted
   slope flat -0.0441, gen -0.0587, against above 0). `s4.contact.flat.sack` splits (13.78 in band on set 1, 14.03 out
   on set 2) and is graded PASS on set 1. No s4 clause is a miss-rule row, so each miss is a failed prediction for the
-  owner; the falling curve records default D1's fallback for step 5b (the block clock chosen on the pressured-by-release
-  curve). Both falsifiers hold (release -4.18 THROWING hits per 100 aimed throws, SE 0.18; the play-level rating
-  probes move the margin the stated way on every compared contest). The cumulative line prints BREACH on flat (D1
-  against A0, Z +6.40), reported and never graded before step 10. What goes back to the owner is ADR-089 Appendix I.7:
-  accept the misses as named or try a fix first, and the merge with the switch off.
+  owner; the falling curve records default D1's fallback for step 5b (the block clock chosen on the
+  pressured-by-release curve). Both filed falsifier rows hold (release -4.18 THROWING hits per 100 aimed throws, SE
+  0.18; the play-level rating probes move the margin the stated way on every compared contest); of §6.4's other
+  falsifying conditions, the falling curve fires, as above. The cumulative line prints BREACH on flat (D1 against A0,
+  Z +6.40), reported and never graded before step 10. What goes back to the owner is ADR-089 Appendix I.7: accept the
+  misses as named or try a fix first, and the merge with the switch off.
 
 ### Implied scope
 
 Derived by grep at this record's head (`228cc19`), not recalled. Each line is `unruled` by this entry.
 
-- **The readers of step 4's records outside `calibration/src/pocket`** (pattern `QB_HIT|releaseSeconds|arrival_contest`
-  over `packages/*/src` and `apps/game/src`): `metrics/collect.ts`, `metrics/pocketRows.ts`, `metrics/pocketReal.ts`,
-  `metrics/tier1.ts`, `knownTruth/scaleSurface.ts`, `engine/src/stats/statline.ts`, and the viewer's `playLog.ts` and
-  `playDetail.ts`; `narrative` and `franchise` read none. `time_to_throw` (`metrics/tier1.ts`) reads
-  `THROW.releaseSeconds` on a `pocket-1.s4` play while its printed definition still names the 0.5 s tick; the comment
-  leaves the text until the step-4 record, and this record leaves it as it stands because the string is printed in
-  every baseline report. A step that makes `pocket-1` the default decides the text. `unruled`.
+- **The readers of step 4's records outside `calibration/src/pocket`** (pattern
+  `QB_HIT|releaseSeconds|arrival_contest` over `packages/*/src` and `apps/game/src`): `metrics/collect.ts`,
+  `metrics/pocketRows.ts`, `metrics/pocketReal.ts`, `metrics/tier1.ts`, `knownTruth/scaleSurface.ts`,
+  `engine/src/stats/statline.ts`, `engine/src/debug/renderPlay.ts`, and the viewer's `playLog.ts` and `playDetail.ts`;
+  `narrative` and `franchise` read none. `time_to_throw` (`metrics/tier1.ts`) reads `THROW.releaseSeconds` on a
+  `pocket-1.s4` play while its printed definition still names the 0.5 s tick; the comment leaves the text until the
+  step-4 record, and this record leaves it as it stands because the string is printed in every baseline report. A step
+  that makes `pocket-1` the default decides the text. `unruled`.
 - **The sacks step 4 does not touch**: a sack after an escape and the coverage sack at the horizon keep today's rule
   until step 6 and are counted apart from `s4.sackCredit`. On D3 flat set 1 the escape sacks alone are 2,989 of
   6,076 sacks, and the contact clauses read every sack. `unruled`.
@@ -13556,7 +13558,8 @@ Derived by grep at this record's head (`228cc19`), not recalled. Each line is `u
   byte-identical (sha256 `1f3b248b…3e2e`), and a third per-game process (172 checks, 0 mismatches); `pocketS4Pins` 37
   of 37, and 37 of 37 under `FF_POCKET_ON=1` (`lift/pins.md`).
 - **The escape-sack counts** (I.8 reading 1): MEASURED, `creditedSacks` in the measures file.
-- **pkA's 11.66 sacks on today's line**: REPORTED, the design's basis (ADR-089 §6.4), not re-measured here.
+- **pkA's 11.66 sacks on today's line** (12.97 flat): INFERRED in the design (ADR-089 §6.4), the band's basis, not
+  re-measured here.
 - **The miss kinds** (a to e): DERIVED from the MEASURED rows by the plan's §3.2 items 15 and 16 and §11 R16 and R18.
 - **The readings in ADR-089 Appendix I.8**: DERIVED from the MEASURED arms, drafted for the Orchestrator to confirm or
   strike.

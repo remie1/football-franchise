@@ -138,7 +138,7 @@ reaches the quarterback win or lose a rated tussle with him (the quarterback can
 go on), and gives the throw a short motion during which a rusher can still hit him; the shared
 types gained a hit event, the tussle's roll and the release time, each with your typed yes (7
 November 2026). Default play has still not changed. With the switch on, against step 3 on the same
-graded games, pressure held at about 22% of dropbacks, hits or sacks rose from about 3 to about 7
+graded games, pressure held at about 22 to 23% of dropbacks, hits or sacks rose from about 3 to about 7
 per 100 dropbacks on the flat-rated test league and from about 3.5 to about 10 on the made-up league,
 sacks fell by about 0.7 per 100 dropbacks, and the quarterback held the ball about a quarter of a
 second longer, because the throw now takes time. The interception check did not trip. Seven of the

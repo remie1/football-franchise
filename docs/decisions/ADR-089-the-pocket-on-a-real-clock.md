@@ -3616,7 +3616,7 @@ All of it sits behind the switch. A bundle plays step 4's rules only when its tu
 
 - **The rated arrival contest** (`engine/src/resolve/contact.ts`, wired in `sim/passPlay.ts`): D11's reads through `getAttr`, at most one approach tilt (a seen PUSH or BLOCKED man, a man on the free-run clock, BEHIND or NEVER; the strongest wins), b = 5, the shed and its delays (0.5 s; a PUSH shed 1.0 s), the second arrival (`:contest2`, target 15) and the threat-list rebuild after a shed. FIGHT only: no contact choice before step 7.
 - **The throwing motion** (`engine/src/resolve/motion.ts`): rho0 0.3 s and rho_d 400 (AM-7's CHOSEN values), D21's continuous race on `contactSeconds`, a throw hit inside the motion taking the existing IMMEDIATE accuracy row; no motion on a throwaway or after an escape (`30c0ab0`).
-- **The records:** `QB_HIT` in four phases (ARRIVAL, THROWING, SHED, SACK) with approach, from and seen; the `arrival_contest` CHECK; `THROW.releaseSeconds` on an aimed throw from the pocket. Sack credit in the box score goes to the man at contact (`engine/src/stats/statline.ts`); a sack after an escape, and the coverage sack at the horizon, keep today's rule until step 6 and are counted apart.
+- **The records:** `QB_HIT` in four phases (ARRIVAL, THROWING, SHED, SACK) with approach, from and seen; the `arrival_contest` CHECK; `THROW.releaseSeconds` on an aimed throw from the pocket. Sack credit in the box score goes to the man at contact (`engine/src/stats/statline.ts`); a sack on a motion-alone arm (D5 and D6 carry no contact block), a sack after an escape and the coverage sack at the horizon keep today's rule until step 6 and are counted apart (the `s4.sackCredit` note in the measures file).
 - **Calibration:** the arm ids D1 to D17 (`532df94`, inert first), the bundle and kind T (`ac73b42`), the s4 stream fold, M3's sacker mix at contact, M6 at step 4, `pocket -- --step 4` with its report and measures (`6cfbd6a`), the probes and the rating override (`1f0626e`, `bd7546e`, `8275cf7`), and `POCKET_1_S4_PINS` (`40137fc`).
 - **The viewer** (`apps/game`, `e0aa2b5`): the play log and play detail show `QB_HIT` (each phase), the arrival contest and the release.
 - **The spec:** `docs/design/match-engine.md`'s marked `pocket-1.s4` blocks, and the CHECK, QB_HIT and THROW rows of `docs/design/contracts.md`.
@@ -3625,7 +3625,7 @@ All of it sits behind the switch. A bundle plays step 4's rules only when its tu
 
 - **P6** (`3e385e4`, `contracts/src/events.ts`): `CheckKind` gains `"arrival_contest"`, excluded from the pre-snap reads, with the quarterback's face on its own fork label (G-1, `985b84a`).
 - **P7** (`3e385e4`): the event `QB_HIT`, with `QbHitPhase` and `ContactFrom`. The phase SACK was added at contracts-guardian's pre-review (G-6, `2cbb2ee`) and the owner was told of it at 2026-11-07T07:56:28Z, before the typed yes.
-- **P8** (`3e385e4`): `THROW.payload.releaseSeconds?`. G-7 (rounding `contactSeconds` to whole milliseconds) was declined: the field is published as computed and the contract asks only the millisecond comparison (`lift/lift.md`).
+- **P8** (`3e385e4`): `THROW.payload.releaseSeconds?`. G-7 (rounding `contactSeconds` to whole milliseconds) was declined: `contactSeconds` (P7's `QB_HIT`) is published as computed and the contract asks only the millisecond comparison (`lift/lift.md`).
 - **P8a** (`0818f84`, wording only): a throw after an escape carries no `releaseSeconds`; asked after contracts-guardian's review found the P8 sentence overstated (S-1).
 
 The owner typed "Yes, make contracts edits P6, P7 and P8." at 2026-11-07 12:16:46Z and "Yes, make contracts edit P8a." at 16:01:03Z. The gates opened in `09a269f`, in both packages at once; a test can still withhold a petition, and it is refused by name. Against main `9ecb133`, the branch touches two files under `packages/contracts`: `src/events.ts` and its test.
@@ -3672,7 +3672,7 @@ The owner typed "Yes, make contracts edits P6, P7 and P8." at 2026-11-07 12:16:4
 | contracts-guardian, pre-review | G-1 | G-2 to G-6, G-8, G-9 (petition text) | G-7 (declined) | G-1 in `985b84a`, G-6 in `2cbb2ee`; the rest in the petitions' final text |
 | engine, round 2 | B1 (the rebuild's tests reached no unforced rebuild) | S1 to S4 | N1 to N6 | `2dc6935`, `b632fa4`, `ca3f618`; S4 recorded (two equivalent mutants) |
 | probes, round 2 | none | S1, S2 | N1 to N6 | `3340cad`, `4285e77`; S2 and N3 by the filing |
-| contracts-guardian, after the lift | none | S-1 | N-1 to N-3 | S-1 by P8a (`0818f84`); N-1 in `67e8215`; the stale "waits for the lift" lines in `c178a51` |
+| contracts-guardian, after the lift | none | S-1 | N-1 to N-3 | S-1 by P8a (`0818f84`); N-1 in `67e8215`; also in `c178a51`, the stale "waits for the lift" lines, raised by `lift/on-proofs.md` note 1 and `lift/file.md`, not by the guardian |
 
 Each fix that changed code carries a test that failed before it (`review/fix.md`, `review/fix2.md`, `lift/fix.md`).
 
@@ -3688,6 +3688,7 @@ Each fix that changed code carries a test that failed before it (`review/fix.md`
 | R-1 | took about 14 minutes a process with two at once (plan §8: 25 to 30); step 4's `--digests` writes only the stripped folds, so the pins' unstripped folds came from a third per-game process (`lift/pins.md`) |
 | the arms | the probes ran as their own command (`--probes`, about 22 minutes on the fourth core) beside the three shards, not inside the 48 arm-sets |
 | plan R17 | `STEP3_RECORDS_FINAL` flips with this record (`daca864`), with `STEP4_RECORDS_FINAL` (`67208db`) |
+| plan commit 14 | the record is not one commit: the reports in `d7fe0f5`, `CLAUDE.md` in `a5d6906`, four code commits (`d267efc`, `67208db`, `daca864`, `228cc19`), the docs in `dce4a4e`, and the checks' text corrections in the docs commit after it |
 
 ### I.2 The proofs and the pins, with times
 
@@ -3748,7 +3749,7 @@ From the committed report: seed set 1 graded, set 2 in brackets, flat then gen. 
 | clause | arm | band | measured | verdict |
 |---|---|---|---|---|
 | `s4.contact.flat.sack` | D3 | 10 to 14 | 13.78 (14.03); D4 beside 28.60 (29.23) [D3 1.258 s, aimed 1.164 s] | PASS on set 1; **split**, set 2 out by 0.03 |
-| `s4.contact.gen.sack` | D3 | 9 to 13 | **13.29** (13.00, at the edge); D4 beside 36.03 (37.08) [1.263 s, aimed 1.216 s] | **FAIL** |
+| `s4.contact.gen.sack` | D3 | 9 to 13 | **13.29** (13.00: 3,481 of 26,773 is 13.0019, out by one sack before rounding); D4 beside 36.03 (37.08) [1.263 s, aimed 1.216 s] | **FAIL** |
 | `s4.contact.pressure` | D3 against A0 | -1 to +1 | flat -0.30 (-0.07); gen -0.08 (-0.13); D4 against A14 beside -0.01 (0.00), 0.01 (0.10) | PASS |
 | `s4.contact.hitOrSack` | D3 against A0 | -1 to +1 | flat **-1.39** (-1.36); gen -0.64 (-0.68); D4 against A14 beside -3.52 (-3.54), -2.03 (-0.95) [D3 1.258 s against A0 1.242 s; 1.263 s against 1.235 s] | **FAIL** (flat, both sets) |
 | `s4.contact.gen.share` | D3 | 40 to 55 | **56.79** (55.11); D4 beside 66.21 (64.21) | **FAIL** (both sets) |
@@ -3767,7 +3768,7 @@ The tool's outcome: "0 structural failure(s), 0 fold fault(s), 5 graded failure(
 
 **Reported** (never graded):
 
-- **`s4.sackerMix.edge`** (45 to 70), D1: flat 47.21% of credited sacks (45.62), gen 46.81% (46.80).
+- **`s4.sackerMix.edge`** (45 to 70), D1: flat 47.21% of all D1's sacks, each credited to its sacker, escape sacks under today's rule, so not I.8's `creditedSacks` (45.62), gen 46.81% (46.80).
 - **`s4.sackerMix.interior`** (12 to 32), D1: flat 29.65% (31.47), gen 31.87% (32.76, above the band).
 - **`s4.bRange`** (24 to 36), set 1: D15 (b = -15) flat 28.73, gen 24.76; D16 (b = +15) flat 24.12, gen 19.75 (under the band).
 
@@ -3847,13 +3848,13 @@ Every arm, set 1 (set 2 in brackets), from the measures file. Under `pocket-1.s4
 | D17 | flat | 1.74 (1.71) | 6.63 (6.65) | 27.53 (27.08) | 1.870 (1.868) |
 | D17 | gen | 1.37 (1.42) | 9.35 (9.58) | 31.20 (33.11) | 1.961 (1.993) |
 
-- **Contact alone on today's line (D3 against A0):** sacks fall from 16.43 to 13.78 (flat) and from 16.72 to 13.29 (gen); pressure moves 0.30 points or less; hit-or-sack falls 1.39 and 0.64; time to throw moves by under 0.03 s.
+- **Contact alone on today's line (D3 against A0):** sacks fall from 16.43 to 13.78 (flat) and from 16.72 to 13.29 (gen); pressure moves 0.30 points or less; hit-or-sack falls 1.39 and 0.64; time to throw moves by under 0.03 s on set 1 (+0.038 s on gen set 2, 1.243 to 1.281 s).
 - **The motion alone (D6 against C2):** hit-or-sack rises from 8.46 to 17.80 (flat) and from 10.26 to 20.43 (gen); sacks hold (5.96 against 5.99 flat); time to throw rises about 0.26 s, because the release time is now added to the decision.
 - **The design build (D1 against C1):** hit-or-sack rises from 3.37 to 7.46 (flat) and 3.50 to 10.18 (gen); sacks fall from 2.56 to 1.88 and 2.29 to 1.58; pressure holds (21.99 against 21.95 flat); time to throw rises from 1.606 s to 1.869 s (flat) and 1.704 s to 1.975 s (gen).
 
 ### I.6 The probes
 
-The falsifiers read them (AM-7 items 13 and 14, H.9 item 8); `pocket -- --step 4 --probes`.
+The falsifiers read them (AM-7's readings `s4.falsifier.release` and `s4.falsifier.ratingProbes`, H.9 item 8); `pocket -- --step 4 --probes`.
 
 - **Release (`s4.falsifier.release`), PASS.** D6's bundle on the flat league, release 80 against 40 on every player, both sets summed: THROWING hits per 100 aimed throws 10.40 against 14.58, a difference of -4.18 (SE 0.18; paired SE 0.09), beyond 2 SE in its direction. Set 1: 10.49 (3,640/34,686) against 14.67 (5,093/34,716); set 2: 10.30 (3,598/34,935) against 14.49 (5,091/35,136). Beside, on gen: the home quarterback's release raised 40 (clamped at 99) gives -2.33 (paired SE 0.17) on set 1 and -2.21 (0.15) on set 2.
 - **Ratings at play level (`s4.falsifier.ratingProbes`), PASS.** Each golden game's first rated contest replayed with one man raised 30: the quarterback's strength, 100 compared, 0 diverged before the contest, margin down on 100, sack to shed 6, shed to sack 0; his agility the same; the rusher's tackling, 88 compared (12 diverged before the contest), margin up on 88, shed to sack 3; his speed, 97 compared (3 diverged), margin up on 97, shed to sack 3. No golden game was without a rated contest.
@@ -3865,17 +3866,17 @@ The falsifiers read them (AM-7 items 13 and 14, H.9 item 8); `pocket -- --step 4
 1. **Five graded predictions miss. No s4 clause is a miss-rule row, so each is a failed prediction, taken to the owner with both seed sets; nothing in it is automatic, and no band moved and nothing was re-filed, tuned or re-run to try again** (AM-7 item 9, H.9; §6.4). The misses, by the plan's kinds (`measure/measure.md` §7; plan §3.2 items 15 and 16, §11 R16 and R18):
    - **(a) Build faults: none.** Every structural row, every fold check and all 14 base replays pass. (A build fault would have stopped the step with nothing committed.)
    - **(b) Failed predictions** (the design: reported to the owner with both sets; the band does not move):
-     - `s4.contact.gen.sack`: 13.29 (13.00, at the edge) against 9 to 13. The design's basis, pkA's per-tick coin, gave 11.66 on the same line (REPORTED, §6.4).
+     - `s4.contact.gen.sack`: 13.29 (13.00, out by one sack before rounding) against 9 to 13. The band was INFERRED by the design from pkA's per-tick coin, 12.97 flat and 11.66 gen on the same line (§6.4, which labels them INFERRED).
      - `s4.contact.hitOrSack`: flat -1.39 (-1.36) against -1 to +1; gen -0.64 (-0.68) is inside. Pressure moved only -0.30, so §6.4's falsifier on pressure does not fire; the hit-or-sack half of the prediction is falsified on flat.
      - `s4.contact.gen.share`: 56.79 (55.11) against 40 to 55.
      - `s4.contact.flat.share`: 73.85 (73.58) against 50 to 65, out by about 9 points on both sets; the plan (§10) expected it "may land just above 65".
-   - **(c) Falling curve:** `s4.motion.curveRises`, D6 negative on every league and set (aimed-weighted flat -0.0441 and -0.04, gen -0.0587 and -0.07), and every arm printed beside negative too. **What the design says happens next (§6.4; AM-7 item 9; plan R16):** "the §4.1 selection cannot run and default D1's fallback applies": default D1's fallback is recorded now for step 5b's selection, which then chooses the block clock on the pressured-by-release curve instead of the hit-by-release curve. Using the fallback moves the pressure curve from the falsifiers to the fitted ledger, and the report says so (§11 R3); the step-5b falsifier on the pressured curve is then fitted and reported instead (§4.1). Nothing is tuned.
+   - **(c) Falling curve:** `s4.motion.curveRises`, D6 negative on every league and set (aimed-weighted flat -0.0441 and -0.04, gen -0.0587 and -0.07), and every arm printed beside it negative too on set 1 (D1 gen set 2 is near zero: aimed-weighted -0.0013, attempt-weighted +0.0029). Two arms not printed beside it have positive aimed-weighted slopes (measures file): D13, the contest before the throw (gen +0.0057 and +0.0077, flat set 2 +0.0030), and D17, shape L (flat +0.0291 and +0.0247, gen +0.0063 and +0.0029); neither is graded, and both are named because step 5b chooses the block clock from this curve. **What the design says happens next (§6.4; AM-7 item 9; plan R16):** "the §4.1 selection cannot run and default D1's fallback applies": default D1's fallback is recorded now for step 5b's selection, which then chooses the block clock on the pressured-by-release curve instead of the hit-by-release curve. Using the fallback moves the pressure curve from the falsifiers to the fitted ledger, and the report says so (ADR-089 §13 R3); the step-5b falsifier on the pressured curve is then fitted and reported instead (§4.1). Nothing is tuned.
    - **(d) Split, reported, not a miss:** `s4.contact.flat.sack`, 13.78 in band on set 1 and 14.03 out on set 2; graded PASS on set 1 (AM-7 item 9).
-   - **(e) Unreadable: none.** The thinnest tilt, `s4.tilt.behindNever`, has 70 and 69 contacts (the plan, §10, expected it to be unreadable).
+   - **(e) Unreadable: none.** The thinnest tilt, `s4.tilt.behindNever`, has 70 and 69 contacts (the plan, §10, said it was likely unreadable).
    - **Reported rows outside their bands** (never graded): `s4.sackerMix.interior` gen set 2 (32.76 against 12 to 32) and `s4.bRange` D16 gen (19.75 against 24 to 36).
 2. **What is open for the owner on the misses:** accept them as named failed predictions, as they stand, and go on to step 5; or try a fix first. The design offers no priced options for an s4 miss (no clause is a miss-rule row, so no option A, B or C was played). A fix would be a design change with its own filing before any arm runs; switching readings to pass a row is never allowed (§6.4), and the curve's fallback stands either way.
 3. **No guard breach under AM-6** (I.4). The cumulative line prints BREACH on flat (D1 against A0, Z +6.40), reported and never graded before step 10, as at step 3 (C1 against A0, +6.68); it comes back to the owner at step 10's acceptance (F.9 item 8).
-4. **Both falsifiers hold** (I.6): release has a measurable effect on hits, and strength or agility never raises sacks at the contest.
+4. **Both filed falsifier rows hold** (I.6): release has a measurable effect on hits, and strength or agility never raises sacks at the contest. Of §6.4's other falsifying conditions, pressure (moved 0.30 points or less) and the motion's hits (at least 3) hold, and the falling curve fires, with default D1's fallback (item 1 (c)).
 5. **The merge, with the switch off.** Default play does not change (I.2); `pocket-1.s4` plays only behind the switch. At merge the owner should know:
    - after merge `POCKET_1_S4_PINS` and `POCKET_1_S4_DIGEST` are never re-recorded under that name (I.1);
    - the contracts edits P6, P7 (with SACK), P8 and P8a are in, each with its typed yes;
@@ -3891,9 +3892,9 @@ The falsifiers read them (AM-7 items 13 and 14, H.9 item 8); `pocket -- --step 4
 **Readings of the results.** Each was drafted by the record writer from the committed records and the working reports named, for the Orchestrator to confirm or strike before the merge card; none moves a band, a clause or a pin, and none is a ruling.
 
 1. **About half of D3's flat sacks end an escape, which keeps today's rule until step 6.** On D3 flat set 1, 2,989 of 6,076 sacks are escape sacks (set 2: 3,043 of 6,202); on gen 832 of 3,494 (661 of 3,481); every other sack is a contest the rusher won (`creditedSacks`, from the measures file). The contact clauses read every sack, so the escape rule, which step 4 does not touch, sits inside the sack and share misses. This is an ordering of what the misses contain, not a re-reading: the filed rows read all sacks, and no row is re-read to pass.
-2. **Hit-or-sack falls on contact partly by construction.** Under V1-42 a shed followed by a scramble is no longer a hit (the filing, §1.3, expected hit-or-sack "can fall a little"; `measure/measure.md` §7), and sacks fell by less than the band assumed; both raise the share.
-3. **The motion adds hits but not late ones.** On D6 the motion's hits land in proportion to aimed throws per decision bin and do not rise with the bin; the motion moves no throw across a release bin (rho below 0.5 s), as AM-7 item 3 says it cannot (`measure/measure.md` §7). On the design build (D1 against C1) the motion and contact together double hit-or-sack while sacks fall.
-4. **The tilts read in their stated directions, and BEHIND is readable after all,** with 70 and 69 first contacts of its class (the plan expected under 30).
+2. **Hit-or-sack falls on contact partly by construction.** Under V1-42 a shed followed by a scramble is no longer a hit (the working filing, `filing.md` §1.3, expected hit-or-sack "can fall a little", INFERRED there; `measure/measure.md` §7), and sacks fell by less than the band assumed; both raise the share.
+3. **The motion adds hits but not late ones.** On D6 the hit rate per 100 aimed throws peaks in the 2.0 to 2.5 s bin (28.52 flat, 33.66 gen, set 1) and falls after it, so the slope from 2.0 s on is negative; the motion's own THROWING hits by bin are not in the measures file, and C2 has no s4 curve to subtract, so how much of each bin is the motion's cannot be read. The motion moves no throw across a release bin (rho at most 0.4725 s), as H.8 ("The clock") and AM-7's reading `s4.curve.weights` say it cannot (`measure/measure.md` §7). On the design build (D1 against C1) the motion and contact together more than double hit-or-sack on flat (3.37 to 7.46) and nearly triple it on gen (3.50 to 10.18) while sacks fall.
+4. **The tilts read in their stated directions, and BEHIND is readable after all,** with 70 and 69 first contacts of its class (the plan, §10, said it was likely unreadable, under 30).
 5. **The cumulative flat line is the same story as at steps 2 and 3** (D1 against A0, Z +6.40; C1 against A0 +6.68; B3 against A0 +7.07), and the accepted state reads +0.72 (flat) and -1.30 (gen). It comes back at step 10 under `acc.intGuard`.
 6. **The game-level rating probes are noisy where the play-level ones are exact.** The rusher-tackling probe reads +0.43 (SE 0.13) on set 1 and 0.00 (0.13) on set 2, while its raised men's contests end in a sack 6.17 and 5.39 points more often; the play-level probe, which the falsifier grades, moves the margin the right way on every compared contest.
 7. **Ruled and unruled are kept apart.** rho0, rho_d, the tilt precedence and the PUSH shed delay are AM-7's CHOSEN values; b = 5, the shed delay and the second arrival's target are the design's PROVISIONAL dials, none a candidate (ADR-061); the escape rule and the coverage sack are step 6's.
