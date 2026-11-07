@@ -41,10 +41,13 @@
  *    and the teams' sizes before and after (`nflCount`). The NFL comparison rows read it.
  *  - Signed again within two years, by age (`market.expiries`): each deal of at least 1.5% of the cap
  *    (`EXPIRY_MIN_CAP_SHARE`, OverTheCap's line) that ran out, followed from the start of its last
- *    season's OFF_EVAL (re-signings and tags come before the expiry) for two league years.
+ *    season's OFF_EVAL (re-signings and tags come before the expiry) for two league years. A league-
+ *    file deal whose early years the importer cut is flagged (`ExpiryRecord.t`): its APY is not known.
  *  - The roster way, by age (`exits`): of the men on a final-week 53 (week 18 day 7), the share on a
  *    53 in either of the next two seasons; of the starters among them, the share on no team's list
- *    in both; and the share who retired within the following year, by how.
+ *    in both; and the share who retired within the following year, by how. Both 53s are counted like
+ *    the NFL (`nflRosterIds`: the men out 4+ weeks left out), as the real side's credited seasons and
+ *    53s leave out injured reserve.
  *  - Retirements by age, credited seasons and group, three ways (`retirements`): the unsigned rule,
  *    his own choice while signed, his own choice while unsigned (the last two empty until a build
  *    lets a man retire by choice). The unsigned-wait report reads the unsigned rule's alone.
@@ -428,6 +431,23 @@ export function nflCount(people: Pick<SeasonPeople, "teams" | "players">): NflCo
   };
 }
 
+/**
+ * The men on the 53s counted like the NFL (`outFourWeeksBand` men left out; men the people know
+ * only), in team then roster order: the roster way's final-week cohorts and its 53s by season read
+ * these, as the real side's credited seasons and `onA53` leave out injured reserve.
+ */
+export function nflRosterIds(people: Pick<SeasonPeople, "teams" | "players">): string[] {
+  const byId = new Map(people.players.map((p) => [String(p.bio.id), p]));
+  const out: string[] = [];
+  for (const t of people.teams) {
+    for (const id of t.roster) {
+      const p = byId.get(String(id));
+      if (p !== undefined && !outFourWeeksBand(p)) out.push(String(id));
+    }
+  }
+  return out;
+}
+
 // --- unsigned waits ------------------------------------------------------------------------------
 
 /** How long an unsigned man has waited: under one league year, one to two, two or more, or not known. */
@@ -624,7 +644,9 @@ export function apyOfDeal(c: Pick<PlayerContract, "years">): number {
  * (`NONE` for none); `w1`, `w2` signed again within one league year, within two; `o` 1 when the next
  * deal was with the same team, 0 another, null not signed; `r` 1 when he retired before signing; `e`
  * 1 when a deal signed before the window opened already ran past `y` (an early extension: counted as
- * signed, CHOSEN); `c` the seasons after `y` followed (2 = complete).
+ * signed, CHOSEN); `c` the seasons after `y` followed (2 = complete);
+ * `t` 1 when the deal came with the league file and the importer cut its early years (`cutFileDeal`), so
+ * `s` reads its later years alone and is not its APY share (the grader leaves these out of the rates).
  */
 export interface ExpiryRecord {
   readonly y: number;
@@ -637,6 +659,7 @@ export interface ExpiryRecord {
   readonly r: 0 | 1;
   readonly e: 0 | 1;
   readonly c: number;
+  readonly t: 0 | 1;
 }
 
 /** An expiry still followed (between seasons, in the reader's state): the record, whose deal it was, and whether it is settled. */
@@ -658,15 +681,32 @@ export function expiryWindow(y: number): { from: CalendarStamp; oneYear: Calenda
 }
 
 /**
+ * A league-file deal with its early years cut: signed before the walk's first season (the league
+ * file's deals; every deal the walk signs is stamped in its seasons) and with its first real year
+ * after the league year it was signed in. The stand-in importer keeps a real deal's years from the
+ * file's season on only, and stamps it signed in its real year, so its mean cap hit is the mean of
+ * its later (mostly higher) years alone, over an earlier year's cap: not its APY share. Also true of
+ * a file deal the importer estimated at its yearly average (one year, the file's season), which
+ * cannot be told apart here.
+ */
+export function cutFileDeal(c: Pick<PlayerContract, "years" | "signedAt">, firstSeason: number): boolean {
+  if (c.signedAt.season >= firstSeason) return false;
+  const first = c.years.filter((y) => !y.voidYear).reduce((m, y) => Math.min(m, y.season), Infinity);
+  return Number.isFinite(first) && first > leagueYearOf(c.signedAt);
+}
+
+/**
  * The season's expiries (`CONTRACT_EXPIRED`, an EXPIRED or VOIDED deal) of deals at
  * `EXPIRY_MIN_CAP_SHARE` or more, opened for following. Each deal is found in the contracts the season
  * ended with (`after`), with its player and team and ended that day as EXPIRED or VOIDED (the latest
  * signed of two); one not found is counted in `unmatched`. A deal of his signed before the window
  * opened that has a real year after `season`, and was live at the expiry, is an early extension.
+ * `firstSeason` is the walk's first season: a deal signed before it came with the league file
+ * (`cutFileDeal`, `ExpiryRecord.t`).
  */
 export function openExpiries(
   season: number, events: readonly FranchiseEventEnvelope[], after: readonly PlayerContract[], ageOf: (id: string) => number | undefined,
-  cap: (leagueYear: number) => number,
+  cap: (leagueYear: number) => number, firstSeason: number,
 ): { open: OpenExpiry[]; unmatched: number; below: number } {
   const byPlayer = new Map<string, PlayerContract[]>();
   for (const c of after) {
@@ -692,7 +732,7 @@ export function openExpiries(
     const record: ExpiryRecord = {
       y: season, a: age ?? null, s, k: deal.kind ?? "NONE",
       w1: next === undefined ? 0 : 1, w2: next === undefined ? 0 : 1, o: next === undefined ? null : String(next.team) === team ? 1 : 0,
-      r: 0, e: next === undefined ? 0 : 1, c: 0,
+      r: 0, e: next === undefined ? 0 : 1, c: 0, t: cutFileDeal(deal, firstSeason) ? 1 : 0,
     };
     open.push({ player, team, record, settled: next !== undefined });
   }
@@ -733,8 +773,9 @@ export function followExpiries(open: readonly OpenExpiry[], season: number, even
 
 /**
  * How a man retired: the unsigned rule (`PLAYER_RETIRED` with reason UNSIGNED, ADR-087 E4); his own
- * choice while signed (any other reason, and a deal of his ended RETIRED that season or he was on a
- * team when the season began); his own choice while unsigned (the rest).
+ * choice while signed (any other reason, and a deal of his was live when he retired, `liveAt`, or
+ * ended RETIRED that season; a man with no deal in the book at all is read by his team when the
+ * season began); his own choice while unsigned (the rest).
  */
 export type RetirementWay = "unsigned" | "ownSigned" | "ownUnsigned";
 export const RETIREMENT_WAYS: readonly RetirementWay[] = ["unsigned", "ownSigned", "ownUnsigned"];
@@ -752,23 +793,48 @@ export type Retirements = Record<RetirementWay, RetirementTally>;
 export interface RetirementRead { readonly player: string; readonly at: CalendarStamp; readonly way: RetirementWay }
 
 /**
+ * Was one of these deals live at a moment: signed by then, and not ended before it. A deal that
+ * ended at that same moment is live only when it ended RETIRED: one that ran out or was cut that
+ * moment had ended before he retired, or it would have ended RETIRED.
+ */
+export function liveAt(deals: readonly Pick<PlayerContract, "signedAt" | "ended">[], at: CalendarStamp): boolean {
+  return deals.some((c) => {
+    if (compareStamps(c.signedAt, at) > 0) return false;
+    if (c.ended === undefined) return true;
+    const d = compareStamps(c.ended.at, at);
+    return d > 0 || (d === 0 && c.ended.reason === "RETIRED");
+  });
+}
+
+/**
  * A season's retirements (its stamped events), each read against the people it started with
- * (`before`: his age in the season, his credited seasons, his group, his team) and the deals it
- * ended with (`after`). Every split's keys are sorted.
+ * (`before`: his age in the season, his credited seasons, his group, and his team for a man with no
+ * deal in the book) and the deals it ended with (`after`: was a deal of his live when he retired).
+ * Every split's keys are sorted.
  */
 export function retirementsOf(
   season: number, events: readonly FranchiseEventEnvelope[], before: Pick<SeasonPeople, "players">, after: Pick<SeasonPeople, "contracts">,
 ): { tally: Retirements; reads: RetirementRead[] } {
   const was = new Map(before.players.map((p) => [String(p.bio.id), p]));
   const endedRetired = new Set((after.contracts ?? []).filter((c) => c.ended?.reason === "RETIRED" && c.ended.at.season === season).map((c) => String(c.player)));
+  const dealsOf = new Map<string, PlayerContract[]>();
+  for (const c of after.contracts ?? []) {
+    const list = dealsOf.get(String(c.player));
+    if (list === undefined) dealsOf.set(String(c.player), [c]); else list.push(c);
+  }
+  /** Signed when he retired: a deal of his live then, or one ended RETIRED this season; with no deal in the book, on a team when the season began. */
+  const wasSigned = (id: string, at: CalendarStamp, p: PlayerState | undefined) => {
+    const deals = dealsOf.get(id);
+    if (deals === undefined) return p?.teamId !== undefined;
+    return endedRetired.has(id) || liveAt(deals, at);
+  };
   const raw = Object.fromEntries(RETIREMENT_WAYS.map((w) => [w, { n: 0, byAge: {} as Record<string, number>, byCredited: {} as Record<string, number>, byGroup: {} as Record<string, number> }])) as Record<RetirementWay, { n: number; byAge: Record<string, number>; byCredited: Record<string, number>; byGroup: Record<string, number> }>;
   const reads: RetirementRead[] = [];
   for (const { at, event: e } of events) {
     if (e.type !== "PLAYER_RETIRED") continue;
     const id = String(e.payload.player);
     const p = was.get(id);
-    const way: RetirementWay = e.payload.reason === "UNSIGNED" ? "unsigned"
-      : endedRetired.has(id) || p?.teamId !== undefined ? "ownSigned" : "ownUnsigned";
+    const way: RetirementWay = e.payload.reason === "UNSIGNED" ? "unsigned" : wasSigned(id, at, p) ? "ownSigned" : "ownUnsigned";
     const t = raw[way];
     t.n++;
     bump(t.byAge, p === undefined ? "?" : String(p.bio.age));
@@ -781,7 +847,7 @@ export function retirementsOf(
   return { tally, reads };
 }
 
-/** A man on a final-week 53 (week 18 day 7): his age in that season (null if not known), and whether he started (`STARTER_SHARE`). */
+/** A man on a final-week 53 (week 18 day 7, counted like the NFL): his age in that season (null if not known), and whether he started (`STARTER_SHARE`). */
 export interface FinalWeekMan { readonly id: string; readonly age: number | null; readonly starter: boolean }
 
 /** A starter, for "starters gone": at least half his main team's snaps on his side (the real side's 50%, CHOSEN there too). */
@@ -821,19 +887,21 @@ export function startersGone(men: readonly FinalWeekMan[], present: (id: string,
 export type RetiredCounts = Record<string, { n: number } & Record<RetirementWay, number>>;
 
 /**
- * Of the men on a final-week 53 in Y, those who retired after that day and by the next season's
- * (Y + 1, week 18 day 7), each way, by age in Y: the sim's side of the reserve/retired list
- * (`retiredList`: men credited in Y - 1 placed on it in Y), whose real men are under contract.
+ * Of the men on a final-week 53 in Y, those who retired from that day on and before the next
+ * season's (Y + 1, week 18 day 7), each way, by age in Y: the sim's side of the reserve/retired list
+ * (`retiredList`: men credited in Y - 1 placed on it in Y), whose real men are under contract. The
+ * cohort is read first that day (the watch step runs before the day's players' steps), so a man who
+ * retires at that season's end, stamped that same day, is Y's; one who retires at Y + 1's is Y + 1's.
  */
 export function retiredNextYear(men: readonly FinalWeekMan[], retired: ReadonlyMap<string, RetirementRead>, y: number): RetiredCounts {
-  const after: CalendarStamp = { season: y, ...SEASON_ENDS };
+  const from: CalendarStamp = { season: y, ...SEASON_ENDS };
   const until: CalendarStamp = { season: y + 1, ...SEASON_ENDS };
   const out: RetiredCounts = {};
   for (const m of men) {
     const c = (out[ageKey(m.age)] ??= { n: 0, unsigned: 0, ownSigned: 0, ownUnsigned: 0 });
     c.n++;
     const r = retired.get(m.id);
-    if (r !== undefined && compareStamps(r.at, after) > 0 && compareStamps(r.at, until) <= 0) c[r.way]++;
+    if (r !== undefined && compareStamps(r.at, from) >= 0 && compareStamps(r.at, until) < 0) c[r.way]++;
   }
   return sortAges(out);
 }
@@ -1445,7 +1513,9 @@ export interface CareerCheckRows {
    * The roster way, by age in Y, one entry a cohort Y (rows version 5): of the men on a final-week 53
    * in Y, on a 53 in Y + 1 or Y + 2 (`backOnA53`), and of the starters among them on no team's list
    * in either (`startersGone`), both complete for Y up to the walk's last season less 2; who retired
-   * within the next year, each way (`retiredNextYear`), complete up to the last season less 1.
+   * within the next year, each way (`retiredNextYear`), complete up to the last season less 1. The
+   * final-week 53s and the 53s of Y + 1 and Y + 2 are counted like the NFL (`nflRosterIds`); "on no
+   * team's list" reads every status, as the real side's does.
    */
   readonly exits: {
     readonly backOnA53: { readonly y: number; readonly byAge: AgeCounts }[];
@@ -1531,15 +1601,17 @@ interface SeasonTally {
   week8Nfl: RosterPicture | null;
   week8NflWeeksLeft: RosterPicture | null;
   nflCount: NflCount | null;
-  /** Men on a 53 on day 1 of some regular-season week. */
+  /** Men on a 53 on day 1 of some regular-season week, counted like the NFL (`nflRosterIds`). */
   on53: Set<string>;
+  /** Men on a 53 on the regular season's last day, counted like the NFL (`nflRosterIds`): the roster way's cohort. */
+  week18Nfl: Set<string>;
   availability: AgeCounts;
 }
 
 const newTally = (): SeasonTally => ({
   touched: false, week8: null, slots: [], fileOn53: 0, draftWeek8: emptyBands(), faCamp: 0, faWeek8: 0, waits: new Map(),
   week18: new Map(), snaps: new Map(), busiest: new Map(), groupReads: new Map(), ages: new Map(), lastSeen: new Map(), leanings: null,
-  week8Nfl: null, week8NflWeeksLeft: null, nflCount: null, on53: new Set(), availability: {},
+  week8Nfl: null, week8NflWeeksLeft: null, nflCount: null, on53: new Set(), week18Nfl: new Set(), availability: {},
 });
 
 /** The D5b reader: watchers for the cap check's walk and the rows they add up to. */
@@ -1634,7 +1706,7 @@ export function careerReader(input: CareerReaderInput): CareerReader {
         else reads.push(CAREER_GROUP[p.bio.position]);
         if (!tally.ages.has(id)) tally.ages.set(id, p.bio.age);
       }
-      for (const t of people.teams) for (const id of t.roster) tally.on53.add(String(id));
+      for (const id of nflRosterIds(people)) tally.on53.add(id);
       addAvailability(tally.availability, people);
     }
     if (isDay(day, WEEK_8)) readWeek8(season, people);
@@ -1647,6 +1719,7 @@ export function careerReader(input: CareerReaderInput): CareerReader {
           if (p !== undefined) tally.week18.set(String(id), p.bio.position);
         }
       }
+      tally.week18Nfl = new Set(nflRosterIds(people));
     }
     const regular = games.filter((g) => g.game.kind === "REGULAR");
     if (regular.length > 0) readGames(people, regular);
@@ -1723,12 +1796,12 @@ export function careerReader(input: CareerReaderInput): CareerReader {
         exits.startersGone.push({ y: cohort.season, byAge: startersGone(cohort.men, (id, y) => ledger.wasPresent(id, y), cohort.season) });
       }
     }
-    const finalWeek: FinalWeekMan[] = [...tally.week18.keys()].map((id) => ({ id, age: ageIn.get(id) ?? null, starter: (now.get(id)?.share ?? 0) >= STARTER_SHARE }));
+    const finalWeek: FinalWeekMan[] = [...tally.week18Nfl].map((id) => ({ id, age: ageIn.get(id) ?? null, starter: (now.get(id)?.share ?? 0) >= STARTER_SHARE }));
     finalWeeks = [...finalWeeks.filter((c) => c.season >= season - 1), { season, men: finalWeek }];
     on53BySeason = new Map([...on53BySeason].filter(([y]) => y >= season));
     retiredAt = new Map([...retiredAt].filter(([, r]) => r.at.season >= season));
     // Signed again: the open expiries through this season, then this season's own; two seasons on, done.
-    const opened = openExpiries(season, run.events, people.contracts ?? [], (id) => ageIn.get(id), cap);
+    const opened = openExpiries(season, run.events, people.contracts ?? [], (id) => ageIn.get(id), cap, input.firstSeason);
     expiryUnmatched += opened.unmatched;
     expiryBelow += opened.below;
     const followed = followExpiries([...openExpiryList, ...opened.open], season, run.events);

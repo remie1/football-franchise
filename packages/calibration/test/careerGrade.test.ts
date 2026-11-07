@@ -215,7 +215,7 @@ describe("the bands", () => {
     expect(CAREER_BANDS.filter((b) => b.mark === "REPORT").map((b) => b.id)).toEqual([
       "overall-mean-late", "groups-report", "d7-ever", "d7-round1", "win-spread-nfl", "win-spread-season-one", "win-r", "other-report",
       // The owner's aging rulings of 2026-11-06: every added row is reported, none gates.
-      "share-31-group", "share-34-group", "signed-again", "back-on-53", "starters-gone", "retired-signed", "rookie-age", "availability",
+      "share-31-group", "share-34-group", "signed-again", "back-on-53", "starters-gone", "retired-signed", "rookie-age", "availability", "nfl-count",
     ]);
     // A card names the rows its answer set, and only those.
     expect(CAREER_BANDS.filter((b) => b.card !== undefined).map((b) => `${b.id}:${b.card}`)).toEqual([
@@ -770,15 +770,17 @@ function withNfl(rows: Map<string, CareerCheckRows>, f: (p: RosterPicture) => Ro
   return new Map([...rows].map(([s, r]) => [s, { ...r, perSeason: r.perSeason.map((x) => ({ ...x, week8Nfl: x.week8 === null ? undefined : f(x.week8) })) } as CareerCheckRows]));
 }
 
-/** An expiry record: age in Y, signed within two league years, within one, followed `c` seasons, its cap share. */
-const deal = (y: number, a: number | null, w2: 0 | 1, w1: 0 | 1 = 0, c = 2, s = 0.03) => ({ y, a, s, k: "VETERAN", w1, w2, o: w2 === 1 ? 1 as const : null, r: 0 as const, e: 0 as const, c });
+/** An expiry record: age in Y, signed within two league years, within one, followed `c` seasons, its cap share, a league-file deal with its early years cut (`t`). */
+const deal = (y: number, a: number | null, w2: 0 | 1, w1: 0 | 1 = 0, c = 2, s = 0.03, t: 0 | 1 = 0) =>
+  ({ y, a, s, k: "VETERAN", w1, w2, o: w2 === 1 ? 1 as const : null, r: 0 as const, e: 0 as const, c, t });
 const many = <T>(n: number, f: () => T): T[] => Array.from({ length: n }, f);
 
 /**
  * The made-up market, roster way, retirements and availability of one seed, the same in every seed:
  * 2030's deals (8 at 25, 6 signed again, 3 of them within one league year; 2 at 26, both signed, one
  * within a year), a deal at 25 followed one season only and one under the line (neither judged),
- * and 2040's 4 deals at 34, one signed.
+ * 2040's 4 deals at 34, one signed, and 2030's two league-file deals at 25 with their early years
+ * cut (left out of the rates; both signed again).
  */
 function aging(rows: Map<string, CareerCheckRows>): Map<string, CareerCheckRows> {
   const expiries = [
@@ -786,6 +788,7 @@ function aging(rows: Map<string, CareerCheckRows>): Map<string, CareerCheckRows>
     deal(2030, 26, 1, 1), deal(2030, 26, 1),
     deal(2030, 25, 0, 0, 1), deal(2030, 25, 0, 0, 2, 0.01), deal(2030, null, 0),
     deal(2040, 34, 1), ...many(3, () => deal(2040, 34, 0)),
+    deal(2030, 25, 1, 1, 2, 0.03, 1), deal(2030, 25, 1, 0, 2, 0.03, 1),
   ];
   const exits: CareerCheckRows["exits"] = {
     backOnA53: [{ y: 2030, byAge: { "25": [10, 9], "30": [10, 7], "?": [3, 0] } }, { y: 2027, byAge: { "25": [100, 0] } }],
@@ -806,7 +809,7 @@ function aging(rows: Map<string, CareerCheckRows>): Map<string, CareerCheckRows>
 }
 
 describe("the rows added for the owner's aging rulings (rows version 5)", () => {
-  const ADDED = ["share-31-group", "share-34-group", "signed-again", "back-on-53", "starters-gone", "retired-signed", "rookie-age", "availability"];
+  const ADDED = ["share-31-group", "share-34-group", "signed-again", "back-on-53", "starters-gone", "retired-signed", "rookie-age", "availability", "nfl-count"];
 
   it("are all REPORT and never move the flip, with or without their data", () => {
     for (const id of ADDED) expect(CAREER_BANDS.find((b) => b.id === id)?.mark).toBe("REPORT");
@@ -862,9 +865,14 @@ describe("the rows added for the owner's aging rulings (rows version 5)", () => 
     expect(check(g, "signed-again", "every age, within two league years").sim).toBeCloseTo(9 / 14, 12);
     expect(check(g, "signed-again", "from33, age in Y, later window 2033-2045")).toMatchObject({ sim: expect.closeTo(0.25, 12), status: "REPORTED" });
     expect(check(g, "signed-again", "upTo26, age in Y, later window 2033-2045").sim).toBeNull();
-    expect(byId(g, "signed-again").note).toContain("Deals judged, seeds pooled: 56.");
+    expect(byId(g, "signed-again").note).toContain("Deals judged, seeds pooled: 56; the file's cut deals left out: 8.");
+    // The league file's deals with their early years cut: left out of the rates, shown apart.
+    expect(check(g, "signed-again", "every age, the league file's cut deals alone (left out above)")).toMatchObject({ sim: 1, status: "REPORTED" });
+    expect(check(g, "signed-again", "every age, with the league file's cut deals in").sim).toBeCloseTo(11 / 16, 12);
     const one = aging(passing()).get("s1")!;
     expect([...signedAgainCounts(one, [2029, 2045], SIGNING_AGE_BANDS, { minCapShare: 0.015, within: 2, shift: 0 })]).toEqual([["upTo26", [10, 8]], ["from33", [4, 1]]]);
+    expect([...signedAgainCounts(one, [2029, 2045], SIGNING_AGE_BANDS, { minCapShare: 0.015, within: 2, shift: 0, cut: "only" })]).toEqual([["upTo26", [2, 2]]]);
+    expect([...signedAgainCounts(one, [2029, 2045], SIGNING_AGE_BANDS, { minCapShare: 0.015, within: 1, shift: 0, cut: "in" })]).toEqual([["upTo26", [12, 5]], ["from33", [4, 0]]]);
     expect(bandCounts(EXIT_AGE_BANDS, { "25": [2, 1], "26": [3, 0], "?": [9, 9] }, 1)).toEqual(new Map([["age26To28", [5, 1]]]));
   });
 
@@ -895,5 +903,44 @@ describe("the rows added for the owner's aging rulings (rows version 5)", () => 
     expect(check(g, "availability", "from33").sim).toBeCloseTo(0.8, 12);
     expect(check(g, "availability", "every age").sim).toBeCloseTo(1 - 20 / 150, 12);
     expect(check(g, "availability", "from33, later window 2033-2045").status).toBe("REPORTED");
+  });
+
+  it("the NFL count itself: the weeks-left variant and the whole 53s beside the band reading, the men left out and the teams' sizes", () => {
+    const counted = new Map([...passing()].map(([s, r]) => [s, {
+      ...r,
+      perSeason: r.perSeason.map((x) => {
+        const p = x.week8!;
+        return {
+          ...x,
+          // The band reading leaves out more men than the weeks-left variant; the whole 53s are older still.
+          week8: { ...p, age: { ...p.age, mean: 26.6, from31: 0.12 } },
+          week8NflWeeksLeft: { ...p, age: { ...p.age, mean: 26.4 }, rookieShare: 0.16 },
+          nflCount: { onRosters: 1750, leftOut: x.season < 2033 ? 160 : 180, leftOutWeeksLeft: 140, sizes: { before: [50, 58], after: [42, 53], afterWeeksLeft: [44, 55] } },
+        };
+      }),
+    } as CareerCheckRows]));
+    const g = gradeCareerCheck(passingInput(counted));
+    expect(byId(g, "nfl-count")).toMatchObject({ mark: "REPORT", status: "REPORTED" });
+    expect(check(g, "nfl-count", "mean age, weeks-left variant")).toMatchObject({ sim: expect.closeTo(26.4, 12), ref: expect.closeTo(26.2, 12), status: "REPORTED" });
+    expect(check(g, "nfl-count", "mean age, whole 53s").sim).toBeCloseTo(26.6, 12);
+    expect(check(g, "nfl-count", "31+, whole 53s")).toMatchObject({ sim: expect.closeTo(0.12, 12), ref: expect.closeTo(0.101, 12) });
+    expect(check(g, "nfl-count", "rookies, weeks-left variant")).toMatchObject({ sim: expect.closeTo(0.16, 12), ref: expect.closeTo(0.157, 12) });
+    // 2029-45: 4 seasons at 160 left out and 13 at 180.
+    expect(check(g, "nfl-count", "men left out a league-season, band").sim).toBeCloseTo((4 * 160 + 13 * 180) / 17, 9);
+    expect(check(g, "nfl-count", "men left out a league-season, band, later window 2033-2045").sim).toBeCloseTo(180, 12);
+    expect(check(g, "nfl-count", "men left out a league-season, weeks-left variant").sim).toBe(140);
+    expect(check(g, "nfl-count", "men on the 53s a league-season, whole 53s").sim).toBe(1750);
+    expect(check(g, "nfl-count", "smallest team, band").sim).toBe(42);
+    expect(check(g, "nfl-count", "largest team, whole 53s").sim).toBe(58);
+    expect(check(g, "nfl-count", "smallest team, weeks-left variant").sim).toBe(44);
+    expect(check(g, "nfl-count", "largest team, weeks-left variant, later window 2033-2045")).toMatchObject({ sim: 55, status: "REPORTED" });
+    // The GATE rows still read the band reading, and the flip does not move.
+    expect(check(g, "age-league", "league").sim).toBeCloseTo(26.2, 12);
+    expect(g.flip.recommended).toBe(true);
+    // A row from before version 5 has neither: no data, still reported.
+    const old = gradeCareerCheck(passingInput());
+    expect(check(old, "nfl-count", "mean age, weeks-left variant").sim).toBeNull();
+    expect(check(old, "nfl-count", "smallest team, band").sim).toBeNull();
+    expect(byId(old, "nfl-count").status).toBe("REPORTED");
   });
 });

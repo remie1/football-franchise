@@ -93,11 +93,16 @@
  *  - Shares 31+ and 34+ by group, against the 2022-24 seasons (mean of the three) and 2018-24 pooled.
  *  - Signed again within two years by age (`market.expiries`) against OverTheCap's REPORTED rates
  *    (`OTC_SIGNED_AGAIN`: no SE, age convention unknown, so the sim's age in Y and in Y + 1 are both
- *    shown); back on a 53 within two seasons (`exitsByAge.backOnA53`).
+ *    shown), the league file's deals whose early years the importer cut (`ExpiryRecord.t`) left out
+ *    of the rates and shown apart; back on a 53 within two seasons (`exitsByAge.backOnA53`), the
+ *    sim's 53s counted like the NFL as the real side's leave out injured reserve.
  *  - Retirements: by his own choice while signed within a year of a final-week 53, against the
  *    reserve/retired list (a lower bound); starters gone two seasons (`exitsByAge.startersGone`).
  *  - Rookies' ages on the week-8 53s (`weekEight.rookieAge`); availability by age (ours only: no real
  *    availability by age is merged).
+ *  - The NFL count itself (`nfl-count`): the NFL rows' league readings on the weeks-left variant
+ *    (`week8NflWeeksLeft`) and on the whole 53s beside the band reading they are graded on, and the
+ *    men each reading leaves out with the teams' sizes (`nflCount`), so the CHOSEN band can be judged.
  * Bands on these rows are CHOSEN (they never block); references are REAL except OverTheCap's, which
  * is REPORTED by the cap thread.
  */
@@ -108,7 +113,7 @@ import {
 import type { Estimate } from "../careers/stats.js";
 import {
   addCells, CAREER_GROUPS, kaplanMeier, lifeTable, RETIREMENT_WAYS, SPECIALIST_GROUPS, usagePeak,
-  type CareerCheckRows, type CareerEntrant, type CareerGroup, type GroupPicture, type RetirementWay, type RosterPicture, type SeasonRow, type UsageCell,
+  type CareerCheckRows, type CareerEntrant, type CareerGroup, type GroupPicture, type NflCount, type RetirementWay, type RosterPicture, type SeasonRow, type UsageCell,
 } from "./careerCheck.js";
 import { NFL_DRAFT } from "./draftCheck.js";
 
@@ -207,6 +212,7 @@ export const CAREER_BANDS: readonly CareerBand[] = [
   { id: "retired-signed", row: "Retired by his own choice while signed, within a year of a final-week 53, by age", reference: "NFL reserve/retired list, Y 2021-24 (a lower bound)", band: "Reported", mark: "REPORT", judged: "final-week 53s of 2029-45 with a year followed", rule: { kind: "report" } },
   { id: "rookie-age", row: "Rookies' ages on the week-8 53s (the 53 counted like the NFL)", reference: "NFL wk 8 rookies, 2018-24 (pooled over the men)", band: "mean ±0.3 years; whole-year shares ±5 pts (reported)", mark: "REPORT", judged: "mean of 2029-45; 2033-45 beside it", rule: { kind: "abs", half: 0.05, halfFor: { mean: 0.3 } } },
   { id: "availability", row: "Expected availability by age (man-weeks on a 53 not out injured)", reference: "None merged (the injuries part's real share by age)", band: "Reported", mark: "REPORT", judged: "2029-45; 2033-45 beside it", rule: { kind: "report" } },
+  { id: "nfl-count", row: "The 53 counted like the NFL: the weeks-left variant, the whole 53s, the men left out", reference: "The band reading (week8Nfl) the NFL rows are graded on", band: "Reported", mark: "REPORT", judged: "mean of 2029-45; 2033-45 beside it", rule: { kind: "report" } },
 ];
 
 const bandOf = (id: string): CareerBand => {
@@ -565,13 +571,19 @@ const shareOrNull = (c: readonly [number, number] | undefined): number | null =>
  * One seed's signed-again counts by age band, over the deals of at least `minCapShare` that ran out
  * in the window's seasons and were followed two league years: [deals, signed again] within two
  * league years (or one, `within` 1), by his age in the season it ran out (`shift` 1: the next one).
+ * `cut`: the league file's deals whose early years the importer cut (`ExpiryRecord.t`, their share
+ * not their APY's) left out (`out`, the default, CHOSEN), alone (`only`), or with the rest (`in`).
  */
 export function signedAgainCounts<K extends string>(
-  r: CareerCheckRows, w: readonly [number, number], bands: readonly AgeBand<K>[], o: { readonly minCapShare: number; readonly within: 1 | 2; readonly shift: 0 | 1 },
+  r: CareerCheckRows, w: readonly [number, number], bands: readonly AgeBand<K>[],
+  o: { readonly minCapShare: number; readonly within: 1 | 2; readonly shift: 0 | 1; readonly cut?: "out" | "only" | "in" },
 ): Map<K, [number, number]> {
   const byAge: Record<string, [number, number]> = {};
+  const cut = o.cut ?? "out";
   for (const x of r.market?.expiries ?? []) {
     if (x.c < 2 || !(x.s >= o.minCapShare) || !inWindow(x.y, w)) continue;
+    const isCut = x.t === 1;
+    if ((cut === "out" && isCut) || (cut === "only" && !isCut)) continue;
     const c = (byAge[x.a === null ? "?" : String(x.a)] ??= [0, 0]);
     c[0]++;
     if ((o.within === 1 ? x.w1 : x.w2) === 1) c[1]++;
@@ -858,8 +870,8 @@ export function gradeCareerCheck(input: GradeInput): CareerGrade {
   // convention: the sim's age in the season the deal ran out and in the next are both shown).
   const otc: ReportedSignedAgain = OTC_SIGNED_AGAIN;
   const signedRule = bandOf("signed-again").rule;
-  const signedShare = (w: readonly [number, number], within: 1 | 2, shift: 0 | 1, band?: string) => perSeed((r) => {
-    const counts = signedAgainCounts(r, w, SIGNING_AGE_BANDS, { minCapShare: otc.minCapShare, within, shift });
+  const signedShare = (w: readonly [number, number], within: 1 | 2, shift: 0 | 1, band?: string, cut: "out" | "only" | "in" = "out") => perSeed((r) => {
+    const counts = signedAgainCounts(r, w, SIGNING_AGE_BANDS, { minCapShare: otc.minCapShare, within, shift, cut });
     if (band !== undefined) return shareOrNull(counts.get(band as (typeof SIGNING_AGE_BANDS)[number]["key"]));
     let n = 0, k = 0;
     for (const c of counts.values()) { n += c[0]; k += c[1]; }
@@ -870,17 +882,23 @@ export function gradeCareerCheck(input: GradeInput): CareerGrade {
   for (const b of SIGNING_AGE_BANDS) signedChecks.push(gradeCheck(signedRule, `${b.key}, age in Y + 1`, signedShare(windows.early, 2, 1, b.key), { value: otc.byAge[b.key], se: null }));
   for (const b of SIGNING_AGE_BANDS) signedChecks.push(gradeCheck({ kind: "report" }, `${b.key}, within one league year, age in Y`, signedShare(windows.early, 1, 0, b.key), { value: null, se: null }));
   signedChecks.push(gradeCheck({ kind: "report" }, "every age, within two league years", signedShare(windows.early, 2, 0), { value: null, se: null }));
+  signedChecks.push(gradeCheck({ kind: "report" }, "every age, the league file's cut deals alone (left out above)", signedShare(windows.early, 2, 0, undefined, "only"), { value: null, se: null }));
+  signedChecks.push(gradeCheck({ kind: "report" }, "every age, with the league file's cut deals in", signedShare(windows.early, 2, 0, undefined, "in"), { value: null, se: null }));
   for (const b of SIGNING_AGE_BANDS) {
     signedChecks.push(laterCheck(gradeCheck(signedRule, `${b.key}, age in Y, ${laterLabel}`, signedShare(windows.later, 2, 0, b.key), { value: otc.byAge[b.key], se: null })));
   }
-  const dealsJudged = runs.reduce((a, r) => a + [...signedAgainCounts(r, windows.early, SIGNING_AGE_BANDS, { minCapShare: otc.minCapShare, within: 2, shift: 0 }).values()].reduce((x, c) => x + c[0], 0), 0);
+  const dealsIn = (cut: "out" | "only") => runs.reduce((a, r) => a + [...signedAgainCounts(r, windows.early, SIGNING_AGE_BANDS, { minCapShare: otc.minCapShare, within: 2, shift: 0, cut }).values()].reduce((x, c) => x + c[0], 0), 0);
+  const dealsJudged = dealsIn("out"), dealsCut = dealsIn("only");
   rows.push(row("signed-again", signedChecks,
     `OverTheCap's rates are REPORTED by the cap thread (${otc.source}): deals of ${(100 * otc.minCapShare).toFixed(1)}%+ of the cap that ran out ${otc.seasons[0]}-${otc.seasons[1]}, ` +
     `n ${otc.n}, no SE and no stated age convention, so the sim's age in the season the deal ran out (Y) and in Y + 1 are both shown. ` +
     "The sim's readings (CHOSEN): APY = the deal's cap hits over its real years, over the cap of the league year it was signed in; signed again = any deal but a " +
     "practice-squad one, with any team, from that season's OFF_EVAL (re-signings and tags come before the expiry) to two league years on; a man who retired first " +
     "is not signed; a deal signed earlier that already ran past Y (an early extension) counts as signed. Judged: deals followed two full league years. " +
-    `Deals judged, seeds pooled: ${dealsJudged}.`));
+    "The league file's deals whose early years the importer cut (it keeps a deal's years from the file's season on; ExpiryRecord.t) read their later, mostly higher, " +
+    "cap hits over the cap of the year signed, which overstates their share, so they are left out of the rates (CHOSEN) and shown apart, alone and with the rest; " +
+    "they run out mostly in 2026-28, and the few that run out from 2029 on are long deals well above the line. " +
+    `Deals judged, seeds pooled: ${dealsJudged}; the file's cut deals left out: ${dealsCut}.`));
 
   // The roster way, by age in Y: back on a 53 within two seasons; the starters among them gone two seasons.
   const exitCounts = <K extends string>(r: CareerCheckRows, w: readonly [number, number], pick: "backOnA53" | "startersGone", bands: readonly AgeBand<K>[]) => {
@@ -901,10 +919,12 @@ export function gradeCareerCheck(input: GradeInput): CareerGrade {
   };
   rows.push(exitRow("back-on-53", "backOnA53", SIGNING_AGE_BANDS, nfl.exitsByAge.backOnA53,
     "Of the men on a final-week 53 (week 18 day 7) in Y, the share on a 53 on day 1 of some regular-season week of Y + 1 or Y + 2, by age in Y. " +
-    "Men still under contract count, so it is looser than signed again; the real side reads the same way (exitsByAge.backOnA53)."));
+    "Both 53s are counted like the NFL (the men out 4+ weeks, an unhealed LONG or MAJOR injury, left out), as the real side's final-week 53 and its 53s " +
+    "(exitsByAge.backOnA53) leave out injured reserve. Men still under contract count, so it is looser than signed again."));
   rows.push(exitRow("starters-gone", "startersGone", EXIT_AGE_BANDS, nfl.exitsByAge.startersGone,
-    "Of the starters (50%+ of his main team's snaps on his side, CHOSEN on both sides) on a final-week 53 in Y, the share on no team's list (any status) on " +
-    "day 1 of every regular-season week of Y + 1 and Y + 2: a proxy for leaving while still wanted, which also holds injuries and men cut in camp."));
+    "Of the starters (50%+ of his main team's snaps on his side, CHOSEN on both sides) on a final-week 53 in Y (counted like the NFL), the share on no team's list " +
+    "(any status, injured men included, as the real side's) on day 1 of every regular-season week of Y + 1 and Y + 2: a proxy for leaving while still wanted, " +
+    "which also holds injuries and men cut in camp."));
 
   // Retirements: by his own choice while signed within a year of a final-week 53, against the
   // reserve/retired list (a lower bound on the real side); every way beside it; each way a season.
@@ -935,8 +955,9 @@ export function gradeCareerCheck(input: GradeInput): CareerGrade {
     retireChecks.push(laterCheck(gradeCheck(reported, `${b.key}, own choice while signed, ${laterLabel}`, perSeed((r) => shareOrNull(retiredCounts(r, windows.later, "ownSigned").get(b.key))), est(nfl.retiredList.byAge[b.key].share))));
   }
   rows.push(row("retired-signed", retireChecks,
-    "Of the men on a final-week 53 in Y, the share who retired after that day and by Y + 1's, by age in Y: his own choice while signed (a deal of his ended RETIRED, " +
-    "or he was on a team when the season began), against the real men on a final-week 53 placed on the reserve/retired list the next season. " + nfl.retiredList.note +
+    "Of the men on a final-week 53 in Y (counted like the NFL), the share who retired from that day (after the 53 is read; a retirement at Y's season end is Y's) " +
+    "and before Y + 1's, by age in Y: his own choice while signed (a deal of his live when he retired, or ended RETIRED that season), against the real men on a " +
+    "final-week 53 placed on the reserve/retired list the next season. " + nfl.retiredList.note +
     " Until a build lets a man retire by choice, the sim's own-choice shares are 0. The retirements by age, credited seasons and group, each way, are in the rows (SeasonRow.retirements)."));
 
   // Rookies' ages on the week-8 53s (counted like the NFL): the mean, and the whole-year shares.
@@ -986,6 +1007,49 @@ export function gradeCareerCheck(input: GradeInput): CareerGrade {
   rows.push(row("availability", availabilityChecks,
     "On day 1 of each regular-season week, the men on a 53 and of them those out with an injury they cannot play on, by age in the season; shown as the share available. " +
     "No real availability by age is merged yet (the injuries part's), so the sim's alone is shown."));
+
+  // The NFL count itself: each NFL row's league reading on the weeks-left variant and on the whole 53s,
+  // against the band reading the row is graded on; then the men each reading leaves out and the teams' sizes.
+  const weeksLeftPicture: PictureOf = (s) => s.week8NflWeeksLeft ?? null;
+  const countReadings: readonly [string, (p: RosterPicture) => number][] = [
+    ["mean age", (p) => p.age.mean], ["22 or under", (p) => p.age.upTo22], ["31+", (p) => p.age.from31], ["34+", (p) => p.age.from34],
+    ["rookies", (p) => p.rookieShare], ["undrafted", (p) => p.undraftedShare],
+  ];
+  const countChecks: GradeCheck[] = [];
+  const countMean = (w: readonly [number, number], f: (c: NflCount) => number) => perSeed((r) => {
+    // A row written before version 5 has no count: no data.
+    const xs = r.perSeason.flatMap((s) => (inWindow(s.season, w) && s.nflCount !== null && s.nflCount !== undefined ? [f(s.nflCount)] : []))
+      .filter((x) => Number.isFinite(x));
+    return xs.length === 0 ? null : mean(xs);
+  });
+  const countWindow = (w: readonly [number, number], suffix: string): GradeCheck[] => {
+    const checks: GradeCheck[] = [];
+    for (const [label, f] of countReadings) {
+      const band = perSeed((r) => windowMean(r, w, f, nflPicture));
+      const ref = { value: band.value, se: band.se };
+      checks.push(gradeCheck(reported, `${label}, weeks-left variant${suffix}`, perSeed((r) => windowMean(r, w, f, weeksLeftPicture)), ref));
+      checks.push(gradeCheck(reported, `${label}, whole 53s${suffix}`, perSeed((r) => windowMean(r, w, f, plainPicture)), ref));
+    }
+    const none = { value: null, se: null };
+    const min = (xs: readonly number[]) => (xs.length === 0 ? NaN : Math.min(...xs));
+    const max = (xs: readonly number[]) => (xs.length === 0 ? NaN : Math.max(...xs));
+    checks.push(gradeCheck(reported, `men left out a league-season, band${suffix}`, countMean(w, (c) => c.leftOut), none));
+    checks.push(gradeCheck(reported, `men left out a league-season, weeks-left variant${suffix}`, countMean(w, (c) => c.leftOutWeeksLeft), none));
+    checks.push(gradeCheck(reported, `men on the 53s a league-season, whole 53s${suffix}`, countMean(w, (c) => c.onRosters), none));
+    checks.push(gradeCheck(reported, `smallest team, whole 53s${suffix}`, countMean(w, (c) => min(c.sizes.before)), none));
+    checks.push(gradeCheck(reported, `largest team, whole 53s${suffix}`, countMean(w, (c) => max(c.sizes.before)), none));
+    checks.push(gradeCheck(reported, `smallest team, band${suffix}`, countMean(w, (c) => min(c.sizes.after)), none));
+    checks.push(gradeCheck(reported, `largest team, band${suffix}`, countMean(w, (c) => max(c.sizes.after)), none));
+    checks.push(gradeCheck(reported, `smallest team, weeks-left variant${suffix}`, countMean(w, (c) => min(c.sizes.afterWeeksLeft)), none));
+    checks.push(gradeCheck(reported, `largest team, weeks-left variant${suffix}`, countMean(w, (c) => max(c.sizes.afterWeeksLeft)), none));
+    return checks;
+  };
+  countChecks.push(...countWindow(windows.early, ""), ...countWindow(windows.later, `, ${laterLabel}`).map(laterCheck));
+  rows.push(row("nfl-count", countChecks,
+    "The NFL rows (mean age, the 22-or-under, 31+ and 34+ shares, rookies, undrafted) are graded on the 53s counted like the NFL by the band at the draw " +
+    "(week8Nfl: an unhealed LONG or MAJOR injury, 4+ weeks, left out; CHOSEN). Here each league reading on the weeks-left variant (week8NflWeeksLeft: 4+ weeks " +
+    "still to go) and on the whole 53s (week8) is set beside the band reading as its reference, so the choice can be judged; then the men each reading leaves out " +
+    "and the teams' sizes (nflCount; the smallest and largest team are each seed's mean over the window's seasons). Week 8, day 1."));
 
   // The owner's answers: an answered OWNER row takes the answer's mark.
   const marked = rows.map((r): GradeRow => {
@@ -1059,7 +1123,8 @@ export function renderGradeMarkdown(grade: CareerGrade): string {
   say();
   say("Added for the owner's aging rulings of 2026-11-06 (rows version 5): the NFL comparison rows read the 53s counted like the NFL (the men out 4+ weeks left out, " +
     "as the real count leaves out injured reserve); the later window is reported beside each early check; and the group shares, signed again and back on a 53, " +
-    "retirements and starters gone, rookies' ages and availability by age are new rows, all REPORT (shown, never blocking).");
+    "retirements and starters gone, rookies' ages, availability by age and the NFL count itself (its weeks-left variant and the men left out) are new rows, " +
+    "all REPORT (shown, never blocking).");
   const pending = grade.rows.filter((r) => r.mark === "OWNER");
   if (pending.length > 0) {
     say();
