@@ -186,3 +186,9 @@ export {
 
 export { tradePlayer, salaryLeft, type TradeMoneyResult } from "./trades/money.js";
 export { tradeWindowOpen, tradeableDrafts } from "./trades/window.js";
+export {
+  PICK_COUNT, marketValue, productionValue, objectiveValue, FUTURE_DISCOUNT, BLEND, GM_CURVES, GM_CURVE_NAMES,
+  gmCurveValue, PICK_CURVE, FUTURE_PICK_DIAL, drawPickCurve, pickCurveOf, drawFuturePickDial, futurePickDialOf,
+  COURSE_TILT, CLASS_SPREAD, classGrade, classMultiplier, landingSpread, gmPickValue,
+  type GmCurve, type ClassGrade, type Landing, type PickValueInput,
+} from "./trades/pickValue.js";

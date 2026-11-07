@@ -217,7 +217,18 @@ same talk.
    2026-11-07: `franchise/src/trades/money.ts` (`tradePlayer`, `salaryLeft`) and `trades/window.ts`
    (`tradeWindowOpen`, `tradeableDrafts`). The both-under-the-cap check goes with the market (step 5),
    which knows every piece of a trade.
-3. Pick values: the measured curve, the templates, the blend, with tests.
+3. Pick values: the objective curves, the GM curves, the blend, class grades, time, where a pick
+   lands, with tests. **Built** 2026-11-07: `franchise/src/trades/pickValue.ts`. COUNTED from nflverse
+   `trades.csv`: the Market curve v(n) = exp(-0.08 (n-1)^0.78), fitted to the 338 two-team picks-only
+   trades of 2011-2025 with every pick in that year's draft and numbered (each side's total matched,
+   typical miss about 10%); the time preference 0.43 a year, fitted on the 106 such trades with a later
+   draft's pick at its round's middle (next year's mid-first = this year's 44th pick, mid-second = 82nd:
+   "about a round lower" holds). The Production curve v(n) = exp(-0.045 (n-1)^0.75) is fitted to the
+   real NFL's `dr_av` by pick (drafts 2000-2016), a stand-in until our own drafts are measured. GM
+   curve shapes and shares, the dial (patient under 1, hurried over 1, leaning with the win-now lean)
+   and the landing spread are CHOSEN. Draws: `franchise:pickCurve` and `franchise:futurePickDiscount`,
+   by the man's id; nothing calls them yet, so no existing draw moves. The background lean (§4) waits
+   for the market step.
 4. Player value to a team (§3). Waits for cap step 14 and the aging redesign.
 5. Computer-to-computer talks on the calendar, draft-day trading, the physical. Waits as step 4.
 6. The user's talks (text).
