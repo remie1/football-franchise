@@ -448,7 +448,7 @@ describe("ADR-089 step 4 — determinism and R-4's pairing", () => {
   });
 
   /** A stream with the fields a step-4 bundle adds by construction taken off: the stamp, the approach label. */
-  const normalised = (events: readonly MatchEventEnvelope[]): unknown[] =>
+  const normalized = (events: readonly MatchEventEnvelope[]): unknown[] =>
     events.map((e) => {
       const p = { ...payloadOf(e) };
       if (typeOf(e) === "PLAY_START") delete p["rules"];
@@ -464,10 +464,10 @@ describe("ADR-089 step 4 — determinism and R-4's pairing", () => {
         const { state, calls: raw } = build();
         const calls = pictured ? withPicture(state, raw) : raw;
         const seed = `pair-${i}`;
-        const a = normalised(simulatePassPlay(state, calls, seed, base).events);
+        const a = normalized(simulatePassPlay(state, calls, seed, base).events);
         const b = playStep4(state, calls, seed, arm);
         const first = b.records.find(changes);
-        const bn = normalised(b.events);
+        const bn = normalized(b.events);
         if (first === undefined) {
           same += 1;
           expect(bn).toEqual(a);

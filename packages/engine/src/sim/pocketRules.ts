@@ -145,7 +145,7 @@ export interface PocketStep4Rules {
  * ADR-089 step 4, kind T (plan §1.2): "today's line plus contact", the named arm of §6.4's contact
  * clauses (AM-7 item 1: A0's settings plus the contact block). No block clock; its step-2 and
  * step-3 parts are today's (`STEP_1`, no free-run or late block, the climb lane `INTERIOR`, no
- * published geometry), and it carries no motion. Its threats are labelled by shape S's rows over
+ * published geometry), and it carries no motion. Its threats are labeled by shape S's rows over
  * today's facts.
  */
 export interface TodaysLinePlusContact {

@@ -907,7 +907,7 @@ export function simulatePassPlayWith(
       if (onFreeRunClockAtSnap(plan.free, rules.freeRun !== undefined)) freeRunClockMen.add(String(plan.rusher.bio.id));
     }
   }
-  /** How a hit came: his approach on the card and where from (§4.0); every threat under pocket-1 is labelled. */
+  /** How a hit came: his approach on the card and where from (§4.0); every threat under pocket-1 is labeled. */
   const contactFactsOf = (t: RushThreat): { readonly approach: ThreatApproach; readonly from: ContactFromClass } => {
     if (t.approach === undefined) throw new Error(`@ff/engine: a contact by ${String(t.rusher)} whose threat carries no approach`);
     return {
