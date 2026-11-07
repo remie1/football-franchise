@@ -79,7 +79,7 @@ import type { RushPlan } from "./preSnap.js";
 import { assertSnapPictureFor, timeFreeRunners } from "./freeRunTiming.js";
 import { pocketRulesOf, pocketRulesUnder } from "./pocketRules.js";
 import { ContactBook } from "./contactBook.js";
-import { arrivedInGridOrder, onFreeRunClockAtSnap, rebuiltTick, shedDelaySecondsOf } from "./contactTick.js";
+import { arrivedInGridOrder, liveAtTick, onFreeRunClockAtContact, onFreeRunClockAtSnap, rebuiltTick, shedDelaySecondsOf } from "./contactTick.js";
 import type { TickStatusInputs } from "./contactTick.js";
 import { arrivalContest, contactFrom, secondArrival, tiltOf } from "../resolve/contact.js";
 import type { ContactFromClass } from "../resolve/contact.js";
@@ -954,7 +954,7 @@ export function simulatePassPlayWith(
         const qbDice = tickRng.fork(`${String(qb.bio.id)}:contest:${id}`);
         const rusherFace = dice.d100();
         const quarterbackFace = qbDice.d100();
-        const tilt = tiltOf({ approach, from, seen: true, onFreeRunClock: freeRunClockMen.has(id) && t.origin !== "WON_REP" }, contact.tilts);
+        const tilt = tiltOf({ approach, from, seen: true, onFreeRunClock: onFreeRunClockAtContact(freeRunClockMen.has(id), t.origin) }, contact.tilts);
         const r = arrivalContest(m.rusher, qb, tilt, { rusher: rusherFace, quarterback: quarterbackFace, rngLabel: dice.label, quarterbackRngLabel: qbDice.label }, contact.boundary);
         check = {
           checkKind: ARRIVAL_CONTEST_KIND,
@@ -1905,7 +1905,7 @@ export function simulatePassPlayWith(
         // comes from BEHIND if his approach is ARC, from this STEP_UP on.
         if (book !== undefined) {
           for (const m of matchups) {
-            if (m.threat !== undefined && m.threat.etaTick > tick) liveAtStepUp.add(String(m.rusher.bio.id));
+            if (liveAtTick(m.threat, tick)) liveAtStepUp.add(String(m.rusher.bio.id));
           }
         }
         for (const m of matchups) {

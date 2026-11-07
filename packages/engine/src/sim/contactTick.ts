@@ -11,7 +11,10 @@
  *    `pushShedDelaySeconds` (1.0 s, his threat kept, still engaged), every other approach
  *    `shedDelaySeconds` (0.5 s); BLOCKED makes no contact before step 6;
  *  - `onFreeRunClockAtSnap`: AM-2's key for the free-run tilt, from the man's own timing record,
- *    never from his label;
+ *    never from his label; `onFreeRunClockAtContact`: that key at a contact, which a man who has
+ *    since won a rep no longer carries;
+ *  - `liveAtTick`: whether his threat is still to come at a tick (`etaTick` after it), the set a
+ *    STEP_UP puts behind him;
  *  - `rebuiltTick`: §4.5 item 6's rebuild, after any shed in the tick: the threat list, its minimum
  *    time to arrival, the pocket status on it and what forces him (the move branch's gate), so the
  *    move branch reads the threats as they now stand (fixing the stale list of today's tick).
@@ -20,7 +23,7 @@ import type { PlayerId } from "@ff/contracts";
 import { forcesDecision, mustActThreat, pocketStatusFor } from "../resolve/pocket.js";
 import type { PocketStatusRung } from "../resolve/pocket.js";
 import { inGridOrder } from "../resolve/contact.js";
-import type { ArrivalClock } from "../resolve/rushThreat.js";
+import type { ArrivalClock, RushThreat } from "../resolve/rushThreat.js";
 import { minTimeToArrival } from "../resolve/rushThreat.js";
 import type { ThreatApproach } from "../events.js";
 import type { ContactTunables, Tunables } from "../tunables.js";
@@ -59,6 +62,22 @@ export function onFreeRunClockAtSnap(free: FreeRunner, hasFreeRunBlock: boolean)
   if (free.band === undefined) return free.origin === "UNBLOCKED";
   if (!TOUCHED_BANDS.has(free.band)) return true;
   return free.band === "LATE_EXCHANGE" && free.onClock !== undefined && free.toucher === undefined;
+}
+
+/**
+ * AM-2's free-run tilt at a contact: he was on the free-run clock at the snap and the threat that
+ * reached him is not a won rep (a man who beat a block since is not running free).
+ */
+export function onFreeRunClockAtContact(onClockAtSnap: boolean, origin: RushThreat["origin"]): boolean {
+  return onClockAtSnap && origin !== "WON_REP";
+}
+
+/**
+ * Whether his threat is still to come at `tick`: `etaTick` after the tick. A man ARRIVED on the tick
+ * (`etaTick <= tick`) is not live, so a STEP_UP on that tick does not put him BEHIND (plan §2.1).
+ */
+export function liveAtTick(threat: ArrivalClock | undefined, tick: number): boolean {
+  return threat !== undefined && threat.etaTick > tick;
 }
 
 /** What the pocket status was set from at the top of the tick, besides the threat list. */
