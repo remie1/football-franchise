@@ -15,7 +15,13 @@ import { describe, expect, it } from "vitest";
 import { armById, armRefusal, STEP3_ARM_IDS } from "../src/pocket/arms.js";
 import { goldenGames } from "../src/pocket/corpus.js";
 import { GOLDEN_LEAGUES, type GoldenLeague } from "../src/pocket/golden.js";
-import { ENGINE_RULES, rulesTunables } from "../src/pocket/rules.js";
+import { ENGINE_RULES, rulesRefusal, rulesTunables } from "../src/pocket/rules.js";
+
+/**
+ * The rules this build plays: every name but one refused before any game (ADR-089 step 4:
+ * `pocket-1.s4` until P6, P7 and P8 are in contracts; `engineRulesS4.test.ts` pins the refusal).
+ */
+const PLAYED_RULES = ENGINE_RULES.filter((rules) => rulesRefusal(rules) === undefined);
 
 /** Golden game 0 of a league, played under `tunables`: its whole stream, serialized. */
 function game0(league: GoldenLeague, tunables: Tunables, mirror = false): string {
@@ -26,7 +32,11 @@ function game0(league: GoldenLeague, tunables: Tunables, mirror = false): string
 }
 
 describe("ADR-089 step 3: the same seed gives the same stream, per rules version", () => {
-  it.each(ENGINE_RULES.flatMap((rules) => GOLDEN_LEAGUES.map((league) => [rules, league] as const)))("%s, golden %s game 0, played twice", (rules, league) => {
+  it("plays every rules name of this build but pocket-1.s4, which waits on P6, P7 and P8", () => {
+    expect([...PLAYED_RULES]).toEqual(["legacy", "pocket-1.s1", "pocket-1.s2", "pocket-1.s3"]);
+  });
+
+  it.each(PLAYED_RULES.flatMap((rules) => GOLDEN_LEAGUES.map((league) => [rules, league] as const)))("%s, golden %s game 0, played twice", (rules, league) => {
     const t = rulesTunables(rules);
     const a = game0(league, t);
     const b = game0(league, t);

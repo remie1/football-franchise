@@ -276,9 +276,9 @@ describe("export-game command", () => {
       outDir: dir,
     });
     expect("engineRules" in parseExportArgs(["--seed", "a"])).toBe(false);
-    for (const bad of ["pocket-1", "default", "pocket-1.s1@fnv1a:69a7cc48", "pocket-1.s2@fnv1a:03754f60", `pocket-1.s3@${POCKET_1_S3_DIGEST}`, "pocket-1.s4", "B3", "C1", "heels"]) {
+    for (const bad of ["pocket-1", "default", "pocket-1.s1@fnv1a:69a7cc48", "pocket-1.s2@fnv1a:03754f60", `pocket-1.s3@${POCKET_1_S3_DIGEST}`, "pocket-1.s5", "B3", "C1", "D3", "heels"]) {
       expect(() => parseExportArgs(["--seed", "a", "--engine-rules", bad]), bad).toThrow(
-        /^--engine-rules must be one of legacy, pocket-1\.s1, pocket-1\.s2, pocket-1\.s3$/,
+        /^--engine-rules must be one of legacy, pocket-1\.s1, pocket-1\.s2, pocket-1\.s3, pocket-1\.s4$/,
       );
     }
     expect(() => parseExportArgs(["--seed", "a", "--engine-rules"])).toThrow(/requires a value/);
