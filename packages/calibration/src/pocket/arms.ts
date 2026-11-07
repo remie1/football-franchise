@@ -1,7 +1,8 @@
 /**
- * THE ARMS OF STEPS 1, 2 AND 3 (ADR-089 step 1: plan §7.2 item 2, §9.3, readings O23 to O28, O32,
- * O33; step 2: plan §4.1, §4.2, readings O35 to O47, AM-1's base map; step 3: plan §5.1, §4.2,
- * AM-2's references, AM-3's base map named).
+ * THE ARMS OF STEPS 1, 2 AND 3, AND STEP 4'S ARM IDS (ADR-089 step 1: plan §7.2 item 2, §9.3,
+ * readings O23 to O28, O32, O33; step 2: plan §4.1, §4.2, readings O35 to O47, AM-1's base map;
+ * step 3: plan §5.1, §4.2, AM-2's references, AM-3's base map named; step 4: plan §4, the ids, the
+ * run list and the base column only).
  *
  * Step 1 builds both block clocks behind the switch and prices them on the flat league's 496 games
  * and the generated league's 272, at caller v7 (`ADR:941`, §6.1). Step 2 adds must act per rusher,
@@ -30,6 +31,13 @@
  *    shape L, so the table would not build it, `armById` would refuse it by name, `armRefusal` would
  *    say why, and the command line (`--step 3`, K4) would refuse it with that reason.
  *    Step 1's and step 2's lists, arms and digests are as they were.
+ *  - **Step 4's arm ids, named and inert** (plan §4, §5; ADR-089 §6.4). `STEP4_ARM_IDS` is D1 to
+ *    D17 and `STEP4_RUN_IDS` what step 4 will play: the re-played bases A0, A14, A1, A11, C1, C2 and
+ *    C14, then D1 to D17. `STEP4_ARM_BASES` is plan §4's base column. They are in `ArmId`,
+ *    `ALL_ARM_IDS` and `ARM_STEPS` so that AM-6's base map (D1 on C1, D2 on C2, D6 on C2) names arms
+ *    of this build before any D arm runs. Nothing defines or plays them yet: `armById` refuses a D
+ *    id by name, `everyArm()` and the table hold steps 1 to 3's arms only, and the command line
+ *    refuses `--step 4`. Steps 1 to 3's lists, arms and digests are as they were.
  *  - **Step 2's arms** are stamped `pocket-1.s2` with their own overlay digests (O28), whatever their
  *    forcing rule; the re-played bases keep their step-1 stamps and digests. B3 is the design bundle
  *    itself, `rulesTunables("pocket-1.s2")`. Each B arm's base is AM-1's step-2 map (B1, B2, B3, B4,
@@ -284,8 +292,16 @@ export type Step2ArmId = (typeof STEP2_ARM_IDS)[number];
 export const STEP3_ARM_IDS = ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9", "C10", "C11", "C12", "C13", "C14", "C15", "C16"] as const;
 export type Step3ArmId = (typeof STEP3_ARM_IDS)[number];
 
-/** Every arm id of this build: step 1's, step 2's and step 3's. */
-export type ArmId = Step1ArmId | Step2ArmId | Step3ArmId;
+/**
+ * Step 4's seventeen arms (plan §4), in order: named, not yet defined (inert). AM-6's base map names
+ * D1, D2 and D6 (plan §3.1), so the ids are arms of this build before any D arm runs; nothing in
+ * this build plays them.
+ */
+export const STEP4_ARM_IDS = ["D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8", "D9", "D10", "D11", "D12", "D13", "D14", "D15", "D16", "D17"] as const;
+export type Step4ArmId = (typeof STEP4_ARM_IDS)[number];
+
+/** Every arm id of this build: step 1's, step 2's, step 3's and step 4's (the last named only). */
+export type ArmId = Step1ArmId | Step2ArmId | Step3ArmId | Step4ArmId;
 
 /**
  * What `--step 2` plays (plan §4.1, §4.6): the five re-played step-1 arms, A0 and A14 for AM-1's
@@ -302,8 +318,30 @@ export type Step2RunId = (typeof STEP2_RUN_IDS)[number];
 export const STEP3_RUN_IDS = ["A0", "A14", "A1", "A11", "B3", "B6", "B5", ...STEP3_ARM_IDS] as const satisfies readonly ArmId[];
 export type Step3RunId = (typeof STEP3_RUN_IDS)[number];
 
-/** Every arm id of this build, step 1's then step 2's then step 3's. */
-export const ALL_ARM_IDS: readonly ArmId[] = Object.freeze([...ARM_IDS, ...STEP2_ARM_IDS, ...STEP3_ARM_IDS]);
+/**
+ * What `--step 4` will play (plan §4), once its harness is built: the seven re-played bases, A0 and
+ * A14 for the cumulative line, A1 and A11 for the accepted state, C1, C2 and C14 as the D arms'
+ * bases, then D1 to D17. Named only: the command line refuses `--step 4` in this build.
+ */
+export const STEP4_RUN_IDS = ["A0", "A14", "A1", "A11", "C1", "C2", "C14", ...STEP4_ARM_IDS] as const satisfies readonly ArmId[];
+export type Step4RunId = (typeof STEP4_RUN_IDS)[number];
+
+/**
+ * Plan §4's base column, row by row: the arm each D arm's guard, affected counts and printed deltas
+ * read. D1, D5 and D7 on C1 (the design); D2, D6 and D8 on C2 (the pricing build); D3 on A0 and D4
+ * on A14 (today's line, kind T); D9 to D11 on D8 (the tilts' base); D12 to D14 on D1; D15 and D16 on
+ * D2; D17 on C14 (shape L). Step 4's arm definitions (K2b) carry the same bases.
+ */
+export const STEP4_ARM_BASES: Readonly<Record<Step4ArmId, ArmId>> = Object.freeze({
+  D1: "C1", D2: "C2", D3: "A0", D4: "A14", D5: "C1", D6: "C2", D7: "C1", D8: "C2", D9: "D8",
+  D10: "D8", D11: "D8", D12: "D1", D13: "D1", D14: "D1", D15: "D2", D16: "D2", D17: "C14",
+});
+
+/** Every arm id of this build, step 1's then step 2's then step 3's then step 4's (step 4's named, not yet defined). */
+export const ALL_ARM_IDS: readonly ArmId[] = Object.freeze([...ARM_IDS, ...STEP2_ARM_IDS, ...STEP3_ARM_IDS, ...STEP4_ARM_IDS]);
+
+/** The arms this build defines: steps 1 to 3's, in order (`everyArm()`, the table). */
+const DEFINED_ARM_IDS: readonly ArmId[] = Object.freeze([...ARM_IDS, ...STEP2_ARM_IDS, ...STEP3_ARM_IDS]);
 
 /** A step-1 arm id (`ARM_IDS`), as at step 1: step 1's command line reads it. */
 export function isArmId(id: string): id is Step1ArmId {
@@ -320,17 +358,22 @@ export function isStep3ArmId(id: string): id is Step3ArmId {
   return (STEP3_ARM_IDS as readonly string[]).includes(id);
 }
 
+/** A step-4 arm id, D1 to D17 (named; not yet defined). */
+export function isStep4ArmId(id: string): id is Step4ArmId {
+  return (STEP4_ARM_IDS as readonly string[]).includes(id);
+}
+
 /**
- * Any arm of this build, step 1's, step 2's or step 3's (for example AM-1's and AM-3's base maps,
- * whose arms must all be arms of this build). C14 is an arm of this build whether or not P17 is in
- * contracts.
+ * Any arm of this build, step 1's, step 2's, step 3's or step 4's (for example AM-1's, AM-3's and
+ * AM-6's base maps, whose arms must all be arms of this build). C14 is an arm of this build whether
+ * or not P17 is in contracts; a step-4 id is one though nothing defines it yet.
  */
 export function isAnyArmId(id: string): id is ArmId {
   return (ALL_ARM_IDS as readonly string[]).includes(id);
 }
 
-/** The steps that have an arm list in this build (step 3's command is not built: K4). */
-export const ARM_STEPS = [1, 2, 3] as const;
+/** The steps that have an arm list in this build (step 4's named; its command is not built). */
+export const ARM_STEPS = [1, 2, 3, 4] as const;
 export type ArmStep = (typeof ARM_STEPS)[number];
 
 /** A step's run list: `--arms` at that step takes these ids and no others (C2-F4). */
@@ -342,6 +385,8 @@ export function runIdsOf(step: ArmStep): readonly ArmId[] {
       return STEP2_RUN_IDS;
     case 3:
       return STEP3_RUN_IDS;
+    case 4:
+      return STEP4_RUN_IDS;
     default: {
       const never: never = step;
       throw new Error(`arms: no run list for step ${String(never)}`);
@@ -799,16 +844,20 @@ export function step3Arms(): readonly Arm[] {
 
 /**
  * Every arm this build builds, step 1's 17, step 2's 7, then step 3's 16 (C14 included since P17,
- * E4b), each in its table's order.
+ * E4b), each in its table's order. Step 4's ids are named, not defined.
  */
 export function everyArm(): readonly Arm[] {
-  return ALL_ARM_IDS.filter((id) => armRefusal(id) === undefined).map((id) => armById(id));
+  return DEFINED_ARM_IDS.filter((id) => armRefusal(id) === undefined).map((id) => armById(id));
 }
 
-/** The arm of `id`. Refused: an id of no arm, and an arm whose petition is not in contracts (`armRefusal`). */
+/**
+ * The arm of `id`. Refused: an id of no arm, an arm whose petition is not in contracts
+ * (`armRefusal`), and a step-4 id, which this build names but does not define.
+ */
 export function armById(id: ArmId): Arm {
   const arm = armTable().arms.get(id);
   if (arm === undefined) {
+    if (isStep4ArmId(id)) throw new Error(`arms: ${id} is one of step 4's arms, named in this build but not yet defined (ADR-089 step 4, plan §4): nothing plays it`);
     const refusal = armRefusal(id);
     if (refusal !== undefined) throw new EngineRulesError(`arms: ${refusal}: nothing plays it`);
     throw new Error(`arms: no arm ${id}`);
