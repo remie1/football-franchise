@@ -139,7 +139,7 @@ export {
   type InjuryResult, type GameInjuryInput, type WeekInjuryInput, type HealInput,
 } from "./players/injuries.js";
 export { INJURY_RATES, INJURY_KINDS } from "./players/injuryTables.js";
-export { depthChartWeek, type DepthWeekInput, type DepthWeekResult } from "./players/depthChart.js";
+export { depthChartWeek, type DepthWeekInput, type DepthWeekResult, type WeekHope } from "./players/depthChart.js";
 export { unsignedDay, drawPatience, type UnsignedInput, type UnsignedResult } from "./players/unsigned.js";
 export { lineupFor, teamLineup, type Lineup } from "./players/lineup.js";
 export { changeBody, addPoints, type BodyChange } from "./players/body.js";
@@ -183,6 +183,7 @@ export {
   PLAYOFF_ODDS, STANCE, guessChance, missSd, playoffChance, readSkill, recordsAfter, stanceFor, stepToward, stepsBetween, weeklyStance,
   type WeekRead, type WeeklyStanceInput, type WeeklyStanceResult,
 } from "./winNow/stance.js";
+export { LINEUP_HOPES, lineupHopes, losingStreaks, type LineupHope } from "./winNow/lineupHopes.js";
 
 export { tradePlayer, salaryLeft, type TradeMoneyResult } from "./trades/money.js";
 export { tradeWindowOpen, tradeableDrafts } from "./trades/window.js";

@@ -792,9 +792,14 @@ export type MatchEvent =
 /** ADR-087: a body measurement development tracks (40 and 3-cone in seconds, vertical in inches, bench in reps). */
 export type BodyMeasure = "forty" | "cone" | "vertical" | "bench";
 
-/** ADR-087 E5: why a depth chart changed, from what the player himself can see (§3.1). */
+/**
+ * ADR-087 E5: why a depth chart changed, from what the player himself can see (§3.1). ADR-094 W3:
+ * `YOUTH_LOOK`, a coach whose season looks lost giving a younger man the spot, and `SHAKE_UP`, a coach
+ * on the hot seat benching a starter after a losing streak.
+ */
 export type DepthChartSituation =
-  | "OPEN_COMPETITION" | "INJURY_COVER" | "STARTER_RETURNS" | "KEPT_AFTER_INJURY" | "FORM" | "SUDDEN";
+  | "OPEN_COMPETITION" | "INJURY_COVER" | "STARTER_RETURNS" | "KEPT_AFTER_INJURY" | "FORM" | "SUDDEN"
+  | "YOUTH_LOOK" | "SHAKE_UP";
 
 export type FranchiseEvent =
   | { type: "CALENDAR_PHASE_ENTERED"; payload: { phase: string } }

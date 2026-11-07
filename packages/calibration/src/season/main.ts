@@ -52,6 +52,9 @@
  * ADR-087 §7) never reach the news or `--out`. Not with `--rosters flat`, which has no squads. The
  * stand-in league's growth records and copied injuries come with the file
  * (`pnpm --filter @ff/attributes standin-development`, ADR-087 §2.5); each is read only with its switch.
+ * `--lineup-hopes` (with either) lets each computer head coach size up his hopes after each week's
+ * games and move his lineup (ADR-094 §9: a look at the young men, a desperate shake-up); off by
+ * default, and not kept in saves yet, so not with `--load`.
  *
  * Officials (ADR-093 step 1): a new league's 17 crews are made from the world seed, and each week's
  * games are given theirs as the season reaches them. `--save` keeps the crews and each game's crew,
@@ -86,6 +89,7 @@ function parse(argv: readonly string[]) {
   let leagueFile: string | undefined;
   let development = false;
   let injuries = false;
+  let lineupHopes = false;
   let engineRules: string | undefined;
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]!;
@@ -104,6 +108,7 @@ function parse(argv: readonly string[]) {
     else if (arg === "--switch-caller") switchCaller = true;
     else if (arg === "--development") development = true;
     else if (arg === "--injuries") injuries = true;
+    else if (arg === "--lineup-hopes") lineupHopes = true;
     else if (arg === "--engine-rules") engineRules = next();
     else if (arg === "--rosters") {
       const v = next();
@@ -137,7 +142,8 @@ function parse(argv: readonly string[]) {
   if (rosters === "standin" && teamStrengthSd !== undefined) throw new SyntaxError("the stand-in league has no hidden team strength (ADR-088 Q8); drop --team-sd");
   if ((development || injuries) && load !== undefined) throw new SyntaxError("--load carries on with the save's own --development and --injuries; drop them");
   if ((development || injuries) && rosters === "flat") throw new SyntaxError("--development and --injuries need squads; --rosters flat has none");
-  return { seed, season, callerVersion, out, stopAfter, save, load, switchCaller, rosters, teamStrengthSd, leagueFile, development, injuries, engineRules };
+  if (lineupHopes && !(development || injuries)) throw new SyntaxError("--lineup-hopes needs --development or --injuries (the coaches set depth charts only with the players' steps)");
+  return { seed, season, callerVersion, out, stopAfter, save, load, switchCaller, rosters, teamStrengthSd, leagueFile, development, injuries, lineupHopes, engineRules };
 }
 
 function stopDay(text: string, season: number): CalendarStamp {
@@ -185,7 +191,7 @@ const base = loaded?.league ?? buildLeague(seed);
 const savedSwitches = loaded?.development?.people.playerMemory?.switches;
 const players = loaded
   ? (savedSwitches ? { development: savedSwitches.development, injuries: savedSwitches.injuries } : undefined)
-  : (args.development || args.injuries ? { development: args.development, injuries: args.injuries } : undefined);
+  : (args.development || args.injuries ? { development: args.development, injuries: args.injuries, ...(args.lineupHopes ? { lineupHopes: true } : {}) } : undefined);
 // The season the run plays, worked out once, as `runRealSeason` does, for the coaches and the stop day too.
 const season = loaded?.save.calendar.season
   ?? seasonToPlay({ rosters, ...(standIn === undefined ? {} : { standIn }), ...(players ? { players } : {}), ...(args.season === undefined ? {} : { season: args.season }) });
