@@ -8,7 +8,8 @@
     "test": "vitest run --passWithNoTests",
     "typecheck": "tsc -p tsconfig.test.json",
     "import-real": "vite-node src/importer/real/main.ts --",
-    "standin-development": "vite-node src/importer/real/developMain.ts --"
+    "standin-development": "vite-node src/importer/real/developMain.ts --",
+    "standin-officials": "vite-node src/importer/real/officialsMain.ts --"
   },
   "dependencies": {
     "@ff/contracts": "workspace:*",
