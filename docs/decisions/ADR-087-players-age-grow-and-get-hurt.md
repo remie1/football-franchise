@@ -1814,7 +1814,7 @@ Where it departs from the plan:
   - C, `--development --injuries`: `036372a3…`
   - E, the stand-in league, `--development --injuries`: `a3b82c8b…`
   - F, growth on, `--save`: `e1dafb12…`
-  - F, growth on, `--load`: `5cb45b6f…`
+  - F, growth on, `--load`: `5cb45b6f…` on the old base; `329818b2…` from d8ad413 on, where main moved it (the rebase note below)
   - G, `--development` alone: `4a51db00…`
   - Added at the review fixes: H, `--injuries` alone, `6af36ba1…`; and C typed with `--aging position`, `036372a3…` (C's own).
 - **The 2-season career-check** of d5b-t1 (arm `both`) gives rows sha256 `7ee56f89…` on both trees: builds `732b0029141dc692` and `8b94ed11052a956e`, with no `aging` key in either record. The review-fix tree gives the same rows (build `fc2a6c275a46baf8`, no `aging` key).
@@ -1832,6 +1832,21 @@ In calibration:
 - `draftClassOptions` makes the walk's draft-class options testable.
 
 The tests above, and §12.2.4, §12.2.6, §12.2.8, §12.3.4, the §12.9 AB3 row and §12.11 M2, were brought in line. CLAUDE.md's command list is the Orchestrator's to update (the flags on `season`, `career-check` and `player-checks`). Not changed: `season --out` still records neither `--development` nor `--injuries` (older than AB3).
+
+**Rebased onto d8ad413 (2026-11-07).** AB0 to AB3 were rebuilt on d8ad413 (main through ADR-089 step 4 and ADR-094 to ADR-097), each step's commits picked again in order. Three conflicts were resolved, each keeping both sides, and no resolution changed what either side does:
+- `docs/design/contracts.md`, the ADR-087 events line (AB0): AB0's wording and its E4/E6 `PLAYER_RETIRED` bullet, with main's two new `DEPTH_CHART_CHANGED` situations (`YOUTH_LOOK | SHAKE_UP`, ADR-094 W3) kept;
+- calibration `season/main.ts` (AB3 and its review fixes): main's `--lineup-hopes` and `--mood` beside the aging flags; `--load` takes the save's switches, aging options and mood, and never lineup hopes (main's rule: they are not kept in saves);
+- franchise `players/types.ts` (AB3): AB3's widened `PlayerMemory.switches`, then main's `PlayerMemory.mood`.
+
+Two follow-ups for other threads came out of it: §12.11 M6 (trades, the career-check reader's two trade edges) and M7 (the mood step's foresight). The proofs (MEASURED, 2026-11-07, on the rebuilt AB3 before the fit-to-main notes, against d8ad413 in a separate worktree, the same commands; the fit-to-main commits change comments and this ADR only):
+- **The nine season runs above are byte-identical to d8ad413**: A `63febe8b…`; B `--save` `66108c69…` and `--load` `8f7f112a…`; D `a6798279…`; C `036372a3…`; E `a3b82c8b…`; F `--save` `e1dafb12…` and `--load` `329818b2…`; G `4a51db00…`.
+  - Eight are the values in the AB3 list above.
+  - F `--load` moved with main, not with the rebase: d8ad413 gives `329818b2…` too. Its only difference from the old base's `5cb45b6f…` is `--out`'s `coaching.seats`, where ADR-094 step 5 seats the GMs a week-9 save holds. A re-play of this proof on d8ad413 or later should read `329818b2…` for F `--load`.
+- **Main's new switches, byte-identical to d8ad413 as well**: `--development --injuries --lineup-hopes --out` `9f517230…`; `--development --injuries --mood --out` `299078fb…`, its week-9 `--save` `5a93437b…` and that save's `--load` `743e095c…`; and a 1-season `mood-check` of the stand-in league, tallies `8c1c8258…`.
+- **The career-check rows did not move.** The d5b-t1 2-season run (arm `both`) gives rows `7ee56f89…` on the rebuilt AB1 and on the rebuilt AB3, as on the old base (2027 week 8: overall 66.67, sd 7.88, age 26.26, win spread 2.69). So main's commits did not change default play in the walk, and AB1's 4-seed, 20-season baseline stands for the new base.
+- **The ability path did not move.** `season --seed homie-1 --development --injuries --aging ability` gives the AB3 review-fix tree's `--out` (`34f92aa6…`) and week-9 save (`95f89d87…`) to the byte. Its 2-season career-check on d5b-t1 gives 2027 week 8 at overall 66.49, sd 7.77, age 26.25, win spread 2.66, as in the smokes above.
+- **Two carry-on gaps belong to d8ad413**, with or without `--aging ability`: the staff world's (above; it reaches the players past the playoffs), and the mood's on `--mood --load` (ADR-096's: on the default path, a week-9 save carried on gives its first different `PUBLIC_MOOD_UPDATED` on the first game day after the save, week 10 day 7; MEASURED on d8ad413's bytes).
+- `pnpm verify` passed (exit 0) on the rebuilt AB3.
 
 ### 12.10 NEW contracts edits (not approved; each needs the owner's typed yes)
 
@@ -1853,6 +1868,9 @@ The tests above, and §12.2.4, §12.2.6, §12.2.8, §12.3.4, the §12.9 AB3 row 
 - **M6, trades (ADR-095 step 5; noted at the rebase onto d8ad413, 2026-11-07).** Main's ADR-095 steps 2-3 add trade money (`tradePlayer`) and give `TRADE_EXECUTED` its `pieces` and `capMoves`, but nothing in any package's `src` calls `tradePlayer` and no package emits the event, so the walk makes no trade and no AB1 row moves (READ; and the d5b-t1 2-season career-check rows on the new base are the old base's, `7ee56f89…`, MEASURED). Two of the career-check reader's rows read a trade wrongly once trades run in the walk:
   - **Rookie-cut.** A pick traded before his first week 1 reads `movedKept` (on another team's lists, never let go by his drafting team: kept), where the REAL count puts him under "another team" (not kept). So the row would undercount not-kept picks against REAL. A pick traded, then cut by his new team and claimed by a third, also reads `movedKept`, since `readPicks` marks a release by the drafting team only. The fix then: `readPicks` marks a pick traded on a `TRADE_EXECUTED` with a `PLAYER` piece naming him, and `rookieCutOf` counts him not kept, as REAL does.
   - **Veteran signings by age** (`capMoveAges`). `lastTeams(contracts)` is taken before the season, and a trade moves the contract's team with no `CONTRACT_SIGNED`, so a re-sign with his new team reads "new team" in the trade's own season. The fix then: take his team from the contracts as they stand at each `CONTRACT_SIGNED`, or apply each `TRADE_EXECUTED` to `lastTeam` as the season's events are read.
+- **M7, mood (ADR-096; noted at the rebase onto d8ad413, 2026-11-07).** The mood step's "aging units" blame on the GM (franchise `mood/steps.ts` `agingUnits`: each team's units whose starters are expected to slip most next year, the league's worst quarter) calls `expectedOverallChange(player, { at, starter: true, rules })` with no aging options, and `MoodStepsConfig` has no field to carry them. So under `--mood --aging ability` the players age on the ability path, each with his fade shifts, while the blame ranks units on the position path with none. The two paths can rank differently, since their foresights differ a lot for some men (§12.9's AB3 note, `expectedOverallPath` over 3 years at shift 0: RB at 26, +0.14 on the position path against −1.59 under D; QB at 32, −1.60 against +0.83). It is display only: nothing in the sim reads mood (`Team.mood`, the mood memory and `PUBLIC_MOOD_UPDATED` feed only the mood step itself and `mood-check`; READ, every package's `src`), and the default aging is untouched. It is the same class of caller as `cap/ahead.ts` under M2, but M2 names only the money thread's callers, so it is recorded here. It stays on the position path until the Orchestrator decides.
+  - **The plumbing, if wanted** (inert by default): `MoodStepsConfig` takes `Pick<AgingOptions, "aging" | "abilityCurves" | "techniqueKnee" | "smartsSnaps">`, `agingUnits` spreads them into `expectedOverallChange`, and calibration's `realSeason.ts` and `capCheck.ts` pass `mood: { ...agingOf(input.players) }` (`{}` at the defaults). A test shows that the blamed units follow the ability path under `--aging ability`.
+  - **Until then**, AB9 lists it beside M2's confound wherever it reads mood. `mood-check` takes no aging flags, so it plays the position path either way.
 
 ### 12.12 The owner's answers (2026-11-07 12:15Z)
 
