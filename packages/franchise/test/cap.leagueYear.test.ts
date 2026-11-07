@@ -129,28 +129,30 @@ describe("the league year (ADR-085 §4)", () => {
     expect(carried.some((c) => c.amount > 0)).toBe(true);
   });
 
-  it("extends players it values a year early: the new deal takes over next season from the old one's last year, never a rookie before his third season", () => {
-    // Step 14: deals with a year left after 2026 (2026-27 in the starting book) that were extended now
-    // end after 2026, and the extension runs from 2027 with the old deal's bonus money still to count.
+  it("re-signs on two days before the new league year, tags only at the deadline, and tears up no deal with a year left (camp extends those)", () => {
+    // The real windows (owner, 2026-11-07): re-signing opens when the season is over and runs to the tag
+    // deadline; a man with a year left after 2026 keeps his deal through the winter.
     const lastIn = (c: PlayerContract) => Math.max(...c.years.filter((y) => !y.voidYear).map((y) => y.season));
-    const extended = people0.contracts!.filter((o) => lastIn(o) === 2027).flatMap((o) => {
+    for (const o of people0.contracts!.filter((c) => lastIn(c) === 2027)) {
       const now = people.contracts!.find((x) => String(x.player) === String(o.player) && x.team === o.team && JSON.stringify(x.signedAt) === JSON.stringify(o.signedAt) && x.kind === o.kind)!;
-      return lastIn(now) === 2026 && !now.ended?.reason.startsWith("REL") ? [{ o, now }] : [];
+      if (!now.ended) expect(lastIn(now), String(o.player)).toBe(2027);
+    }
+    const winter = year1.events.filter((e) => e.at.phase === "OFF_EVAL");
+    const days = (type: FranchiseEvent["type"]) => new Set(winter.filter((e) => e.event.type === type).map((e) => `week ${e.at.week} day ${e.at.day}`));
+    expect(days("CONTRACT_SIGNED").has("week 1 day 1")).toBe(true);
+    for (const d of days("CONTRACT_SIGNED")) expect(["week 1 day 1", "week 3 day 1"]).toContain(d);
+    for (const d of days("TAG_APPLIED")) expect(d).toBe("week 3 day 1");
+    // Each tag just before its signing; every deal signed in the winter is for next season on.
+    year1.events.forEach((e, i) => {
+      if (e.event.type !== "TAG_APPLIED") return;
+      const n = year1.events[i + 1]!.event;
+      expect(n.type === "CONTRACT_SIGNED" && n.payload.kind === "FRANCHISE_TAG" && String(n.payload.player) === String(e.event.payload.player)).toBe(true);
     });
-    expect(extended.length).toBeGreaterThan(0);
-    for (const { o, now } of extended) {
-      const ext = people.contracts!.filter((c) => String(c.player) === String(o.player) && c.kind === "EXTENSION" && c.team === o.team && c.years[0]!.season === 2027);
-      expect(ext, String(o.player)).toHaveLength(1);
-      // Nothing of the old deal is left from 2027 on: its proration moved into the extension.
-      expect(now.years.every((y) => y.season <= 2026)).toBe(true);
-      const moved = o.years.filter((y) => y.season >= 2027).reduce((a, y) => a + y.signingBonusProration, 0);
-      expect(ext[0]!.years.reduce((a, y) => a + y.signingBonusProration, 0)).toBeGreaterThanOrEqual(moved - ext[0]!.years.length);
-      // His pay, and what the price list counts, is the new deal's own: not the bonus money it carries over.
-      const signed = of("CONTRACT_SIGNED").find((e) => String(e.payload.player) === String(o.player) && e.payload.kind === "EXTENSION")!;
-      expect(newPayOf(ext[0]!)).toBeCloseTo(signed.payload.value! / signed.payload.years!, -3);
-      if (moved > 10_000) expect(apyOf(ext[0]!)).toBeGreaterThan(newPayOf(ext[0]!));
-      const p = people.players.find((x) => String(x.bio.id) === String(o.player))!;
-      if (o.kind === "ROOKIE") expect(p.bio.creditedSeasons ?? 0).toBeGreaterThanOrEqual(3);
+    for (const c of people.contracts!.filter((x) => x.signedAt?.season === 2026 && x.signedAt.phase === "OFF_EVAL")) expect(c.years[0]!.season).toBe(2027);
+    // The re-signed man's pay, and what the price list counts, is his new deal's own.
+    for (const e of of("CONTRACT_SIGNED").filter((x) => x.payload.kind === "EXTENSION").slice(0, 20)) {
+      const c = people.contracts!.find((x) => String(x.player) === String(e.payload.player) && x.kind === "EXTENSION")!;
+      expect(newPayOf(c)).toBeCloseTo(e.payload.value! / e.payload.years!, -3);
     }
   });
 

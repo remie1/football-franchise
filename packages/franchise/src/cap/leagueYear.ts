@@ -1,11 +1,19 @@
 /**
  * ADR-085 §4: the league year as day steps in the season's walk (ADR-086 §2).
  *
+ *   OFF_EVAL week 1 day 1       re-signing opens (late winter): cap casualties are cut and a team over
+ *                               next season's cap gets under it; teams re-sign their own players,
+ *                               making room as they go, and tender restricted free agents
  *   OFF_EVAL week 2 day 1       the cap for next season is set (CAP_SET)
- *   OFF_EVAL week 3 day 1       teams re-sign their own players, tender restricted free agents, tag one
+ *   OFF_EVAL week 3 day 1       the tag deadline: a last round of re-signing, then one franchise tag
  *   OFF_RESET_FA week 1 day 1   the new league year: deals run out, every team gets under the cap
  *   OFF_RESET_FA week 1 day 2   free agency opens (premium window), then the value window from week 2,
  *   to cut-down day             then the bargain basement from the draft on, the asking prices falling
+ *   TRAINING_CAMP week 1 day 1  camp opens (late summer): teams extend men in the last year of their deals
+ *
+ * The windows are the real ones (owner, 2026-11-07): real teams negotiate with their own free agents
+ * from the season's end to the new league year, clearing room as they need it in February and March,
+ * tag by a deadline about a week before it, and extend their stars in camp.
  *
  * Computer teams decide everything here. A human team's choices arrive with the screens for them
  * (Iron Rule 6: re-signing, tags, cuts and signings are GM decisions).
@@ -14,7 +22,7 @@
  */
 import {
   compareStamps, createRng, DEFAULT_LEAGUE_RULES,
-  type CalendarStamp, type DeadMoneyCharge, type FranchiseEvent, type LeagueRules, type PlayerContract, type PlayerId, type PlayerState, type Position,
+  type CalendarStamp, type ContractYear, type DeadMoneyCharge, type FranchiseEvent, type LeagueRules, type PlayerContract, type PlayerId, type PlayerState, type Position,
   type SeasonState, type StaffState, type Team, type TeamId,
 } from "@ff/contracts";
 import { isDay, type DayStep, type DayStepContext, type LeaguePeople } from "../season/people.js";
@@ -34,10 +42,15 @@ import { floorShortfall, planWithFloor, teamCapPlan, type CapPlan } from "./lean
 export type CapForSeason = (season: number) => number;
 
 export const LEAGUE_YEAR_DAYS = {
+  /** Re-signing opens once the season is over: February's cap cuts, then the first round. */
+  reSignOpens: { phase: "OFF_EVAL", week: 1, day: 1 },
   capSet: { phase: "OFF_EVAL", week: 2, day: 1 },
+  /** The franchise tag's deadline, about a week before the new league year, after re-signing's last round. */
   reSign: { phase: "OFF_EVAL", week: 3, day: 1 },
   newYear: { phase: "OFF_RESET_FA", week: 1, day: 1 },
   postDraft: { phase: "OFF_DRAFT", week: 4, day: 1 },
+  /** Camp opens: teams extend the men in the last year of their deals. */
+  campExtensions: { phase: "TRAINING_CAMP", week: 1, day: 1 },
 } as const;
 
 /**
@@ -89,7 +102,7 @@ export const MARKET = {
    * its use as the bound is judgment).
    */
   lookAheadMost: 0.1,
-  /** Early extensions: the lowest place in his position's market a player is extended at. */
+  /** Camp extensions: the lowest place in his position's market a player is extended at. */
   extendPercentile: 0.4,
   /** ...while his age leaves at least this much of his price in the new deal's first year (`ageFactorAt`, read at his age for the rules: `AheadView.ruleAge`). */
   extendAgeFactor: 0.9,
@@ -116,6 +129,12 @@ export interface LeagueYearConfig {
   scouting?: (team: TeamId, people: LeaguePeople) => number;
   /** Step 13: the view ahead, shared with the draft's cut-down in a season's walk (default: one of the year's own over `rate`). */
   ahead?: AheadView;
+  /**
+   * The first season whose camp extends anyone (default: every season). A league read from a file
+   * taken after camp (the stand-in league's contracts are as of 23 October) starts the season after,
+   * since that camp's extensions are already in its deals.
+   */
+  campExtensionsFrom?: number;
 }
 
 /** The year's config with its view ahead. */
@@ -327,7 +346,8 @@ export function leagueYearSteps(base: LeagueYearConfig): DayStep[] {
     },
     {
       id: "re-sign",
-      run: (people, ctx) => (isDay(ctx.day, LEAGUE_YEAR_DAYS.reSign) ? reSign(people, ctx, config, skillOf) : undefined),
+      run: (people, ctx) => (isDay(ctx.day, LEAGUE_YEAR_DAYS.reSignOpens) ? reSign(people, ctx, config, skillOf, "opens")
+        : isDay(ctx.day, LEAGUE_YEAR_DAYS.reSign) ? reSign(people, ctx, config, skillOf, "deadline") : undefined),
     },
     {
       id: "new-league-year",
@@ -351,6 +371,11 @@ export function leagueYearSteps(base: LeagueYearConfig): DayStep[] {
         const w = marketWindow(ctx.day, ctx.rules.cutdown ?? DEFAULT_LEAGUE_RULES.cutdown!);
         return w ? freeAgency(people, ctx, config, skillOf, w) : undefined;
       },
+    },
+    {
+      id: "camp-extensions",
+      run: (people, ctx) => (isDay(ctx.day, LEAGUE_YEAR_DAYS.campExtensions) && ctx.season >= (config.campExtensionsFrom ?? -Infinity)
+        ? campExtensions(people, ctx, config, skillOf) : undefined),
     },
   ];
   return steps.map((step) => ({ ...step, run: (people, ctx) => { config.ahead.setToday({ at: ctx.day, people, rules: ctx.rules }); return step.run(people, ctx); } }));
@@ -378,26 +403,76 @@ const hasDealIn = (book: readonly PlayerContract[], player: string, season: numb
 
 // ---------- re-signing, tenders and tags (OFF_EVAL) ----------
 
+/**
+ * Late winter's re-signing (owner, 2026-11-07: the real windows). On the day it opens, the men the new
+ * league year would cut as cap casualties are cut (real teams clear space in February and March;
+ * money.ts processes an OFF_EVAL release at the new league year) and a team over next season's cap
+ * gets under it. On that day and again at the tag deadline, each team takes its own free agents in
+ * value-for-money order: a man it wants who would sign, but who does not fit, gets the room the team
+ * can make by restructuring, tried on a copy of the book and kept only when he then fits. At the
+ * deadline it tags the best star still unsigned, making room the same way.
+ */
 function reSign(
-  people: LeaguePeople, ctx: DayStepContext, config: YearConfig, skillOf: (t: TeamId, p: LeaguePeople) => number,
+  people: LeaguePeople, ctx: DayStepContext, config: YearConfig, skillOf: (t: TeamId, p: LeaguePeople) => number, round: "opens" | "deadline",
 ): { people: LeaguePeople; events: FranchiseEvent[] } {
   const next = ctx.season + 1;
   const book: Book = { contracts: [...(people.contracts ?? [])], dead: [...(people.deadMoney ?? [])], events: [] };
   const byId = new Map(people.players.map((p) => [String(p.bio.id), p]));
+  const freeAgents = [...people.freeAgents];
   const curves = marketCurves(book.contracts, people.players, next, config.rate, config.cap);
   const at = ctx.day;
   const plan = (t: TeamId) => teamCapPlan(t, people.staff);
   const reserveFor = (t: TeamId) => rookieReserve(t, next, people, ctx.rules, config.cap) + plan(t).cushion;
   const typical = typicalPicks(people.players, next, config.rate);
-  for (const team of people.teams) {
-    // Before the new league year the carryover is not set: the team counts on the room it has now.
-    const carry = unusedRoom(team.id, ctx.season, people, book, config.cap);
+  // Before the new league year the carryover is not set: the team counts on the room it has now.
+  const carries = new Map(people.teams.map((t) => [String(t.id), unusedRoom(t.id, ctx.season, people, book, config.cap)]));
+  let teams = people.teams;
+  if (round === "opens") {
+    const carried: Pick<LeaguePeople, "capCarryover"> = {
+      capCarryover: [...(people.capCarryover ?? []), ...people.teams.map((t) => ({ team: t.id, season: next, amount: carries.get(String(t.id))! }))],
+    };
+    teams = teams.map((t) => {
+      const fp = floorPlan(t.id, next, people.staff, carried, book, config.cap);
+      return getUnderCap(t, next, ctx, book, byId, freeAgents, config, skillOf(t.id, people), true, carried, {
+        want: rookieReserve(t.id, next, people, ctx.rules, config.cap) + fp.cushion + fp.marchRoom * MARKET.freeAgencyShare * config.cap(next),
+        curves, plan: fp, restructureTo: 0,
+      });
+    });
+  }
+  for (const team of teams) {
+    const carry = carries.get(String(team.id))!;
+    const p0 = plan(team.id);
+    const roomIn = (b: Book) => roomFor(team.id, next, b, config.cap, reserveFor(team.id), carry, p0.lookAhead);
+    /**
+     * Sign `c` if its first year fits, making room by restructuring when it does not (on a copy of the
+     * book, kept only when he then fits); `fits` checks the rest (the second year).
+     */
+    const signWithRoom = (c: PlayerContract, fits: (b: Book) => boolean): boolean => {
+      const need = capNumber(c.years[0]!);
+      let b = book;
+      if (need > roomIn(book)) {
+        b = { contracts: [...book.contracts], dead: book.dead, events: [] };
+        const trial = b;
+        restructureFor(team.id, next, () => need - roomIn(trial), trial, byId, config.cap, p0.voidYears);
+        if (need > roomIn(trial)) return false;
+      }
+      if (!fits(b)) return false;
+      if (b !== book) {
+        book.contracts = b.contracts;
+        book.events.push(...b.events);
+      }
+      book.contracts.push(c);
+      book.events.push(signedEvent(c));
+      return true;
+    };
     const skill = skillOf(team.id, people);
     const roster = playersOf(team, byId);
     const grade = (p: PlayerState) => teamGrade(team.id, p, skill, config.ahead.forTeam(team.id), ctx.seed, ctx.season);
-    const kept = roster.filter((p) => !book.contracts.some((c) => String(c.player) === String(p.bio.id) && endsAfter(c, ctx.season)));
-    const expiring = roster.filter((p) => !kept.includes(p) && !hasDealIn(book.contracts, String(p.bio.id), next))
-      .map((p) => ({ p, g: grade(p) }));
+    // Kept: every man with a deal for next season (one re-signed when re-signing opened among them)
+    // or whose deal does not end now; the rest are its own free agents to be.
+    const kept = roster.filter((p) => hasDealIn(book.contracts, String(p.bio.id), next)
+      || !book.contracts.some((c) => String(c.player) === String(p.bio.id) && endsAfter(c, ctx.season)));
+    const expiring = roster.filter((p) => !kept.includes(p)).map((p) => ({ p, g: grade(p) }));
     // Step 14, §3.4: seats held for the team's own coming picks count as men at their positions.
     const picks = pickSeats(team.id, kept, grade, people, next, ctx.rules, typical);
     const gradesAt = (pos: Position) => [...kept.filter((k) => k.bio.position === pos).map(grade), ...(picks.get(pos) ?? [])];
@@ -414,18 +489,20 @@ function reSign(
       const pos = p.bio.position;
       if (!makesTheRoster(g, pos, gradesAt(pos))) continue;
       const cs = seasonsIn(p, next);
-      const room = roomFor(team.id, next, book, config.cap, reserveFor(team.id), carry, plan(team.id).lookAhead);
-      let contract: PlayerContract | undefined;
+      let signed = false;
       if (cs < RFA_SEASONS) {
         // Exclusive-rights: a one-year minimum tender he must take.
-        contract = { ...minimumContract({ player: p.bio.id, team: team.id, season: next, signedAt: at, creditedSeasons: cs, years: 1, capForSeason: config.cap }), kind: "ERFA_TENDER" };
+        const c = { ...minimumContract({ player: p.bio.id, team: team.id, season: next, signedAt: at, creditedSeasons: cs, years: 1, capForSeason: config.cap }), kind: "ERFA_TENDER" as const };
+        book.contracts.push(c);
+        book.events.push(signedEvent(c));
+        signed = true;
       } else if (cs === RFA_SEASONS) {
         const v = valuePlayer(p, g, curves, minimumSalary(next, cs, config.cap), undefined, config.ahead.value(team.id, p));
         const prior = capNumber(book.contracts.find((c) => String(c.player) === String(p.bio.id) && endsAfter(c, ctx.season))!.years.find((y) => y.season === ctx.season) ?? { season: 0, baseSalary: 0, signingBonusProration: 0, guarantees: { fullyGuaranteed: false }, capHit: 0 });
         const levels: TenderLevel[] = ["FIRST_ROUND", "SECOND_ROUND", "ORIGINAL_ROUND", "RIGHT_OF_FIRST_REFUSAL"];
         const level = levels.find((l) => tenderPrice(l, config.cap(next), prior) <= v.apy) ?? "RIGHT_OF_FIRST_REFUSAL";
         const price = tenderPrice(level, config.cap(next), prior);
-        if (price <= room) contract = oneYear(p, team.id, next, at, price, "RFA_TENDER");
+        signed = signWithRoom(oneYear(p, team.id, next, at, price, "RFA_TENDER"), () => true);
       } else {
         const v = valuePlayer(p, g, curves, minimumSalary(next, cs, config.cap), config.cap(next), config.ahead.value(team.id, p));
         const offer = buildOffer(p, team.id, next, at, v.apy, v.years, v.percentile, cs, config.cap, "EXTENSION");
@@ -433,58 +510,103 @@ function reSign(
         const lastMan = gradesAt(pos).length < Math.max(1, STARTERS[pos]);
         // Nor does it keep a man worth less to it than his price (step 14, §3.1): he goes to the market.
         if (!lastMan && valueForMoney({ position: pos, here: gradesAt(pos), grade: g, apy: apyOf(offer), floor: dealFloor(offer, cs, config.cap), curve: curves.get(TAG_GROUP[pos]) }) < 0) continue;
-        if (capNumber(offer.years[0]!) <= room && (lastMan || secondYearFits(team.id, offer, book, config.cap, plan(team.id)))) {
-          const ask = askingPrice(p, askValue(p, config, curves, minimumSalary(next, cs, config.cap), config.cap(next)), "VALUE", 0, minimumSalary(next, cs, config.cap), ctx.seed, ctx.season);
-          const worth = offerWorth(p, {
-            apy: v.apy, guaranteed: guaranteedShare(offer), winShare: winShareOf(team.id, ctx.state),
-            starts: wouldStart(g, pos, gradesAt(pos)), ownTeam: true,
-          }, ask);
-          if (worth >= 1) contract = offer;
-        }
-        if (!contract) {
+        const ask = askingPrice(p, askValue(p, config, curves, minimumSalary(next, cs, config.cap), config.cap(next)), "VALUE", 0, minimumSalary(next, cs, config.cap), ctx.seed, ctx.season);
+        const worth = offerWorth(p, {
+          apy: v.apy, guaranteed: guaranteedShare(offer), winShare: winShareOf(team.id, ctx.state),
+          starts: wouldStart(g, pos, gradesAt(pos)), ownTeam: true,
+        }, ask);
+        if (worth >= 1) signed = signWithRoom(offer, (b) => lastMan || secondYearFits(team.id, offer, b, config.cap, p0));
+        if (!signed) {
           const prior = book.contracts.find((c) => String(c.player) === String(p.bio.id) && endsAfter(c, ctx.season));
           declined.push({ p, g, percentile: v.percentile, prior: prior ? capNumber(prior.years.find((y) => y.season === ctx.season) ?? prior.years.at(-1)!) : 0 });
         }
       }
-      if (contract) {
-        book.contracts.push(contract);
-        book.events.push(signedEvent(contract));
-        kept.push(p);
+      if (signed) kept.push(p);
+    }
+    // At the deadline, one franchise tag: the best player who said no, if he is a star and it fits.
+    if (round === "deadline" && ctx.rules.franchiseTagEnabled) {
+      const star = declined.find((d) => d.percentile >= MARKET.tagPercentile);
+      if (star) {
+        const price = tagPrice(star.p.bio.position, "FRANCHISE_TAG", config.cap(next), star.prior);
+        const c = tagContract({ player: star.p.bio.id, team: team.id, season: next, signedAt: at, position: star.p.bio.position, kind: "FRANCHISE_TAG", cap: config.cap(next), priorSalary: star.prior });
+        // The tag comes just before its signing in the stream, after any restructure that made its room.
+        if (capNumber(c.years[0]!) <= price && signWithRoom(c, () => true)) {
+          book.events.splice(book.events.length - 1, 0, { type: "TAG_APPLIED", payload: { player: star.p.bio.id, tagType: "FRANCHISE_TAG" } });
+        }
       }
     }
-    // Early extensions: a player the team rates highly, in his last year next season and still in his
-    // prime, is extended now, as real teams do before a good player reaches the market. The new deal
-    // takes over from next season, as a real extension tears up the deal's last year (step 14): his old
-    // deal now runs out at the new league year, and its bonus money still to count from next season on
-    // moves into the new deal's real years.
-    const first = next;
+  }
+  return {
+    people: {
+      ...people, contracts: book.contracts, deadMoney: book.dead,
+      // Only the day re-signing opens cuts anyone.
+      ...(round === "opens" ? { teams, players: placePlayers(people.players, teams), freeAgents: freeAgents.filter((id, i) => freeAgents.findIndex((x) => String(x) === String(id)) === i) } : {}),
+    },
+    events: book.events,
+  };
+}
+
+// ---------- camp extensions (TRAINING_CAMP week 1 day 1) ----------
+
+/**
+ * Late summer (owner, 2026-11-07: the real windows): camp is when real teams extend the men in the
+ * last year of their deals, their stars above all, before the season starts. A player the team rates
+ * highly and who is still in his prime is extended now. The new deal takes over this season from the
+ * old deal's last year, as a real extension tears it up (step 14): what that year has already paid
+ * (its roster and workout bonuses) stays in it, and the old deal's bonus money still to count moves
+ * into the new deal's real years, so the new bonus spreads from this season and usually lowers its
+ * cap number.
+ */
+function campExtensions(
+  people: LeaguePeople, ctx: DayStepContext, config: YearConfig, skillOf: (t: TeamId, p: LeaguePeople) => number,
+): { people: LeaguePeople; events: FranchiseEvent[] } | undefined {
+  const season = ctx.season;
+  const book: Book = { contracts: [...(people.contracts ?? [])], dead: [...(people.deadMoney ?? [])], events: [] };
+  if (book.contracts.length === 0) return undefined;
+  const byId = new Map(people.players.map((p) => [String(p.bio.id), p]));
+  const curves = marketCurves(book.contracts, people.players, season, config.rate, config.cap);
+  const at = ctx.day;
+  for (const team of people.teams) {
+    const plan = floorPlan(team.id, season, people.staff, people, book, config.cap);
+    const carry = adjustedCap(team.id, season, people, config.cap) - config.cap(season);
+    const skill = skillOf(team.id, people);
+    const roster = playersOf(team, byId);
+    const grade = (p: PlayerState) => teamGrade(team.id, p, skill, config.ahead.forTeam(team.id), ctx.seed, ctx.season);
+    const gradesAt = (pos: Position) => roster.filter((k) => k.bio.position === pos).map(grade);
     for (const p of roster) {
-      const oi = book.contracts.findIndex((c) => String(c.player) === String(p.bio.id) && c.team === team.id && endsAfter(c, next));
+      const oi = book.contracts.findIndex((c) => String(c.player) === String(p.bio.id) && c.team === team.id && endsAfter(c, season));
       const old = oi >= 0 ? book.contracts[oi] : undefined;
       if (!old) continue;
-      // Not a deal that starts next season (nothing of it to keep), nor a man with another deal for it.
-      if (!old.years.some((y) => y.season < first && !y.voidYear)) continue;
-      if (book.contracts.some((c, j) => j !== oi && String(c.player) === String(p.bio.id) && liveIn(c, first))) continue;
-      // Not the man it just tendered, tagged or re-signed today: that deal is his answer for now.
-      if (old.signedAt && compareStamps(old.signedAt, at) === 0) continue;
-      const cs = seasonsIn(p, first);
+      // Not a deal that started this season (nothing of it to keep), nor a man with another deal for it.
+      if (!old.years.some((y) => y.season < season && !y.voidYear)) continue;
+      if (book.contracts.some((c, j) => j !== oi && String(c.player) === String(p.bio.id) && liveIn(c, season))) continue;
+      const cs = seasonsIn(p, season);
       // A drafted player cannot sign a new deal until his third season is over (the real rookie rule).
-      if (old.kind === "ROOKIE" && seasonsIn(p, next) < MARKET.rookieExtensionSeasons) continue;
+      if (old.kind === "ROOKIE" && cs < MARKET.rookieExtensionSeasons) continue;
       if (ageFactorAt(config.ahead.ruleAge(team.id, p) + 2) < MARKET.extendAgeFactor) continue;
       const g = grade(p);
-      const floor = minimumSalary(first, cs, config.cap);
-      const v = valuePlayer(p, g, curves, floor, config.cap(first), config.ahead.value(team.id, p));
+      const floor = minimumSalary(season, cs, config.cap);
+      const v = valuePlayer(p, g, curves, floor, config.cap(season), config.ahead.value(team.id, p));
       if (v.percentile < MARKET.extendPercentile) continue;
-      const fresh = buildOffer(p, team.id, first, at, v.apy, v.years, v.percentile, cs, config.cap, "EXTENSION");
-      const left = old.years.filter((y) => y.season >= first).reduce((a, y) => a + proration(y), 0);
+      const fresh = buildOffer(p, team.id, season, at, v.apy, v.years, v.percentile, cs, config.cap, "EXTENSION");
+      const left = old.years.filter((y) => y.season >= season).reduce((a, y) => a + proration(y), 0);
       const each = prorate(left, fresh.years.filter((y) => !y.voidYear).length);
-      const offer = withCapHits({ ...fresh, years: fresh.years.map((y, i) => (y.voidYear || i >= each.length ? y : { ...y, signingBonusProration: y.signingBonusProration + each[i]! })) });
-      const shortened: PlayerContract = { ...old, years: old.years.filter((y) => y.season < first) };
+      const lastYear = old.years.find((y) => y.season === season);
+      // What the old deal's last year has paid by camp stays in this season.
+      const paid = (y: ContractYear): ContractYear => ({
+        ...y,
+        ...(lastYear?.rosterBonus ? { rosterBonus: (y.rosterBonus ?? 0) + lastYear.rosterBonus } : {}),
+        ...(lastYear?.workoutBonus ? { workoutBonus: (y.workoutBonus ?? 0) + lastYear.workoutBonus } : {}),
+      });
+      const offer = withCapHits({
+        ...fresh,
+        years: fresh.years.map((y, i) => (y.voidYear || i >= each.length ? y : { ...(i === 0 ? paid(y) : y), signingBonusProration: y.signingBonusProration + each[i]! })),
+      });
+      const shortened: PlayerContract = { ...old, years: old.years.filter((y) => y.season < season) };
       // The old deal's last year leaves the books as the new deal's first comes on.
-      const lastYear = old.years.find((y) => y.season === first);
-      if (capNumber(offer.years[0]!) - (lastYear ? capNumber(lastYear) : 0) > roomFor(team.id, first, book, config.cap, plan(team.id).cushion, 0, plan(team.id).lookAhead)) continue;
-      if (!secondYearFits(team.id, offer, { ...book, contracts: book.contracts.map((c, j) => (j === oi ? shortened : c)) }, config.cap, plan(team.id))) continue;
-      const ask = askingPrice(p, askValue(p, config, curves, floor, config.cap(first)), "VALUE", 0, floor, ctx.seed, ctx.season);
+      if (capNumber(offer.years[0]!) - (lastYear ? capNumber(lastYear) : 0) > roomFor(team.id, season, book, config.cap, plan.cushion, carry, plan.lookAhead, at)) continue;
+      if (!secondYearFits(team.id, offer, { ...book, contracts: book.contracts.map((c, j) => (j === oi ? shortened : c)) }, config.cap, plan)) continue;
+      const ask = askingPrice(p, askValue(p, config, curves, floor, config.cap(season)), "VALUE", 0, floor, ctx.seed, ctx.season);
       const worth = offerWorth(p, {
         // He weighs the new deal's own pay, not the bonus money it carries over from his old one.
         apy: apyOf(fresh), guaranteed: guaranteedShare(offer), winShare: winShareOf(team.id, ctx.state),
@@ -495,20 +617,9 @@ function reSign(
       book.contracts.push(offer);
       book.events.push(signedEvent(offer));
     }
-    // One franchise tag: the best player who said no, if he is a star and it fits.
-    if (ctx.rules.franchiseTagEnabled) {
-      const star = declined.find((d) => d.percentile >= MARKET.tagPercentile);
-      if (star) {
-        const price = tagPrice(star.p.bio.position, "FRANCHISE_TAG", config.cap(next), star.prior);
-        if (price <= roomFor(team.id, next, book, config.cap, reserveFor(team.id), carry, plan(team.id).lookAhead)) {
-          const c = tagContract({ player: star.p.bio.id, team: team.id, season: next, signedAt: at, position: star.p.bio.position, kind: "FRANCHISE_TAG", cap: config.cap(next), priorSalary: star.prior });
-          book.contracts.push(c);
-          book.events.push({ type: "TAG_APPLIED", payload: { player: star.p.bio.id, tagType: "FRANCHISE_TAG" } }, signedEvent(c));
-        }
-      }
-    }
   }
-  return { people: { ...people, contracts: book.contracts, deadMoney: book.dead }, events: book.events };
+  if (book.events.length === 0) return undefined;
+  return { people: { ...people, contracts: book.contracts }, events: book.events };
 }
 
 function oneYear(p: PlayerState, team: TeamId, season: number, at: CalendarStamp, price: number, kind: PlayerContract["kind"]): PlayerContract {
@@ -611,6 +722,37 @@ function newLeagueYear(
 const yearBase = (c: PlayerContract, season: number): number => c.years.find((y) => y.season === season)?.baseSalary ?? 0;
 
 /**
+ * Restructure a team's deals for `year` while `short()` (room still wanted, dollars) is above zero:
+ * the biggest base salaries first, base above his minimum turned into bonus over the deal's own
+ * years; then, still short and if `voidYears`, with void years added so the bonus spreads over the
+ * real limit of five.
+ */
+function restructureFor(
+  team: TeamId, year: number, short: () => number, book: Book, byId: ReadonlyMap<string, PlayerState>, cap: CapForSeason, voidYears: boolean,
+): void {
+  let over = short();
+  const live = () => book.contracts.map((c, i) => ({ c, i })).filter(({ c }) => c.team === team && liveIn(c, year));
+  for (const voids of voidYears ? [false, true] : [false]) {
+    for (const { c, i } of live().sort((a, b) => yearBase(b.c, year) - yearBase(a.c, year))) {
+      if (over <= 0) return;
+      const p = byId.get(String(c.player));
+      const left = c.years.filter((y) => y.season >= year && !y.voidYear).length;
+      const spread = c.years.filter((y) => y.season >= year).length;
+      const addVoidYears = voids ? Math.max(0, Math.min(MARKET.maxVoidYears, MAX_PRORATION_YEARS - spread)) : 0;
+      const n = Math.min(MAX_PRORATION_YEARS, (voids ? spread : left) + addVoidYears);
+      if (!p || left < 1 || n < 2 || (voids && addVoidYears === 0)) continue;
+      const floor = minimumSalary(year, seasonsIn(p, year), cap);
+      const amount = Math.min(yearBase(c, year) - floor, Math.ceil(over * n / (n - 1) / 1000) * 1000);
+      if (amount < 1_000_000) continue;
+      const r = restructure(c, year, amount, { floor, addVoidYears });
+      book.contracts[i] = r.contract;
+      book.events.push(...r.events);
+      over = short();
+    }
+  }
+}
+
+/**
  * Get one team under the cap for `year` (Q7 a, a hard cap): restructure the biggest deals first
  * (base salary above his minimum turned into bonus), then cut whoever saves the most per point of
  * value. Cut players go to `freeAgents`. `top51`: the offseason count.
@@ -618,8 +760,12 @@ const yearBase = (c: PlayerContract, season: number): number => c.years.find((y)
 function getUnderCap(
   t: Team, year: number, ctx: DayStepContext, book: Book, byId: ReadonlyMap<string, PlayerState>, freeAgents: PlayerState["bio"]["id"][],
   config: YearConfig, skill: number, top51: boolean, carried: Pick<LeaguePeople, "capCarryover">,
-  /** The new league year: room wanted beyond the cap, and the market to judge who is overpaid. */
-  newYear?: { want: number; curves: MarketCurves; plan: CapPlan },
+  /**
+   * The new league year: room wanted beyond the cap, and the market to judge who is overpaid.
+   * `restructureTo`, when set, is the room restructures aim for instead of `want` (re-signing's
+   * opening day restructures only to get under the cap: room for its own men is made as they sign).
+   */
+  newYear?: { want: number; curves: MarketCurves; plan: CapPlan; restructureTo?: number },
 ): Team {
   const grade = (p: PlayerState) => teamGrade(t.id, p, skill, config.ahead.forTeam(t.id), ctx.seed, ctx.season);
   const capNow = adjustedCap(t.id, year, carried, config.cap);
@@ -669,29 +815,11 @@ function getUnderCap(
       }
     }
   }
-  // Restructures toward the room wanted: first over the deal's own years; then, still short, with
-  // void years added so the bonus spreads over the real limit of five.
-  let over = want - room();
-  for (const voids of newYear?.plan.voidYears === false ? [false] : [false, true]) {
-    for (const { c, i } of live().sort((a, b) => yearBase(b.c, year) - yearBase(a.c, year))) {
-      if (over <= 0) break;
-      const p = byId.get(String(c.player));
-      const left = c.years.filter((y) => y.season >= year && !y.voidYear).length;
-      const spread = c.years.filter((y) => y.season >= year).length;
-      const addVoidYears = voids ? Math.max(0, Math.min(MARKET.maxVoidYears, MAX_PRORATION_YEARS - spread)) : 0;
-      const n = Math.min(MAX_PRORATION_YEARS, (voids ? spread : left) + addVoidYears);
-      if (!p || left < 1 || n < 2 || (voids && addVoidYears === 0)) continue;
-      const floor = minimumSalary(year, seasonsIn(p, year), config.cap);
-      const amount = Math.min(yearBase(c, year) - floor, Math.ceil(over * n / (n - 1) / 1000) * 1000);
-      if (amount < 1_000_000) continue;
-      const r = restructure(c, year, amount, { floor, addVoidYears });
-      book.contracts[i] = r.contract;
-      book.events.push(...r.events);
-      over = want - room();
-    }
-  }
+  // Restructures toward the room wanted.
+  const target = newYear?.restructureTo ?? want;
+  restructureFor(t.id, year, () => target - room(), book, byId, config.cap, newYear?.plan.voidYears !== false);
   // Then cuts, only as far as the cap itself: any deal on the books may go, but never a position's last men.
-  over = -room();
+  let over = -room();
   while (over > 0) {
     const at = countAt();
     const candidates = live().map(({ c, i }) => ({ c, i, p: byId.get(String(c.player)) }))

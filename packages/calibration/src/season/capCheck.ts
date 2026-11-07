@@ -525,7 +525,9 @@ export function runCapCheck(input: CapCheckInput): CapYear[] {
       resolve: peopleResolver(rated, input.callerVersion === undefined ? {} : { callerVersion: input.callerVersion }),
       people,
       through: "YEAR",
-      leagueYear: { rate, cap },
+      // The league file's contracts are as of 23 October, after its own camp: that camp's extensions are
+      // already in them, so the walk's first camp extends nobody.
+      leagueYear: { rate, cap, campExtensionsFrom: first + 1 },
       draft: { rate, makeClass, cap },
       ...players,
       ...coachingSteps,

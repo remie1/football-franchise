@@ -122,7 +122,9 @@ describe("the cap check's walk, switched off: runSeason is handed today's setup"
       // The staff has no stored leanings, as before (they are stored only with a switch on).
       expect(people!.staff!.filter((s) => s.lineup !== undefined)).toEqual([]);
       // The money and draft settings: the same grade, the same cap, the same classes.
-      expect(Object.keys(input.leagueYear!).sort()).toEqual(["cap", "rate"]);
+      // The one new setting: the league file's own camp is past, so camps extend from the next season on.
+      expect(Object.keys(input.leagueYear!).sort()).toEqual(["campExtensionsFrom", "cap", "rate"]);
+      expect(input.leagueYear!.campExtensionsFrom).toBe(file.season + 1);
       expect(Object.keys(input.draft!).sort()).toEqual(["cap", "makeClass", "rate"]);
       expect(input.draft!.cap).toBe(input.leagueYear!.cap);
       expect(input.draft!.rate).toBe(input.leagueYear!.rate);
