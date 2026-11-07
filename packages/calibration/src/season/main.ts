@@ -52,6 +52,9 @@
  * ADR-087 §7) never reach the news or `--out`. Not with `--rosters flat`, which has no squads. The
  * stand-in league's growth records and copied injuries come with the file
  * (`pnpm --filter @ff/attributes standin-development`, ADR-087 §2.5); each is read only with its switch.
+ * `--lineup-hopes` (with either) lets each computer head coach size up his hopes after each week's
+ * games and move his lineup (ADR-094 §9: a look at the young men, a desperate shake-up); off by
+ * default, and not kept in saves yet, so not with `--load`.
  *
  * Mood (ADR-096 step 2): `--mood`, with `--development` or `--injuries`, adds the fans' and media's
  * mood to the walk: a `PUBLIC_MOOD_UPDATED` per team after each game and at the offseason's big
@@ -92,6 +95,7 @@ function parse(argv: readonly string[]) {
   let development = false;
   let injuries = false;
   let mood = false;
+  let lineupHopes = false;
   let engineRules: string | undefined;
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]!;
@@ -111,6 +115,7 @@ function parse(argv: readonly string[]) {
     else if (arg === "--development") development = true;
     else if (arg === "--injuries") injuries = true;
     else if (arg === "--mood") mood = true;
+    else if (arg === "--lineup-hopes") lineupHopes = true;
     else if (arg === "--engine-rules") engineRules = next();
     else if (arg === "--rosters") {
       const v = next();
@@ -146,7 +151,8 @@ function parse(argv: readonly string[]) {
   if ((development || injuries) && rosters === "flat") throw new SyntaxError("--development and --injuries need squads; --rosters flat has none");
   if (mood && load !== undefined) throw new SyntaxError("--load carries on with the save's own mood; drop --mood");
   if (mood && !development && !injuries) throw new SyntaxError("--mood needs --development or --injuries (mood runs in the players' walk)");
-  return { seed, season, callerVersion, out, stopAfter, save, load, switchCaller, rosters, teamStrengthSd, leagueFile, development, injuries, mood, engineRules };
+  if (lineupHopes && !(development || injuries)) throw new SyntaxError("--lineup-hopes needs --development or --injuries (the coaches set depth charts only with the players' steps)");
+  return { seed, season, callerVersion, out, stopAfter, save, load, switchCaller, rosters, teamStrengthSd, leagueFile, development, injuries, lineupHopes, mood, engineRules };
 }
 
 function stopDay(text: string, season: number): CalendarStamp {
@@ -194,7 +200,7 @@ const base = loaded?.league ?? buildLeague(seed);
 const savedSwitches = loaded?.development?.people.playerMemory?.switches;
 const players = loaded
   ? (savedSwitches ? { development: savedSwitches.development, injuries: savedSwitches.injuries } : undefined)
-  : (args.development || args.injuries ? { development: args.development, injuries: args.injuries } : undefined);
+  : (args.development || args.injuries ? { development: args.development, injuries: args.injuries, ...(args.lineupHopes ? { lineupHopes: true } : {}) } : undefined);
 // ADR-096 step 2: fan and media mood, from the command line or, carrying on, from the save (its memory says it ran).
 const mood = loaded ? loaded.development?.people.playerMemory?.mood !== undefined : args.mood;
 // The season the run plays, worked out once, as `runRealSeason` does, for the coaches and the stop day too.
