@@ -219,7 +219,7 @@ New-team deals of $2M+ rose from 111 a year to 175, close to the real range, and
 
 ## Step 14: the middle class (2026-11-07)
 
-Real teams spend about a fifth of their cap on veterans' deals of 0.66% to 4% of the cap (about $2M to $12M in 2026): 21.4% of a team's cap and 13.7 men a team on the 2026 53s (the league file, contracts as of 23 October, COUNTED). Ours spent about 10% there and about 50% on deals of 4% and up (real 39.5%), because the market scored a man by need and grade and let his price decide only whether he fit. Step 14 (ADR-085) has a team weigh what a man adds to its men at his position against what he costs ("value for money"), counts the cap a cut saves on cut-down day, keeps 90-man spots open for undrafted rookies, and seats the team's draft picks on re-signing day.
+Real teams spend about a fifth of their cap on veterans' deals of 0.66% to 4% of the cap (about $2M to $12M in 2026): 21.4% of a team's cap and 13.7 men a team on the 2026 53s (the league file, contracts as of 23 October, COUNTED). Ours spent about 10% there and about 50% on deals of 4% and up (real 39.5%), because the market scored a man by need and grade and let his price decide only whether he fit. Step 14 (ADR-085) has a team weigh what a man adds to its men at his position against what he costs ("value for money"), counts the cap a cut saves on cut-down day, keeps 90-man spots open for undrafted rookies, and seats the team's draft picks when it re-signs its own men.
 
 Two fixes came with it. Both had set the top of a position's price list too high, so the best man at some positions asked for 18% to 21% of the cap (a guard at $60M, a center at $71M; the year's biggest real deal outside quarterback was 13.7% to 16.7% of the cap, 2021-25, OverTheCap, COUNTED):
 
@@ -232,42 +232,47 @@ Three new measures:
 - **Dead money once the season is over.** Each league year's dead money, counted after its season, as the league file counts 2026's: $49.3M a team, 16.4% of the cap (COUNTED). The old row, a year's dead money before its cut-down and season, misses what cut-down day and the season add.
 - **Own-team deals of 2+ years above the minimum** (an average a year over 1.1 times the top minimum): real about 135 a year (OverTheCap 2021-25, COUNTED). The old row counts minimum deals too.
 
-This command as it runs (growth off, 5 seasons). "Main" is main with the same placeholder fix and the same measures, so the two differ by step 14 alone. Each season's week-1 split and dead money once over stand under that season.
+### The real re-signing windows (2026-11-07)
 
-| League year | 2027 | 2028 | 2029 | 2030 | 2031 | Mean | Main, mean | Real |
-|---|---|---|---|---|---|---|---|---|
-| New-team deals, $2M+ | 211 | 244 | 316 | 346 | 278 | 279 | 186 | 180 to 240 |
-| New-team deals, $5M+ | 87 | 118 | 123 | 141 | 121 | 118 | 94 | 80 to 120 |
-| Own-team deals of 2+ years | 116 | 116 | 71 | 114 | 157 | 115 | 122 | 210 to 290 |
-| ... above the minimum | 106 | 115 | 67 | 112 | 150 | 110 | 117 | about 135 |
-| Middle class at week 1, share of the cap | 23.2% | 23.4% | 21.8% | 24.3% |  | 23.2% | 17.1% | 21.4% |
-| Middle-class men a team at week 1 | 13.1 | 12.3 | 12.1 | 13.3 |  | 12.7 | 8.9 | 13.7 |
-| Big deals at week 1, share of the cap | 48.1% | 46.1% | 47.6% | 41.8% |  | 45.9% | 49.7% | 39.5% |
-| Dead money once the season is over, mean a team ($M) | 20.8 | 28.9 | 30.4 | 39.3 |  | 29.9 | 35.3 | 49.3 (2026) |
-| Dead money before its cut-down and season, mean a team ($M) | 14.9 | 20.7 | 21.7 | 29.7 | 30.3 | 23.5 | 30.4 |  |
-| Cap used, median | 96.9% | 97.5% | 98.0% | 97.4% | 96.9% | 97.3% | 97.7% |  |
-| Quarterbacks' share of the cap | 10.0% | 8.8% | 8.2% | 7.0% | 8.3% | 8.5% | 9.4% | 10.7% |
-| Offensive line's share | 20.1% | 21.4% | 20.2% | 19.4% | 20.0% | 20.2% | 19.5% | 18.7% |
+The owner asked for real teams' re-signing calendar in place of one re-signing day. Re-signing now opens the day after the season: each team makes its cap cuts first, then re-signs its own free agents, restructuring other deals when a man it wants does not fit. A last round and the franchise tag come at the tag deadline, about a week before the new league year. At training camp, teams extend the men entering the last year of their deals, stars first. A restricted free agent is tendered only when he is worth the tender, and a re-signing or extension keeps only the cushion free in its second year, not next March's shopping money (ADR-085, step 14, has why). Cut-down day's re-signing waits for the real injured-reserve rule.
+
+This command as it runs (growth off, 5 seasons), with the windows. "Before" is step 14 before the windows; "Main" is main with the same placeholder fix and the same measures. Each season's week-1 split and dead money once over stand under that season.
+
+| League year | 2027 | 2028 | 2029 | 2030 | 2031 | Mean | Before, mean | Main, mean | Real |
+|---|---|---|---|---|---|---|---|---|---|
+| New-team deals, $2M+ | 204 | 180 | 206 | 278 | 221 | 218 | 279 | 186 | 180 to 240 |
+| New-team deals, $5M+ | 101 | 89 | 89 | 121 | 86 | 97 | 118 | 94 | 80 to 120 |
+| Own-team deals of 2+ years | 62 | 90 | 74 | 82 | 125 | 87 | 115 | 122 | 210 to 290 |
+| ... above the minimum | 55 | 85 | 69 | 78 | 120 | 81 | 110 | 117 | about 135 |
+| Middle class at week 1, share of the cap | 24.6% | 22.3% | 20.1% | 23.4% |  | 22.6% | 23.2% | 17.1% | 21.4% |
+| Middle-class men a team at week 1 | 13.8 | 11.6 | 10.2 | 12.5 |  | 12.0 | 12.7 | 8.9 | 13.7 |
+| Big deals at week 1, share of the cap | 44.9% | 46.4% | 43.2% | 38.4% |  | 43.2% | 45.9% | 49.7% | 39.5% |
+| Dead money once the season is over, mean a team ($M) | 19.4 | 29.9 | 42.0 | 48.4 |  | 34.9 | 29.9 | 35.3 | 49.3 (2026) |
+| Dead money before its cut-down and season, mean a team ($M) | 14.7 | 23.1 | 28.8 | 36.4 | 34.2 | 27.4 | 23.5 | 30.4 |  |
+| Cap used, median | 95.7% | 96.6% | 96.5% | 94.9% | 95.4% | 95.8% | 97.3% | 97.7% |  |
+| Quarterbacks' share of the cap | 10.5% | 9.6% | 9.1% | 8.2% | 10.9% | 9.7% | 8.5% | 9.4% | 10.7% |
+| Offensive line's share | 19.7% | 19.1% | 19.9% | 18.1% | 17.3% | 18.8% | 20.2% | 19.5% | 18.7% |
 
 | 2029-31 | QB | RB | WR | TE | OL | IDL | EDGE | LB | CB | S | ST |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | Main | 8.8 | 4.1 | 14.7 | 3.7 | 19.1 | 7.7 | 15.0 | 5.6 | 13.2 | 5.7 | 2.4 |
-| Step 14 | 7.8 | 4.0 | 15.1 | 3.4 | 19.9 | 9.1 | 14.3 | 5.1 | 12.4 | 6.5 | 2.3 |
+| Step 14 before the windows | 7.8 | 4.0 | 15.1 | 3.4 | 19.9 | 9.1 | 14.3 | 5.1 | 12.4 | 6.5 | 2.3 |
+| Step 14 with the windows | 9.4 | 4.7 | 12.4 | 3.8 | 18.4 | 8.6 | 15.0 | 5.9 | 12.9 | 6.4 | 2.5 |
 | Real (active deals, APY) | 10.7 | 4.8 | 13.0 | 5.2 | 18.7 | 10.6 | 13.0 | 6.4 | 9.6 | 6.0 | 2.0 |
 
-- Growth off, the middle class holds 23.2% of the cap at week 1 (main 17.1%, falling each year to 14.1% in 2030), but big deals still hold 45.9% (main 49.7%): veterans' deals take more of the cap than real teams' (69% against 61%). With growth on, both sit nearer real (below).
-- Before the two fixes, step 14's line took 24% of the cap (25% in 2029-31) and its biggest deals outside quarterback ran to 19% to 23% of the cap. Now the biggest is a receiver at 16.1% (2031); in the other years no deal outside quarterback reaches the top five (all quarterbacks, at 18% to 20%).
-- The $2M and $5M rows count flat dollars while our cap grows about 7% a year ($312M in 2027, $383M in 2030), so later years count smaller deals, as a share of the cap, than the real 2021-25 rows did. By cap share (0.66% and up), new-team deals run at about the real number with growth on: 256 / 276 a year against 250 (ADR-085, step 14).
-- Quarterbacks' money still drifts down, in main too. Most starters who leave on re-signing day go because their team has no room yet: re-signing day comes before March's cap cuts and restructures (the owner's card on re-signing with March's room).
+- New-team deals now sit inside the real range, and the quarterbacks' and the line's shares near real: a team makes its room in late winter, before it re-signs, so its own starters no longer leave for want of room. Own-team deals fell instead (item 1 below).
+- Growth off, the middle class holds 22.6% of the cap at week 1 (main 17.1%) and big deals 43.2% (main 49.7%): veterans' deals take more of the cap than real teams' (66% against 61%).
+- Before the two price-list fixes, step 14's line took 24% of the cap (25% in 2029-31) and its biggest deals outside quarterback ran to 19% to 23% of the cap. With the windows, every year's five biggest deals are quarterbacks'.
+- The $2M and $5M rows count flat dollars while our cap grows about 7% a year ($312M in 2027, $383M in 2030), so later years count smaller deals, as a share of the cap, than the real 2021-25 rows did.
 
-With growth and injuries on (two seeds, five seasons), the middle class's share of the cap at week 1 rose from 10.1% / 9.7% to 18.9% / 18.9% (real 21.4%), and big deals' share fell from 51% to 43% / 42% (real 39.5%). ADR-085's step 14 has the full panel, with ages.
+With growth and injuries on (two seeds, five seasons), step 14 raised the middle class's share of the cap at week 1 from 10.1% / 9.7% to 18.9% / 18.9% (real 21.4%), and the windows brought it back to 15.4% / 16.8%; big deals hold 40.4% / 34.5% (real 39.5%). ADR-085's step 14 has both panels, with ages.
 
 ## What does not match yet
 
-1. **Too few re-signings.** Own-team deals of 2+ years run at about 115 a year against 210 to 290. Above the minimum they are nearer, about 110 against about 135 (step 14): most of the gap is minimum deals of two years or more (futures deals and call-ups among them), which we sign for one year. Re-signing day comes before March's cap cuts and restructures, so most of a team's own starters who leave that day go for want of room.
-2. **Big deals still hold too much of the cap, and a team's own middle class is short.** With growth on, big deals hold 42% to 43% of the cap at week 1 against 39.5% and the middle class 18.9% against 21.4%; growth off, 45.9% and 23.2%. Own-team middle-class deals run at about 65 a year against 155 (item 1).
-3. **Too little dead money with growth off:** about $30M a team once the season is over (step 14), against $49.3M in the real 2026. With growth on it is $44M to $49M, 13% to 14% of a bigger cap (real 16.4%). There are no trades yet.
-4. **The position mix drifts.** Over five years quarterback money falls (8.5% of the cap against 10.7%, main 9.4%), and receiver and corner money rises.
+1. **Too few re-signings.** Own-team deals of 2+ years run at about 87 a year against 210 to 290; above the minimum, about 81 against about 135. Part of the gap is minimum deals of two years or more (futures deals and call-ups among them), which we sign for one year. With the real windows, room no longer stops a team's own men in late winter; value for money does. It never pays a backup middle-class money, and it seats the team's coming draft picks where its own free agents play (ADR-085, step 14; two fixes are with the owner).
+2. **A team's own middle class is short.** With growth on, the middle class holds 15.4% / 16.8% of the cap at week 1 against 21.4%, and own-team middle-class deals run at about 55 a year against 155 (item 1); growth off, 22.6%. Big deals hold 43.2% growth off against 39.5%.
+3. **Too little dead money with growth off:** about $35M a team once the season is over, against $49.3M in the real 2026. With growth on it is $58M, 16% to 17% of a bigger cap (real 16.4%). There are no trades yet.
+4. **The position mix drifts.** Corner money runs high (12.9% of the cap in 2029-31 against 9.6%), and tight end and interior line money low.
 5. **Offseason rosters reach 105 to 106** at the end of the summer, over the 90-man limit (main too).
 
 ## Fixed along the way (in this change)
