@@ -21,7 +21,9 @@ import { gameId, playId, playerId } from "@ff/contracts";
 import type { MatchEvent, MatchEventEnvelope, RollDetail } from "@ff/contracts";
 import { renderPlay, simulatePassPlay, simulateRunPlay } from "../src/index.js";
 import type { Tunables } from "../src/tunables.js";
-import { SW_TUNABLES } from "./pocketTunables.js";
+import { P6_IN_CONTRACTS, P7_IN_CONTRACTS, P8_IN_CONTRACTS } from "../src/sim/pocketRules.js";
+import { PASS_FIXTURES, SW_TUNABLES } from "./pocketTunables.js";
+import { S4S_TUNABLES, T_TUNABLES } from "./step4Fixtures.js";
 import {
   RUN_SCHEMES,
   STAMP,
@@ -93,6 +95,17 @@ const UNBANDED: readonly string[] = [
 const TIMING_DRAWS: readonly string[] = [
   "pass_rush_beat",       // ADR-089 §4.1 — one uniform per block, the breaking time
 ];
+
+/**
+ * ADR-089 P6 — BANDED, but drawn only under `pocket-1` from `pocket-1.s4` (RUSHER_SACKS or
+ * QB_SHEDS), so the legacy and shape-S sweeps never see it and the step-4 sweep below must.
+ */
+const STEP4_BANDED: readonly string[] = [
+  "arrival_contest",      // ADR-089 §4.5 RUSHER_SACKS / QB_SHEDS
+];
+
+/** The step-4 bundles play only once P6, P7 and P8 are all in contracts (the engine's gate is joint). */
+const STEP4_PLAYS = P6_IN_CONTRACTS && P7_IN_CONTRACTS && P8_IN_CONTRACTS;
 
 /**
  * The renderer writes plain English for the two UNBANDED checks whose outcome is
@@ -222,7 +235,42 @@ describe("ADR-011 — the band invariant", () => {
       expect(seen, `no stream in the sweep emitted "${kind}"`).toContain(kind);
     }
     if (tunables === undefined) for (const kind of TIMING_DRAWS) expect(seen).not.toContain(kind);
+    for (const kind of STEP4_BANDED) expect(seen, `${kind} is drawn only from pocket-1.s4`).not.toContain(kind);
   });
+  }
+
+  for (const { name, tunables } of [
+    { name: "pocket-1.s4 shape S with contact and the motion", tunables: S4S_TUNABLES },
+    { name: "pocket-1.s4 kind T", tunables: T_TUNABLES },
+  ] as const) {
+    it.runIf(STEP4_PLAYS)(`every arrival_contest CHECK carries its band, RUSHER_SACKS or QB_SHEDS, and every kind is classified (${name})`, () => {
+      let contests = 0;
+      for (const [, build] of PASS_FIXTURES) {
+        for (let i = 0; i < 40; i++) {
+          const { state, calls } = build();
+          for (const { event } of simulatePassPlay(state, calls, `band-step4-${i}`, tunables).events) {
+            if (event.type !== "CHECK") continue;
+            const p = event.payload;
+            if (STEP4_BANDED.includes(p.checkKind)) {
+              contests += 1;
+              expect(["RUSHER_SACKS", "QB_SHEDS"]).toContain(p.band);
+              continue;
+            }
+            if (BANDED.includes(p.checkKind)) {
+              expect(p.band, `${p.checkKind} has a band table and must publish its label`).toBeTruthy();
+              continue;
+            }
+            if (UNBANDED.includes(p.checkKind)) {
+              expect(p.band).toBeUndefined();
+              continue;
+            }
+            if (TIMING_DRAWS.includes(p.checkKind)) continue;
+            throw new Error(`check kind "${p.checkKind}" is classified neither BANDED nor UNBANDED`);
+          }
+        }
+      }
+      expect(contests, "the step-4 sweep reached no arrival_contest").toBeGreaterThan(0);
+    });
   }
 
   it("the band a CHECK publishes is the band the resolution acted on", () => {
