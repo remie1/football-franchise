@@ -110,8 +110,13 @@ export function tiltOf(facts: ContactFacts, tilts: ContactTiltsTunables): Contac
 export interface ContestRolls {
   readonly rusher: number;
   readonly quarterback: number;
-  /** The fork label both faces were drawn on (`.../rush/t<tick>/<rusherId>:contest`). */
+  /** The fork label the rusher's face was drawn on (`.../rush/t<tick>/<rusherId>:contest`). */
   readonly rngLabel: string;
+  /**
+   * The fork label the quarterback's face was drawn on, its own (`.../rush/t<tick>/<quarterbackId>:contest:<rusherId>`,
+   * AM-5's pattern): ADR-004's audit key is one label a roll, so the two faces never share one.
+   */
+  readonly quarterbackRngLabel: string;
 }
 
 /** A rated contest, as the `arrival_contest` CHECK will state it (P6). */
@@ -169,7 +174,8 @@ export function arrivalContest(
     tilt.kind === "PUSH_BLOCKED" ? flatModifier(TILT_SOURCE.PUSH_BLOCKED, tilt.quarterbackBonus) : undefined,
   ]);
   const rusherRoll = d100Detail(rolls.rusher, rusherMods, rolls.rngLabel);
-  const quarterbackRoll = d100Detail(rolls.quarterback, quarterbackMods, rolls.rngLabel);
+  if (rolls.quarterbackRngLabel === rolls.rngLabel) throw new Error(`@ff/engine: a contest's two faces share the label ${rolls.rngLabel}`);
+  const quarterbackRoll = d100Detail(rolls.quarterback, quarterbackMods, rolls.quarterbackRngLabel);
   const margin = rusherRoll.total - quarterbackRoll.total;
   const testsAttrs: AttrId[] = [ATTR.tackling];
   if (readsRusherSpeed) testsAttrs.push(ATTR.speed);

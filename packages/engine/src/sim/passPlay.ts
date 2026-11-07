@@ -947,11 +947,14 @@ export function simulatePassPlayWith(
       const { approach, from } = contactFactsOf(t);
       let check: ArrivalContestEmission;
       if (!shedInPlay || contact.secondArrival === "RATED") {
+        // Each face on its own fork (ADR-004: one label a roll): the rusher's on `<rusherId>:contest`,
+        // the quarterback's on `<quarterbackId>:contest:<rusherId>`.
         const dice = tickRng.fork(`${id}:contest`);
+        const qbDice = tickRng.fork(`${String(qb.bio.id)}:contest:${id}`);
         const rusherFace = dice.d100();
-        const quarterbackFace = dice.d100();
+        const quarterbackFace = qbDice.d100();
         const tilt = tiltOf({ approach, from, seen: true, onFreeRunClock: freeRunClockMen.has(id) && t.origin !== "WON_REP" }, contact.tilts);
-        const r = arrivalContest(m.rusher, qb, tilt, { rusher: rusherFace, quarterback: quarterbackFace, rngLabel: dice.label }, contact.boundary);
+        const r = arrivalContest(m.rusher, qb, tilt, { rusher: rusherFace, quarterback: quarterbackFace, rngLabel: dice.label, quarterbackRngLabel: qbDice.label }, contact.boundary);
         check = {
           checkKind: ARRIVAL_CONTEST_KIND,
           actors: [t.rusher, qb.bio.id],

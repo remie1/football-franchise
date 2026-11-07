@@ -692,8 +692,9 @@ Results per Tick:
 > The automatic sack (§7.2) becomes the **arrival contest**, under the sack's own condition: the
 > arrived threats resolve in the grid's order (`etaTick`, then the priority alignment, then the
 > lower PlayerId). The play's first contact is a rated CHECK `arrival_contest` (P6) on
-> `rush/t<tick>/<rusherId>:contest`: two d100s, the rusher's (tackling/5 + speed/5) then the
-> quarterback's (strength/5 + agility/5), at most one approach tilt (BEHIND or NEVER: rusher +10,
+> `rush/t<tick>/<rusherId>:contest`: two d100s, the rusher's (tackling/5 + speed/5) on that label
+> then the quarterback's (strength/5 + agility/5) on his own, `rush/t<tick>/<quarterbackId>:contest:<rusherId>`
+> (one label a roll, ADR-004), at most one approach tilt (BEHIND or NEVER: rusher +10,
 > the quarterback's agility not read; a seen PUSH or BLOCKED: quarterback +20, the rusher's speed
 > not read; the free-run clock: rusher +10), RUSHER_SACKS at a margin of `boundary` (5) or more,
 > else QB_SHEDS. Any contact after the play's first shed is the **second arrival**, one d100 on
@@ -714,7 +715,8 @@ Results per Tick:
 > `QB_HIT` carries his approach, where he came from (FRONT, SIDE or BEHIND), `seen` and his
 > contact time. Kind T, today's line plus contact (the stamp, the approach card and the contact
 > block and nothing else), plays today's stem and count read and reads every contact time on the
-> published half-second grid. The only new dice are `:contest` and `:contest2`.
+> published half-second grid. The only new dice are `:contest` (the rusher's and the quarterback's
+> `:contest:<rusherId>`) and `:contest2`.
 
 > **KNOWN ISSUE (logged July 2026, Phase 1 slice) — term asymmetry.**
 > The rusher above carries two-to-three attribute terms (`Pass Rush` plus a move

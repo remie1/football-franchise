@@ -79,6 +79,7 @@ const TILTS_OFF: ContactTiltsTunables = Object.freeze({
 });
 
 const LABEL = "game:g/play:1/rush/t2/de1:contest";
+const QB_LABEL = "game:g/play:1/rush/t2/qb1:contest:de1";
 
 function rusherWith(r: { tackling?: number; speed?: number } = {}): PlayerState {
   return makePlayer("de1", "Rusher", "DE", { tackling: r.tackling ?? 50, speed: r.speed ?? 50, strength: 70, agility: 60 });
@@ -99,7 +100,7 @@ function sackRate(rusher: PlayerState, qb: PlayerState, tilt: ContactTilt, b: nu
   let sacks = 0;
   for (let r = 1; r <= 100; r++) {
     for (let q = 1; q <= 100; q++) {
-      if (arrivalContest(rusher, qb, tilt, { rusher: r, quarterback: q, rngLabel: LABEL }, b).band === "RUSHER_SACKS") sacks++;
+      if (arrivalContest(rusher, qb, tilt, { rusher: r, quarterback: q, rngLabel: LABEL, quarterbackRngLabel: QB_LABEL }, b).band === "RUSHER_SACKS") sacks++;
     }
   }
   return sacks / 10000;
@@ -160,7 +161,11 @@ describe("ADR-089 step 4 — the closed forms (R-5, R-6)", () => {
   it("a face that is not a d100 face is refused", () => {
     expect(() => secondArrival(0, 15, "x")).toThrow(/d100 face/);
     expect(() => secondArrival(101, 15, "x")).toThrow(/d100 face/);
-    expect(() => arrivalContest(rusherWith(), qbWith(), NO_TILT, { rusher: 50.5, quarterback: 3, rngLabel: "x" }, 5)).toThrow(/d100 face/);
+    expect(() => arrivalContest(rusherWith(), qbWith(), NO_TILT, { rusher: 50.5, quarterback: 3, rngLabel: "x", quarterbackRngLabel: "y" }, 5)).toThrow(/d100 face/);
+  });
+
+  it("the two faces never share a label (ADR-004: one label a roll)", () => {
+    expect(() => arrivalContest(rusherWith(), qbWith(), NO_TILT, { rusher: 50, quarterback: 50, rngLabel: LABEL, quarterbackRngLabel: LABEL }, 5)).toThrow(/share the label/);
   });
 });
 
@@ -168,7 +173,7 @@ describe("ADR-089 step 4 — D11's reads", () => {
   it("rusher d100 + tackling/5 + speed/5 against quarterback d100 + strength/5 + agility/5, through the registry ids", () => {
     const rusher = rusherWith({ tackling: 64, speed: 41 });
     const qb = qbWith({ strength: 52, agility: 77 });
-    const r = arrivalContest(rusher, qb, NO_TILT, { rusher: 60, quarterback: 40, rngLabel: LABEL }, 5);
+    const r = arrivalContest(rusher, qb, NO_TILT, { rusher: 60, quarterback: 40, rngLabel: LABEL, quarterbackRngLabel: QB_LABEL }, 5);
     expect(r.rusherRoll.modifiers).toEqual([
       { source: "DE Tackling", attr: ATTR.tackling, value: 13 },
       { source: "DE Speed", attr: ATTR.speed, value: 8 },
@@ -184,15 +189,15 @@ describe("ADR-089 step 4 — D11's reads", () => {
     expect(r.boundary).toBe(5);
     expect(r.testsAttrs).toEqual([ATTR.tackling, ATTR.speed, ATTR.strength, ATTR.agility]);
     expect(r.rusherRoll.rngLabel).toBe(LABEL);
-    expect(r.quarterbackRoll.rngLabel).toBe(LABEL);
+    expect(r.quarterbackRoll.rngLabel).toBe(QB_LABEL);
     expect(r.rusherRoll.die).toBe("d100");
     // The boundary: margin b is a sack, b - 1 is not.
-    expect(arrivalContest(rusher, qb, NO_TILT, { rusher: 60, quarterback: 40, rngLabel: LABEL }, 16).band).toBe("RUSHER_SACKS");
-    expect(arrivalContest(rusher, qb, NO_TILT, { rusher: 60, quarterback: 40, rngLabel: LABEL }, 17).band).toBe("QB_SHEDS");
+    expect(arrivalContest(rusher, qb, NO_TILT, { rusher: 60, quarterback: 40, rngLabel: LABEL, quarterbackRngLabel: QB_LABEL }, 16).band).toBe("RUSHER_SACKS");
+    expect(arrivalContest(rusher, qb, NO_TILT, { rusher: 60, quarterback: 40, rngLabel: LABEL, quarterbackRngLabel: QB_LABEL }, 17).band).toBe("QB_SHEDS");
   });
 
   it("testsAttrs drops speed against a seen PUSH or BLOCKED man and agility from BEHIND or never seen", () => {
-    const faces = { rusher: 50, quarterback: 50, rngLabel: LABEL };
+    const faces = { rusher: 50, quarterback: 50, rngLabel: LABEL, quarterbackRngLabel: QB_LABEL };
     expect(arrivalContest(rusherWith(), qbWith(), { kind: "PUSH_BLOCKED", quarterbackBonus: 20 }, faces, 5).testsAttrs).toEqual([
       ATTR.tackling,
       ATTR.strength,
@@ -218,7 +223,7 @@ describe("ADR-089 step 4 — D11's reads", () => {
    * The faces are independent of the ratings, so P(sack) is monotone with it at every b.
    */
   it("monotone in each of the four ratings, under every tilt", () => {
-    const faces = { rusher: 47, quarterback: 52, rngLabel: LABEL };
+    const faces = { rusher: 47, quarterback: 52, rngLabel: LABEL, quarterbackRngLabel: QB_LABEL };
     const margin = (tilt: ContactTilt, r: { tackling?: number; speed?: number }, q: { strength?: number; agility?: number }): number =>
       arrivalContest(rusherWith(r), qbWith(q), tilt, faces, 5).margin;
     for (const tilt of TILT_CASES) {
@@ -261,7 +266,7 @@ describe("ADR-089 step 4 — the tilts", () => {
         const rusher = rusherWith({ tackling: ra, speed: 99 - ra });
         const qb = qbWith({ strength: qa, agility: 99 - qa });
         for (const face of [1, 50, 100]) {
-          const f = { rusher: face, quarterback: 101 - face, rngLabel: LABEL };
+          const f = { rusher: face, quarterback: 101 - face, rngLabel: LABEL, quarterbackRngLabel: QB_LABEL };
           const base = arrivalContest(rusher, qb, NO_TILT, f, 5).margin;
           // A seen PUSH or BLOCKED man: fewer sacks.
           expect(arrivalContest(rusher, qb, { kind: "PUSH_BLOCKED", quarterbackBonus: 20 }, f, 5).margin).toBeLessThan(base);
@@ -275,7 +280,7 @@ describe("ADR-089 step 4 — the tilts", () => {
   });
 
   it("the tilt enters as a named modifier on the side it favors", () => {
-    const f = { rusher: 50, quarterback: 50, rngLabel: LABEL };
+    const f = { rusher: 50, quarterback: 50, rngLabel: LABEL, quarterbackRngLabel: QB_LABEL };
     const push = arrivalContest(rusherWith(), qbWith(), { kind: "PUSH_BLOCKED", quarterbackBonus: 20 }, f, 5);
     expect(push.quarterbackRoll.modifiers.at(-1)).toEqual({ source: "Approach tilt (seen PUSH or BLOCKED)", value: 20 });
     expect(push.rusherRoll.modifiers.map((m) => m.source)).toEqual(["DE Tackling"]);

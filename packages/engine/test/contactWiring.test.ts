@@ -182,7 +182,10 @@ describe("ADR-089 step 4 — the contest (§4.5 items 2 to 5)", () => {
             expect(c.payload.opposedRoll).toBeDefined();
             expect(c.payload.target).toBe(CONTACT_FILED.boundary);
             expect(c.payload.margin).toBe(c.payload.roll.total - c.payload.opposedRoll!.total);
-            expect(c.payload.opposedRoll!.rngLabel).toBe(c.payload.roll.rngLabel);
+            // The quarterback's face is drawn on its own fork (ADR-004's audit key: one label a roll).
+            expect(c.payload.opposedRoll!.rngLabel).toBe(
+              c.payload.roll.rngLabel.replace(/\/([^/]+):contest$/, `/${String(p.state.quarterback)}:contest:$1`),
+            );
           } else {
             seconds += 1;
             expect(shed).toBe(true);
@@ -253,13 +256,16 @@ describe("ADR-089 step 4 — the contest (§4.5 items 2 to 5)", () => {
     let n = 0;
     for (const name of withContact) {
       for (const p of corpusOf(name)) {
-        // A rated contest's two dice share its label (the rusher's then the quarterback's), as an
-        // opposed CHECK's do; two contests never share one.
-        const own = contests(p).map((c) => c.payload.roll.rngLabel);
+        // Every RollDetail a contest writes has its own label (the rusher's face on `:contest`, the
+        // quarterback's on `<qb>:contest:<rusher>`); no two rolls of the play share one, records and
+        // stream together (ADR-004, as rollAccounting.test.ts holds it on the stream).
+        const own = contests(p).flatMap((c) => [c.payload.roll.rngLabel, ...(c.payload.opposedRoll === undefined ? [] : [c.payload.opposedRoll.rngLabel])]);
         n += own.length;
         expect(new Set(own).size).toBe(own.length);
         const onStream = new Set(labelsOf({ ...p, records: [] }));
         for (const l of own) expect(onStream.has(l)).toBe(false);
+        const all = labelsOf(p);
+        expect(new Set(all).size, `${name} ${p.fixture} ${p.seed}`).toBe(all.length);
       }
     }
     expect(n).toBeGreaterThan(0);
