@@ -262,7 +262,7 @@ describe("the s4 stream on hand-built plays (s4Stream.ts)", () => {
     expect(f.qbHits).toBe(0);
   });
 
-  it("each build fault is a problem: a stray band, two tilts, a tilt off its class, a :contest2 before a shed, an unknown phase, a SHED naming no shed, C-1", () => {
+  it("each build fault is its own problem: a stray band, two tilts, a tilt off its class, a :contest2 before a shed, an unknown phase, a SHED naming no shed, C-1", () => {
     const base = readS4Play(sliceOf(built(S.arrivedThrow.slice, S4, {}).events), KEY)!;
     const hit = { tick: 1, rusher: "r", contactSeconds: 1, rollRef: undefined, approach: "FREE", from: "FRONT", seen: true };
     const shedHit = { ...hit, phase: "SHED", rollRef: "rush/t1/r:contest" };
@@ -278,32 +278,45 @@ describe("the s4 stream on hand-built plays (s4Stream.ts)", () => {
       foldS4Play(f, play, C1);
       expect(f.problems, name).toEqual([]);
     }
-    const cases: readonly [string, S4Play][] = [
-      ["band", { ...base, contests: [c({ band: "MISSED" })], hits: [{ ...hit, phase: "ARRIVAL" }] }],
-      ["tilts", { ...base, contests: [c({ tilts: 2, tilt: "FREE_RUN", cls: "FREE_RUN" })], hits: [{ ...hit, phase: "ARRIVAL" }] }],
-      ["class", { ...base, contests: [c({ tilt: "PUSH_BLOCKED", cls: "FREE_RUN" })], hits: [{ ...hit, phase: "ARRIVAL" }] }],
-      ["contest2", { ...base, contests: [c({ second: true, rngLabel: "rush/t1/r:contest2", band: "RUSHER_SACKS" }), c({})], hits: [{ ...hit, phase: "ARRIVAL" }] }],
-      ["phase", { ...base, contests: [], hits: [{ ...hit, phase: "LATE" }, { ...hit, phase: "ARRIVAL" }] }],
-      ["rollRef", { ...base, contests: [c({})], hits: [{ ...hit, phase: "SHED", rollRef: "rush/t9/x:contest" }] }],
-      ["C-1", { ...base, contests: [], hits: [{ ...hit, phase: "THROWING" }] }],
+    // Each case names the text of its own clause (review 2 S1): another clause flagging the play does not pass it.
+    const cases: readonly [string, S4Play, string][] = [
+      ["band", { ...base, contests: [c({ band: "MISSED" })], hits: [{ ...hit, phase: "ARRIVAL" }] }, 'with band "MISSED"'],
+      ["tilts", { ...base, contests: [c({ tilts: 2, tilt: "FREE_RUN", cls: "FREE_RUN" })], hits: [{ ...hit, phase: "ARRIVAL" }] }, "carries 2 tilts"],
+      ["class", { ...base, contests: [c({ tilt: "PUSH_BLOCKED", cls: "FREE_RUN" })], hits: [{ ...hit, phase: "ARRIVAL" }] }, "is of class FREE_RUN and carries the PUSH_BLOCKED tilt"],
+      ["contest2", { ...base, contests: [c({ second: true, rngLabel: "rush/t1/r:contest2", band: "RUSHER_SACKS" }), c({})], hits: [{ ...hit, phase: "ARRIVAL" }] }, "a :contest2 before the play's first shed"],
+      ["phase", { ...base, contests: [], hits: [{ ...hit, phase: "LATE" }, { ...hit, phase: "ARRIVAL" }] }, 'a QB_HIT with phase "LATE"'],
+      ["rollRef", { ...base, contests: [c({})], hits: [{ ...hit, phase: "SHED", rollRef: "rush/t9/x:contest" }] }, "which is no shed contest of the play"],
+      ["C-1", { ...base, contests: [], hits: [{ ...hit, phase: "THROWING" }] }, "C-1:"],
       // contracts-guardian G-6: every contest is named by its own QB_HIT, a SACK only by a sacking contest of his on a sack.
-      ["no hit", { ...sacked, contests: [c({ band: "RUSHER_SACKS", hit: undefined })], hits: [] }],
-      ["wrong phase", { ...sacked, contests: [c({ band: "RUSHER_SACKS", hit: shedHit })], hits: [shedHit] }],
-      ["SACK names a shed", { ...sacked, contests: [c({})], hits: [shedHit, sackHit] }],
-      ["SACK of another man", { ...sacked, contests: [c({ band: "RUSHER_SACKS", hit: sackHit })], hits: [{ ...sackHit, rusher: "s" }] }],
-      ["SACK on a throw", { ...base, contests: [c({ band: "RUSHER_SACKS", hit: sackHit })], hits: [sackHit] }],
+      ["no hit", { ...sacked, contests: [c({ band: "RUSHER_SACKS", hit: undefined })], hits: [] }, "has no QB_HIT SACK naming it"],
+      ["wrong phase", { ...sacked, contests: [c({ band: "RUSHER_SACKS", hit: shedHit })], hits: [shedHit] }, "is named by a QB_HIT SHED, not SACK"],
+      ["SACK names a shed", { ...sacked, contests: [c({})], hits: [shedHit, sackHit] }, "which is no sacking contest of his on the play"],
+      ["SACK of another man", { ...sacked, contests: [c({ band: "RUSHER_SACKS", hit: sackHit })], hits: [{ ...sackHit, rusher: "s" }] }, "a QB_HIT SACK of s names"],
+      ["SACK on a throw", { ...base, contests: [c({ band: "RUSHER_SACKS", hit: sackHit })], hits: [sackHit] }, "on a play that is not a sack"],
+      // P7: exactly one QB_HIT SACK per RUSHER_SACKS contest, and one sacking contest a play (review 2 S2).
+      ["two SACKs one contest", { ...sacked, contests: [c({ band: "RUSHER_SACKS", hit: sackHit })], hits: [sackHit, sackHit] }, "is named by 2 QB_HITs"],
+      ["two SHEDs one contest", { ...base, contests: [c({})], hits: [shedHit, shedHit] }, "is named by 2 QB_HITs"],
+      [
+        "two sacking contests",
+        { ...sacked, contests: [c({ band: "RUSHER_SACKS", hit: sackHit }), c({ band: "RUSHER_SACKS", rusher: "s", rngLabel: "rush/t1/s:contest", hit: { ...sackHit, rusher: "s", rollRef: "rush/t1/s:contest" } })], hits: [sackHit, { ...sackHit, rusher: "s", rollRef: "rush/t1/s:contest" }] },
+        "2 RUSHER_SACKS contests on one play",
+      ],
       // The from cross-check: the hit's from against the stream's rebuild.
-      ["from", { ...base, contests: [c({ derivedFrom: "SIDE" })], hits: [shedHit] }],
+      ["from", { ...base, contests: [c({ derivedFrom: "SIDE" })], hits: [shedHit] }, "the stream rebuilds SIDE"],
     ];
-    for (const [name, play] of cases) {
+    for (const [name, play, text] of cases) {
       const f = emptyS4Fold();
       foldS4Play(f, play, C1);
-      expect(f.problemCount, name).toBeGreaterThan(0);
+      expect(f.problems.some((p) => p.includes(text)), `${name}: ${f.problems.join(" | ")}`).toBe(true);
     }
     const missing = emptyS4Fold();
     foldS4Play(missing, { ...base, contests: [c({})], hits: [{ ...hit, phase: "SHED", rollRef: "rush/t1/r:contest", seen: undefined }] }, C1);
     expect(missing.qbHitsMissingFields).toBe(1);
-    expect(s4Problems(missing).some((p) => p.startsWith("s4.qbHitFields"))).toBe(true);
+    expect(s4Problems(missing)).toContain("s4.qbHitFields: 1 of 1 QB_HIT(s) miss approach, from or seen");
+    // A hit with no from is one fault, the missing field, and not also a from that differs (review 2 N3).
+    const noFrom = emptyS4Fold();
+    foldS4Play(noFrom, { ...base, contests: [c({ hit: { ...shedHit, from: undefined } })], hits: [{ ...shedHit, from: undefined }] }, C1);
+    expect(noFrom).toMatchObject({ qbHitsMissingFields: 1, fromMismatch: 0, problemCount: 0 });
   });
 
   it("the second arrival: a :contest2 after a shed is counted apart and gives the second-arrival rate", () => {

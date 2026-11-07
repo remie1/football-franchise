@@ -514,11 +514,18 @@ export function foldS4Play(fold: S4Fold, play: S4Play, tunables: Tunables): void
     const want = c.band === "RUSHER_SACKS" ? "SACK" : "SHED";
     if (c.hit === undefined) fail(fold, where, `the ${c.band} contest ${c.rngLabel} of ${c.rusher} has no QB_HIT ${want} naming it`);
     else if (c.hit.phase !== want) fail(fold, where, `the ${c.band} contest ${c.rngLabel} of ${c.rusher} is named by a QB_HIT ${c.hit.phase}, not ${want}`);
-    if (c.hit !== undefined && c.derivedFrom !== undefined && c.hit.from !== c.derivedFrom) {
+    // P7: exactly one QB_HIT (its SHED or its SACK) names each contest.
+    const naming = play.hits.filter((h) => h.rollRef === c.rngLabel && (h.phase === "SHED" || h.phase === "SACK")).length;
+    if (naming > 1) fail(fold, where, `the ${c.band} contest ${c.rngLabel} of ${c.rusher} is named by ${String(naming)} QB_HITs (one at most)`);
+    // A from that is missing is `s4.qbHitFields`'s fault alone, not also a from that differs.
+    if (c.hit !== undefined && c.derivedFrom !== undefined && typeof c.hit.from === "string" && c.hit.from !== c.derivedFrom) {
       fold.fromMismatch += 1;
       fail(fold, where, `the contest ${c.rngLabel} of ${c.rusher}: its QB_HIT says from ${String(c.hit.from)}, the stream rebuilds ${c.derivedFrom}`);
     }
   }
+  // A sack ends the play: one sacking contest at most.
+  const sacking = play.contests.filter(isSack).length;
+  if (sacking > 1) fail(fold, where, `${String(sacking)} RUSHER_SACKS contests on one play (a sack ends it)`);
   const head = rated[0];
   if (head !== undefined) {
     count(fold.first, isSack(head));
@@ -701,7 +708,7 @@ export function s4Problems(f: S4Fold): readonly string[] {
   const out: string[] = [];
   if (f.problemCount > 0) out.push(`${String(f.problemCount)} stream problem(s): ${f.problems.join("; ")}`);
   if (f.fromMismatch > 0) out.push(`s4.from: ${String(f.fromMismatch)} contest(s) whose QB_HIT from differs from the stream's rebuild`);
-  if (f.qbHitsMissingFields > 0) out.push(`s4.qbHitFields:${String(f.qbHitsMissingFields)} of ${String(f.qbHits)} QB_HIT(s) miss approach, from or seen`);
+  if (f.qbHitsMissingFields > 0) out.push(`s4.qbHitFields: ${String(f.qbHitsMissingFields)} of ${String(f.qbHits)} QB_HIT(s) miss approach, from or seen`);
   if (f.uncreditedSacks > 0) out.push(`s4.sackCredit: ${String(f.uncreditedSacks)} of ${String(f.sacks)} sack(s) in the pocket under the contact block hold no RUSHER_SACKS contact`);
   return out;
 }
