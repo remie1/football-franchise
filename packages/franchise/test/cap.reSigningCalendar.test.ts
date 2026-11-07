@@ -158,6 +158,16 @@ describe("late winter: re-signing from the season's end to the new league year",
     const w = world({ WR: [{ position: "WR", ovr: 80, age: 26, cs: 4, years: 2, id: "a-year-left" }, ...wr([66, 64, 62, 60, 58])] }, 2026);
     for (const day of [OPENS, DEADLINE]) expect(signedBy(run("re-sign", w, day), "a-year-left")).toEqual([]);
   });
+
+  it("tenders a restricted free agent only at a price he is worth; one worth less than the lowest tender is not tendered", () => {
+    // Three seasons in, deals running out: a starter worth more than a tender, and a backup worth less.
+    const rfa = (ovr: number, id: string): Seat => ({ position: "WR", ovr, cs: 3, age: 25, years: 1, id });
+    const w = world({ WR: [...wr([80, 70]), rfa(76, "rfa-good"), ...wr([60, 57]), rfa(55, "rfa-low")] }, 2026);
+    const r = run("re-sign", w, OPENS);
+    expect(signedBy(r, "rfa-good").map((e) => e.payload.kind)).toEqual(["RFA_TENDER"]);
+    // The backup is no tender's worth: never tendered (he may still be re-signed for less, as any of its own free agents).
+    expect(signedBy(r, "rfa-low").map((e) => e.payload.kind)).not.toContain("RFA_TENDER");
+  });
 });
 
 describe("late summer: camp extensions", () => {
@@ -205,6 +215,28 @@ describe("late summer: camp extensions", () => {
     expect(signedBy(camp, "young")).toEqual([]);
     expect(signedBy(camp, "old")).toEqual([]);
     expect(MARKET.rookieExtensionSeasons).toBe(3);
+  });
+
+  it("a team short of room restructures another deal for a star's extension, never his own, and only when it must", () => {
+    // A cheap star in his last year, whose new deal counts more this season, and a big deal at quarterback.
+    const tightChange: Partial<Record<Position, Seat[]>> = {
+      WR: [{ position: "WR", ovr: 80, age: 26, cs: 4, years: 2, apy: 1_500_000, id: "ext-a" }, ...wr([66, 64, 62, 60, 58]).map((s) => ({ ...s, years: 3 }))],
+      QB: [{ position: "QB", ovr: 70, apy: 40_000_000, years: 3, id: "big-qb" }, { position: "QB", ovr: 58, years: 3 }],
+    };
+    const roomy = world(tightChange, 2025);
+    const easy = run("camp-extensions", roomy, CAMP);
+    expect(signedBy(easy, "ext-a")).toHaveLength(1);
+    expect(eventsOf(easy).filter((e) => e.type === "CONTRACT_RESTRUCTURED")).toEqual([]);
+    // Dead money from a deal long gone leaves $1M of room this season after the team's cushion.
+    const used = teamCapTotal(T.id, 2026, roomy.contracts!, [], { top51: true, at: CAMP }).total;
+    const tight = world(tightChange, 2025, [deadIn(2026, cap(2026) - used - capPlan(50).cushion - 1_000_000)]);
+    const made = run("camp-extensions", tight, CAMP);
+    const ev = eventsOf(made);
+    const signedAt = ev.findIndex((e) => e.type === "CONTRACT_SIGNED" && String(e.payload.player) === "ext-a");
+    expect(signedAt).toBeGreaterThanOrEqual(0);
+    const restructured = ev.flatMap((e, i) => (e.type === "CONTRACT_RESTRUCTURED" ? [{ who: String(e.payload.player), i }] : []));
+    expect(restructured.map((x) => x.who)).toEqual(["big-qb"]);
+    expect(restructured[0]!.i).toBeLessThan(signedAt);
   });
 
   it("a league read from a file taken after camp extends nobody until the next camp", () => {

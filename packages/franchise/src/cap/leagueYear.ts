@@ -489,6 +489,8 @@ function reSign(
       const pos = p.bio.position;
       if (!makesTheRoster(g, pos, gradesAt(pos))) continue;
       const cs = seasonsIn(p, next);
+      // A team does not let its last man at a starting seat walk over next year's room.
+      const lastMan = gradesAt(pos).length < Math.max(1, STARTERS[pos]);
       let signed = false;
       if (cs < RFA_SEASONS) {
         // Exclusive-rights: a one-year minimum tender he must take.
@@ -496,19 +498,29 @@ function reSign(
         book.contracts.push(c);
         book.events.push(signedEvent(c));
         signed = true;
-      } else if (cs === RFA_SEASONS) {
+      }
+      if (cs === RFA_SEASONS) {
+        // A restricted free agent is tendered at the highest level his value covers, when the tender is
+        // worth its price to the team (§3.1). One worth less than the lowest tender is not tendered, as
+        // real teams let such a man become an unrestricted free agent; it may still re-sign him for
+        // less, as any of its own free agents (below).
         const v = valuePlayer(p, g, curves, minimumSalary(next, cs, config.cap), undefined, config.ahead.value(team.id, p));
         const prior = capNumber(book.contracts.find((c) => String(c.player) === String(p.bio.id) && endsAfter(c, ctx.season))!.years.find((y) => y.season === ctx.season) ?? { season: 0, baseSalary: 0, signingBonusProration: 0, guarantees: { fullyGuaranteed: false }, capHit: 0 });
         const levels: TenderLevel[] = ["FIRST_ROUND", "SECOND_ROUND", "ORIGINAL_ROUND", "RIGHT_OF_FIRST_REFUSAL"];
-        const level = levels.find((l) => tenderPrice(l, config.cap(next), prior) <= v.apy) ?? "RIGHT_OF_FIRST_REFUSAL";
-        const price = tenderPrice(level, config.cap(next), prior);
-        signed = signWithRoom(oneYear(p, team.id, next, at, price, "RFA_TENDER"), () => true);
-      } else {
+        const level = levels.find((l) => tenderPrice(l, config.cap(next), prior) <= v.apy);
+        if (level) {
+          const price = tenderPrice(level, config.cap(next), prior);
+          const floor = minimumSalary(next, cs, config.cap);
+          if (lastMan || valueForMoney({ position: pos, here: gradesAt(pos), grade: g, apy: price, floor, curve: curves.get(TAG_GROUP[pos]) }) >= 0) {
+            signed = signWithRoom(oneYear(p, team.id, next, at, price, "RFA_TENDER"), () => true);
+          }
+        }
+      }
+      if (!signed && cs >= RFA_SEASONS) {
         const v = valuePlayer(p, g, curves, minimumSalary(next, cs, config.cap), config.cap(next), config.ahead.value(team.id, p));
         const offer = buildOffer(p, team.id, next, at, v.apy, v.years, v.percentile, cs, config.cap, "EXTENSION");
-        // A team does not let its last man at a starting seat walk over next year's room.
-        const lastMan = gradesAt(pos).length < Math.max(1, STARTERS[pos]);
-        // Nor does it keep a man worth less to it than his price (step 14, §3.1): he goes to the market.
+        // A team does not keep a man worth less to it than his price (step 14, §3.1), unless he is its last
+        // man at a starting seat: he goes to the market.
         if (!lastMan && valueForMoney({ position: pos, here: gradesAt(pos), grade: g, apy: apyOf(offer), floor: dealFloor(offer, cs, config.cap), curve: curves.get(TAG_GROUP[pos]) }) < 0) continue;
         const ask = askingPrice(p, askValue(p, config, curves, minimumSalary(next, cs, config.cap), config.cap(next)), "VALUE", 0, minimumSalary(next, cs, config.cap), ctx.seed, ctx.season);
         const worth = offerWorth(p, {
@@ -516,7 +528,8 @@ function reSign(
           starts: wouldStart(g, pos, gradesAt(pos)), ownTeam: true,
         }, ask);
         if (worth >= 1) signed = signWithRoom(offer, (b) => lastMan || secondYearFits(team.id, offer, b, config.cap, p0));
-        if (!signed) {
+        // A star who said no may be tagged at the deadline (a restricted free agent has his tenders instead).
+        if (!signed && cs > RFA_SEASONS) {
           const prior = book.contracts.find((c) => String(c.player) === String(p.bio.id) && endsAfter(c, ctx.season));
           declined.push({ p, g, percentile: v.percentile, prior: prior ? capNumber(prior.years.find((y) => y.season === ctx.season) ?? prior.years.at(-1)!) : 0 });
         }
@@ -554,8 +567,9 @@ function reSign(
  * highly and who is still in his prime is extended now. The new deal takes over this season from the
  * old deal's last year, as a real extension tears it up (step 14): what that year has already paid
  * (its roster and workout bonuses) stays in it, and the old deal's bonus money still to count moves
- * into the new deal's real years, so the new bonus spreads from this season and usually lowers its
- * cap number.
+ * into the new deal's real years, so the new bonus spreads from this season (a star whose last year
+ * was dear counts less this season). The team takes its stars first and, short of room, restructures
+ * other deals as at re-signing.
  */
 function campExtensions(
   people: LeaguePeople, ctx: DayStepContext, config: YearConfig, skillOf: (t: TeamId, p: LeaguePeople) => number,
@@ -573,21 +587,28 @@ function campExtensions(
     const roster = playersOf(team, byId);
     const grade = (p: PlayerState) => teamGrade(team.id, p, skill, config.ahead.forTeam(team.id), ctx.seed, ctx.season);
     const gradesAt = (pos: Position) => roster.filter((k) => k.bio.position === pos).map(grade);
-    for (const p of roster) {
-      const oi = book.contracts.findIndex((c) => String(c.player) === String(p.bio.id) && c.team === team.id && endsAfter(c, season));
+    const oldDeal = (p: PlayerState) => book.contracts.findIndex((c) => String(c.player) === String(p.bio.id) && c.team === team.id && endsAfter(c, season));
+    // The men it would extend, its stars first: the room goes to them before the rest.
+    const candidates = roster.flatMap((p) => {
+      const oi = oldDeal(p);
       const old = oi >= 0 ? book.contracts[oi] : undefined;
-      if (!old) continue;
+      if (!old) return [];
       // Not a deal that started this season (nothing of it to keep), nor a man with another deal for it.
-      if (!old.years.some((y) => y.season < season && !y.voidYear)) continue;
-      if (book.contracts.some((c, j) => j !== oi && String(c.player) === String(p.bio.id) && liveIn(c, season))) continue;
+      if (!old.years.some((y) => y.season < season && !y.voidYear)) return [];
+      if (book.contracts.some((c, j) => j !== oi && String(c.player) === String(p.bio.id) && liveIn(c, season))) return [];
       const cs = seasonsIn(p, season);
       // A drafted player cannot sign a new deal until his third season is over (the real rookie rule).
-      if (old.kind === "ROOKIE" && cs < MARKET.rookieExtensionSeasons) continue;
-      if (ageFactorAt(config.ahead.ruleAge(team.id, p) + 2) < MARKET.extendAgeFactor) continue;
+      if (old.kind === "ROOKIE" && cs < MARKET.rookieExtensionSeasons) return [];
+      if (ageFactorAt(config.ahead.ruleAge(team.id, p) + 2) < MARKET.extendAgeFactor) return [];
       const g = grade(p);
       const floor = minimumSalary(season, cs, config.cap);
       const v = valuePlayer(p, g, curves, floor, config.cap(season), config.ahead.value(team.id, p));
-      if (v.percentile < MARKET.extendPercentile) continue;
+      return v.percentile < MARKET.extendPercentile ? [] : [{ p, g, cs, floor, v }];
+    }).sort((a, b) => b.v.percentile - a.v.percentile);
+    const roomIn = (b: Book) => roomFor(team.id, season, b, config.cap, plan.cushion, carry, plan.lookAhead, at);
+    for (const { p, g, cs, floor, v } of candidates) {
+      const oi = oldDeal(p);
+      const old = book.contracts[oi]!;
       const fresh = buildOffer(p, team.id, season, at, v.apy, v.years, v.percentile, cs, config.cap, "EXTENSION");
       const left = old.years.filter((y) => y.season >= season).reduce((a, y) => a + proration(y), 0);
       const each = prorate(left, fresh.years.filter((y) => !y.voidYear).length);
@@ -603,9 +624,18 @@ function campExtensions(
         years: fresh.years.map((y, i) => (y.voidYear || i >= each.length ? y : { ...(i === 0 ? paid(y) : y), signingBonusProration: y.signingBonusProration + each[i]! })),
       });
       const shortened: PlayerContract = { ...old, years: old.years.filter((y) => y.season < season) };
-      // The old deal's last year leaves the books as the new deal's first comes on.
-      if (capNumber(offer.years[0]!) - (lastYear ? capNumber(lastYear) : 0) > roomFor(team.id, season, book, config.cap, plan.cushion, carry, plan.lookAhead, at)) continue;
-      if (!secondYearFits(team.id, offer, { ...book, contracts: book.contracts.map((c, j) => (j === oi ? shortened : c)) }, config.cap, plan)) continue;
+      // The old deal's last year leaves the books as the new deal's first comes on. A team short of the
+      // room for the difference restructures other deals, as at re-signing: tried on a copy of the
+      // book, kept only when he signs.
+      const extra = capNumber(offer.years[0]!) - (lastYear ? capNumber(lastYear) : 0);
+      let b = book;
+      if (extra > roomIn(book)) {
+        const trial: Book = { contracts: [...book.contracts], dead: book.dead, events: [] };
+        restructureFor(team.id, season, () => extra - roomIn(trial), trial, byId, config.cap, plan.voidYears, (c) => String(c.player) === String(p.bio.id));
+        if (extra > roomIn(trial)) continue;
+        b = trial;
+      }
+      if (!secondYearFits(team.id, offer, { ...b, contracts: b.contracts.map((c, j) => (j === oi ? shortened : c)) }, config.cap, plan)) continue;
       const ask = askingPrice(p, askValue(p, config, curves, floor, config.cap(season)), "VALUE", 0, floor, ctx.seed, ctx.season);
       const worth = offerWorth(p, {
         // He weighs the new deal's own pay, not the bonus money it carries over from his old one.
@@ -613,6 +643,10 @@ function campExtensions(
         starts: wouldStart(g, p.bio.position, gradesAt(p.bio.position)), ownTeam: true,
       }, ask);
       if (worth < 1) continue;
+      if (b !== book) {
+        book.contracts = b.contracts;
+        book.events.push(...b.events);
+      }
       book.contracts[oi] = shortened;
       book.contracts.push(offer);
       book.events.push(signedEvent(offer));
@@ -725,13 +759,14 @@ const yearBase = (c: PlayerContract, season: number): number => c.years.find((y)
  * Restructure a team's deals for `year` while `short()` (room still wanted, dollars) is above zero:
  * the biggest base salaries first, base above his minimum turned into bonus over the deal's own
  * years; then, still short and if `voidYears`, with void years added so the bonus spreads over the
- * real limit of five.
+ * real limit of five. `skip`: deals left alone (the man a camp extension is for).
  */
 function restructureFor(
   team: TeamId, year: number, short: () => number, book: Book, byId: ReadonlyMap<string, PlayerState>, cap: CapForSeason, voidYears: boolean,
+  skip?: (c: PlayerContract) => boolean,
 ): void {
   let over = short();
-  const live = () => book.contracts.map((c, i) => ({ c, i })).filter(({ c }) => c.team === team && liveIn(c, year));
+  const live = () => book.contracts.map((c, i) => ({ c, i })).filter(({ c }) => c.team === team && liveIn(c, year) && !skip?.(c));
   for (const voids of voidYears ? [false, true] : [false]) {
     for (const { c, i } of live().sort((a, b) => yearBase(b.c, year) - yearBase(a.c, year))) {
       if (over <= 0) return;
