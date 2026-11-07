@@ -58,3 +58,13 @@ describe("the end-of-season meeting (ADR-081)", () => {
     expect(ids.slice(19)).toEqual(["performanceAnalysis", "forecasting", "capManagement", "marketSense", "nuance"]);
   });
 });
+
+describe("ADR-094 W3: two depth-chart reasons", () => {
+  it("carries a young look and a shake-up as depth-chart changes", () => {
+    const events: FranchiseEvent[] = (["YOUTH_LOOK", "SHAKE_UP"] as const).map((situation) => ({
+      type: "DEPTH_CHART_CHANGED",
+      payload: { team, position: "WR", up: "p2" as never, down: "p1" as never, situation, authority: "COACH", decidedBy: "NPC" },
+    }));
+    expect(JSON.parse(JSON.stringify(events))).toEqual(events);
+  });
+});
