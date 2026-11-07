@@ -309,3 +309,9 @@ fans -50, media -54; 13+: fans +42, media +51). The shares hold steady from the 
 tenth (19% to 22% furious each year). The takes' mood sides are live often (FIRE in 97.7% of
 team-seasons, mostly on the coordinators, whose share is their unit's whole result), before step 3's
 other conditions. No real count of fan anger exists in this repo; these are ours to look at.
+
+**Owner's pick, 2026-11-07 17:47Z ("cool down the coordinators"):** each coordinator now takes half of
+his unit's result (`MOOD.coordinatorShare` 0.5, as the head coach takes half of the team's; CHOSEN).
+Re-run on the same three seeds: FIRE live at least once in 76.7% of team-seasons (was 97.7%); by seat
+the OC 29.3% (was 90.5%), the DC 23.0% (was 83.2%), the head coach 38.8% and the GM 75.0% unchanged.
+Team moods are unchanged.

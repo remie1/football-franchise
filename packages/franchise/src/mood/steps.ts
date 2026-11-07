@@ -424,8 +424,8 @@ function moodDay(people: LeaguePeople, ctx: DayStepContext): { people: LeaguePeo
         for (const { seat, man } of seats) {
           const s: MoodSubject = { kind: "STAFF", staff: man.id, seat };
           if (seat === "HEAD_COACH") move(board, s, MOOD.headCoachShare * read.s, read.causes, noise(s), pullTo);
-          else if (seat === "OC") move(board, s, read.offense, [read.offense >= 0 ? "OFFENSE_ABOVE_EXPECTED" : "OFFENSE_BELOW_EXPECTED"], noise(s));
-          else if (seat === "DC") move(board, s, read.defense, [read.defense >= 0 ? "DEFENSE_ABOVE_EXPECTED" : "DEFENSE_BELOW_EXPECTED"], noise(s));
+          else if (seat === "OC") move(board, s, MOOD.coordinatorShare * read.offense, [read.offense >= 0 ? "OFFENSE_ABOVE_EXPECTED" : "OFFENSE_BELOW_EXPECTED"], noise(s));
+          else if (seat === "DC") move(board, s, MOOD.coordinatorShare * read.defense, [read.defense >= 0 ? "DEFENSE_ABOVE_EXPECTED" : "DEFENSE_BELOW_EXPECTED"], noise(s));
           else move(board, s, Math.max(-1, Math.min(1, MOOD.gmShare * read.s + offField)), [...read.causes.slice(0, 1), ...gmCauses], noise(s), pullTo);
         }
         // Watch-list players move on their own games.

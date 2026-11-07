@@ -40,6 +40,13 @@ export const MOOD = {
    * them (they live in the play-by-play only; a contracts petition when wanted).
    */
   headCoachShare: 0.5,
+  /**
+   * §3.1 (4): each coordinator's share of his unit's result. The owner's pick on 2026-11-07 ("cool
+   * down the coordinators"): at the full unit result fans wanted an OC or DC fired in about 90% of
+   * team-seasons. Half, as the head coach takes half of the team's, is CHOSEN, not counted; real fan
+   * polling on coordinators is not counted yet.
+   */
+  coordinatorShare: 0.5,
   /** §3.2: the GM's share of the record against expectation (a third of the team's move). */
   gmShare: 1 / 3,
 
