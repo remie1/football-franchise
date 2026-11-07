@@ -23,7 +23,7 @@ import {
 import { buildLeague, buildStaff, capForecast, type runSeason, type SeasonRun } from "@ff/franchise";
 import { generateDraftClass } from "@ff/attributes";
 import {
-  limboPlayers, OPENING_ROOM, runCapCheck, sweepLimbo, transformStaff, withConditionRule, withDummyYearsVoid, type CapCheckInput,
+  limboPlayers, OPENING_ROOM, runCapCheck, sweepLimbo, topMinimum, transformStaff, withConditionRule, withDummyYearsVoid, type CapCheckInput,
 } from "../src/season/capCheck.js";
 import { armInput, COACH_STYLE_LINEUPS } from "../src/season/careerCheckRun.js";
 import { runDraftCheck } from "../src/season/draftCheck.js";
@@ -149,7 +149,10 @@ describe("the cap check's walk, widened (made-up seasons answer runSeason)", () 
     freeAgents: p.freeAgents.some((id) => String(id) === String(C)) ? p.freeAgents : [...p.freeAgents, C],
   });
   /** A walk whose every season is answered with its starting people, `edit`ed, and no events. */
-  function madeUpWalk(input: Omit<CapCheckInput, "seed" | "file">, edit: (p: SeasonPeople, season: number) => SeasonPeople = (p) => p) {
+  function madeUpWalk(
+    input: Omit<CapCheckInput, "seed" | "file">, edit: (p: SeasonPeople, season: number) => SeasonPeople = (p) => p,
+    events: (season: number) => FranchiseEventEnvelope[] = () => [],
+  ) {
     const handed: SeasonInput[] = [];
     const returned: SeasonRun[] = [];
     const years = withRunSeason((i) => {
@@ -157,7 +160,7 @@ describe("the cap check's walk, widened (made-up seasons answer runSeason)", () 
       const run = {
         state: { season: i.season } as unknown as SeasonRun["state"],
         calendar: { season: i.season, phase: "OFF_SUMMER", week: 1, day: 7 } as CalendarStamp,
-        events: [], complete: true, people: edit(i.people!, i.season),
+        events: events(i.season), complete: true, people: edit(i.people!, i.season),
       } satisfies SeasonRun;
       returned.push(run);
       return run;
@@ -211,6 +214,19 @@ describe("the cap check's walk, widened (made-up seasons answer runSeason)", () 
     // 2027, once played: the $2M charged at its start and the $5M of its own season.
     expect(sum(years[1]!.playedYearDead.perTeam) - sum(base[1]!.playedYearDead.perTeam)).toBe(7_000_000);
     expect(years.every((y) => y.playedYearDead.perTeam.every((x, i, xs) => i === 0 || xs[i - 1]! <= x))).toBe(true);
+  }, 300_000);
+
+  it("counts own-team deals of two years or more above the minimum apart (step 14)", () => {
+    expect(topMinimum(2026, capForecast(SEED))).toBe(1_300_000);
+    expect(topMinimum(2028, capForecast(SEED))).toBe(1_390_000);
+    expect(topMinimum(2031, capForecast(SEED))).toBeCloseTo(1_480_000 * capForecast(SEED)(2031) / capForecast(SEED)(2030), 6);
+    // A man with a deal in the file re-signs twice with his team: two years at about the minimum, then above it.
+    const c = file.contracts!.find((x) => x.years.length > 0)!;
+    const at: CalendarStamp = { season: 2026, phase: "OFF_EVAL", week: 3, day: 1 };
+    const signed = (value: number) => ({ at, event: { type: "CONTRACT_SIGNED" as const, payload: { player: c.player, team: c.team, kind: "EXTENSION" as const, years: 2, value } } });
+    const { years } = madeUpWalk({ seasons: 1 }, (p) => p, () => [signed(2 * 1_400_000), signed(2 * 3_000_000)] as FranchiseEventEnvelope[]);
+    expect(years[0]!.counts.ownTeamMultiYear).toBe(2);
+    expect(years[0]!.counts.ownTeamMultiYearAboveMinimum).toBe(1);
   }, 300_000);
 
   it("switched off, nothing is swept: the next season starts with the people the last one left", () => {

@@ -59,7 +59,7 @@ function print(y: CapYear): void {
   const c = y.counts;
   console.log(`  signed: ${Object.entries(c.signed).map(([k, n]) => `${k} ${n}`).join(", ")}`);
   console.log(`  expired ${c.expired}, released ${c.released}, restructured ${c.restructured}, free agents to new teams ${c.freeAgentMoves}, comp picks ${c.compPicks}`);
-  console.log(`  veteran deals with a new team: ${c.newTeam2M} at $2M+ a year, ${c.newTeam5M} at $5M+; own team, 2+ years: ${c.ownTeamMultiYear}`);
+  console.log(`  veteran deals with a new team: ${c.newTeam2M} at $2M+ a year, ${c.newTeam5M} at $5M+; own team, 2+ years: ${c.ownTeamMultiYear} (above the minimum ${c.ownTeamMultiYearAboveMinimum}; real about 135)`);
   console.log(`  players on teams: ${y.rosterSizes[0]}-${y.rosterSizes[y.rosterSizes.length - 1]}`);
 }
 

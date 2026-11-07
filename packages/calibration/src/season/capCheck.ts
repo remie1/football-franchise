@@ -149,6 +149,11 @@ export interface CapYear {
     newTeam5M: number;
     /** Deals of two years or more with a player's own team (extensions and re-signings). */
     ownTeamMultiYear: number;
+    /**
+     * The same, above the minimum: a year's value over 1.1 times the top of the league year's minimum
+     * salary scale, the line the real count drew (step 14; real about 135 a year, 117 by the table's rows).
+     */
+    ownTeamMultiYearAboveMinimum: number;
   };
   /** Players on each team's books at the end of the year (the 90 in the offseason), lowest first. */
   readonly rosterSizes: number[];
@@ -173,6 +178,16 @@ export function lastTeams(contracts: readonly PlayerContract[]): Map<string, str
 const live = (c: PlayerContract, season: number) => c.ended === undefined && c.years.some((y) => y.season === season && !y.voidYear);
 const capHit = (c: PlayerContract, season: number) => c.years.find((y) => y.season === season)?.capHit ?? 0;
 
+/**
+ * The top of the minimum salary scale (seven credited seasons or more) in a league year. REPORTED: the
+ * CBA's 2026 figure and its yearly step through 2030, the last season it sets (copied from franchise's
+ * table, `MINIMUM_2026`); after it, the 2030 figure moves with the cap.
+ */
+export function topMinimum(year: number, cap: (season: number) => number): number {
+  const within = 1_300_000 + 45_000 * (Math.min(year, 2030) - 2026);
+  return year <= 2030 ? within : within * cap(year) / cap(2030);
+}
+
 /** Each team's dead money charged to league year `year`, in the people's order of teams. */
 export function deadByTeam(people: Pick<SeasonPeople, "teams" | "deadMoney">, year: number): number[] {
   const by = new Map<string, number>();
@@ -182,7 +197,7 @@ export function deadByTeam(people: Pick<SeasonPeople, "teams" | "deadMoney">, ye
 
 function measure(
   people: SeasonPeople, events: readonly FranchiseEvent[], year: number, cap: number, seconds: number,
-  lastTeam: ReadonlyMap<string, string>, played: { leagueYear: number; cap: number },
+  lastTeam: ReadonlyMap<string, string>, played: { leagueYear: number; cap: number }, minimumTop: number,
 ): CapYear {
   const contracts = people.contracts ?? [];
   const position = new Map(people.players.map((p) => [String(p.bio.id), p.bio.position]));
@@ -231,6 +246,8 @@ function measure(
       newTeam2M: vets.filter((e) => isNew(e) && apyOfEvent(e) >= 2e6).length,
       newTeam5M: vets.filter((e) => isNew(e) && apyOfEvent(e) >= 5e6).length,
       ownTeamMultiYear: vets.filter((e) => !isNew(e) && lastTeam.has(String(e.payload.player)) && (e.payload.years ?? 1) >= 2).length,
+      ownTeamMultiYearAboveMinimum: vets.filter((e) => !isNew(e) && lastTeam.has(String(e.payload.player)) && (e.payload.years ?? 1) >= 2
+        && apyOfEvent(e) > 1.1 * minimumTop).length,
     },
     rosterSizes: people.teams.map((t) => t.roster.length).sort((a, b) => a - b),
     seconds,
@@ -405,7 +422,7 @@ export function runCapCheck(input: CapCheckInput): CapYear[] {
     input.onRun?.(season, events, people, { run, before });
     if (switched) people = sweepLimbo(people);
     current = { ...current, teams: people.teams };
-    const year = measure(people, events, season + 1, cap(season + 1), (Date.now() - started) / 1000, lastTeam, { leagueYear: season, cap: cap(season) });
+    const year = measure(people, events, season + 1, cap(season + 1), (Date.now() - started) / 1000, lastTeam, { leagueYear: season, cap: cap(season) }, topMinimum(season + 1, cap));
     years.push(year);
     input.onYear?.(year);
     input.onSeasonEnd?.(season, people);
