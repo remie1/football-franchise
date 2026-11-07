@@ -15,6 +15,7 @@ import { frozenCallerPair, type FrozenCallerDiagnostics } from "../caller/frozen
 import type { FittedTendencies } from "../caller/tendencies.js";
 import type { SimGameObservation } from "../metrics/collect.js";
 import { mirrorCaller } from "../pocket/mirror.js";
+import { applyRatingOverrides, type RatingOverride } from "../pocket/ratingOverride.js";
 import { checkStamp, engineRulesNamed, LEGACY_RULES } from "../pocket/rules.js";
 import type { BuiltFixture } from "./schedule.js";
 
@@ -54,6 +55,12 @@ export interface RunGameInput {
    * input stays plain data a worker can be handed.
    */
   readonly mirror?: boolean;
+  /**
+   * ADR-089 step-4 probes only (`pocket/ratingOverride.ts`): attributes set or raised on chosen men,
+   * by registry id, before the game is played. Plain data, so a worker can be handed it. Absent or
+   * empty, the snapshot is the one built, untouched, and the game is today's.
+   */
+  readonly ratings?: readonly RatingOverride[];
 }
 
 export interface RunGameOutput {
@@ -67,7 +74,8 @@ export function runOneGame(input: RunGameInput): RunGameOutput {
   // stamp names rules this build has, and the dials it was handed digest to it, or no play is made.
   // Legacy tunables (no stamp, no block) return after three property reads, so legacy play is today's.
   checkStamp(tunables, tunables.engineRules === undefined ? LEGACY_RULES : engineRulesNamed(tunables.engineRules.name, "runOneGame"), "runOneGame");
-  const { built, seed } = input;
+  const { seed } = input;
+  const built = input.ratings === undefined || input.ratings.length === 0 ? input.built : { ...input.built, snapshot: applyRatingOverrides(input.built.snapshot, input.ratings) };
   const pair = frozenCallerPair({
     tendencies: input.tendencies,
     fourthDown: input.fourthDown,

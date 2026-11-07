@@ -50,6 +50,7 @@ import type { CallerVersion } from "../caller/anticipate.js";
 import { FROZEN_FOURTH_DOWN, FROZEN_TENDENCIES } from "../caller/frozenTendencies.js";
 import { runOneGame } from "../harness/runGame.js";
 import type { SimGameObservation } from "../metrics/collect.js";
+import type { RatingOverride } from "../pocket/ratingOverride.js";
 import { buildFixture, type GameFixture } from "../harness/schedule.js";
 import { buildFlatLeague } from "../league/flat.js";
 import type { AnyProvenancedLeague } from "../league/provenance.js";
@@ -104,6 +105,8 @@ export interface SeasonGamePassThrough {
   readonly tunables?: Tunables;
   /** ADR-089 M5 measurement arms only — see `RunGameInput.mirror`. */
   readonly mirror?: boolean;
+  /** ADR-089 step-4 probes only — see `RunGameInput.ratings`. */
+  readonly ratings?: readonly RatingOverride[];
 }
 
 export interface RealSimOptions {
@@ -121,10 +124,11 @@ export interface RealSimOptions {
 }
 
 /** `runOneGame`'s fields for a pass-through, written only where given (absent is today's game). */
-function passThrough(game: SeasonGamePassThrough | undefined): { readonly tunables?: Tunables; readonly mirror?: boolean } {
+function passThrough(game: SeasonGamePassThrough | undefined): { readonly tunables?: Tunables; readonly mirror?: boolean; readonly ratings?: readonly RatingOverride[] } {
   return {
     ...(game?.tunables === undefined ? {} : { tunables: game.tunables }),
     ...(game?.mirror === undefined ? {} : { mirror: game.mirror }),
+    ...(game?.ratings === undefined ? {} : { ratings: game.ratings }),
   };
 }
 
