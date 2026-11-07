@@ -41,7 +41,7 @@ function team(t: Team, change: Partial<Record<Position, Seat[]>>, season: number
   const men: PlayerState[] = [];
   const contracts: PlayerContract[] = [];
   for (const pos of Object.keys(WANTED) as Position[]) {
-    const seats = change[pos] ?? Array.from({ length: WANTED[pos] }, (_, i) => ({ position: pos, ovr: 66 - 2 * i }));
+    const seats: Seat[] = change[pos] ?? Array.from({ length: WANTED[pos] }, (_, i) => ({ position: pos, ovr: 66 - 2 * i }));
     seats.forEach((s, i) => {
       const p = man(s.id ?? `${String(t.id)}-${pos}-${i}`, pos, s.ovr, s.age ?? 27, 5, t);
       men.push(p);
