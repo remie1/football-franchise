@@ -257,7 +257,8 @@ describe("the refusals before anything plays (plan §2.10, §4.2)", () => {
 
   it("reads nothing of the entries filed after AM-3 but the view's digest: AM-4 (sight, G.10) is read from step 7 and AM-5 (G.11) changes only AM-2's shape-L text, so the guard, the refusals and the choices are those of the file cut to AM-3", () => {
     const later = committedAmendments().entries.map((e) => String(e["id"])).slice(3);
-    expect(later).toEqual(["AM-4", "AM-5", "AM-6", "AM-7"]);
+    // AM-6 and AM-7 are filed before step 4 (H.8, H.9); AM-8, AM-9 and AM-10 before step 5a (I.10 to I.12).
+    expect(later).toEqual(["AM-4", "AM-5", "AM-6", "AM-7", "AM-8", "AM-9", "AM-10"]);
     const json = committedAmendments();
     json.entries = json.entries.slice(0, 3);
     expect(json.entries.map((e) => e["id"])).toEqual(["AM-1", "AM-2", "AM-3"]);
@@ -408,11 +409,11 @@ describe("AM-3 on a temporary copy (its stand-in): the guard step 3 grades with"
 
   it("filing review M-3: step 3 opens the file at its step-3 view, as step 2's harness opens its own: an entry filed before step 4 leaves step 3's pin and records alone; a changed step-3 view is refused", () => {
     const dir = tempDir("m3");
-    /** The committed file with a test entry AM-8 appended, filed before `step`. */
+    /** The committed file with a test entry appended under the next id, filed before `step`. */
     const withAm8 = (step: string): { path: string; json: AmendmentsJson } => {
       const json = committedAmendments();
       json.entries.push({
-        id: "AM-8",
+        id: `AM-${String(json.entries.length + 1)}`,
         name: "a test entry filed after step 3's arms ran",
         filedBeforeStep: step,
         steps: [step],
