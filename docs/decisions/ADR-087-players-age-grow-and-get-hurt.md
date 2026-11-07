@@ -798,6 +798,15 @@ The owner ruled on 2026-11-06:
 
 This step only measures. Nothing the sim does changes. The reader (`careerCheck.ts`) now writes rows version 5 (`CAREER_ROWS_VERSION` 5, `CAREER_CHECK_VERSION` 5, so every cached seed is played again). The grader (`careerGrade.ts`) adds nine rows, every one REPORT. The real side is the nfl-careers additions committed just before this step (REAL, totals only).
 
+**The real side (REAL, totals only; 2025 is never read).**
+- `nfl-careers` adds the rookies' ages at week 8 (2018-24, mean 22.67 in whole years), the reserve/retired list by age (a lower bound: 0.2% at 25 and under up to 3.0% at 33 and over), and exits by age for Y = 2016-22: back on a 53 in Y+1 or Y+2 (88% at 26 and under down to 72% at 33 and over) and starters on no team's list in either of the next two seasons (0.7% up to 21.2%). OverTheCap's signed-again rates sit beside them, REPORTED (counted by the salary-cap thread).
+- `injury-rates` adds injuries by age, body-part class and depth-chart spot (2019-24; `reports/injury-rates.md`).
+  - Risk per snap, against each band's own position mix: 0.99, 0.96, 1.04, 1.20 and 1.01 from 25 and under to 33 and over. It is flat but for 31-32, against the injury tables' guessed 4% a year past 26 (`injuryTables.ts`, CHOSEN).
+  - Time out does not lengthen with age for soft-tissue or joint injuries. At 31 and over two small classes stay out longer: concussions (out 4+ weeks 26-30% against 16-18%, 54 cases) and back, neck, torso and other (42-48% against 30-36%, 86 cases). Slower healing goes in only where this count shows it.
+  - A later concussion keeps a man out 4+ weeks 26% of the time against 16% for the first one seen, once quick relapses (which may be one concussion counted twice) are set apart.
+  - The spot recount reads the weekly roster's `depth_chart_position`, which is the listed position in its fine form, so no group's rate moves by more than 0.005 per 1,000 snaps. The fine spots' own rates (per 1,000 snaps: corner 1.37, free safety 0.94, tackle 1.04, guard 0.78) are what the owner's by-spot ruling can use. A man moved on game day, such as a safety at corner in the nickel, is not seen.
+- `standin-recount` (new) counts the stand-in file's 53s the way the real week-8 53s are counted, and runs the importer's roster rules (copied) on real 2024 weekly rosters. Of the file's +2.8 points aged 31 and over against real 2024 week 8 (13.0% against 10.2%), the import method makes 0 to +0.5, the snapshot date -0.4 to -0.2, and the rows themselves +2.6 to +2.9. A check that uses no birth dates agrees: 10.2% of the file's men have 9 or more years in the league, against 7.7-8.1% in 2022-24. The file stays as it is.
+
 **What the reader adds.**
 - **The 53 counted like the NFL (`week8Nfl`).** Week 8's 53s without the men whose unhealed injury was drawn LONG or MAJOR (4+ weeks), as the real count leaves out injured reserve.
   - Beside it, `week8NflWeeksLeft` leaves out the men with 4+ weeks still to go.
