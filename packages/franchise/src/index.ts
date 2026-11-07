@@ -184,3 +184,5 @@ export {
   type WeekRead, type WeeklyStanceInput, type WeeklyStanceResult,
 } from "./winNow/stance.js";
 
+export { tradePlayer, salaryLeft, type TradeMoneyResult } from "./trades/money.js";
+export { tradeWindowOpen, tradeableDrafts } from "./trades/window.js";

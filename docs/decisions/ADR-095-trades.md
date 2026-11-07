@@ -213,8 +213,10 @@ same talk.
 ## 10. Build order
 
 1. Contracts edits X1-X4 (typed yes each).
-2. Trade money in `franchise/src/cap/` (sender and receiver, June-1 split, both-under-the-cap check),
-   with tests.
+2. Trade money (sender and receiver, June-1 split) and the trade window, with tests. **Built**
+   2026-11-07: `franchise/src/trades/money.ts` (`tradePlayer`, `salaryLeft`) and `trades/window.ts`
+   (`tradeWindowOpen`, `tradeableDrafts`). The both-under-the-cap check goes with the market (step 5),
+   which knows every piece of a trade.
 3. Pick values: the measured curve, the templates, the blend, with tests.
 4. Player value to a team (§3). Waits for cap step 14 and the aging redesign.
 5. Computer-to-computer talks on the calendar, draft-day trading, the physical. Waits as step 4.
@@ -233,6 +235,10 @@ same talk.
 
 Open keys with no edit: `pickCurve`, `futurePickDiscount`, `tradeStyle` on a GM's ratings; ledger moves as free strings.
 
-## 12. Open questions
+## 12. Open questions and later items
+
+- **Later (owner, 2026-11-07 15:41Z):** a news event for talks that end without a deal (both walk
+  away, or the window closes). Not in X1; a small contracts petition when the news needs it.
+
 
 None. W was ruled by the owner 2026-11-07 15:14Z: the newest draft opens when the draft starts (§4b).
