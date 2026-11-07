@@ -12,8 +12,8 @@
  * `pnpm --filter @ff/calibration pocket -- --step 4 [--arms D1,D6] [--shard i/n] [--cache <dir>] [--seed-set 1|2] [--report <file.md>] [--out <file.json>]`;
  * `pnpm --filter @ff/calibration pocket -- --step 4 --digests --out <file.json>`;
  * `pnpm --filter @ff/calibration pocket -- --step 4 [--arms D1,D6] [--cache <dir>] [--seed-set 1|2] --part1`
- * (every D arm refused until petitions P6, P7 and P8 are in contracts; grading refused until AM-6
- * and AM-7 are filed).
+ * (P6, P7 and P8 are in contracts and AM-6 and AM-7 are filed, ADR-089 Appendix H, H.7 to H.9;
+ * a cut amendments file or a withheld petition is still refused by name).
  * The arguments and step 0 live in `step0.ts`, step 1 in `step1.ts`, step 2 in `step2.ts`, step 3
  * in `step3.ts`, step 4 in `step4.ts`, where they are tested.
  */

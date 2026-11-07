@@ -14,8 +14,9 @@
  *    must read `s4.motion.int` as D6 against C2, `s4MotionIntEntryOf`), AM-7 (step 4's readings,
  *    superseding the three tilt clauses), step 4's view pinned (`STEP4_AMENDMENTS_PIN`, null until
  *    AM-6 and AM-7 are filed), and P6, P7 and P8 in contracts. Each refusal is named; none of them
- *    has played anything or made a cache. In this build AM-6 and AM-7 are not filed and the gates
- *    are false, so every graded run is refused.
+ *    has played anything or made a cache. In this build AM-6 and AM-7 are filed (ADR-089 Appendix
+ *    H, H.8 and H.9), step 4's view is pinned and the gates are true, so a graded run is refused
+ *    nothing of these.
  *  - **Each arm** is step 3's play (`playStep3Arm`, every step-1 to step-3 fold handed the arm's own
  *    tunables, defaults unchanged on the bases), with step 4's visit beside on every game: the s4
  *    stream (`s4Stream.ts`), M3's sacker mix (the man at contact on an s4 play) and M6 at step 4.
@@ -70,10 +71,10 @@ export const STEP4_RECORDS_FINAL: boolean = false;
 
 /**
  * The digest step 4's view of the amendments file must equal before any graded run (AM-1 to AM-7).
- * Null while AM-6 and AM-7 are not filed: a graded run is then refused by name. It is set in the
- * commit that files them.
+ * It was null while AM-6 and AM-7 were not filed, and a graded run was then refused by name; it was
+ * set in the commit that filed them (ADR-089 Appendix H, H.8 and H.9).
  */
-export const STEP4_AMENDMENTS_PIN: string | null = null;
+export const STEP4_AMENDMENTS_PIN: string | null = "fnv1a:e0c05cf0";
 
 /** AM-7's superseded clauses: the three tilts, each gaining a population, a count floor and a noise line. */
 export const AM7_TILTS = ["s4.tilt.pushBlocked", "s4.tilt.freeRun", "s4.tilt.behindNever"] as const;

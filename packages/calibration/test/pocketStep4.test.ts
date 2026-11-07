@@ -1,12 +1,12 @@
 /**
  * ADR-089 step 4 — THE STEP-4 HARNESS (`step4.ts`; plan §5, §8, §9 commit 8).
  *
- * AM-6 and AM-7 are not filed in this build, so every graded run is refused by name; P6, P7 and P8
- * are in contracts, so the D arms are planned and built (the gates refuse only a test's withheld
- * petition). These tests:
- *  - prove the refusals in their order (AM-6, AM-7, the pin, the gates) on temporary copies of the
- *    committed amendments file with stand-ins for AM-6 and AM-7 appended (the filing's §2.1 and §3.1
- *    texts; only these tests read them; nothing is filed);
+ * AM-6 and AM-7 are filed (ADR-089 Appendix H, H.8 and H.9) and step 4's view is pinned
+ * (`STEP4_AMENDMENTS_PIN`); P6, P7 and P8 are in contracts, so the D arms are planned and built and
+ * the committed file is refused nothing (the gates refuse only a test's withheld petition). These tests:
+ *  - read AM-6 and AM-7 from the committed file, and prove the refusals in their order (AM-6, AM-7,
+ *    the pin, the gates) on temporary copies of it cut to AM-5, with AM-6 and AM-7 (or changed copies
+ *    of them) appended;
  *  - grade hand-built records (step 3's committed records of the bases, re-formatted, and D records
  *    built from their bases' with hand-made s4 folds) with the gates passed in as granted;
  *  - check the stamp-free projection against step 3's records, the plan's D arms, the cache's
@@ -25,7 +25,7 @@ import { am6Refusal, s4MotionIntReading } from "../src/pocket/guardAm1.js";
 import { emptyM3Fold } from "../src/pocket/m3SackerMix.js";
 import { emptyM6Step4Fold } from "../src/pocket/m6Contact.js";
 import { renderStep4Sections } from "../src/pocket/report.js";
-import { STEP4_PETITIONS_GRANTED } from "../src/pocket/rules.js";
+import { POCKET_1_S4_MOTION, STEP4_PETITIONS_GRANTED } from "../src/pocket/rules.js";
 import { emptyS4Fold, type S4Fold } from "../src/pocket/s4Stream.js";
 import { jsonText, type Step1Env } from "../src/pocket/step1.js";
 import {
@@ -98,48 +98,27 @@ const AM1_RULE_BUT_BASES = {
   acceptedState: { design: "A1", pricing: "A11", fromStep: "3", graded: false },
 };
 
-/** AM-6's machine entry (step-4 filing §2.1) with stand-in text for its one placeholder; tests only. */
-const AM6_STAND_IN = {
-  id: "AM-6",
-  name: "the guard at step 4: the design, its pricing arm and the motion alone against step 3's arms",
-  filedBeforeStep: "4",
-  steps: ["4"],
-  supersedes: ["guard.mix", "guard.byClass", "s4.motion.int"],
-  untouched: ["acc.intGuard", "s5a.int"],
-  defaults: ["D9", "D28"],
-  adrLines: [1306, 1308, 1036],
-  cites: [932, 944, 1287, 1159, 1053],
-  record: "ADR-089 Appendix H, H.8",
-  reason: "a stand-in for AM-6 in the tests only: D1 against C1, D2 against C2 and D6 against C2, as the step-4 filing's §2.1 maps them",
-  ownersWord: null,
-  rule: { ...AM1_RULE_BUT_BASES, bases: { "4": { D1: "C1", D2: "C2", D6: "C2" } } },
-};
-
-/** AM-7's machine entry (step-4 filing §3.1), its readings cut to their names; tests only. */
-const AM7_STAND_IN = {
-  id: "AM-7",
-  name: "step 4: the arms the clauses read, the hit construct, the tilts' reading and the chosen values",
-  filedBeforeStep: "4",
-  steps: ["4"],
-  supersedes: ["s4.tilt.pushBlocked", "s4.tilt.freeRun", "s4.tilt.behindNever"],
-  untouched: [
-    "s4.contact.flat.sack", "s4.contact.gen.sack", "s4.contact.pressure", "s4.contact.hitOrSack", "s4.contact.gen.share", "s4.contact.flat.share", "s4.motion.hits", "s4.motion.curveRises",
-    "s4.falsifier.ratingProbes", "s4.falsifier.release", "s4.reading", "s4.sackerMix.edge", "s4.sackerMix.interior", "s4.bRange", "s4.sackCredit", "s4.qbHitFields",
-  ],
-  defaults: ["D11", "D14", "D21", "D34"],
-  adrLines: [1036, 1040, 1041, 1042, 1043],
-  cites: [653, 660, 672, 692, 698, 944, 932],
-  record: "ADR-089 Appendix H, H.9",
-  reason: "a stand-in for AM-7 in the tests only",
-  ownersWord: null,
-  rule: { readings: { "s4.contact.arm": "D3 against A0", "s4.motion.arm": "D6 against C2", "s4.tilt.reading": "D9, D10, D11 against D8; first rated :contest; 2 SE; 30 contacts" } },
-};
-
 type AmendmentsJson = Record<string, unknown> & { entries: Record<string, unknown>[] };
+/** The committed amendments file as plain JSON (AM-1 to AM-7; AM-6 and AM-7 filed before step 4, ADR-089 Appendix H, H.8 and H.9). */
+const COMMITTED = JSON.parse(readFileSync(AMENDMENTS, "utf8")) as AmendmentsJson;
+const entryJson = (id: string): Record<string, unknown> => {
+  const found = COMMITTED.entries.find((x) => x["id"] === id);
+  if (found === undefined) throw new Error(`the committed file holds no ${id}`);
+  return found;
+};
+/** AM-6 and AM-7 as committed. */
+const AM6 = entryJson("AM-6");
+const AM7 = entryJson("AM-7");
+
 let written = 0;
-/** A temporary copy of the committed amendments file with `entries` appended; its path and its step-4 view's digest. */
+/**
+ * A temporary copy of the committed amendments file cut to the entries filed before step 4 (AM-1
+ * to AM-5), with `entries` appended; its path and its step-4 view's digest. With AM-6 and AM-7 as
+ * committed it is the committed file again; a cut or changed copy proves a refusal.
+ */
 function withEntries(...entries: Record<string, unknown>[]): { readonly path: string; readonly pin: string } {
-  const json = JSON.parse(readFileSync(AMENDMENTS, "utf8")) as AmendmentsJson;
+  const json = structuredClone(COMMITTED);
+  json.entries = json.entries.filter((x) => x["id"] !== "AM-6" && x["id"] !== "AM-7");
   json.entries.push(...structuredClone(entries));
   written += 1;
   const path = join(DIR, `amendments-${String(written)}.json`);
@@ -147,32 +126,58 @@ function withEntries(...entries: Record<string, unknown>[]): { readonly path: st
   return { path, pin: amendmentsDigest(amendmentsAtStep(loadAmendments(path, loadFiled(FILED)), "4")) };
 }
 const DIR = tempDir("am");
-const BOTH = withEntries(AM6_STAND_IN, AM7_STAND_IN);
+const BOTH = withEntries(AM6, AM7);
+/** The file cut to AM-5: neither AM-6 nor AM-7 filed. */
+const NONE = withEntries();
 const granted = { pin: BOTH.pin, petitions: STEP4_PETITIONS_GRANTED };
 
 describe("the refusals, in order", () => {
-  it("the committed file holds no AM-6: refused by AM-6's name, before anything plays", () => {
-    expect(STEP4_AMENDMENTS_PIN).toBeNull();
-    expect(() => preflightStep4(FILED, AMENDMENTS)).toThrow(/^ADR-089 step 4: refused to read s4\.motion\.int: AM-6 \(the guard at step 4/);
+  it("the committed file holds AM-6 and AM-7 and is pinned: with P6, P7 and P8 in contracts, nothing is refused", () => {
+    expect(STEP4_AMENDMENTS_PIN).toBe("fnv1a:e0c05cf0");
+    expect(BOTH.pin, "the copy with AM-6 and AM-7 as committed is the committed file").toBe(STEP4_AMENDMENTS_PIN);
+    expect(amendmentsDigest(amendmentsAtStep(loadAmendments(AMENDMENTS, loadFiled(FILED)), "4"))).toBe(STEP4_AMENDMENTS_PIN);
+    const g = preflightStep4(FILED, AMENDMENTS).guard;
+    expect(g).toMatchObject({ am6: "AM-6", am6Record: "ADR-089 Appendix H, H.8", am7: "AM-7", am7Record: "ADR-089 Appendix H, H.9", bases: { D1: "C1", D2: "C2", D6: "C2" }, lines: { zLeague: 2, zClass: 3, zSetSE0: 0 } });
+    expect(Object.keys(g.readings)).toHaveLength(16);
+  });
+
+  it("AM-6's rule is AM-1's but for its bases, and AM-7 carries no guard rule", () => {
+    const am1 = structuredClone(entryJson("AM-1")["rule"]) as Record<string, unknown>;
+    const am6 = structuredClone(AM6["rule"]) as Record<string, unknown>;
+    expect(am6["bases"]).toEqual({ "4": { D1: "C1", D2: "C2", D6: "C2" } });
+    delete am1["bases"];
+    delete am6["bases"];
+    expect(am6).toEqual(am1);
+    expect({ ...AM1_RULE_BUT_BASES }).toEqual(am6);
+    expect(Object.keys(AM7["rule"] as Record<string, unknown>)).toEqual(["readings"]);
+    // AM-7 files the motion's CHOSEN values the s4 bundle plays (rho0 0.3 s, rho_d 400).
+    const chosen = String(((AM7["rule"] as Record<string, unknown>)["readings"] as Record<string, unknown>)["chosen"]);
+    expect(chosen).toMatch(/^rho0 0\.3 s and rho_d 400 \(rho 0\.2275 to 0\.4725 s/);
+    expect({ rho0: POCKET_1_S4_MOTION.rho0, rhoD: POCKET_1_S4_MOTION.rhoD }).toEqual({ rho0: 0.3, rhoD: 400 });
+    expect([AM6["ownersWord"], AM7["ownersWord"]], "shown to the owner, not asked").toEqual([null, null]);
+  });
+
+  it("the file cut to AM-5 holds no AM-6: refused by AM-6's name, before anything plays", () => {
+    expect(() => preflightStep4(FILED, NONE.path, { pin: NONE.pin })).toThrow(/^ADR-089 step 4: refused to read s4\.motion\.int: AM-6 \(the guard at step 4/);
     expect(am6Refusal("x")).toMatch(/is not filed in the amendments file's step-4 view: x\./);
   });
 
   it("AM-6 alone: refused by AM-7's name", () => {
-    const only6 = withEntries(AM6_STAND_IN);
+    const only6 = withEntries(AM6);
     expect(() => preflightStep4(FILED, only6.path, { pin: only6.pin, petitions: STEP4_PETITIONS_GRANTED })).toThrow(/^ADR-089 step 4: refused to grade: AM-7 \(step 4's readings/);
-    const short7 = withEntries(AM6_STAND_IN, { ...AM7_STAND_IN, supersedes: ["s4.tilt.pushBlocked"] });
+    const short7 = withEntries(AM6, { ...AM7, supersedes: ["s4.tilt.pushBlocked"] });
     expect(() => preflightStep4(FILED, short7.path, { pin: short7.pin })).toThrow(/AM-7 does not supersede s4\.tilt\.freeRun, s4\.tilt\.behindNever/);
   });
 
   it("AM-6 must map D6 on C2 and every D arm on this build's base", () => {
-    const wrong = withEntries({ ...AM6_STAND_IN, rule: { ...AM1_RULE_BUT_BASES, bases: { "4": { D1: "C1", D2: "C2", D6: "C1" } } } }, AM7_STAND_IN);
+    const wrong = withEntries({ ...AM6, rule: { ...AM1_RULE_BUT_BASES, bases: { "4": { D1: "C1", D2: "C2", D6: "C1" } } } }, AM7);
     expect(() => preflightStep4(FILED, wrong.path, { pin: wrong.pin })).toThrow(/refused to read s4\.motion\.int: .*reads D6 against C1, not C2/);
-    const off = withEntries({ ...AM6_STAND_IN, rule: { ...AM1_RULE_BUT_BASES, bases: { "4": { D1: "C2", D2: "C2", D6: "C2" } } } }, AM7_STAND_IN);
+    const off = withEntries({ ...AM6, rule: { ...AM1_RULE_BUT_BASES, bases: { "4": { D1: "C2", D2: "C2", D6: "C2" } } } }, AM7);
     expect(() => preflightStep4(FILED, off.path, { pin: off.pin })).toThrow(/AM-6's step-4 base map reads D1 against C2, and this build's arm against C1/);
   });
 
-  it("AM-6 and AM-7 filed: refused while step 4's view is not pinned, then on a wrong pin", () => {
-    expect(() => preflightStep4(FILED, BOTH.path)).toThrow(/^ADR-089 step 4: refused to grade: step 4's view of the amendments file \(fnv1a:[0-9a-f]{8}\) is not pinned/);
+  it("AM-6 and AM-7 filed: refused under no pin (as before the filing commit), then on a wrong pin", () => {
+    expect(() => preflightStep4(FILED, BOTH.path, { pin: null })).toThrow(/^ADR-089 step 4: refused to grade: step 4's view of the amendments file \(fnv1a:[0-9a-f]{8}\) is not pinned/);
     expect(() => preflightStep4(FILED, BOTH.path, { pin: "fnv1a:00000000" })).toThrow(/digests to fnv1a:[0-9a-f]{8}, not the pin fnv1a:00000000/);
   });
 
@@ -190,7 +195,7 @@ describe("the refusals, in order", () => {
     expect(amendmentsDigest(amendmentsAtStep(loadAmendments(BOTH.path, loadFiled(FILED)), "3"))).toBe(STEP3_AMENDMENTS_DIGEST);
     expect(v.view.entries.map((e) => e.id).slice(-2)).toEqual(["AM-6", "AM-7"]);
     // An entry filed before step 3 after the fact moves step 3's view: refused.
-    const late = withEntries({ ...AM7_STAND_IN, id: "AM-6", filedBeforeStep: "3", steps: ["3"], supersedes: [], untouched: [] });
+    const late = withEntries({ ...AM7, id: "AM-6", filedBeforeStep: "3", steps: ["3"], supersedes: [], untouched: [] });
     expect(() => preflightStep4Previews(FILED, late.path)).toThrow(/step-3 view digests to fnv1a:[0-9a-f]{8}, not fnv1a:517bb9fe/);
   });
 
@@ -199,14 +204,14 @@ describe("the refusals, in order", () => {
     const play = (): Step4Record => {
       throw new Error("nothing plays");
     };
-    expect(() => runStep4({ cacheParent: parent, filedPath: FILED, amendmentsPath: AMENDMENTS, env: ENV, play })).toThrow(/AM-6/);
+    expect(() => runStep4({ cacheParent: parent, filedPath: FILED, amendmentsPath: NONE.path, env: ENV, play, preflight: { pin: NONE.pin } })).toThrow(/AM-6/);
     expect(() => runStep4({ cacheParent: parent, filedPath: FILED, amendmentsPath: BOTH.path, env: ENV, play, preflight: { pin: BOTH.pin, petitions: { P7: false } } })).toThrow(STEP4_GATES_REFUSAL);
     expect(() => runStep4({ cacheParent: parent, filedPath: FILED, amendmentsPath: BOTH.path, env: { ...ENV, dirty: true }, play, preflight: granted })).toThrow(STEP4_DIRTY_REFUSAL);
     expect(existsSync(join(parent, ENV.fingerprint))).toBe(false);
   });
 
   it("s4.motion.int refuses without AM-6 and reads D6 against C2 under it", () => {
-    const view = preflightStep4Previews(FILED, AMENDMENTS).view;
+    const view = preflightStep4Previews(FILED, NONE.path).view;
     const mix = { aimedByBin: [10, 30, 40, 20, 10, 5, 2], interceptions: 3 };
     expect(() => s4MotionIntReading(view, { 1: mix, 2: mix }, { 1: mix, 2: mix }, "RAW")).toThrow(/AM-6/);
     const r = s4MotionIntReading(preflightStep4Previews(FILED, BOTH.path).view, { 1: mix, 2: mix }, { 1: mix, 2: mix }, "RAW");

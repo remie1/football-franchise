@@ -1,8 +1,9 @@
 /**
  * ADR-089 step 4: THE PROBES (`pocket/step4Probes.ts`, `runStep4Probes`; AM-7 items 13 and 14; review F9, F10).
  *
- * P6, P7 and P8 are in contracts, so a probe's arm builds; a graded probe run is still refused while
- * AM-6 and AM-7 are not filed. These tests:
+ * P6, P7 and P8 are in contracts, so a probe's arm builds; AM-6 and AM-7 are filed (ADR-089
+ * Appendix H, H.8 and H.9) and step 4's view is pinned, so the committed file is refused nothing, and
+ * the refusals are held on a copy cut to AM-5. These tests:
  *  - hold the refusals (AM-6, AM-7, the pin, a test's withheld petition, a dirty tree; the arm
  *    itself under a withheld petition), none of which makes a cache;
  *  - hold the probes' own run ids and cache: no arm id, no arm cache path, a stamp naming the overrides;
@@ -76,71 +77,19 @@ afterAll(() => {
 
 // --- stand-ins for AM-6 and AM-7 (tests only; as pocketStep4.test.ts writes them) -------------------------
 
-const AM1_RULE_BUT_BASES = {
-  base: "previousStepArm",
-  pricingBase: "previousStepPricingArm",
-  laterBases: "filed as a named entry before that step's arms run",
-  gradedArms: "every arm in the step's map",
-  replayMustEqualPreviousRecords: true,
-  allowance: "filed",
-  se: "binomialIndependent",
-  statistic: "pooledZ",
-  seedSets: [1, 2],
-  zLeague: 2.0,
-  zClass: 3.0,
-  breachIf: "greaterThan",
-  zSetSE0: 0,
-  classes: "GUARD_CLASSES",
-  reportedSplits: { DESPERATION: ["DIRTY", "CLEAN"] },
-  dirtyPocket: "lastStatusAtOrBeforeRelease",
-  onCompositionClassBreach: ["DESPERATION", "CHECKDOWN"],
-  reportFiledReading: true,
-  reportMinimumExcess: true,
-  reportPairedSE: true,
-  cumulative: { design: "A0", pricing: "A14", graded: false },
-  acceptedState: { design: "A1", pricing: "A11", fromStep: "3", graded: false },
-};
-const AM6_STAND_IN = {
-  id: "AM-6",
-  name: "the guard at step 4: the design, its pricing arm and the motion alone against step 3's arms",
-  filedBeforeStep: "4",
-  steps: ["4"],
-  supersedes: ["guard.mix", "guard.byClass", "s4.motion.int"],
-  untouched: ["acc.intGuard", "s5a.int"],
-  defaults: ["D9", "D28"],
-  adrLines: [1306, 1308, 1036],
-  cites: [932, 944, 1287, 1159, 1053],
-  record: "ADR-089 Appendix H, H.8",
-  reason: "a stand-in for AM-6 in the tests only",
-  ownersWord: null,
-  rule: { ...AM1_RULE_BUT_BASES, bases: { "4": { D1: "C1", D2: "C2", D6: "C2" } } },
-};
-const AM7_STAND_IN = {
-  id: "AM-7",
-  name: "step 4: the arms the clauses read, the hit construct, the tilts' reading and the chosen values",
-  filedBeforeStep: "4",
-  steps: ["4"],
-  supersedes: ["s4.tilt.pushBlocked", "s4.tilt.freeRun", "s4.tilt.behindNever"],
-  untouched: [
-    "s4.contact.flat.sack", "s4.contact.gen.sack", "s4.contact.pressure", "s4.contact.hitOrSack", "s4.contact.gen.share", "s4.contact.flat.share", "s4.motion.hits", "s4.motion.curveRises",
-    "s4.falsifier.ratingProbes", "s4.falsifier.release", "s4.reading", "s4.sackerMix.edge", "s4.sackerMix.interior", "s4.bRange", "s4.sackCredit", "s4.qbHitFields",
-  ],
-  defaults: ["D11", "D14", "D21", "D34"],
-  adrLines: [1036, 1040, 1041, 1042, 1043],
-  cites: [653, 660, 672, 692, 698, 944, 932],
-  record: "ADR-089 Appendix H, H.9",
-  reason: "a stand-in for AM-7 in the tests only",
-  ownersWord: null,
-  rule: { readings: { "s4.falsifier.release": "release 40 against 80, D6, flat, both sets; 2 SE", "s4.falsifier.ratingProbes": "exact at the contest; play-level; game-level printed" } },
-};
 const AM_DIR = tempDir("am");
-const BOTH = ((): { readonly path: string; readonly pin: string } => {
+/** A copy of the committed amendments file cut to `keep` entries; its path and its step-4 view's digest. */
+const cutTo = (keep: number): { readonly path: string; readonly pin: string } => {
   const json = JSON.parse(readFileSync(AMENDMENTS, "utf8")) as { entries: unknown[] };
-  json.entries.push(structuredClone(AM6_STAND_IN), structuredClone(AM7_STAND_IN));
-  const path = join(AM_DIR, "amendments.json");
+  json.entries = json.entries.slice(0, keep);
+  const path = join(AM_DIR, `amendments-${String(keep)}.json`);
   writeFileSync(path, jsonText(json));
   return { path, pin: amendmentsDigest(amendmentsAtStep(loadAmendments(path, loadFiled(FILED)), "4")) };
-})();
+};
+/** The committed file: AM-6 and AM-7 filed (ADR-089 Appendix H, H.8 and H.9), step 4's view pinned. */
+const BOTH = { path: AMENDMENTS, pin: amendmentsDigest(amendmentsAtStep(loadAmendments(AMENDMENTS, loadFiled(FILED)), "4")) };
+/** The file cut to AM-5: neither AM-6 nor AM-7 filed. */
+const NONE = cutTo(5);
 const granted = { pin: BOTH.pin, petitions: STEP4_PETITIONS_GRANTED };
 
 // --- the refusals ------------------------------------------------------------------------------------------
@@ -151,7 +100,7 @@ describe("the probes are refused by name before anything plays, as every step-4 
   };
   it("runStep4Probes: AM-6 first, then a withheld petition, then a dirty tree; no cache is made", () => {
     const parent = join(tempDir("refuse"), "probes");
-    expect(() => runStep4Probes({ cacheParent: parent, filedPath: FILED, amendmentsPath: AMENDMENTS, env: ENV, playGames: nothing })).toThrow(/AM-6/);
+    expect(() => runStep4Probes({ cacheParent: parent, filedPath: FILED, amendmentsPath: NONE.path, env: ENV, playGames: nothing, preflight: { pin: NONE.pin } })).toThrow(/AM-6/);
     expect(() => runStep4Probes({ cacheParent: parent, filedPath: FILED, amendmentsPath: BOTH.path, env: ENV, playGames: nothing, preflight: { pin: BOTH.pin, petitions: { P8: false } } })).toThrow(STEP4_GATES_REFUSAL);
     expect(() => runStep4Probes({ cacheParent: parent, filedPath: FILED, amendmentsPath: BOTH.path, env: ENV, playGames: nothing, preflight: { pin: BOTH.pin, petitions: { P6: true, P7: true, P8: false } } })).toThrow(STEP4_GATES_REFUSAL);
     expect(() => runStep4Probes({ cacheParent: parent, filedPath: FILED, amendmentsPath: BOTH.path, env: { ...ENV, dirty: true }, playGames: nothing, preflight: { pin: BOTH.pin } })).toThrow(STEP4_DIRTY_REFUSAL);
@@ -275,6 +224,10 @@ describe("the readings", () => {
     expect(bad.qbWrong[0]).toMatch(/strength on q moved the margin 2 to 8 \(QB_SHEDS to RUSHER_SACKS\)/);
     expect(playLevelReading(play([pair("speed", "r", 8, 2)])).rusherWrong).toHaveLength(1);
     expect(playLevelReading(play([{ league: "flat", game: 0, rating: "strength", man: "q", verdict: "DIVERGED" }])).verdict).toBe("NOT JUDGED");
+    // AM-7: a rating falsifier NOT JUDGED is a structural failure; a judged one adds none.
+    const unjudged = gradeStep4Probes(new Map(), play([{ league: "flat", game: 0, rating: "strength", man: "q", verdict: "DIVERGED" }]));
+    expect(unjudged.structuralFailures.filter((f) => f.startsWith("s4.falsifier.ratingProbes: NOT JUDGED, a structural failure under AM-7"))).toHaveLength(1);
+    expect(gradeStep4Probes(new Map(), play([pair("strength", "q", 6, 0)])).structuralFailures.filter((f) => f.startsWith("s4.falsifier.ratingProbes"))).toEqual([]);
     const g = gradeStep4Probes(new Map(), play([pair("speed", "r", 8, 2)]));
     expect(g.structuralFailures.some((f) => f.startsWith("the play-level probe (a build fault beside the clause)"))).toBe(true);
   });

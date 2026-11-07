@@ -285,6 +285,81 @@
         "P17": "P17's doc text names the pair label: under shape L the ticks draw their jitter on <rusherId>:late and <toucherId>:late:<rusherId>",
         "filedBefore": "C14, step 3's only arm on shape L; shape L stays refused in play until P17's doc text is in contracts (E4b), when the engine's late block and calibration's late-tick check take the pair label"
       }
+    },
+    {
+      "id": "AM-6",
+      "name": "the guard at step 4: the design, its pricing arm and the motion alone against step 3's arms",
+      "filedBeforeStep": "4",
+      "steps": ["4"],
+      "supersedes": ["guard.mix", "guard.byClass", "s4.motion.int"],
+      "untouched": ["acc.intGuard", "s5a.int"],
+      "defaults": ["D9", "D28"],
+      "adrLines": [1306, 1308, 1036],
+      "cites": [928, 944, 1287, 1159, 1053],
+      "record": "ADR-089 Appendix H, H.8",
+      "reason": "AM-1 (Appendix F, F.11) reads the guard at steps 2 to 10 against the previous step's arm and requires each later step's map filed as a named entry before that step's arms run; this is step 4's. It maps the arms that can become the game and the arm the design prices alone on interceptions: the design (D1) against step 3's design (C1), its pricing arm (D2) against step 3's pricing arm (C2), and the motion alone on the pricing build (D6) against C2, because §8 prices the motion alone at step 4 (ADR-089:1287) and §6.4 puts its predictions on the pricing arm (ADR-089:1036). AM-1 left s4.motion.int to an entry filed before step 4 naming its base: its base is C2, and it is D6's league-wide reading under this rule, so the clause and the guard cannot disagree on one pair; its filed reading is printed beside. The release clock is the arm's own, as §8 files it: both mixes on the arm's rate table. A motion throw leaves at most 0.4725 s after its decision tick, so it never changes release bin; reading the base on tick-aligned rates and the arm on raw rates would add 0.18 to 0.23 points of allowance on an unchanged mix, which the sim cannot earn, so that reading is printed beside and never graded. Every other arm is information or contrast and is printed beside, unguarded. With nothing changed this map stops the step by chance about 13% of the time (47% if every arm were graded).",
+      "ownersWord": null,
+      "rule": {
+        "base": "previousStepArm",
+        "pricingBase": "previousStepPricingArm",
+        "bases": {
+          "4": { "D1": "C1", "D2": "C2", "D6": "C2" }
+        },
+        "laterBases": "filed as a named entry before that step's arms run",
+        "gradedArms": "every arm in the step's map",
+        "replayMustEqualPreviousRecords": true,
+        "allowance": "filed",
+        "se": "binomialIndependent",
+        "statistic": "pooledZ",
+        "seedSets": [1, 2],
+        "zLeague": 2.0,
+        "zClass": 3.0,
+        "breachIf": "greaterThan",
+        "zSetSE0": 0,
+        "classes": "GUARD_CLASSES",
+        "reportedSplits": { "DESPERATION": ["DIRTY", "CLEAN"] },
+        "dirtyPocket": "lastStatusAtOrBeforeRelease",
+        "onCompositionClassBreach": ["DESPERATION", "CHECKDOWN"],
+        "reportFiledReading": true,
+        "reportMinimumExcess": true,
+        "reportPairedSE": true,
+        "cumulative": { "design": "A0", "pricing": "A14", "graded": false },
+        "acceptedState": { "design": "A1", "pricing": "A11", "fromStep": "3", "graded": false }
+      }
+    },
+    {
+      "id": "AM-7",
+      "name": "step 4: the arms the clauses read, the hit construct, the tilts' reading and the chosen values",
+      "filedBeforeStep": "4",
+      "steps": ["4"],
+      "supersedes": ["s4.tilt.pushBlocked", "s4.tilt.freeRun", "s4.tilt.behindNever"],
+      "untouched": ["s4.contact.flat.sack", "s4.contact.gen.sack", "s4.contact.pressure", "s4.contact.hitOrSack", "s4.contact.gen.share", "s4.contact.flat.share", "s4.motion.hits", "s4.motion.curveRises", "s4.falsifier.ratingProbes", "s4.falsifier.release", "s4.reading", "s4.sackerMix.edge", "s4.sackerMix.interior", "s4.bRange", "s4.sackCredit", "s4.qbHitFields"],
+      "defaults": ["D11", "D14", "D21", "D34"],
+      "adrLines": [1036, 1040, 1041, 1042, 1043],
+      "cites": [647, 653, 659, 672, 692, 696, 698, 928, 944],
+      "record": "ADR-089 Appendix H, H.9",
+      "reason": "Step 4's twenty clauses name their arms in words only, and three of them read a direction with no population or noise rule. This entry files, before any step-4 arm runs, which arm each clause reads, how a hit is counted, how the tilts are read, the thresholds of the two falsifiers, and the values the design leaves CHOSEN; it moves no band, word or pin. The tilt clauses gain a population, a count floor and a noise line, so they are superseded for that and nothing else.",
+      "ownersWord": null,
+      "rule": {
+        "readings": {
+          "s4.contact.arm": "D3: contact alone, untilted, on today's line at today's quarterback clock (A0's settings plus the contact block, kind T: today's movement and clock, the stem and count read as A0 plays them, approach labelled by shape S's rows over today's facts), against A0. The band's basis, pkA's contest-alone arm, ran on today's line at today's clock (release 1.264 s). D4, the same on A14 (the stand-in hold), is printed beside; on it the band is out of reach by construction (A14's sacks are 34.84 to 47.93 before contact).",
+          "s4.motion.arm": "D6: the motion alone on the pricing build (C2 plus throwExec.motion), against C2, for s4.motion.hits and s4.motion.curveRises (s4.motion.int under AM-6); D5 (the motion alone on C1) against C1, and D1 and D2 against their bases, printed beside. §6.4: 'Prediction, on the pricing arm.'",
+          "s4.curve.weights": "the curve's own denominator, aimed throws per bin; attempt-weighted printed beside. On a motion arm raw bins equal decision bins (rho at most 0.4725 s).",
+          "hitConstruct": "V1-42 per dropback, keyed on the play's stamp: under pocket-1.s4 a sack or a QB_HIT of any phase on a play ending in a pass attempt, each dropback once; under every earlier stamp the legacy stand-in. QB_HIT ARRIVAL is written under either step-4 block; on every s4 arm the stand-in's dropbacks equal those with a QB_HIT ARRIVAL or SHED or a sack (a build check). A QB_HIT SACK is its sack's own record and adds nothing (a sack ends in no pass attempt, and the sack already counts once); the folds count it in QB_HIT by phase and tie it to its RUSHER_SACKS contest. P7 as granted has four phases (ARRIVAL, THROWING, SHED, SACK) where §7's row lists three: SACK widened by name at the guardian's pre-review (G-6).",
+          "s4.tilt.reading": "Arms D9 (PUSH or BLOCKED), D10 (free-run clock) and D11 (BEHIND or NEVER), each one tilt alone, against D8 (contact alone on C2, untilted). Population: first rated :contest CHECKs whose rusher is of the class; :contest2 excluded. One reading per clause: both leagues and both seed sets summed, sacks per contact tilted minus untilted, with its binomial SE. Against its direction only when beyond 2 SE the wrong way; fewer than 30 contacts in the class on either side is unreadable, reported and never passed; per league and per set printed beside. The margin's direction is a unit proof (exact). Every s4 fold reads an arrival_contest's band, never its tier or margin: tier is the ladder's tier of the margin, independent of b, so at b other than 5 (D15, D16) and on :contest2 a tier can disagree with its band.",
+          "s4.tilt.freeRun.key": "AM-2's freeRunKey (D19's three origins by band, and the untouched exchange); the label-only count printed beside.",
+          "D21.touched": "the late block's continuous breaking time (S) or crossing time (L) plus his travel, as filed; AM-2's 'beat tick' describes the published etaTick. Under S the beat's T is read on the beat's own tick only; a win built on another tick (none under S as built) would read the grid time, and since no published fact names the beat's tick a run cannot count it, so the unit proof is the check. Under L a late block won on its first engaged tick starts its crossing from m = 0 (the late clock's own start, as the snap is the block clock's; D17 only), and a crossing the interpolation does not place inside (t - 0.5, t] reads the win's tick t, not the interval's low end (unreachable while a margin of 15 wins on its tick; a unit proof at both ends). On D14 (the half-second reading, information only) every contactSeconds is the grid time, as P7's text says.",
+          "contactOrder": "contacts on a held ball resolve in the half-second grid's order (etaTick, the priority alignment, the lower PlayerId); contactSeconds orders only the motion's race, compared in whole milliseconds; a threat not ARRIVED on the grid at decision tick t hits inside the motion when its contact time is at most t + rho. releaseSeconds is published in whole milliseconds (P8's text), the race's unit; contactSeconds is published as computed. The grid order's alignment step names the priority alignment only: with two alignments, two different ones always include it, so the lower PlayerId breaks every remaining tie, as nearestThreat does. After a shed the threat list is rebuilt from the matchups as they stand after this tick's line battle, so a man who won his rep on this tick joins it (§4.5 item 6's 'rebuilt after any shed', read at the shed's tick); legacy, s1 to s3 and the motion alone keep the tick's list.",
+          "chosen": "rho0 0.3 s and rho_d 400 (rho 0.2275 to 0.4725 s; 0.325 at the flat league's 60); one tilt, strongest first: BEHIND or NEVER over a seen PUSH or BLOCKED over the free-run clock (NEVER over the engaged tilt is the design's); BEHIND is an ARC threat live when the quarterback steps up, from that STEP_UP on; a PUSH shed is 1.0 s on his existing threat with no new die; a contact's class is its strongest, and an arm with that class's tilt off plays it untilted, never under a weaker class's tilt (the classes partition the contacts, as s4.tilt.reading's population does); one THROWING QB_HIT a throw, the earliest; a QB_HIT SACK right after each RUSHER_SACKS contest, naming it by rollRef, and none on a sack with no contest (an escape caught, the horizon coverage sack, the motion alone). The dials' bounds are refusals, not choices: rho at least 0 and below one tick step (0.5 s) over the whole rating scale, b whole, tilt sizes at least 0, shed delays on the tenth, a second-arrival target from 0 to 100; the engine refuses them and calibration restates them (assertStep4Dials). The engine refuses a step-4 bundle at the top of each pass play, before that play's first die (a kickoff or run before the first pass play draws its dice, then the game throws and no stream escapes); calibration refuses before any game.",
+          "motionReach": "openness and clock runoff read at the decision tick; throwaways leave on their tick with no motion; no motion after an escape. The interception rules see the motion only through the IMMEDIATE accuracy row on a hit throw.",
+          "contestChangesThrows": "a shed lets him throw a ball that today is a sack, against §4.5's and §8's 'the contest changes no throw'; reported, with AM-6's declared prints.",
+          "secondArrivalOff": "D12: every arrival a rated :contest, keyed by tick and rusher. With it on, a :contest2 CHECK's target is the second arrival's (15) and its margin is roll.total minus that target, RUSHER_SACKS at margin 1 or more (16 or more on the die), where a :contest's target is b and RUSHER_SACKS is margin b or more; the folds read the band.",
+          "s4.falsifier.release": "release 40 against 80 on the flat league (every player; only a quarterback reads it), on D6's bundle, both seed sets; THROWING hits per 100 aimed throws; measurable means the difference (80 less 40), both seed sets summed, beyond 2 SE in its direction (more release, fewer hits), the SE being AM-1's independent binomial SE over aimed throws, the paired SE and each set printed beside. A paired gen probe (the home side's quarterback raised in every game, clamped at 99) printed beside.",
+          "s4.falsifier.ratingProbes": "exact at the contest for every b and tilt, and on a play-level probe replaying one contest with one rating raised; game-level paired probes printed with their SE (every quarterback's strength or agility, or every defense's four rushers' tackling or speed, raised 30); speed's effect on arrival printed separately; a rating falsifier NOT JUDGED is a structural failure.",
+          "seedSets": "bands graded on seed set 1 with set 2 beside, as at step 3; a band in on one set and out on the other is reported as split; directions as s4.tilt.reading; the guard as AM-6.",
+          "missRule": "no s4 clause is a miss-rule row; a miss is a failed prediction with both sets; no D31 class is printed. A falling curve records default D1's fallback at step 4 for step 5b's selection."
+        }
+      }
     }
   ]
 }

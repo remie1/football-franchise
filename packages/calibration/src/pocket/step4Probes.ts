@@ -597,9 +597,11 @@ export function gradeStep4Probes(records: ProbeRecords, play: PlayProbeRecord | 
     filed: "structural",
     values: [...p.values, ...p.qbWrong.slice(0, 3)],
     verdict: p.verdict,
-    note: "AM-7 item 14: exact at the contest for every b and tilt (the engine's unit proof, contact.test.ts); the play-level probe replays each golden game's first rated contest with one man raised, and a quarterback's strength or agility that moves a compared contest toward the sack falsifies it; the game-level probes are printed with their paired SE, never graded",
+    note: "AM-7 item 14: exact at the contest for every b and tilt (the engine's unit proof, contact.test.ts); the play-level probe replays each golden game's first rated contest with one man raised, and a quarterback's strength or agility that moves a compared contest toward the sack falsifies it; the game-level probes are printed with their paired SE, never graded; NOT JUDGED is a structural failure (AM-7)",
   });
   if (p.verdict === "FAIL") structuralFailures.push(`s4.falsifier.ratingProbes: ${String(p.qbWrong.length)} compared contest(s) moved toward the sack by the quarterback's raise, first: ${p.qbWrong[0] ?? ""}`);
+  // AM-7 (s4.falsifier.ratingProbes): a rating falsifier NOT JUDGED is a structural failure.
+  if (p.verdict === "NOT JUDGED") structuralFailures.push("s4.falsifier.ratingProbes: NOT JUDGED, a structural failure under AM-7: no contest under the quarterback's strength or agility was compared (every such pair diverged before its contest)");
   if (p.rusherWrong.length > 0) structuralFailures.push(`the play-level probe (a build fault beside the clause): ${String(p.rusherWrong.length)} compared contest(s) moved away from the sack by the rusher's raise, first: ${p.rusherWrong[0] ?? ""}`);
   const lines = [...genReleaseLines(records), ...ratingGameLines(records)];
   return { clauses, lines, structuralFailures };

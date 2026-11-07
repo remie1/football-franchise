@@ -48,7 +48,7 @@
  *  - **`pocket-1.s4` (step 4, §4.5, §6.4; plan §1.1)** is built as `pocket-1.s3` is, with two more
  *    blocks in its overlay: `pocket.contact` (contact by approach: b 5, the three tilts on, the shed
  *    and its delays, the second arrival at 15, the contest after the throw) and `throwExec.motion`
- *    (the throwing motion: rho0 0.3, rhoD 400, provisional until AM-7 files it, the continuous
+ *    (the throwing motion: rho0 0.3, rhoD 400, both CHOSEN and filed by AM-7, the continuous
  *    reading of D21). The two ride only on a stamped bundle and only under `pocket-1.s4`. Under
  *    that name a bundle with a block clock may carry any subset of the step-3 and step-4 blocks;
  *    the one bundle with no block clock is **kind T, today's line plus contact** (plan §1.2, arms D3
@@ -510,7 +510,7 @@ export const POCKET_1_S4_CONTACT: PocketContact = deepFreeze({
 
 /**
  * `pocket-1.s4`'s throwing motion (ADR-089 §4.5, D21; plan §1.1): rho0 0.3 s (CHOSEN), rhoD 400
- * (PROVISIONAL here: AM-7 files it as CHOSEN before any arm runs), the continuous reading (D21), so
+ * (CHOSEN, filed by AM-7, ADR-089 Appendix H, H.9), the continuous reading (D21), so
  * rho runs 0.475 s at release 0 to 0.2275 s at release 99.
  */
 export const POCKET_1_S4_MOTION: PocketMotion = deepFreeze({ rho0: 0.3, rhoD: 400, reading: "CONTINUOUS" });
