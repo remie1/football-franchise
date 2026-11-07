@@ -730,9 +730,12 @@ regular-season games left from `at` (all of the next season from the playoffs an
 how many he is expected to be fit for, that share, and the chance he misses none. It is worked out
 without draws, week by week from his injury today, with the injury step's own chances (games at a
 starter's 65 snaps or a backup's 24, CHOSEN; practice; away from football; his durability, age and a
-recent return) and its own spread of weeks out, and the tests hold it to the real step's mean over
-12,000 walked seasons a case. Nothing calls it yet, and its risk reads his listed position's group
-until the owner's 2026-11-06 ruling (risk by depth-chart spot) is built.
+recent return), its own spread of weeks out and the schedule's own spread of byes (of 32 teams, 4 a
+week in weeks 5-10 and 2 a week in weeks 11-14), and the tests hold it to the real step's mean over
+19,200 walked seasons a case. An injury from `at`'s own week was drawn after that week's game, which
+he played, so a caller after a week's last day passes the next week. Nothing calls it yet, and its
+risk reads his listed position's group until the owner's 2026-11-06 ruling (risk by depth-chart spot)
+is built.
 
 **Two more answers after tuning round 1 (decision cards, 2026-11-01 01:54Z).**
 

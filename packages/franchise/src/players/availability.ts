@@ -14,6 +14,12 @@
  *   `riskFactor`.
  * - **Healing**, as `healWeek` counts it down: an injury drawn this week is not counted, and one at
  *   its last week heals at the week's end.
+ * - **An injury from `at`'s own week** shows that week's last-day step has run (the game, then
+ *   healing, then practice and away, all on that day), so that week's draws are made: it is taken as
+ *   walked, with no new risk and no healing, and he was fit for its game, played before he was hurt,
+ *   unless his history shows him healed that same week from an injury he could not play on (out at
+ *   the game, then hurt away from football once healed). He is out from the next week on, for his
+ *   `weeksRemaining` as they stand.
  * - **Practice** (with his team, in the phases it practices, playoffs left out as for a team that
  *   misses them): the chance `weekInjuries` draws at the phase's load × how much he practiced (1
  *   healthy, 0.5 playing hurt, 0 out, read at the week's start) × his group's practice rate ×
@@ -33,12 +39,14 @@
  * Left out, as second order: a repeat injury's lasting cost to his durability (`lastingMark`), which
  * would raise his risk a few percent after a second injury of the same kind.
  *
- * His bye: the regular season's weeks without his game (`weeksPerSeason - gamesPerSeason`). With
- * one, as the schedule makes it, it falls in any week of `BYE_WINDOW` with the same chance (CHOSEN:
- * his team's bye is not an input), so `gamesLeft` is an expected count while his bye may still be
- * ahead; with none, every week has his game; any other shape spreads the games evenly over the
- * weeks, as `expectedOverallChange` does. The season is walked once, split by whether his bye is
- * still ahead, which gives the same answer as averaging over every bye week.
+ * His bye: the regular season's weeks without his game (`weeksPerSeason - gamesPerSeason`). His
+ * team's bye is not an input, so with one it falls in each week of `BYE_WINDOW` with the schedule's
+ * own chance (`byeCounts` for the league's `teamCount`: for 32 teams 1 in 8 in each of weeks 5-10 and
+ * 1 in 16 in each of weeks 11-14, as the schedule maker deals them, not CHOSEN), and `gamesLeft` is
+ * an expected count while his bye may still be ahead; with none, every week has his game; any other
+ * shape spreads the games evenly over the weeks, as `expectedOverallChange` does. The season is
+ * walked once, split by whether his bye is still ahead, which gives the same answer as averaging over
+ * every bye week.
  *
  * He is walked as a man with a team all the way: a free agent or a prospect too, whom the real steps
  * leave alone (no practice, no games, a prospect not even healed) until he signs or is drafted.
@@ -51,7 +59,7 @@ import {
   type CalendarStamp, type InjurySetting, type LeagueRules, type PlayerState, type PositionGroup,
 } from "@ff/contracts";
 import { phaseWeeks } from "../calendar/clock.js";
-import { BYE_WINDOW } from "../schedule/buildSchedule.js";
+import { BYE_WINDOW, byeCounts } from "../schedule/buildSchedule.js";
 import { EXPECTED_STARTER_SNAPS_PER_GAME, PRACTICE_PHASES } from "./development.js";
 import { gameExposure, kindWeights, riskFactor, sameWeek, weekNumber } from "./injuries.js";
 import { INJURY_KINDS, INJURY_RATES } from "./injuryTables.js";
@@ -70,7 +78,10 @@ export const EXPECTED_BACKUP_SNAPS_PER_GAME = 24;
 export interface AvailabilityOptions {
   /**
    * Where the walk starts: its phase and week. The day is ignored: a week's game and injuries land on
-   * its last day, so the week `at` falls in is walked whole, its game included.
+   * its last day, so the week `at` falls in is walked whole, its game included, from his condition as
+   * it stands. A caller after a week's last-day step (its game played, its injuries drawn) passes the
+   * next week's stamp, so that week is not counted again. An injury from `at`'s own week can only be
+   * there after that step, so for him that week is taken as walked (see the file's head).
    */
   readonly at: CalendarStamp;
   /**
@@ -316,10 +327,26 @@ function weeksBefore(at: CalendarStamp, age: number, rules: LeagueRules): { befo
 }
 
 /**
+ * P(his team's bye is week w), indexed by week (1..weeks): the schedule maker's own spread over
+ * `BYE_WINDOW` (`byeCounts` for the league's `teamCount`, as a share of all its byes), the window's
+ * weeks past the season's end left out. Undefined when no week is left.
+ */
+function byeShares(rules: LeagueRules, weeks: number): Float64Array | undefined {
+  const share = new Float64Array(weeks + 1);
+  let total = 0;
+  byeCounts(rules.teamCount).forEach((n, i) => {
+    const w = BYE_WINDOW.first + i;
+    if (w >= 1 && w <= weeks && n > 0) { share[w] = n; total += n; }
+  });
+  if (!(total > 0)) return undefined;
+  for (let w = 1; w <= weeks; w++) share[w] = share[w]! / total;
+  return share;
+}
+
+/**
  * His team's weeks off, walked from `firstWeek`: `game` = the chance a week that is not his bye holds
  * his game; `pending` = the chance his bye is still ahead; `hazard(w)` = the chance it is week w,
- * given it is still ahead then. One week off falls in any `BYE_WINDOW` week with the same chance, so a
- * bye still ahead in week w is that week once in (window weeks left).
+ * given it is still ahead then: P(bye = w) / P(bye >= w), with the schedule's own spread (`byeShares`).
  */
 function byeShape(firstWeek: number, rules: LeagueRules): { game: number; pending: number; hazard: (week: number) => number } {
   const weeks = phaseWeeks("REGULAR_SEASON", rules);
@@ -327,14 +354,16 @@ function byeShape(firstWeek: number, rules: LeagueRules): { game: number; pendin
   const off = weeks - games;
   const none = () => 0;
   if (off === 0) return { game: 1, pending: 0, hazard: none };
-  const first = Math.max(1, BYE_WINDOW.first);
-  const last = Math.min(weeks, BYE_WINDOW.last);
-  if (off === 1 && first <= last) {
-    const from = Math.max(first, firstWeek);
+  const share = off === 1 ? byeShares(rules, weeks) : undefined;
+  if (share) {
+    // tail[w] = P(bye >= w).
+    const tail = new Float64Array(weeks + 2);
+    for (let w = weeks; w >= 1; w--) tail[w] = tail[w + 1]! + share[w]!;
+    const from = Math.max(1, firstWeek);
     return {
       game: 1,
-      pending: Math.max(0, last - from + 1) / (last - first + 1),
-      hazard: (w) => (w >= from && w <= last ? 1 / (last - w + 1) : 0),
+      pending: from <= weeks ? tail[from]! : 0,
+      hazard: (w) => (w >= from && w <= weeks && tail[w]! > 0 ? share[w]! / tail[w]! : 0),
     };
   }
   return { game: weeks > 0 ? games / weeks : 0, pending: 0, hazard: none };
@@ -355,11 +384,17 @@ export function expectedAvailability(player: PlayerState, options: AvailabilityO
     game: weeksLostCached("GAME", group), practice: weeksLostCached("PRACTICE", group), away: weeksLostCached("AWAY", group),
   };
 
-  // The start: his injury today. One drawn in `at`'s own week is not counted down that week
-  // (`healWeek`), which is the same as one more week to count; a playable one with no weeks left
-  // heals at this week's end, as one with a week left does.
+  // The start: his injury today, with `toCount` weeks to count down (a playable one with no weeks
+  // left heals at the first walked week's end, as one with a week left does).
   const injury = player.condition.injury;
-  const toCount = injury ? Math.max(1, Math.ceil(injury.weeksRemaining)) + (sameWeek(injury.since, at) ? 1 : 0) : 0;
+  const toCount = injury ? Math.max(1, Math.ceil(injury.weeksRemaining)) : 0;
+  // An injury from `at`'s own week: that week's draws are made, so the walk takes it as walked (no
+  // risk, no healing, as `healWeek` skips an injury's own week) and starts at the next week's start.
+  // He was fit for its game unless he healed this week from an injury he could not play on: then he
+  // was out at the game, and hurt again (away from football) after healing on its last day.
+  const settled = injury !== undefined && sameWeek(injury.since, at);
+  const outAtGame = settled
+    && (options.history ?? []).some((h) => h.healed !== undefined && sameWeek(h.healed, at) && h.band !== "DAY_TO_DAY");
   const chain = new Chain(Math.max(LONGEST, toCount));
   const startStatus = !injury ? 0 : injury.playable ? toCount : chain.out(toCount);
   // Weeks since he was last healthy again, from his history (`riskFactor`'s recent return).
@@ -370,8 +405,9 @@ export function expectedAvailability(player: PlayerState, options: AvailabilityO
     const s = now - weekNumber(h.healed, rules);
     if (s >= 0 && s < since) since = s;
   }
+  const slotAt = since <= RECENT_WEEKS ? since : NOT_RECENT;
   let dist: Float64Array = new Float64Array(chain.size);
-  dist[chain.index(startStatus, since <= RECENT_WEEKS ? since : NOT_RECENT)] = 1;
+  dist[chain.index(startStatus, settled ? Math.min(slotAt + 1, NOT_RECENT) : slotAt)] = 1;
 
   // His risk factor by age, recent return or not: `riskFactor` itself, with a history that is or is not recent.
   const factors = new Map<number, readonly [number, number]>();
@@ -401,9 +437,11 @@ export function expectedAvailability(player: PlayerState, options: AvailabilityO
     };
   };
 
-  // The weeks before the regular season: no game, so no path has missed one yet.
+  // The weeks before the regular season: no game, so no path has missed one yet. A settled week of
+  // `at`'s own is left out: the walk's start is already the next week's.
   const start = weeksBefore(at, player.bio.age, rules);
   for (const week of start.before) {
+    if (settled && sameWeek(week.at, at)) continue;
     const next = new Float64Array(chain.size);
     const step = new WeekStep(chain, riskOf(week), lost, next);
     step.run(dist, 1, 0, false);
@@ -419,9 +457,28 @@ export function expectedAvailability(player: PlayerState, options: AvailabilityO
   let gamesLeft = 0;
   let expectedGames = 0;
   const lastWeek = phaseWeeks("REGULAR_SEASON", rules);
+  // `at`'s own regular-season week, when his injury is from it: its game is counted (fit for it, or
+  // out at it), and nothing is drawn or healed in it. Every distribution is still the start's here.
+  const settledWeek = settled && CALENDAR_PHASE_ORDER.indexOf(at.phase) === REGULAR ? start.firstWeek : undefined;
+  const mix = (a: Float64Array, sa: number, b: Float64Array, sb: number) => a.map((x, i) => x * sa + b[i]! * sb);
   for (let w = start.firstWeek; w <= lastWeek; w++) {
-    const risk = riskOf({ at: { season: start.season, phase: "REGULAR_SEASON", week: w, day: 7 }, age: start.age });
     const hazard = bye.hazard(w);
+    if (w === settledWeek) {
+      const plays = bye.game * (ahead.scale * (1 - hazard) + behind.scale);
+      gamesLeft += plays;
+      if (!outAtGame) expectedGames += plays;
+      // The paths with no game missed: all of them, or, out at the game, those with no game this week.
+      const keep = outAtGame ? 1 - bye.game : 1;
+      const nextBehind = {
+        full: mix(ahead.full, ahead.scale * hazard, behind.full, behind.scale),
+        clean: mix(ahead.clean, ahead.scale * hazard, behind.clean, behind.scale * keep),
+        scale: 1,
+      };
+      ahead = { full: ahead.full, clean: ahead.clean.map((x) => x * keep), scale: ahead.scale * (1 - hazard) };
+      behind = nextBehind;
+      continue;
+    }
+    const risk = riskOf({ at: { season: start.season, phase: "REGULAR_SEASON", week: w, day: 7 }, age: start.age });
     const nextAhead = { full: new Float64Array(chain.size), clean: new Float64Array(chain.size), scale: 1 };
     const nextBehind = { full: new Float64Array(chain.size), clean: new Float64Array(chain.size), scale: 1 };
     const steps = [

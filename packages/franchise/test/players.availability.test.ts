@@ -5,15 +5,16 @@ import {
 } from "@ff/contracts";
 import { phaseWeeks } from "../src/calendar/clock.js";
 import { EXPECTED_STARTER_SNAPS_PER_GAME, PRACTICE_PHASES } from "../src/players/development.js";
-import { gameInjuries, healWeek, isAvailable, makeInjury, weekInjuries } from "../src/players/injuries.js";
+import { gameInjuries, healWeek, isAvailable, makeInjury, sameWeek, weekInjuries } from "../src/players/injuries.js";
 import { EXPECTED_BACKUP_SNAPS_PER_GAME, expectedAvailability, type Availability } from "../src/players/availability.js";
-import { BYE_WINDOW } from "../src/schedule/buildSchedule.js";
+import { BYE_WINDOW, byeCounts } from "../src/schedule/buildSchedule.js";
 import type { PastInjury, PlayerWeek } from "../src/players/types.js";
 
 // ADR-087 §5, for the cap thread: expected availability over the regular-season games ahead.
 // Checked against the real injury step (games, healing, practice, away from football, in steps.ts's
 // order) walked over many seeds, each seed walking many copies of the same man (each copy draws
-// from his own stream, forked by his id), with the byes spread evenly over the bye window.
+// from his own stream, forked by his id), with the byes spread over the bye window the way the
+// schedule maker deals them (`byeCounts`: for 32 teams 4 a week in weeks 5-10, 2 a week in 11-14).
 
 const RULES = DEFAULT_LEAGUE_RULES;
 const SEASON = 2030;
@@ -38,6 +39,13 @@ function makePlayer(id: string, position: Position, age: number, o: { durability
   };
 }
 
+/** Every field of an answer to 12 places (the chain's sums are floating point). */
+function expectClose(actual: Availability, expected: Availability): void {
+  for (const k of ["gamesLeft", "expectedGames", "shareAvailable", "chanceMissesNone"] as const) {
+    expect(actual[k], k).toBeCloseTo(expected[k], 12);
+  }
+}
+
 const NEW_LEAGUE_YEAR: CalendarStamp = { season: SEASON, phase: "OFF_RESET_FA", week: 1, day: 1 };
 const CAMP: CalendarStamp = { season: SEASON, phase: "TRAINING_CAMP", week: 1, day: 1 };
 const week = (w: number, day = 1): CalendarStamp => ({ season: SEASON, phase: "REGULAR_SEASON", week: w, day });
@@ -52,26 +60,45 @@ interface RealSeason {
   /** Standard errors of the two means, for the messages. */
   readonly seGames: number;
   readonly seChance: number;
+  /**
+   * With `select`: how many copies it kept, the means of its answers for them, and the standard
+   * errors of the mean gaps between what each kept copy did and what it was told.
+   */
+  readonly kept?: number;
+  readonly predicted?: {
+    readonly gamesLeft: number; readonly expectedGames: number; readonly chanceMissesNone: number;
+    readonly seGap: { readonly games: number; readonly chance: number };
+  };
 }
+
+/** The schedule maker's bye weeks for a league of `RULES.teamCount` teams, one a team (32 for 32). */
+const BYE_SLOTS = byeCounts(RULES.teamCount).flatMap((n, i) => new Array<number>(n).fill(BYE_WINDOW.first + i));
 
 /**
  * The real step, walked from `at` to the end of the regular season ahead for `copies` copies of the
  * man under each seed: each week's last day, his game (if his team has one and he is fit, at the
  * expected snaps), then `healWeek`, then `weekInjuries` (practice read at the week's start, with his
- * team in every practice phase but the playoffs), a year older entering camp. Copy i's bye is week
- * BYE_WINDOW.first + (i mod the window's length), so the byes are spread evenly.
+ * team in every practice phase but the playoffs), a year older entering camp. Copy i's bye is
+ * BYE_SLOTS[i mod 32], so with a multiple of 32 copies the byes are spread as the schedule spreads
+ * them. With `select`, after `at`'s own week is stepped each copy is offered to it as he then stands
+ * (with his history): only the copies it answers for are walked on and counted, from `at`'s week on,
+ * and its answers are averaged beside them.
  */
-function realSeason(template: PlayerState, at: CalendarStamp, starter: boolean, seeds: readonly string[], copies: number, history: readonly PastInjury[] = []): RealSeason {
-  const windowWeeks = BYE_WINDOW.last - BYE_WINDOW.first + 1;
+function realSeason(
+  template: PlayerState, at: CalendarStamp, starter: boolean, seeds: readonly string[], copies: number, history: readonly PastInjury[] = [],
+  select?: (p: PlayerState, history: readonly PastInjury[]) => Availability | undefined,
+): RealSeason {
   const snaps = starter ? EXPECTED_STARTER_SNAPS_PER_GAME : EXPECTED_BACKUP_SNAPS_PER_GAME;
   const startPhase = CALENDAR_PHASE_ORDER.indexOf(at.phase);
   const target = startPhase <= REGULAR ? at.season : at.season + 1;
   const games: number[] = [];
   const fit: number[] = [];
   const clean: boolean[] = [];
+  const predicted: Availability[] = [];
   for (const seed of seeds) {
     let players = Array.from({ length: copies }, (_, i) => ({ ...template, bio: { ...template.bio, id: playerId(`${String(template.bio.id)}-${i}`) } }));
-    const bye = new Map(players.map((p, i) => [String(p.bio.id), BYE_WINDOW.first + (i % windowWeeks)]));
+    const bye = new Map(players.map((p, i) => [String(p.bio.id), BYE_SLOTS[i % BYE_SLOTS.length]!]));
+    const answers = new Map<string, Availability>();
     let memory: Record<string, PastInjury[]> = Object.fromEntries(players.map((p) => [String(p.bio.id), [...history]]));
     const played = new Map<string, number>();
     const able = new Map<string, number>();
@@ -104,6 +131,13 @@ function realSeason(template: PlayerState, at: CalendarStamp, starter: boolean, 
       players = healed.players; memory = healed.history;
       const drawn = weekInjuries({ at: day, rules: RULES, players, weeks, history: memory, seed });
       players = drawn.players; memory = drawn.history;
+      if (select && sameWeek(day, at)) {
+        for (const p of players) {
+          const answer = select(p, memory[String(p.bio.id)] ?? []);
+          if (answer) answers.set(String(p.bio.id), answer);
+        }
+        players = players.filter((p) => answers.has(String(p.bio.id)));
+      }
       w++;
       if (w > phaseWeeks(phase, RULES)) {
         w = 1;
@@ -113,6 +147,11 @@ function realSeason(template: PlayerState, at: CalendarStamp, starter: boolean, 
     }
     for (const p of players) {
       const id = String(p.bio.id);
+      if (select) {
+        const answer = answers.get(id);
+        if (!answer) continue;
+        predicted.push(answer);
+      }
       games.push(played.get(id) ?? 0);
       fit.push(able.get(id) ?? 0);
       clean.push(!missed.has(id));
@@ -121,15 +160,33 @@ function realSeason(template: PlayerState, at: CalendarStamp, starter: boolean, 
   const mean = (xs: readonly number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
   const expectedGames = mean(fit);
   const chanceMissesNone = mean(clean.map((c) => (c ? 1 : 0)));
-  const sd = Math.sqrt(mean(fit.map((x) => (x - expectedGames) ** 2)));
+  const se = (xs: readonly number[]) => {
+    const m = mean(xs);
+    return Math.sqrt(mean(xs.map((x) => (x - m) ** 2)) / xs.length);
+  };
   return {
     gamesLeft: mean(games), expectedGames, chanceMissesNone,
-    seGames: sd / Math.sqrt(fit.length), seChance: Math.sqrt((chanceMissesNone * (1 - chanceMissesNone)) / fit.length),
+    seGames: se(fit), seChance: Math.sqrt((chanceMissesNone * (1 - chanceMissesNone)) / fit.length),
+    ...(select ? {
+      kept: predicted.length,
+      predicted: {
+        gamesLeft: mean(predicted.map((a) => a.gamesLeft)),
+        expectedGames: mean(predicted.map((a) => a.expectedGames)),
+        chanceMissesNone: mean(predicted.map((a) => a.chanceMissesNone)),
+        seGap: {
+          games: se(fit.map((x, i) => x - predicted[i]!.expectedGames)),
+          chance: se(clean.map((c, i) => (c ? 1 : 0) - predicted[i]!.chanceMissesNone)),
+        },
+      },
+    } : {}),
   };
 }
 
 const SEEDS = ["availability-1", "availability-2", "availability-3", "availability-4", "availability-5", "availability-6"];
-const COPIES = 2_000;
+/** A multiple of the 32 bye slots, so every seed's byes are spread exactly as the schedule's. */
+const COPIES = 3_200;
+/** For the cases kept only when hurt in `at`'s own week: enough copies that a few thousand are. */
+const FIRST_WEEK_COPIES = 16_000;
 
 describe("expectedAvailability", () => {
   it("is the real injury step's mean: a young and an old starter, a backup, men already hurt (long, short, playing hurt), a recent return", () => {
@@ -161,6 +218,40 @@ describe("expectedAvailability", () => {
     }
   }, 120_000);
 
+  it("takes an injury from at's own week as that week walked: fit for its game unless he was out at it, out from the next week (the real step)", () => {
+    // Each copy starts healthy (or, in the last case, out his last week) and is stepped through
+    // `at`'s week by the real step; those then carrying an injury from it are asked about at that
+    // week's last day, with their own history, and held to how the real step goes on for them (`at`'s
+    // own game included). Outside the bye window, so being hurt that week says nothing of his bye.
+    // Each kept copy is held to his own answer, so the gaps are judged by their own standard errors
+    // (at most 4 of them), as well as by fixed caps.
+    const lastWeekOut = hurtWith(makePlayer("back-cb", "CB", 27), "ankle", 1, week(15, 7));
+    const cases: { name: string; p: PlayerState; at: CalendarStamp; history?: PastInjury[] }[] = [
+      { name: "camp", p: makePlayer("camp-olb", "OLB", 27), at: CAMP },
+      { name: "week 3", p: makePlayer("w3-wr", "WR", 26), at: week(3) },
+      { name: "week 16", p: makePlayer("w16-de", "DE", 30), at: week(16) },
+      // Out at week 16's game, healed on its last day, then hurt away from football: week 16 missed.
+      { name: "out at the game", p: lastWeekOut, at: week(16), history: [{ kind: "ankle", band: "SHORT", at: week(15, 7) }] },
+    ];
+    for (const c of cases) {
+      const real = realSeason(c.p, c.at, true, SEEDS, FIRST_WEEK_COPIES, c.history, (p, history) => {
+        const injury = p.condition.injury;
+        return injury && sameWeek(injury.since, c.at) ? expectedAvailability(p, { at: { ...c.at, day: 7 }, history }) : undefined;
+      });
+      const predicted = real.predicted!;
+      const gapGames = Math.abs(predicted.expectedGames - real.expectedGames);
+      const gapChance = Math.abs(predicted.chanceMissesNone - real.chanceMissesNone);
+      const say = `${c.name} (${real.kept} copies hurt that week): expected ${predicted.expectedGames.toFixed(3)} games, none missed `
+        + `${predicted.chanceMissesNone.toFixed(4)}; real ${real.expectedGames.toFixed(3)}, ${real.chanceMissesNone.toFixed(4)}; `
+        + `gaps ${gapGames.toFixed(3)} (se ${predicted.seGap.games.toFixed(3)}), ${gapChance.toFixed(4)} (se ${predicted.seGap.chance.toFixed(4)})`;
+      console.log(say);
+      expect(real.kept!, say).toBeGreaterThan(300);
+      expect(predicted.gamesLeft, say).toBeCloseTo(real.gamesLeft, 9);
+      expect(gapGames, say).toBeLessThan(Math.min(0.15, 4 * predicted.seGap.games + 1e-9));
+      expect(gapChance, say).toBeLessThan(Math.min(0.03, 4 * predicted.seGap.chance + 1e-9));
+    }
+  }, 120_000);
+
   it("counts the games left: a whole season from the offseason and camp, the rest of it inside, the next one from the playoffs", () => {
     const p = makePlayer("p", "OLB", 27);
     const left = (at: CalendarStamp) => expectedAvailability(p, { at }).gamesLeft;
@@ -168,8 +259,11 @@ describe("expectedAvailability", () => {
     expect(left(CAMP)).toBeCloseTo(17, 9);
     expect(left(week(1))).toBeCloseTo(17, 9);
     expect(left({ season: SEASON, phase: "PLAYOFFS", week: 2, day: 3 })).toBeCloseTo(17, 9);
-    // Weeks 10-18 hold 9 weeks, and his bye is in weeks 10-14 half the time.
-    expect(left(week(10))).toBeCloseTo(8.5, 9);
+    // Weeks 10-18 hold 9 weeks, and his bye is in weeks 10-14 three times in eight: 4 of the 32 teams
+    // take it in week 10 and 2 in each of weeks 11-14, as the schedule deals them.
+    expect(left(week(10))).toBeCloseTo(9 - 12 / 32, 9);
+    expect(left(week(11))).toBeCloseTo(8 - 8 / 32, 9);
+    expect(left(week(5))).toBeCloseTo(13, 9);
     // Past the bye window every week has his game.
     expect(left(week(16))).toBeCloseTo(3, 9);
     expect(left(week(18))).toBeCloseTo(1, 9);
@@ -209,14 +303,39 @@ describe("expectedAvailability", () => {
     expect(Math.abs(playingHurt.expectedGames - healthy.expectedGames)).toBeLessThan(0.05);
   });
 
-  it("counts an injury from the week he is in one week longer, as healWeek does, and a season-long one as every game missed", () => {
+  it("counts an injury from the week he is in as hurt after its game, and a season-long one as every game missed", () => {
     const p = makePlayer("p", "WR", 26);
-    // Out 2 weeks from week 16: drawn before it, he misses weeks 16 and 17; drawn in week 16 itself, 16-18.
+    // Out 2 weeks: drawn in week 15, he misses weeks 16 and 17, and may be hurt again (away from
+    // football) once healed at 17's end. Drawn in week 16 itself, he can be so only at its last day,
+    // after its game, which he played: he misses 17 and 18, healWeek skipping week 16.
     const earlier = expectedAvailability(hurtWith(p, "hamstring", 2, week(15, 7)), { at: week(16) });
-    const fresh = expectedAvailability(hurtWith(p, "hamstring", 2, week(16, 7)), { at: week(16) });
+    const fresh = expectedAvailability(hurtWith(p, "hamstring", 2, week(16, 7)), { at: week(16, 7) });
+    expect(earlier.gamesLeft).toBe(3);
     expect(earlier.expectedGames).toBeGreaterThan(0.95);
     expect(earlier.expectedGames).toBeLessThan(1);
-    expect(fresh.expectedGames).toBe(0);
+    expectClose(fresh, { gamesLeft: 3, expectedGames: 1, shareAvailable: 1 / 3, chanceMissesNone: 0 });
+    // A day-to-day knock from week 17's game: he played it, and plays week 18 hurt.
+    expectClose(
+      expectedAvailability(hurtWith(p, "ankle", 0, week(17, 7)), { at: week(17, 7) }),
+      { gamesLeft: 2, expectedGames: 2, shareAvailable: 1, chanceMissesNone: 1 },
+    );
+    // Out at week 16's game, healed on its last day, then hurt away from football for a week: his
+    // history shows the heal, so week 16 is a game missed. Without it he would have played it.
+    const away = { ...p, condition: { ...p.condition, injury: makeInjury(p, "ankle", 1, "AWAY", week(16, 7)) } };
+    const healed: PastInjury[] = [
+      { kind: "hamstring", band: "SHORT", at: week(14, 7), healed: week(16, 7) },
+      { kind: "ankle", band: "SHORT", at: week(16, 7) },
+    ];
+    const missed = expectedAvailability(away, { at: week(16, 7), history: healed });
+    const played = expectedAvailability(away, { at: week(16, 7), history: healed.slice(1) });
+    expect(missed.gamesLeft).toBe(3);
+    expect(missed.chanceMissesNone).toBe(0);
+    expect(played.expectedGames - missed.expectedGames).toBeCloseTo(1, 12);
+    expect(missed.expectedGames).toBeGreaterThan(0.95);
+    expect(missed.expectedGames).toBeLessThan(1);
+    // A knock he played through before healing counts nothing missed.
+    const knocked = expectedAvailability(away, { at: week(16, 7), history: [{ ...healed[0]!, band: "DAY_TO_DAY" }, healed[1]!] });
+    expectClose(knocked, played);
     const torn = expectedAvailability(hurtWith(p, "acl", 45, week(1, 7)), { at: week(2) });
     expect(torn.expectedGames).toBe(0);
     expect(torn.chanceMissesNone).toBe(0);
