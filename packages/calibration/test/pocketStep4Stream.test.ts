@@ -15,7 +15,7 @@ import { armById } from "../src/pocket/arms.js";
 import { intGuard, mixPredictedRise, mixPredictedRiseOwnClock, intGuardOwnClock } from "../src/pocket/bands.js";
 import { goldenGames } from "../src/pocket/corpus.js";
 import { clockKeyOf } from "../src/pocket/freeRunKey.js";
-import { emptyM3Fold, foldM3Dropback, s4SackCreditOf, sackCreditsOf } from "../src/pocket/m3SackerMix.js";
+import { emptyM3Fold, foldM3Dropback, foldM3Game, s4SackCreditOf, sackCreditsOf } from "../src/pocket/m3SackerMix.js";
 import { emptyM6Step4Fold, foldM6Step4Dropback, foldM6Step4Game, m6Step4Summary } from "../src/pocket/m6Contact.js";
 import { POCKET_1_S3_DIGEST, POCKET_1_S3_RULES, POCKET_1_S4_CONTACT, POCKET_1_S4_DIGEST, POCKET_1_S4_RULES } from "../src/pocket/rules.js";
 import {
@@ -599,5 +599,77 @@ describe("AM-7's tilt reading (step4.ts tiltReading)", () => {
     const r = tiltReading([fold(20, 4), fold(20, 4)], [fold(20, 8), fold(20, 8)], "PUSH_BLOCKED", "DOWN");
     expect(r.tilted).toEqual({ contacts: 40, sacks: 8 });
     expect(r.diff).toBeCloseTo(-20, 12);
+  });
+});
+
+describe("from pocket-1.s4 on: a play stamped pocket-1.s5a or pocket-1.s5b reads as pocket-1.s4's (ADR-089 step 5, plan §1.3)", () => {
+  // Step 5's names, stamped by hand on these copies only (no bundle of this build carries them).
+  const S5A = { name: "pocket-1.s5a", overlayDigest: "fnv1a:00000005" };
+  const S5B = { name: "pocket-1.s5b", overlayDigest: "fnv1a:0000005b" };
+  const stamps = [["pocket-1.s5a", S5A], ["pocket-1.s5b", S5B]] as const;
+  const plays = (rules: { readonly name: string; readonly overlayDigest: string }): Ev[] => [
+    // The contest names a man who is not the last arrival, so step 4's credit (at contact) differs from the earlier rule's.
+    ...built(S.sack.slice, rules, { contest: "RUSHER_SACKS", sacker: "p:t:00:DT9" }).events,
+    ...built(S.arrivedThrow.slice, rules, { contest: "QB_SHEDS", throwing: true, release: 2.9 }).events,
+    ...built(S.cleanThrow.slice, rules, { throwing: true, release: 3.3 }).events,
+  ];
+  const s4Fold = (events: readonly Ev[]) => {
+    const f = emptyS4Fold();
+    foldS4Game(f, events, C1);
+    return f;
+  };
+  const m6Fold = (events: readonly Ev[]) => {
+    const f = emptyM6Step4Fold();
+    foldM6Step4Game(f, events);
+    return f;
+  };
+  const m3Fold = (events: readonly Ev[]) => {
+    const f = emptyM3Fold();
+    foldM3Game(f, events, new Map());
+    return f;
+  };
+
+  it.each(stamps)("%s: the s4 folds, M6's and M3's equal pocket-1.s4's, and pocket-1.s3's do not", (_, rules) => {
+    const s4 = plays(S4);
+    const s5 = plays(rules);
+    const s3 = plays(S3);
+    expect(readS4Play(sliceOf(s5), KEY)!.s4).toBe(true);
+    expect(s4Fold(s5)).toEqual(s4Fold(s4));
+    expect(s4Fold(s5).s4Plays).toBe(3);
+    expect(s4Fold(s3).s4Plays).toBe(0);
+    expect(m6Fold(s5)).toEqual(m6Fold(s4));
+    expect(m6Fold(s5).s4Dropbacks).toBe(3);
+    expect(m6Fold(s3).s4Dropbacks).toBe(0);
+    expect(m3Fold(s5)).toEqual(m3Fold(s4));
+    expect(m3Fold(s3)).not.toEqual(m3Fold(s4));
+  });
+
+  it.each(stamps)("%s: collect.ts reads the raw THROW.releaseSeconds and the QB_HIT construct (V1-42), as under pocket-1.s4", (_, rules) => {
+    let base: Parameters<typeof foldGame>[1] | undefined;
+    goldenGames("flat", (o) => {
+      if (base === undefined && o.events.some((e) => (e.event as { readonly playId?: unknown }).playId === S.cleanThrow.slice.playId)) base = o;
+    }, { tunables: C1, callerVersion: STEP1_CALLER, first: 6 });
+    expect(base).toBeDefined();
+    const target = S.cleanThrow.slice.playId;
+    const injected = (stamp: { readonly name: string; readonly overlayDigest: string }): Ev[] => {
+      const replaced = built(S.cleanThrow.slice, stamp, { throwing: true, release: 3.3 }).events;
+      const out: Ev[] = [];
+      let done = false;
+      for (const e of base!.events) {
+        if ((e.event as { readonly playId?: unknown }).playId === target) {
+          if (!done) out.push(...replaced);
+          done = true;
+        } else out.push(e);
+      }
+      return out;
+    };
+    const run = (events: readonly Ev[]) => foldGame(emptyAccumulator(), { ...base!, events: events as Ev[] }, C1);
+    const original = run(base!.events);
+    const s4 = run(injected(S4));
+    const s5 = run(injected(rules));
+    expect(s5.play.throwTicks).toContain(3.3);
+    expect(s5.play.throwTicks).toEqual(s4.play.throwTicks);
+    expect(s5.play.pocket).toEqual(s4.play.pocket);
+    expect(s5.play.pocket.hitOnAttemptDropbacks).toBe(original.play.pocket.hitOnAttemptDropbacks + 1);
   });
 });

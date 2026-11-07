@@ -1071,7 +1071,7 @@ export const timeToThrow: Metric = registerMetric({
       "longer hold than a completed/incomplete throw in this engine), real unchanged at 2.682s. " +
       "Still FAIL(known); backlog 2/2b's progression+anticipation gap dominates either way.",
   ],
-  // ADR-089 step 4 (plan §5): on a play stamped `pocket-1.s4`, `throwTicks` holds a THROW's raw
+  // ADR-089 step 4 (plan §5): on a play stamped `pocket-1.s4` or later, `throwTicks` holds a THROW's raw
   // `THROW.releaseSeconds` (P8) in place of its decision tick (`metrics/collect.ts`); a throwaway and
   // every play under an earlier stamp keep the tick, so this reads every earlier record as before.
   // The definition text above is left as it stands until the step-4 record (commit 14) says so.

@@ -42,7 +42,7 @@ import { approachesOfPlay, LOOPER_FREE_BAND, PICKUP_FREE_BAND, type ThreatApproa
 import { registryAttr } from "./freeRun.js";
 import { ARM_TODAY, replayPassPlay, type ArmTick } from "./m2ForcingSource.js";
 import { playsOf, readDropback, type Dropback } from "./throwClass.js";
-import { POCKET_1_S4_RULES, rulesOnPlayStart } from "./rules.js";
+import { readsStep4Facts, rulesOnPlayStart } from "./rules.js";
 
 export type PocketResponse = "STAND_IN" | "STEP_UP" | "ESCAPE" | "THROWAWAY";
 type AppealKey = keyof Tunables["pocketMovement"]["appeal"];
@@ -476,7 +476,7 @@ export function emptyM6Step4Fold(): M6Step4Fold {
   return { dropbacks: 0, s4Dropbacks: 0, contacts: 0, fight: 0, byBand: {}, brokenReceiver: 0, throwawayAfterShed: 0, throwawayWithArrived: 0 };
 }
 
-/** One dropback into the step-4 report; `s4` is whether its play is stamped `pocket-1.s4`. */
+/** One dropback into the step-4 report; `s4` is whether its play is stamped `pocket-1.s4` or later (`readsStep4Facts`). */
 export function foldM6Step4Dropback(fold: M6Step4Fold, d: Dropback, s4: boolean): void {
   fold.dropbacks += 1;
   if (!s4) return;
@@ -505,7 +505,7 @@ export function foldM6Step4Game(fold: M6Step4Fold, events: readonly MatchEventEn
     const d = readDropback(play);
     if (d === undefined) continue;
     const start = play.events.find((e) => e.event.type === "PLAY_START");
-    foldM6Step4Dropback(fold, d, rulesOnPlayStart((start?.event as { readonly payload?: unknown } | undefined)?.payload)?.name === POCKET_1_S4_RULES);
+    foldM6Step4Dropback(fold, d, readsStep4Facts(rulesOnPlayStart((start?.event as { readonly payload?: unknown } | undefined)?.payload)?.name));
   }
 }
 

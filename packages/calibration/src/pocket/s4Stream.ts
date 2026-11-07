@@ -5,7 +5,8 @@
  * Each fold reads one game's events and adds to its fold; nothing here plays a game or draws a die.
  * Step 4's harness runs them on every game of every D arm, each handed that arm's own tunables, and
  * `pocketStep4Stream.test.ts` runs them on streams built by hand. They read only plays whose
- * `PLAY_START.rules` names `pocket-1.s4`: on a legacy, s1, s2 or s3 play they count the play and read
+ * `PLAY_START.rules` names `pocket-1.s4` or a later step's bundle (`readsStep4Facts`, step 5's names
+ * included; step-5 plan §1.3): on a legacy, s1, s2 or s3 play they count the play and read
  * nothing more, so no earlier stream is judged by them. Until petitions P6, P7 and P8 are in
  * contracts no stream carries an `arrival_contest` CHECK, a `QB_HIT` or `THROW.releaseSeconds`, so
  * every event the folds read past the stamp is read structurally (the contracts union does not name
@@ -59,7 +60,7 @@ import { fromOfApproach } from "./approach.js";
 import { GUARD_CLASSES } from "./bands.js";
 import type { ThrowClass } from "./constructs.js";
 import { centerOfPlayStart, clockKeyOf, clockOriginOf, onClockUnder, touchOfCheck, type ClockKey, type Touch } from "./freeRunKey.js";
-import { POCKET_1_S4_RULES, rulesOnPlayStart } from "./rules.js";
+import { readsStep4Facts, rulesOnPlayStart } from "./rules.js";
 import { attemptWeightedSlope, BIN_MIDPOINTS } from "./selection.js";
 import { playsOf, readDropback, throwClassOf, type Dropback, type PlaySlice } from "./throwClass.js";
 
@@ -89,9 +90,13 @@ export const TILT_SOURCES: Readonly<Record<Exclude<TiltClass, "NONE">, string>> 
   BEHIND_NEVER: "Approach tilt (BEHIND or never seen)",
 });
 
-/** Whether a play's `PLAY_START.rules` names `pocket-1.s4`: the stamp V1-42 and every s4 fold key on. */
+/**
+ * Whether a play's `PLAY_START.rules` names `pocket-1.s4` or a later step's bundle (`readsStep4Facts`;
+ * ADR-089 step 5, plan §1.3): the stamp V1-42 and every s4 fold key on. Every step-5 bundle carries
+ * step 4's blocks, so its plays are read as `pocket-1.s4`'s; on legacy and s1 to s3 it is false.
+ */
 export function isS4Rules(name: string | undefined): boolean {
-  return name === POCKET_1_S4_RULES;
+  return readsStep4Facts(name);
 }
 
 // --- one play -------------------------------------------------------------------------------------
@@ -356,7 +361,7 @@ export interface AimedInt {
 export interface S4Fold {
   /** PASS plays read (a non-s4 play is counted and read no further). */
   plays: number;
-  /** Of them, plays stamped `pocket-1.s4`: the dropbacks every figure below is over. */
+  /** Of them, plays stamped `pocket-1.s4` or later (`isS4Rules`): the dropbacks every figure below is over. */
   s4Plays: number;
   /** Every rated `:contest`, every `:contest2`, and each play's first `:contest`. */
   contest: Tally;

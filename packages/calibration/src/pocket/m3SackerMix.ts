@@ -32,7 +32,7 @@ import { openForTuning } from "../ingest/load.js";
 import type { Season } from "../ingest/seasons.js";
 import { depthChartsSource, type DepthChartRow } from "../ingest/sources/depthCharts.js";
 import { pbpSource, type PbpRow } from "../ingest/sources/pbp.js";
-import { rulesOnPlayStart, POCKET_1_S4_RULES } from "./rules.js";
+import { readsStep4Facts, rulesOnPlayStart } from "./rules.js";
 import { playsOf, readDropback, type Dropback } from "./throwClass.js";
 
 export type SackerClass = "edge" | "interior" | "offball" | "db" | "other";
@@ -136,13 +136,13 @@ export function foldM3Dropback(fold: M3Fold, d: Dropback, positionOf: (id: strin
   }
 }
 
-/** Every PASS play of a game, each credited by its own stamp (step 4's rule on `pocket-1.s4`, the last arrival otherwise). */
+/** Every PASS play of a game, each credited by its own stamp (step 4's rule from `pocket-1.s4` on, `readsStep4Facts`; the last arrival otherwise). */
 export function foldM3Game(fold: M3Fold, events: readonly MatchEventEnvelope[], positions: ReadonlyMap<PlayerId, Position>): void {
   for (const play of playsOf(events)) {
     const d = readDropback(play);
     if (d === undefined) continue;
     const start = play.events.find((e) => e.event.type === "PLAY_START");
-    const s4 = rulesOnPlayStart((start?.event as { readonly payload?: unknown } | undefined)?.payload)?.name === POCKET_1_S4_RULES;
+    const s4 = readsStep4Facts(rulesOnPlayStart((start?.event as { readonly payload?: unknown } | undefined)?.payload)?.name);
     foldM3Dropback(fold, d, (id) => positions.get(id as PlayerId), s4);
   }
 }

@@ -184,12 +184,18 @@ const STEP4_USAGE =
   "pocket -- --step 4 [--arms D1,D6] [--shard i/n] [--cache <dir>] [--seed-set 1|2] [--report <file.md>] [--out <file.json>], " +
   "pocket -- --step 4 --digests --out <file.json>, pocket -- --step 4 [--arms D1,D6] [--cache <dir>] [--seed-set 1|2] --part1, or pocket -- --step 4 --probes [--shard i/n] [--cache <dir>] [--report <file.md>] [--out <file.json>]";
 
-/** Each step's `--arms` list, as its refusal names it (step 3's with its arm ids, plan §5.1; step 4's, plan §4). */
+/**
+ * Each step's `--arms` list, as its refusal names it (step 3's with its arm ids, plan §5.1; step 4's,
+ * plan §4; step 5's halves named with their ids, step-5 plan §5.1 and §5.2, though the parser below
+ * still refuses `--step 5a` and `--step 5b`).
+ */
 const ARMS_NAMED: Readonly<Record<ArmStep, string>> = {
   1: "A0 to A15, A0b",
   2: "step 2's: A0, A14, A1, A5, A11, B1 to B7",
   3: "step 3's: A0, A14, A1, A11, B3, B6, B5, C1 to C16",
   4: "step 4's: A0, A14, A1, A11, C1, C2, C14, D1 to D17",
+  "5a": "step 5a's: E0 to E10",
+  "5b": "step 5b's: D1, F1 to F14, F0, G1, G2",
 };
 
 function usageOf(step: 0 | 1 | 2 | 3 | 4 | undefined): string {

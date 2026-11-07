@@ -345,14 +345,55 @@ export function step4PetitionsIn(petitions: Step4Petitions = {}): boolean {
   return (petitions.P6 ?? P6_IN_CONTRACTS) && (petitions.P7 ?? P7_IN_CONTRACTS) && (petitions.P8 ?? P8_IN_CONTRACTS);
 }
 
+/** Step 5's two rules names, as the stamp predicates read them (plan §1.1; the bundles are built later). */
+const POCKET_1_S5A_NAME = "pocket-1.s5a";
+const POCKET_1_S5B_NAME = "pocket-1.s5b";
+
+/**
+ * The ADR-089 step a `PLAY_START.rules` name belongs to (ADR-089 step 5, plan §1.3; critique 1 B1):
+ * `pocket-1.s1` to `pocket-1.s4` are steps 1 to 4, and step 5's two names, `pocket-1.s5a` and
+ * `pocket-1.s5b`, are both step 5 (each carries step 4's blocks and step 5's). `legacy`, an absent
+ * name and any other name are `undefined`. The step-5 names are matched here as strings: this build
+ * names them for the readers only, and no game is stamped with either (their bundles and
+ * `ENGINE_RULES` entries come later, each refused until recorded).
+ */
+export function pocketStepOf(name: string | undefined): 1 | 2 | 3 | 4 | 5 | undefined {
+  switch (name) {
+    case POCKET_1_S1_RULES:
+      return 1;
+    case POCKET_1_S2_RULES:
+      return 2;
+    case POCKET_1_S3_RULES:
+      return 3;
+    case POCKET_1_S4_RULES:
+      return 4;
+    case POCKET_1_S5A_NAME:
+    case POCKET_1_S5B_NAME:
+      return 5;
+    default:
+      return undefined;
+  }
+}
+
 /**
  * Whether a play's `PLAY_START.rules` name is read with step 3's stream readers (the late block, the
- * touching CHECKs, part 1, the free-run mirror): `pocket-1.s3`, and from step 4 `pocket-1.s4`, whose
- * bundles carry step 3's blocks (kind T carries none, so those readers find nothing on its plays).
- * No stream of steps 0 to 3 carries `pocket-1.s4`, so their readings do not move.
+ * touching CHECKs, part 1, the free-run mirror): `pocket-1.s3` and every later step's name (step 4's
+ * `pocket-1.s4`, step 5's `pocket-1.s5a` and `pocket-1.s5b`), whose bundles carry step 3's blocks
+ * (kind T carries none, so those readers find nothing on its plays). No stream of steps 0 to 3
+ * carries a later name, so their readings do not move.
  */
 export function readsStep3Facts(name: string | undefined): boolean {
-  return name === POCKET_1_S3_RULES || name === POCKET_1_S4_RULES;
+  return (pocketStepOf(name) ?? 0) >= 3;
+}
+
+/**
+ * Whether a play's `PLAY_START.rules` name is read with step 4's readers (the raw
+ * `THROW.releaseSeconds`, the `QB_HIT` construct of V1-42, the s4 folds, M3's credit at contact, M6's
+ * step-4 fold): `pocket-1.s4` and every later step's name (plan §1.3). On `legacy` and `pocket-1.s1`
+ * to `pocket-1.s3` it is false, exactly as the exact-name test it replaces.
+ */
+export function readsStep4Facts(name: string | undefined): boolean {
+  return (pocketStepOf(name) ?? 0) >= 4;
 }
 
 /** Freeze a plain-data tree in place, every depth, and return the same reference. */

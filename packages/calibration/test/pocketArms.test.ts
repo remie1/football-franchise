@@ -57,6 +57,18 @@
  *     id, `everyArm()` and the digests carry the D arms after step 3's, and `--arms` takes a D id.
  * 21. AM-6's base map (D1 on C1, D2 on C2, D6 on C2) on a stand-in entry names arms of this build;
  *     an id past D17 does not. The committed amendments file is read, never written.
+ *
+ * Step 5's arm ids (ADR-089 step 5, plan §5.1, §5.2, §9 order item 1), named and inert, in the last
+ * describe:
+ * 22. E0 to E10 (5a) and F0 to F14, G1, G2 (5b) are arms of this build: `isAnyArmId` takes them,
+ *     and `isRunIdOf("5a" | "5b", ...)` takes each half's run list (5a: E0 to E10; 5b: D1, F1 to
+ *     F14, F0, G1, G2); steps 1 to 4's lists do not; `ALL_ARM_IDS` gains them after step 4's, and
+ *     steps 1 to 4's lists, arms and digests are unchanged.
+ * 23. Nothing defines or plays them: `armById` refuses each by name (E1, E9, E10 until the 5a fit;
+ *     F0, G1, G2 until the 5b selection), `everyArm()` is steps 1 to 4's, `--step 5a` and
+ *     `--step 5b` are refused.
+ * 24. AM-8's base maps (5a: E9 on E0; 5b: F5 on D1, F0 on F5) on a stand-in entry name arms of this
+ *     build; an id past E10 or F14 does not. The committed amendments file is read, never written.
  */
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -110,6 +122,16 @@ import {
   STEP4_ARM_BASES,
   STEP4_ARM_IDS,
   STEP4_RUN_IDS,
+  STEP5A_ARM_IDS,
+  STEP5A_RUN_IDS,
+  STEP5B_ARM_IDS,
+  STEP5B_RUN_IDS,
+  STEP5_DEFINED_AT_FIT,
+  STEP5_DEFINED_AT_SELECTION,
+  isStep5aArmId,
+  isStep5bArmId,
+  step5ArmRefusal,
+  ARM_STEPS,
   AM2_REFERENCES,
   armRefusal,
   BAND_EDGE_SHIFT,
@@ -404,8 +426,8 @@ describe("step 2's arm lists (plan §4.1, C2-F4)", () => {
     expect([...STEP2_RUN_IDS]).toEqual(["A0", "A14", "A1", "A5", "A11", "B1", "B2", "B3", "B4", "B5", "B6", "B7"]);
     expect(STEP2_BASES.map((b) => b.id)).toEqual(["A0", "A14", "A1", "A5", "A11"]);
     expect([...STEP2_RUN_IDS]).toEqual([...STEP2_BASES.map((b) => b.id), ...STEP2_ARM_IDS]);
-    // Step 3's ids are appended after step 2's, then step 4's (named, inert); every arm this build builds is in that order.
-    expect([...ALL_ARM_IDS]).toEqual([...ARM_IDS, ...STEP2_ARM_IDS, ...STEP3_ARM_IDS, ...STEP4_ARM_IDS]);
+    // Step 3's ids are appended after step 2's, then step 4's, then step 5's (named, inert); every arm this build builds is in that order.
+    expect([...ALL_ARM_IDS]).toEqual([...ARM_IDS, ...STEP2_ARM_IDS, ...STEP3_ARM_IDS, ...STEP4_ARM_IDS, ...STEP5A_ARM_IDS, ...STEP5B_ARM_IDS]);
     expect(everyArm().map((a) => a.id).slice(0, 24)).toEqual([...ARM_IDS, ...STEP2_ARM_IDS]);
   });
 
@@ -606,7 +628,7 @@ describe("step 2's mechanisms (plan §4.1, C3-13)", () => {
     // Step 1's arms carry no forcing rule, so their mechanisms are step 1's.
     for (const a of allArms()) expect(mechanismsOf(a).some((m) => m === "MUST_ACT" || m === "COUNTER_LESS_SEEN" || m === "HALF" || m === "FOLLOWS"), a.id).toBe(false);
     const ids: ArmId[] = [...ALL_ARM_IDS];
-    expect(ids).toHaveLength(57);
+    expect(ids).toHaveLength(57 + 11 + 17);
     expect([...allArms(), ...step2Arms()]).toHaveLength(24);
   });
 });
@@ -1142,5 +1164,109 @@ describe("step 4's arm definitions (K2b; ADR-089 step 4, plan §4)", () => {
     expect(built[0]!.overlayDigest).toBe(POCKET_1_S4_DIGEST);
     expect(new Set(built.map((a) => a.tunablesDigest)).size).toBe(STEP4_DEFS.length);
     for (const a of built) expect(a.rules, a.id).toBe(POCKET_1_S4_RULES);
+  });
+});
+
+describe("step 5's arm ids, named and inert (ADR-089 step 5, plan §5.1, §5.2)", () => {
+  const E = Array.from({ length: 11 }, (_, i) => `E${String(i)}`);
+  const F = Array.from({ length: 15 }, (_, i) => `F${String(i)}`);
+
+  it("lists E0 to E10, F0 to F14, G1, G2 and each half's run list", () => {
+    expect([...STEP5A_ARM_IDS]).toEqual(E);
+    expect([...STEP5B_ARM_IDS]).toEqual([...F, "G1", "G2"]);
+    expect([...STEP5A_RUN_IDS]).toEqual(E);
+    // 5b: D1 replayed (F5's base), the fourteen grid points (the first pass), then F0, G1 and G2 (after the selection).
+    expect([...STEP5B_RUN_IDS]).toEqual(["D1", ...F.slice(1), "F0", "G1", "G2"]);
+    for (const list of [STEP5A_RUN_IDS, STEP5B_RUN_IDS]) expect(new Set(list).size).toBe(list.length);
+    expect([...ARM_STEPS]).toEqual([1, 2, 3, 4, "5a", "5b"]);
+    expect(runIdsOf("5a")).toBe(STEP5A_RUN_IDS);
+    expect(runIdsOf("5b")).toBe(STEP5B_RUN_IDS);
+    // ALL_ARM_IDS gains them after step 4's; steps 1 to 4's lists are as they were.
+    expect(ALL_ARM_IDS.slice(0, 57)).toEqual([...ARM_IDS, ...STEP2_ARM_IDS, ...STEP3_ARM_IDS, ...STEP4_ARM_IDS]);
+    expect(ALL_ARM_IDS.slice(57)).toEqual([...STEP5A_ARM_IDS, ...STEP5B_ARM_IDS]);
+    expect(Object.isFrozen(ALL_ARM_IDS)).toBe(true);
+    expect([...STEP1_RUN_IDS]).toEqual([...ARM_IDS]);
+    expect([...STEP4_RUN_IDS]).toEqual(["A0", "A14", "A1", "A11", "C1", "C2", "C14", ...STEP4_ARM_IDS]);
+    // E1, E9 and E10 wait on the 5a fit; F0, G1 and G2 on the 5b selection (plan §4, arms.ts row).
+    expect([...STEP5_DEFINED_AT_FIT]).toEqual(["E1", "E9", "E10"]);
+    expect([...STEP5_DEFINED_AT_SELECTION]).toEqual(["F0", "G1", "G2"]);
+  });
+
+  it("checks an id per step: 5a takes E0 to E10, 5b its run list, no earlier step a step-5 id", () => {
+    const earlier: readonly ArmStep[] = [1, 2, 3, 4];
+    for (const id of [...STEP5A_ARM_IDS, ...STEP5B_ARM_IDS]) {
+      expect(isAnyArmId(id), id).toBe(true);
+      expect(isArmId(id), id).toBe(false);
+      expect(isStep4ArmId(id), id).toBe(false);
+      for (const step of earlier) expect(isRunIdOf(step, id), `${id} at step ${String(step)}`).toBe(false);
+    }
+    for (const id of STEP5A_ARM_IDS) {
+      expect(isStep5aArmId(id), id).toBe(true);
+      expect(isStep5bArmId(id), id).toBe(false);
+      expect(isRunIdOf("5a", id), id).toBe(true);
+      expect(isRunIdOf("5b", id), id).toBe(false);
+    }
+    for (const id of STEP5B_ARM_IDS) {
+      expect(isStep5bArmId(id), id).toBe(true);
+      expect(isStep5aArmId(id), id).toBe(false);
+      expect(isRunIdOf("5b", id), id).toBe(true);
+      expect(isRunIdOf("5a", id), id).toBe(false);
+    }
+    // D1 is 5b's replayed base; no other earlier arm is in either half's list.
+    for (const id of [...ARM_IDS, ...STEP2_ARM_IDS, ...STEP3_ARM_IDS, ...STEP4_ARM_IDS]) {
+      expect(isRunIdOf("5a", id), id).toBe(false);
+      expect(isRunIdOf("5b", id), id).toBe(id === "D1");
+      expect(step5ArmRefusal(id), id).toBeUndefined();
+    }
+    for (const bad of ["E11", "E", "e0", "E00", "F15", "F", "G0", "G3", "G", ""]) {
+      expect(isAnyArmId(bad), bad).toBe(false);
+      expect(isStep5aArmId(bad) || isStep5bArmId(bad), bad).toBe(false);
+      for (const step of ARM_STEPS) expect(isRunIdOf(step, bad), `${bad} at step ${String(step)}`).toBe(false);
+    }
+  });
+
+  it("nothing defines or plays them: armById refuses each by name, everyArm is steps 1 to 4's, --step 5a and 5b are refused", () => {
+    for (const id of [...STEP5A_ARM_IDS, ...STEP5B_ARM_IDS]) {
+      const why = step5ArmRefusal(id);
+      expect(why, id).toBeDefined();
+      expect(() => armById(id), id).toThrow(`arms: ${why!}: nothing plays it`);
+      // armRefusal names petitions only; a step-5 id waits on none.
+      expect(armRefusal(id), id).toBeUndefined();
+      expect(everyArm().some((a) => a.id === id), id).toBe(false);
+    }
+    expect(step5ArmRefusal("E1")).toMatch(/^E1 is one of step 5a's arms, named in this build but not yet defined \(ADR-089 step 5, plan §5\): defined only once the 5a fit is recorded/);
+    expect(step5ArmRefusal("E0")).toMatch(/: defined with the step-5 bundles$/);
+    expect(step5ArmRefusal("F0")).toMatch(/^F0 is one of step 5b's arms, .*: defined only once the 5b selection is recorded/);
+    expect(step5ArmRefusal("F5")).toMatch(/: defined with the step-5 bundles$/);
+    expect(everyArm().map((a) => a.id)).toEqual([...ARM_IDS, ...STEP2_ARM_IDS, ...STEP3_ARM_IDS, ...STEP4_ARM_IDS]);
+    const all = [...everyArm(), ...PROOF_OVERLAY_IDS.map((id) => proofOverlay(id))];
+    expect(all).toHaveLength(17 + 7 + 16 + 17 + 2);
+    for (const step of ["5a", "5b", "5"]) expect(() => parsePocketArgs(["--step", step], "/"), step).toThrow(new RegExp(`--step ${step} is not$`));
+    expect(() => parsePocketArgs(["--step", "4", "--arms", "E9"], "/")).toThrow(/^--arms: E9 is not an arm \(step 4's: /);
+  });
+
+  it("AM-8's base maps on a stand-in entry name arms of this build; an id past E10 or F14 does not (the committed file is only read)", () => {
+    const PKG = join(import.meta.dirname, "..");
+    const filing = loadFiled(join(PKG, FILED_PATH));
+    const path = join(PKG, AMENDMENTS_PATH);
+    const before = readFileSync(path, "utf8");
+    const committed = loadAmendments(path, filing);
+    const withBases = (bases: Record<string, Record<string, string>>): unknown => {
+      const j = JSON.parse(JSON.stringify(committed)) as { entries: Record<string, unknown>[] };
+      const standIn = JSON.parse(JSON.stringify(j.entries.find((e) => e["id"] === "AM-6"))) as Record<string, unknown>;
+      standIn["id"] = `AM-${String(j.entries.length + 1)}`;
+      standIn["filedBeforeStep"] = "5a";
+      standIn["steps"] = ["5a", "5b"];
+      standIn["supersedes"] = ["guard.mix", "guard.byClass"];
+      (standIn["rule"] as Record<string, unknown>)["bases"] = bases;
+      j.entries.push(standIn);
+      return j;
+    };
+    const am8 = { "5a": { E9: "E0" }, "5b": { F5: "D1", F0: "F5" } };
+    expect(amendmentsProblems(withBases(am8), filing)).toEqual([]);
+    const past = amendmentsProblems(withBases({ "5a": { E11: "E0" }, "5b": { F5: "F15" } }), filing);
+    expect(past.some((p) => /bases\.5a\.E11: not an arm of this build/.test(p)), past.join("; ")).toBe(true);
+    expect(past.some((p) => /bases\.5b\.F5: its base "F15" is not an arm of this build/.test(p)), past.join("; ")).toBe(true);
+    expect(readFileSync(path, "utf8")).toBe(before);
   });
 });
