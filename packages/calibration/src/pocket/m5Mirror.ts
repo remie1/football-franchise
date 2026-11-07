@@ -36,7 +36,7 @@
 import { createRng, type MatchEventEnvelope } from "@ff/contracts";
 import type { Tunables } from "@ff/engine";
 import { centerOfPlayStart, clockKeyOf, onClockUnder, touchOfCheck, type Touch } from "./freeRunKey.js";
-import { POCKET_1_S3_RULES, rulesOnPlayStart } from "./rules.js";
+import { readsStep3Facts, rulesOnPlayStart } from "./rules.js";
 import { dropbacksOf, playsOf } from "./throwClass.js";
 
 export const M5_RNG_LABEL = "adr-089:m5";
@@ -214,7 +214,7 @@ export function freeRunMirrorPlaysOf(events: readonly MatchEventEnvelope[], tuna
       readonly defense?: { readonly rush?: readonly { readonly rusher?: unknown; readonly move?: unknown; readonly alignment?: unknown }[] };
       readonly snap?: { readonly ballX: number; readonly defense: readonly { readonly player: unknown; readonly x: number; readonly y: number }[] };
     };
-    if (payload.kind !== "PASS_PLAY_V1" || rulesOnPlayStart(first.payload)?.name !== POCKET_1_S3_RULES || payload.snap === undefined) continue;
+    if (payload.kind !== "PASS_PLAY_V1" || !readsStep3Facts(rulesOnPlayStart(first.payload)?.name) || payload.snap === undefined) continue;
     const snap = payload.snap;
     const center = centerOfPlayStart(first.payload);
     const touches = new Map<string, Touch>();

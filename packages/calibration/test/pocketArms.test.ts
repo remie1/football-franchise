@@ -135,9 +135,13 @@ import {
   POCKET_1_S3_FREE_RUN,
   POCKET_1_S3_LATE_BLOCK,
   POCKET_1_S3_OVERLAY,
+  POCKET_1_S4_DIGEST,
+  POCKET_1_S4_RULES,
   rulesTunables,
+  STEP4_PETITIONS_GRANTED,
   withOverlay,
 } from "../src/pocket/rules.js";
+import { STEP4_ARM_DEFS as STEP4_DEFS } from "../src/pocket/arms.js";
 
 /** The value at a dotted tunable path (numeric segments index arrays). */
 function leafAt(root: unknown, path: string): unknown {
@@ -923,7 +927,8 @@ describe("step 3's built arms (plan §5.1, O28)", () => {
 
 describe("C14 waits on petition P17, which is in contracts (plan §3.4, §5.1; E4b)", () => {
   it("is defined and built: no arm is refused, armById builds it, everyArm and step3Arms carry it", () => {
-    for (const id of ALL_ARM_IDS) expect(armRefusal(id), id).toBeUndefined();
+    // Every arm but step 4's is played; every D arm waits on P6, P7 and P8 (ADR-089 step 4).
+    for (const id of ALL_ARM_IDS) expect(armRefusal(id) === undefined, id).toBe(!isStep4ArmId(id));
     const c14 = armById("C14");
     expect(c14.rules).toBe("pocket-1.s3");
     expect(c14.base).toBe("B5");
@@ -952,7 +957,9 @@ describe("C14 waits on petition P17, which is in contracts (plan §3.4, §5.1; E
 
 describe("step 3's mechanisms (plan §5.1)", () => {
   it("appends FREE_RUN, LATE_BLOCK, CLIMB_FRONT, MUG_HEAD_ONLY and BAND_EDGES after step 2's", () => {
-    expect([...MECHANISMS].slice(12)).toEqual(["FREE_RUN", "LATE_BLOCK", "CLIMB_FRONT", "MUG_HEAD_ONLY", "BAND_EDGES"]);
+    expect([...MECHANISMS].slice(12, 17)).toEqual(["FREE_RUN", "LATE_BLOCK", "CLIMB_FRONT", "MUG_HEAD_ONLY", "BAND_EDGES"]);
+    // Step 4's two follow (ADR-089 step 4, plan §5).
+    expect([...MECHANISMS].slice(17)).toEqual(["CONTACT", "MOTION"]);
     for (const a of [...allArms(), ...step2Arms()]) {
       expect(mechanismsOf(a).some((m) => ["FREE_RUN", "LATE_BLOCK", "CLIMB_FRONT", "MUG_HEAD_ONLY", "BAND_EDGES"].includes(m)), a.id).toBe(false);
     }
@@ -1075,15 +1082,17 @@ describe("step 4's arm ids, named and inert (plan §4, §5)", () => {
     }
   });
 
-  it("nothing defines or plays them: armById refuses a D id by name, no D arm is refused by a petition, and --step 4 is refused", () => {
+  it("defined and not played while P6, P7 or P8 is out: armById and --arms refuse a D id by its petitions, and --step 4 plays the bases", () => {
     for (const id of STEP4_ARM_IDS) {
-      expect(() => armById(id), id).toThrow(new RegExp(`^arms: ${id} is one of step 4's arms, named in this build but not yet defined \\(ADR-089 step 4, plan §4\\): nothing plays it$`));
-      expect(armRefusal(id), id).toBeUndefined();
+      expect(() => armById(id), id).toThrow(new RegExp(`^arms: ${id} waits on petitions P6, P7 and P8 \\(arrival_contest, QB_HIT, THROW\\.releaseSeconds\\).*: nothing plays it$`));
+      expect(armRefusal(id), id).toMatch(/waits on petitions P6, P7 and P8/);
+      expect(() => parsePocketArgs(["--step", "4", "--arms", id], "/"), id).toThrow(new RegExp(`^--arms: ${id} is not playable: ${id} waits on petitions P6, P7 and P8`));
     }
     // The digests and the stamped map are steps 1 to 3's: no D arm is in the table.
     const all = [...everyArm(), ...PROOF_OVERLAY_IDS.map((id) => proofOverlay(id))];
     expect(all).toHaveLength(17 + 7 + 16 + 2);
-    expect(() => parsePocketArgs(["--step", "4"], "/")).toThrow(/^ADR-089: steps 0, 1, 2 and 3 are built .*; --step 4 is not$/);
+    expect(parsePocketArgs(["--step", "4"], "/")).toEqual({ step: 4 });
+    expect(() => parsePocketArgs(["--step", "5"], "/")).toThrow(/^ADR-089: steps 0, 1, 2, 3 and 4 are built .*; --step 5 is not$/);
     expect(() => parsePocketArgs(["--step", "3", "--arms", "D1"], "/")).toThrow(/^--arms: D1 is not an arm \(step 3's: A0, A14, A1, A11, B3, B6, B5, C1 to C16\)$/);
   });
 
@@ -1111,5 +1120,25 @@ describe("step 4's arm ids, named and inert (plan §4, §5)", () => {
     expect(past.some((p) => /bases\.4\.D18: not an arm of this build/.test(p)), past.join("; ")).toBe(true);
     expect(past.some((p) => /bases\.4\.D2: its base "D0" is not an arm of this build/.test(p)), past.join("; ")).toBe(true);
     expect(readFileSync(path, "utf8")).toBe(before);
+  });
+});
+
+describe("step 4's arm definitions (K2b; ADR-089 step 4, plan §4)", () => {
+  it("D1 to D17 in order, each on plan §4's base, each waiting on P6, P7 and P8 and stamped pocket-1.s4", () => {
+    expect(STEP4_DEFS.map((d) => d.id)).toEqual([...STEP4_ARM_IDS]);
+    for (const d of STEP4_DEFS) {
+      expect(d.base, d.id).toBe(STEP4_ARM_BASES[d.id as keyof typeof STEP4_ARM_BASES]);
+      expect(d.waitsOn, d.id).toBe("P6_P7_P8");
+      expect(d.rules, d.id).toBe(POCKET_1_S4_RULES);
+    }
+  });
+
+  it("refused before the lift; built under a test's granted petitions, D1 at the bundle's own digest and every D arm at its own", () => {
+    const d1 = STEP4_DEFS.find((d) => d.id === "D1")!;
+    expect(() => buildArm(d1)).toThrow(/P6/);
+    const built = STEP4_DEFS.map((d) => buildArm(d, STEP4_PETITIONS_GRANTED));
+    expect(built[0]!.overlayDigest).toBe(POCKET_1_S4_DIGEST);
+    expect(new Set(built.map((a) => a.tunablesDigest)).size).toBe(STEP4_DEFS.length);
+    for (const a of built) expect(a.rules, a.id).toBe(POCKET_1_S4_RULES);
   });
 });

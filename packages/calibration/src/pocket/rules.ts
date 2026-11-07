@@ -325,6 +325,35 @@ export const P6_IN_CONTRACTS = false;
 export const P7_IN_CONTRACTS = false;
 export const P8_IN_CONTRACTS = false;
 
+/**
+ * A test's own set of the step-4 petitions (`P6`, `P7`, `P8`; one left out reads as its constant),
+ * as `step4Refusal`, `checkStamp` and the engine's `pocketRulesUnder` take one. No caller outside a
+ * test passes one, so the build plays nothing under a step-4 block while the constants are false.
+ */
+export interface Step4Petitions {
+  readonly P6?: boolean;
+  readonly P7?: boolean;
+  readonly P8?: boolean;
+}
+
+/** Every step-4 petition granted: the tests' set for building a D arm (`buildArm`) before the lift. */
+export const STEP4_PETITIONS_GRANTED: Required<Step4Petitions> = Object.freeze({ P6: true, P7: true, P8: true });
+
+/** Whether every step-4 petition is in contracts under `petitions` (the constants when none is given). */
+export function step4PetitionsIn(petitions: Step4Petitions = {}): boolean {
+  return (petitions.P6 ?? P6_IN_CONTRACTS) && (petitions.P7 ?? P7_IN_CONTRACTS) && (petitions.P8 ?? P8_IN_CONTRACTS);
+}
+
+/**
+ * Whether a play's `PLAY_START.rules` name is read with step 3's stream readers (the late block, the
+ * touching CHECKs, part 1, the free-run mirror): `pocket-1.s3`, and from step 4 `pocket-1.s4`, whose
+ * bundles carry step 3's blocks (kind T carries none, so those readers find nothing on its plays).
+ * No stream of steps 0 to 3 carries `pocket-1.s4`, so their readings do not move.
+ */
+export function readsStep3Facts(name: string | undefined): boolean {
+  return name === POCKET_1_S3_RULES || name === POCKET_1_S4_RULES;
+}
+
 /** Freeze a plain-data tree in place, every depth, and return the same reference. */
 function deepFreeze<T>(node: T): T {
   if (typeof node !== "object" || node === null || Object.isFrozen(node)) return node;
@@ -1080,10 +1109,12 @@ export function withOverlay(base: Tunables, name: OverlayRules, blocks: PocketOv
  *    step-3 block under `pocket-1.s1` or `pocket-1.s2`, and no step-4 block under any name but
  *    `pocket-1.s4`.
  *  - and, last, any tree carrying a step-4 block while P6, P7 or P8 is not in contracts
- *    (`step4Refusal`): refused here, so no calibration game starts under one.
+ *    (`step4Refusal`): refused here, so no calibration game starts under one. `petitions` is a
+ *    test's own set (`Step4Petitions`; `arms.ts`'s `buildArm` seam builds a D arm with it); no
+ *    caller outside a test passes one.
  * Returns the tunables, for chaining.
  */
-export function checkStamp(tunables: Tunables, rules: EngineRules, where = "checkStamp"): Tunables {
+export function checkStamp(tunables: Tunables, rules: EngineRules, where = "checkStamp", petitions: Step4Petitions = {}): Tunables {
   const stamp = tunables.engineRules;
   const blocks = blocksOf(tunables);
   if (rules === LEGACY_RULES) {
@@ -1108,7 +1139,7 @@ export function checkStamp(tunables: Tunables, rules: EngineRules, where = "chec
   }
   assertBlocksUnderName(tunables, rules, where);
   assertDials(tunables, where);
-  const refusal = step4Refusal(tunables);
+  const refusal = step4Refusal(tunables, petitions);
   if (refusal !== undefined) throw new EngineRulesError(`${where}: ${refusal}`);
   return tunables;
 }
@@ -1119,7 +1150,7 @@ export function checkStamp(tunables: Tunables, rules: EngineRules, where = "chec
  * test's own set (`P6`, `P7`, `P8`; one left out reads as its constant), as the engine's
  * `pocketRulesUnder` takes one.
  */
-export function step4Refusal(tunables: Tunables, petitions: { readonly P6?: boolean; readonly P7?: boolean; readonly P8?: boolean } = {}): string | undefined {
+export function step4Refusal(tunables: Tunables, petitions: Step4Petitions = {}): string | undefined {
   const blocks = STEP4_BLOCKS.filter((block) => blockValue(tunables, block) !== undefined);
   if (blocks.length === 0) return undefined;
   const missing = (

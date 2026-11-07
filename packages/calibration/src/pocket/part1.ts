@@ -57,7 +57,7 @@ import { FREE_RUN_CONSTANTS, dropOfCall, freeRunTime, loopCrossYards, ratingsOf,
 import { centerOfPlayStart, clockKeyOf, isTouched, onClockUnder, touchOfCheck, type Touch, type TouchingCheck } from "./freeRunKey.js";
 import { legacyDepthFor, restateFreeRunners } from "./legacyFreeRun.js";
 import { playersOfSnapshot } from "./m6Contact.js";
-import { POCKET_1_S3_RULES, rulesOnPlayStart, type PocketFreeRun } from "./rules.js";
+import { readsStep3Facts, rulesOnPlayStart, type PocketFreeRun } from "./rules.js";
 import { dialsOf, s1PlaysOf, type LateBlockAt, type S1Play } from "./s1Stream.js";
 import { lateBeatTickOf } from "./s3Stream.js";
 import { playsOf, readDropback, type Dropback, type RushEntry } from "./throwClass.js";
@@ -429,7 +429,7 @@ function foldPlay(fold: Part1Fold, slice: { readonly playId: string; readonly ev
   const read = readPlay(slice.events, slice.playId);
   if (read === undefined) return;
   fold.plays += 1;
-  if (rulesOnPlayStart(first.payload)?.name !== POCKET_1_S3_RULES) return;
+  if (!readsStep3Facts(rulesOnPlayStart(first.payload)?.name)) return;
   fold.s3Plays += 1;
   const where = `play ${slice.playId}`;
   const { d, snap, checks, stunts } = read;

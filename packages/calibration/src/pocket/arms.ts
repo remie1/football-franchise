@@ -31,13 +31,15 @@
  *    shape L, so the table would not build it, `armById` would refuse it by name, `armRefusal` would
  *    say why, and the command line (`--step 3`, K4) would refuse it with that reason.
  *    Step 1's and step 2's lists, arms and digests are as they were.
- *  - **Step 4's arm ids, named and inert** (plan §4, §5; ADR-089 §6.4). `STEP4_ARM_IDS` is D1 to
- *    D17 and `STEP4_RUN_IDS` what step 4 will play: the re-played bases A0, A14, A1, A11, C1, C2 and
- *    C14, then D1 to D17. `STEP4_ARM_BASES` is plan §4's base column. They are in `ArmId`,
- *    `ALL_ARM_IDS` and `ARM_STEPS` so that AM-6's base map (D1 on C1, D2 on C2, D6 on C2) names arms
- *    of this build before any D arm runs. Nothing defines or plays them yet: `armById` refuses a D
- *    id by name, `everyArm()` and the table hold steps 1 to 3's arms only, and the command line
- *    refuses `--step 4`. Steps 1 to 3's lists, arms and digests are as they were.
+ *  - **Step 4's arms** (plan §4, §5; ADR-089 §6.4). `STEP4_ARM_IDS` is D1 to D17 and
+ *    `STEP4_RUN_IDS` what step 4 plays: the re-played bases A0, A14, A1, A11, C1, C2 and C14, then D1
+ *    to D17. `STEP4_ARM_BASES` is plan §4's base column, and `STEP4_ARM_DEFS` (K2b) defines each arm
+ *    on the same base. They are in `ArmId`, `ALL_ARM_IDS` and `ARM_STEPS` so that AM-6's base map
+ *    (D1 on C1, D2 on C2, D6 on C2) names arms of this build before any D arm runs. Every D arm waits
+ *    on petitions P6, P7 and P8 (`waitsOn`): while any is out, the table does not build it, `armById`
+ *    refuses it by name, `armRefusal` says why, and `--step 4 --arms Dn` is refused with that reason.
+ *    A test builds one with the petitions granted through `buildArm`'s seam. Steps 1 to 3's lists,
+ *    arms and digests are as they were.
  *  - **Step 2's arms** are stamped `pocket-1.s2` with their own overlay digests (O28), whatever their
  *    forcing rule; the re-played bases keep their step-1 stamps and digests. B3 is the design bundle
  *    itself, `rulesTunables("pocket-1.s2")`. Each B arm's base is AM-1's step-2 map (B1, B2, B3, B4,
@@ -85,8 +87,12 @@ import {
   POCKET_1_S3_FREE_RUN,
   POCKET_1_S3_LATE_BLOCK,
   POCKET_1_S3_RULES,
+  POCKET_1_S4_CONTACT,
+  POCKET_1_S4_MOTION,
+  POCKET_1_S4_RULES,
   checkStamp,
   overlayDigestOf,
+  step4PetitionsIn,
   rulesTunables,
   withOverlay,
   type EngineRules,
@@ -97,8 +103,11 @@ import {
   type OverlayRules,
   type PocketClimbLane,
   type PocketFreeRun,
+  type PocketContact,
   type PocketLateBlock,
+  type PocketMotion,
   type PocketOverlay,
+  type Step4Petitions,
 } from "./rules.js";
 
 /** Freeze a plain-data tree in place, every depth, and return the same reference. */
@@ -293,14 +302,14 @@ export const STEP3_ARM_IDS = ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C
 export type Step3ArmId = (typeof STEP3_ARM_IDS)[number];
 
 /**
- * Step 4's seventeen arms (plan §4), in order: named, not yet defined (inert). AM-6's base map names
- * D1, D2 and D6 (plan §3.1), so the ids are arms of this build before any D arm runs; nothing in
- * this build plays them.
+ * Step 4's seventeen arms (plan §4), in order. AM-6's base map names D1, D2 and D6 (plan §3.1), so
+ * the ids are arms of this build before any D arm runs; `STEP4_ARM_DEFS` defines them, and nothing
+ * in this build plays them while P6, P7 or P8 is out of contracts (`armRefusal`).
  */
 export const STEP4_ARM_IDS = ["D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8", "D9", "D10", "D11", "D12", "D13", "D14", "D15", "D16", "D17"] as const;
 export type Step4ArmId = (typeof STEP4_ARM_IDS)[number];
 
-/** Every arm id of this build: step 1's, step 2's, step 3's and step 4's (the last named only). */
+/** Every arm id of this build: step 1's, step 2's, step 3's and step 4's. */
 export type ArmId = Step1ArmId | Step2ArmId | Step3ArmId | Step4ArmId;
 
 /**
@@ -319,9 +328,10 @@ export const STEP3_RUN_IDS = ["A0", "A14", "A1", "A11", "B3", "B6", "B5", ...STE
 export type Step3RunId = (typeof STEP3_RUN_IDS)[number];
 
 /**
- * What `--step 4` will play (plan §4), once its harness is built: the seven re-played bases, A0 and
- * A14 for the cumulative line, A1 and A11 for the accepted state, C1, C2 and C14 as the D arms'
- * bases, then D1 to D17. Named only: the command line refuses `--step 4` in this build.
+ * What `--step 4` plays (plan §4; its harness is `step4.ts`): the seven re-played bases, A0 and A14
+ * for the cumulative line, A1 and A11 for the accepted state, C1, C2 and C14 as the D arms' bases,
+ * then D1 to D17 (less any arm whose petitions are out, `armRefusal`: every D arm until P6, P7 and P8
+ * are in contracts).
  */
 export const STEP4_RUN_IDS = ["A0", "A14", "A1", "A11", "C1", "C2", "C14", ...STEP4_ARM_IDS] as const satisfies readonly ArmId[];
 export type Step4RunId = (typeof STEP4_RUN_IDS)[number];
@@ -337,11 +347,14 @@ export const STEP4_ARM_BASES: Readonly<Record<Step4ArmId, ArmId>> = Object.freez
   D10: "D8", D11: "D8", D12: "D1", D13: "D1", D14: "D1", D15: "D2", D16: "D2", D17: "C14",
 });
 
-/** Every arm id of this build, step 1's then step 2's then step 3's then step 4's (step 4's named, not yet defined). */
+/** Every arm id of this build, step 1's then step 2's then step 3's then step 4's. */
 export const ALL_ARM_IDS: readonly ArmId[] = Object.freeze([...ARM_IDS, ...STEP2_ARM_IDS, ...STEP3_ARM_IDS, ...STEP4_ARM_IDS]);
 
-/** The arms this build defines: steps 1 to 3's, in order (`everyArm()`, the table). */
-const DEFINED_ARM_IDS: readonly ArmId[] = Object.freeze([...ARM_IDS, ...STEP2_ARM_IDS, ...STEP3_ARM_IDS]);
+/**
+ * The arms this build defines: steps 1 to 4's, in order (`everyArm()`, the table). Step 4's are
+ * defined and not built while P6, P7 or P8 is out (`armRefusal`).
+ */
+const DEFINED_ARM_IDS: readonly ArmId[] = Object.freeze([...ARM_IDS, ...STEP2_ARM_IDS, ...STEP3_ARM_IDS, ...STEP4_ARM_IDS]);
 
 /** A step-1 arm id (`ARM_IDS`), as at step 1: step 1's command line reads it. */
 export function isArmId(id: string): id is Step1ArmId {
@@ -358,7 +371,7 @@ export function isStep3ArmId(id: string): id is Step3ArmId {
   return (STEP3_ARM_IDS as readonly string[]).includes(id);
 }
 
-/** A step-4 arm id, D1 to D17 (named; not yet defined). */
+/** A step-4 arm id, D1 to D17. */
 export function isStep4ArmId(id: string): id is Step4ArmId {
   return (STEP4_ARM_IDS as readonly string[]).includes(id);
 }
@@ -372,7 +385,7 @@ export function isAnyArmId(id: string): id is ArmId {
   return (ALL_ARM_IDS as readonly string[]).includes(id);
 }
 
-/** The steps that have an arm list in this build (step 4's named; its command is not built). */
+/** The steps that have an arm list in this build (step 4's D arms wait on P6, P7 and P8). */
 export const ARM_STEPS = [1, 2, 3, 4] as const;
 export type ArmStep = (typeof ARM_STEPS)[number];
 
@@ -428,14 +441,17 @@ export interface ArmDef {
    * `COUNTER_LESS_SEEN` (the narrower counter rule). Absent: no block, step 1's forcing rule.
    */
   readonly forcing?: ForcingRule;
-  /** Step 3's blocks (plan §5.1), under `pocket-1.s3` only. Absent: none. */
+  /** Step 3's blocks (plan §5.1), under `pocket-1.s3` and `pocket-1.s4` only. Absent: none. */
   readonly step3?: Step3Blocks;
+  /** Step 4's blocks (plan §1.1, §4), under `pocket-1.s4` only. Absent: none. */
+  readonly step4?: Step4Blocks;
   /**
-   * The contract petition the arm waits on, when its blocks are refused until it is in contracts:
-   * C14's late block on shape L waits on P17 (plan §3.4), in contracts since c340520 and lifted in
-   * E4b. Such an arm is defined, never built while the petition is out (`armRefusal`).
+   * The contract petitions the arm waits on, when its blocks are refused until they are in
+   * contracts: C14's late block on shape L waits on P17 (plan §3.4), in contracts since c340520 and
+   * lifted in E4b; every D arm's step-4 blocks wait on P6, P7 and P8 (step-4 plan §6). Such an arm is
+   * defined, never built while a petition is out (`armRefusal`).
    */
-  readonly waitsOn?: "P17";
+  readonly waitsOn?: "P17" | "P6_P7_P8";
 }
 
 const GUARD = ["guard.mix", "guard.byClass"] as const;
@@ -657,6 +673,151 @@ export const STEP3_ARM_DEFS: readonly ArmDef[] = deepFreeze([
   },
 ] satisfies readonly ArmDef[]);
 
+// --- step 4's arms (step-4 plan §4) ------------------------------------------------------------------
+
+/**
+ * An arm's step-4 blocks (step-4 plan §1.1, §4), each the tunables block of the same name: `contact`
+ * (`pocket.contact`, the rated arrival contest, its tilts, the shed and the second arrival) and
+ * `motion` (`throwExec.motion`, the throwing motion and D21's race). Absent is "off" for each. Only a
+ * `pocket-1.s4` arm carries either (`withOverlay` refuses one under another name).
+ */
+export interface Step4Blocks {
+  readonly contact?: PocketContact;
+  readonly motion?: PocketMotion;
+}
+
+/** The contact block's three tilts by name, in the engine's order (`pocket.contact.tilts`). */
+export const CONTACT_TILT_NAMES = ["pushBlocked", "freeRun", "behindNever"] as const;
+export type ContactTiltName = (typeof CONTACT_TILT_NAMES)[number];
+
+/** The design's contact block with every tilt off (its magnitudes kept): D3, D4 and D8. */
+export const UNTILTED_CONTACT: PocketContact = deepFreeze({
+  ...POCKET_1_S4_CONTACT,
+  tilts: {
+    pushBlocked: { ...POCKET_1_S4_CONTACT.tilts.pushBlocked, on: false },
+    freeRun: { ...POCKET_1_S4_CONTACT.tilts.freeRun, on: false },
+    behindNever: { ...POCKET_1_S4_CONTACT.tilts.behindNever, on: false },
+  },
+});
+
+/** The untilted contact block with one tilt on at the design's size (D9, D10, D11: one tilt alone against D8). */
+export function oneTiltContact(name: ContactTiltName): PocketContact {
+  return deepFreeze({ ...UNTILTED_CONTACT, tilts: { ...UNTILTED_CONTACT.tilts, [name]: { ...POCKET_1_S4_CONTACT.tilts[name], on: true } } });
+}
+
+/** The design's contact block with one change (D12, D13, D15, D16). */
+function contactWith(change: Partial<PocketContact>): PocketContact {
+  return deepFreeze({ ...POCKET_1_S4_CONTACT, ...change });
+}
+
+/** The design's motion with one change (D14). */
+function motionWith(change: Partial<PocketMotion>): PocketMotion {
+  return deepFreeze({ ...POCKET_1_S4_MOTION, ...change });
+}
+
+/** `pocket-1.s4`'s two blocks, the design's (D1, D2, D17). */
+const S4_BLOCKS: Step4Blocks = deepFreeze({ contact: POCKET_1_S4_CONTACT, motion: POCKET_1_S4_MOTION });
+
+const S4 = POCKET_1_S4_RULES;
+
+/** The contact clauses, read on D3 against A0 (AM-7 item 1). */
+const S4_CONTACT_CLAUSES = ["s4.contact.flat.sack", "s4.contact.gen.sack", "s4.contact.pressure", "s4.contact.hitOrSack", "s4.contact.gen.share", "s4.contact.flat.share"] as const;
+/** The motion clauses, read on D6 against C2 (AM-7 item 2; `s4.motion.int` under AM-6). */
+const S4_MOTION_CLAUSES = ["s4.motion.hits", "s4.motion.curveRises", "s4.motion.int"] as const;
+
+/**
+ * Step 4's seventeen arms (step-4 plan §4), row by row. Every one plays both leagues at caller v7 on
+ * both seed sets; `seedSet` is the set its graded clauses read (set 1, AM-7 item 15). `base` is the
+ * table's base column (`STEP4_ARM_BASES`; AM-6 maps D1 on C1, D2 on C2 and D6 on C2). Every D arm is
+ * stamped `pocket-1.s4` at its own overlay digest; only D1's is `POCKET_1_S4_DIGEST` (D1 is the
+ * bundle itself, `rulesTunables("pocket-1.s4")`). D3 and D4 are kind T (today's line plus contact,
+ * plan §1.2): today's clock (`LEGACY`) with the approach card and the contact block alone. Every D
+ * arm waits on P6, P7 and P8 (`waitsOn`): while any is out the table does not build it, `armById`
+ * refuses it by name, `armRefusal` says why, and the command line refuses it with that reason.
+ */
+export const STEP4_ARM_DEFS: readonly ArmDef[] = deepFreeze([
+  {
+    id: "D1", what: "the design: C1 with contact (tilted, b 5, the second arrival, the shed, the rebuild) and the motion (D21): pocket-1.s4 itself",
+    clock: S(true), patchSets: ["HALF", "FOLLOWS"], forcing: "PER_RUSHER", rules: S4, step3: S3_BLOCKS, step4: S4_BLOCKS, waitsOn: "P6_P7_P8",
+    seedSet: 1, role: "design", pricing: false, base: "C1",
+    graded: [...GUARD, "s4.reading", "s4.sackCredit", "s4.qbHitFields"], reported: ["s4.sackerMix.edge", "s4.sackerMix.interior"],
+  },
+  {
+    id: "D2", what: "the pricing build: C2 with both blocks", clock: S(true), patchSets: ["HOLD", "HALF", "FOLLOWS"], forcing: "PER_RUSHER", rules: S4, step3: S3_BLOCKS, step4: S4_BLOCKS, waitsOn: "P6_P7_P8",
+    seedSet: 1, role: "pricing arm, never a design value", pricing: true, base: "C2", graded: [...GUARD], reported: [],
+  },
+  {
+    id: "D3", what: "contact alone, untilted, on today's line (kind T on A0: today's clock, the stem and the count read as A0 plays them)", clock: LEGACY, patchSets: [], rules: S4, step4: { contact: UNTILTED_CONTACT }, waitsOn: "P6_P7_P8",
+    seedSet: 1, role: "the contact clauses' arm (AM-7 item 1)", pricing: false, base: "A0", graded: [...S4_CONTACT_CLAUSES], reported: [],
+  },
+  {
+    id: "D4", what: "D3 with the stand-in hold (kind T on A14)", clock: LEGACY, patchSets: ["HOLD"], rules: S4, step4: { contact: UNTILTED_CONTACT }, waitsOn: "P6_P7_P8",
+    seedSet: 1, role: "printed beside the contact clauses (AM-7 item 1's other reading)", pricing: true, base: "A14", graded: [], reported: [],
+  },
+  {
+    id: "D5", what: "the motion alone on C1", clock: S(true), patchSets: ["HALF", "FOLLOWS"], forcing: "PER_RUSHER", rules: S4, step3: S3_BLOCKS, step4: { motion: POCKET_1_S4_MOTION }, waitsOn: "P6_P7_P8",
+    seedSet: 1, role: "printed beside the motion clauses", pricing: false, base: "C1", graded: [], reported: [],
+  },
+  {
+    id: "D6", what: "the motion alone on the pricing build (C2)", clock: S(true), patchSets: ["HOLD", "HALF", "FOLLOWS"], forcing: "PER_RUSHER", rules: S4, step3: S3_BLOCKS, step4: { motion: POCKET_1_S4_MOTION }, waitsOn: "P6_P7_P8",
+    seedSet: 1, role: "the motion clauses' arm (AM-7 item 2); guarded under AM-6", pricing: true, base: "C2", graded: [...S4_MOTION_CLAUSES, ...GUARD], reported: [],
+  },
+  {
+    id: "D7", what: "contact alone on C1, tilted (the conjoined rule's contact alone on the design)", clock: S(true), patchSets: ["HALF", "FOLLOWS"], forcing: "PER_RUSHER", rules: S4, step3: S3_BLOCKS,
+    step4: { contact: POCKET_1_S4_CONTACT }, waitsOn: "P6_P7_P8",
+    seedSet: 1, role: "printed, reported direction only", pricing: false, base: "C1", graded: [], reported: [],
+  },
+  {
+    id: "D8", what: "contact alone on C2, untilted (the tilts' base)", clock: S(true), patchSets: ["HOLD", "HALF", "FOLLOWS"], forcing: "PER_RUSHER", rules: S4, step3: S3_BLOCKS,
+    step4: { contact: UNTILTED_CONTACT }, waitsOn: "P6_P7_P8",
+    seedSet: 1, role: "printed, the tilts' base", pricing: true, base: "C2", graded: [], reported: [],
+  },
+  {
+    id: "D9", what: "D8 with the PUSH or BLOCKED tilt alone", clock: S(true), patchSets: ["HOLD", "HALF", "FOLLOWS"], forcing: "PER_RUSHER", rules: S4, step3: S3_BLOCKS,
+    step4: { contact: oneTiltContact("pushBlocked") }, waitsOn: "P6_P7_P8",
+    seedSet: 1, role: "the PUSH or BLOCKED tilt alone (AM-7 item 5)", pricing: true, base: "D8", graded: ["s4.tilt.pushBlocked"], reported: [],
+  },
+  {
+    id: "D10", what: "D8 with the free-run tilt alone", clock: S(true), patchSets: ["HOLD", "HALF", "FOLLOWS"], forcing: "PER_RUSHER", rules: S4, step3: S3_BLOCKS,
+    step4: { contact: oneTiltContact("freeRun") }, waitsOn: "P6_P7_P8",
+    seedSet: 1, role: "the free-run tilt alone (AM-7 items 5 and 6)", pricing: true, base: "D8", graded: ["s4.tilt.freeRun"], reported: [],
+  },
+  {
+    id: "D11", what: "D8 with the BEHIND or NEVER tilt alone", clock: S(true), patchSets: ["HOLD", "HALF", "FOLLOWS"], forcing: "PER_RUSHER", rules: S4, step3: S3_BLOCKS,
+    step4: { contact: oneTiltContact("behindNever") }, waitsOn: "P6_P7_P8",
+    seedSet: 1, role: "the BEHIND or NEVER tilt alone (AM-7 item 5)", pricing: true, base: "D8", graded: ["s4.tilt.behindNever"], reported: [],
+  },
+  {
+    id: "D12", what: "D1 with the second arrival off (every arrival a rated :contest)", clock: S(true), patchSets: ["HALF", "FOLLOWS"], forcing: "PER_RUSHER", rules: S4, step3: S3_BLOCKS,
+    step4: { contact: contactWith({ secondArrival: "RATED" }), motion: POCKET_1_S4_MOTION }, waitsOn: "P6_P7_P8",
+    seedSet: 1, role: "information, direction only (AM-7 item 12)", pricing: false, base: "D1", graded: [], reported: [],
+  },
+  {
+    id: "D13", what: "D1 with the contest before the throw", clock: S(true), patchSets: ["HALF", "FOLLOWS"], forcing: "PER_RUSHER", rules: S4, step3: S3_BLOCKS,
+    step4: { contact: contactWith({ order: "CONTEST_BEFORE_THROW" }), motion: POCKET_1_S4_MOTION }, waitsOn: "P6_P7_P8",
+    seedSet: 1, role: "information (§4.5 item 7)", pricing: false, base: "D1", graded: [], reported: [],
+  },
+  {
+    id: "D14", what: "D1 on the half-second arrival reading", clock: S(true), patchSets: ["HALF", "FOLLOWS"], forcing: "PER_RUSHER", rules: S4, step3: S3_BLOCKS,
+    step4: { contact: POCKET_1_S4_CONTACT, motion: motionWith({ reading: "GRID" }) }, waitsOn: "P6_P7_P8",
+    seedSet: 1, role: "information only, never a candidate (s4.reading)", pricing: false, base: "D1", graded: [], reported: [],
+  },
+  {
+    id: "D15", what: "D2 at b = -15", clock: S(true), patchSets: ["HOLD", "HALF", "FOLLOWS"], forcing: "PER_RUSHER", rules: S4, step3: S3_BLOCKS,
+    step4: { contact: contactWith({ boundary: -15 }), motion: POCKET_1_S4_MOTION }, waitsOn: "P6_P7_P8",
+    seedSet: 1, role: "b's reachable range, the grid's low end (reported)", pricing: true, base: "D2", graded: [], reported: ["s4.bRange"],
+  },
+  {
+    id: "D16", what: "D2 at b = +15", clock: S(true), patchSets: ["HOLD", "HALF", "FOLLOWS"], forcing: "PER_RUSHER", rules: S4, step3: S3_BLOCKS,
+    step4: { contact: contactWith({ boundary: 15 }), motion: POCKET_1_S4_MOTION }, waitsOn: "P6_P7_P8",
+    seedSet: 1, role: "b's reachable range, the grid's high end (reported)", pricing: true, base: "D2", graded: [], reported: ["s4.bRange"],
+  },
+  {
+    id: "D17", what: "C14 (shape L) with both blocks: the build check under L (T_L)", clock: L(8), patchSets: ["HEELS", "HALF", "FOLLOWS"], rules: S4, step3: S3_BLOCKS, step4: S4_BLOCKS, waitsOn: "P6_P7_P8",
+    seedSet: 1, role: "information, the build check under shape L", pricing: false, base: "C14", graded: [], reported: [],
+  },
+] satisfies readonly ArmDef[]);
+
 // --- the built arms --------------------------------------------------------------------------------
 
 /** An arm (or a proof overlay) with its tunables built. Plain data and frozen tunables. */
@@ -726,25 +887,66 @@ function withStep3(clockOverlay: PocketOverlay, blocks: Step3Blocks | undefined)
 }
 
 /**
- * Builds one arm from its definition: the patches, the overlay, the rules stamp and the forcing
- * block, checked by `checkStamp`. Exported as `buildArm` only as a test seam (review FID-F-8,
- * CT-F9): no definition in this file reaches the legacy-clock tripwire, so the test builds one that does.
+ * Whether a step-4 arm is `pocket-1.s4`'s design bundle itself: C1's settings (`isS3DesignArm`) and
+ * the design's two step-4 blocks, by reference (D1).
  */
-export function buildArm(def: Omit<ArmDef, "id"> & { readonly id: ArmId | ProofOverlayId }): Arm {
-  return build(def);
+function isS4DesignArm(def: Pick<ArmDef, "patchSets" | "forcing" | "step3" | "step4">, overlay: PocketOverlay): boolean {
+  const b = def.step4;
+  return isS3DesignArm(def, overlay) && b !== undefined && b.contact === POCKET_1_S4_CONTACT && b.motion === POCKET_1_S4_MOTION;
 }
 
-function build(def: Omit<ArmDef, "id"> & { readonly id: ArmId | ProofOverlayId }): Arm {
+/** An overlay with step 4's blocks added under `pocket` (beside the climb lane) and `throwExec`, each only when given. */
+function withStep4(overlay: PocketOverlay, blocks: Step4Blocks | undefined): PocketOverlay {
+  if (blocks === undefined) return overlay;
+  return {
+    ...overlay,
+    ...(blocks.contact === undefined ? {} : { pocket: { ...(overlay.pocket ?? {}), contact: blocks.contact } }),
+    ...(blocks.motion === undefined ? {} : { throwExec: { motion: blocks.motion } }),
+  };
+}
+
+/**
+ * Builds one arm from its definition: the patches, the overlay, the rules stamp and the forcing
+ * block, checked by `checkStamp`. Exported as `buildArm` only as a test seam (review FID-F-8,
+ * CT-F9): no definition in this file reaches the legacy-clock tripwire, so the test builds one that
+ * does. `petitions` is a test's own set (step 4): with P6, P7 and P8 granted it builds a D arm before
+ * the lift, so a test can read its tunables and digest; nothing outside a test passes it.
+ */
+export function buildArm(def: Omit<ArmDef, "id"> & { readonly id: ArmId | ProofOverlayId }, petitions?: Step4Petitions): Arm {
+  return build(def, petitions);
+}
+
+function build(def: Omit<ArmDef, "id"> & { readonly id: ArmId | ProofOverlayId }, petitions: Step4Petitions = {}): Arm {
   const patches = def.patchSets.flatMap((name) => PATCH_SETS[name]);
   const overlay = overlayOf(def.clock);
   let tunables: Tunables;
   let rules: EngineRules;
-  if (overlay === undefined) {
+  if (def.step4 !== undefined && def.rules !== POCKET_1_S4_RULES) {
+    throw new EngineRulesError(`arm ${def.id}: only a ${POCKET_1_S4_RULES} arm carries step 4's blocks`);
+  }
+  if (overlay === undefined && def.rules === POCKET_1_S4_RULES) {
+    // Kind T (step-4 plan §1.2; D3, D4): today's clock plus patches, the approach card and the contact
+    // block alone, stamped pocket-1.s4 at its own digest. withOverlay refuses anything else with no clock.
+    const contact = def.step4?.contact;
+    if (contact === undefined || def.step4?.motion !== undefined || def.step3 !== undefined || def.forcing !== undefined) {
+      throw new EngineRulesError(`arm ${def.id}: today's line plus contact (kind T) carries the contact block alone: no motion, no step-3 block, no forcing block`);
+    }
+    rules = POCKET_1_S4_RULES;
+    tunables = withOverlay(patches.reduce(applyTunablePatch, DEFAULT_TUNABLES), POCKET_1_S4_RULES, { approach: { ...APPROACH_CARD }, pocket: { contact } });
+  } else if (overlay === undefined) {
     if (def.rules !== undefined || def.forcing !== undefined || def.step3 !== undefined) {
       throw new EngineRulesError(`arm ${def.id}: an arm on today's clock carries no rules stamp and no forcing block`);
     }
     rules = LEGACY_RULES;
     tunables = patches.length === 0 ? DEFAULT_TUNABLES : deepFreeze(patches.reduce(applyTunablePatch, DEFAULT_TUNABLES));
+  } else if (def.rules === POCKET_1_S4_RULES) {
+    rules = def.rules;
+    // D1 is the bundle rules.ts builds and checks against POCKET_1_S4_DIGEST; every other step-4 arm
+    // with a clock is its patches on DEFAULT_TUNABLES, then its clock, card, step-3 and step-4 blocks
+    // and its forcing block, through withOverlay.
+    tunables = isS4DesignArm(def, overlay)
+      ? rulesTunables(POCKET_1_S4_RULES)
+      : withOverlay(patches.reduce(applyTunablePatch, DEFAULT_TUNABLES), def.rules, withStep4(withStep3(overlay, def.step3), def.step4), def.forcing === undefined ? undefined : { rule: def.forcing });
   } else if (def.rules === POCKET_1_S3_RULES) {
     rules = def.rules;
     // C1 is the bundle rules.ts builds and checks against POCKET_1_S3_DIGEST; every other step-3 arm
@@ -770,7 +972,7 @@ function build(def: Omit<ArmDef, "id"> & { readonly id: ArmId | ProofOverlayId }
       ? rulesTunables(POCKET_1_S2_RULES)
       : withOverlay(patches.reduce(applyTunablePatch, DEFAULT_TUNABLES), def.rules, overlay, def.forcing === undefined ? undefined : { rule: def.forcing });
   }
-  checkStamp(tunables, rules, `arm ${def.id}`);
+  checkStamp(tunables, rules, `arm ${def.id}`, petitions);
   const digest = overlayDigestOf(tunables);
   const stamped = tunables.engineRules?.overlayDigest;
   return Object.freeze({
@@ -784,11 +986,13 @@ function build(def: Omit<ArmDef, "id"> & { readonly id: ArmId | ProofOverlayId }
   });
 }
 
-/** Whether the petition an arm waits on is in contracts (only P17 is named). */
+/** Whether the petition an arm waits on is in contracts (P17; or all three of P6, P7 and P8). */
 function petitionIn(petition: NonNullable<ArmDef["waitsOn"]>): boolean {
   switch (petition) {
     case "P17":
       return P17_IN_CONTRACTS;
+    case "P6_P7_P8":
+      return step4PetitionsIn();
     default: {
       const unhandled: never = petition;
       throw new Error(`arms: no petition ${String(unhandled)}`);
@@ -801,9 +1005,20 @@ function petitionIn(petition: NonNullable<ArmDef["waitsOn"]>): boolean {
  * yet in contracts (C14, P17). The step-3 harness skips it and its report says why.
  */
 export function armRefusal(id: ArmId): string | undefined {
-  const def = STEP3_ARM_DEFS.find((d) => d.id === id);
+  const def = STEP3_ARM_DEFS.find((d) => d.id === id) ?? STEP4_ARM_DEFS.find((d) => d.id === id);
   if (def?.waitsOn === undefined || petitionIn(def.waitsOn)) return undefined;
+  if (def.waitsOn === "P6_P7_P8") {
+    return (
+      `${id} waits on petitions P6, P7 and P8 (arrival_contest, QB_HIT, THROW.releaseSeconds): its step-4 blocks are refused before any game until the owner's typed yes to each ` +
+      "and contracts-guardian's review land their text in contracts (ADR-089 step 4, plan §6); nothing plays it before the lift"
+    );
+  }
   return `${id} waits on petition ${def.waitsOn} (the late block's rolled tick on shape L): the late block on shape L is refused until its doc text is in contracts (ADR-089 step 3, plan §3.4, §5.1); dropped if ${def.waitsOn} is declined`;
+}
+
+/** Step 4's definition of a D arm (built or not), or `undefined` for any other id. */
+export function step4ArmDef(id: ArmId): ArmDef | undefined {
+  return STEP4_ARM_DEFS.find((d) => d.id === id);
 }
 
 let table: { readonly arms: ReadonlyMap<ArmId, Arm>; readonly proofs: ReadonlyMap<ProofOverlayId, Arm>; readonly byDigest: ReadonlyMap<string, Arm> } | undefined;
@@ -811,7 +1026,7 @@ let table: { readonly arms: ReadonlyMap<ArmId, Arm>; readonly proofs: ReadonlyMa
 function armTable(): NonNullable<typeof table> {
   if (table !== undefined) return table;
   const arms = new Map<ArmId, Arm>();
-  for (const def of [...ARM_DEFS, ...STEP2_ARM_DEFS, ...STEP3_ARM_DEFS]) {
+  for (const def of [...ARM_DEFS, ...STEP2_ARM_DEFS, ...STEP3_ARM_DEFS, ...STEP4_ARM_DEFS]) {
     if (armRefusal(def.id) !== undefined) continue;
     arms.set(def.id, build(def));
   }
@@ -844,7 +1059,8 @@ export function step3Arms(): readonly Arm[] {
 
 /**
  * Every arm this build builds, step 1's 17, step 2's 7, then step 3's 16 (C14 included since P17,
- * E4b), each in its table's order. Step 4's ids are named, not defined.
+ * E4b), then step 4's 17 once P6, P7 and P8 are in contracts (none before), each in its table's
+ * order.
  */
 export function everyArm(): readonly Arm[] {
   return DEFINED_ARM_IDS.filter((id) => armRefusal(id) === undefined).map((id) => armById(id));
@@ -857,7 +1073,6 @@ export function everyArm(): readonly Arm[] {
 export function armById(id: ArmId): Arm {
   const arm = armTable().arms.get(id);
   if (arm === undefined) {
-    if (isStep4ArmId(id)) throw new Error(`arms: ${id} is one of step 4's arms, named in this build but not yet defined (ADR-089 step 4, plan §4): nothing plays it`);
     const refusal = armRefusal(id);
     if (refusal !== undefined) throw new EngineRulesError(`arms: ${refusal}: nothing plays it`);
     throw new Error(`arms: no arm ${id}`);
@@ -891,11 +1106,14 @@ export function armOfDigest(overlayDigest: string): Arm {
  * forcing rule PER_RUSHER), `HALF`, `FOLLOWS` (the two leaves) and `COUNTER_LESS_SEEN` (the
  * narrower counter rule). Step 3's five follow: `FREE_RUN` (a free-run block, whatever its reading,
  * origins or hold), `LATE_BLOCK`, `CLIMB_FRONT`, `MUG_HEAD_ONLY` (a free-run block drawing the
- * Head-only picture) and `BAND_EDGES` (C15's patch set).
+ * Head-only picture) and `BAND_EDGES` (C15's patch set). Step 4's two follow: `CONTACT` (a contact
+ * block, whatever its tilts, b or second arrival) and `MOTION` (a throwing motion, whatever its
+ * reading).
  */
 export const MECHANISMS = [
   "S", "WINDOW", "L", "HEELS", "PAST_ONLY", "HOLD", "HORIZONS", "LATE", "MUST_ACT", "HALF", "FOLLOWS", "COUNTER_LESS_SEEN",
   "FREE_RUN", "LATE_BLOCK", "CLIMB_FRONT", "MUG_HEAD_ONLY", "BAND_EDGES",
+  "CONTACT", "MOTION",
 ] as const;
 export type Mechanism = (typeof MECHANISMS)[number];
 
@@ -904,9 +1122,10 @@ const FORCING_MECHANISM: Readonly<Record<ForcingRule, Mechanism>> = Object.freez
 
 /**
  * An arm's mechanisms: its clock, its patch sets in order, then its forcing rule (step 2), then its
- * step-3 blocks (the free-run block, the Head-only picture, the late block, the climb lane rule).
+ * step-3 blocks (the free-run block, the Head-only picture, the late block, the climb lane rule),
+ * then its step-4 blocks (the contact block, the motion).
  */
-export function mechanismsOf(arm: Pick<ArmDef, "clock" | "patchSets" | "forcing" | "step3">): readonly Mechanism[] {
+export function mechanismsOf(arm: Pick<ArmDef, "clock" | "patchSets" | "forcing" | "step3" | "step4">): readonly Mechanism[] {
   const out: Mechanism[] = [];
   if (arm.clock.kind === "S") {
     out.push("S");
@@ -922,13 +1141,15 @@ export function mechanismsOf(arm: Pick<ArmDef, "clock" | "patchSets" | "forcing"
   }
   if (b?.lateBlock !== undefined) out.push("LATE_BLOCK");
   if (b?.climbLane !== undefined) out.push("CLIMB_FRONT");
+  if (arm.step4?.contact !== undefined) out.push("CONTACT");
+  if (arm.step4?.motion !== undefined) out.push("MOTION");
   return out;
 }
 
 /** The mechanisms an arm has and its base does not (all of them for an arm with no base). */
-export function exclusiveMechanisms(arm: Pick<ArmDef, "clock" | "patchSets" | "base" | "forcing" | "step3">): readonly Mechanism[] {
+export function exclusiveMechanisms(arm: Pick<ArmDef, "clock" | "patchSets" | "base" | "forcing" | "step3" | "step4">): readonly Mechanism[] {
   const own = mechanismsOf(arm);
   if (arm.base === undefined) return own;
-  const base = new Set(mechanismsOf(armById(arm.base)));
+  const base = new Set(mechanismsOf(step4ArmDef(arm.base) ?? armById(arm.base)));
   return own.filter((m) => !base.has(m));
 }
