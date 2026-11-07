@@ -17,8 +17,18 @@
  * The practice squads (the file's `provenance.practiceSquad`) go on the teams only with a switch on
  * (ADR-087 §11): a team short of a player calls one up before it signs from the street. Switched off,
  * no team has one and nobody is signed, so the league is what it was.
+ *
+ * The league's officials (ADR-093 step 1b, §16 A11): the file's `officiating` block holds the
+ * stand-in league's 17 crews, copies of the real NFL crews under made-up referee names, written by
+ * attributes' `standin-officials` command. It is checked when the file is read, for every command
+ * that reads the file, so a damaged block stops cap-check, draft-check, player-checks and
+ * career-check too, as an unknown development record does: a version this loader knows, the file's
+ * own season, a league's crews by franchise's rule (copied here as `standInCrewsProblem`, since
+ * calibration may not import it), and each family's 17 leans averaging 50. Each crew is kept as
+ * `{ id, referee, leans }`, so nothing else from the file rides into a season. Only a season that
+ * asks for crews plays them (`officiatingFor`); the rated league never sees them.
  */
-import type { PlayerId, PlayerState, RatedLeague, Team } from "@ff/contracts";
+import { officiatingCrewId, type CrewLeanFamily, type OfficiatingCrew, type PlayerId, type PlayerState, type RatedLeague, type Team } from "@ff/contracts";
 import type { League } from "@ff/franchise";
 import { makeProvenancedLeague, type ProvenancedLeague } from "../league/provenance.js";
 
@@ -34,11 +44,37 @@ export const STANDIN_FILE_FORMAT = "ff-standin-league/1";
  */
 export const KNOWN_STARTING_DEVELOPMENT = ["standin-development/1"] as const;
 
+/**
+ * The officials blocks this loader knows (the file's `officiating.version`, attributes'
+ * `STANDIN_OFFICIALS_VERSION`, copied, since calibration may not import it). A block of any other
+ * version is refused: crews this loader does not know could lean on another scale, and a season
+ * would play them with no error.
+ */
+export const KNOWN_STANDIN_OFFICIALS = ["standin-officials/1"] as const;
+
+/**
+ * ADR-093 step 1b (§16 A11): the league file's `officiating` block, the stand-in league's 17 crews,
+ * copies of the real NFL crews under made-up referee names (attributes' `standin-officials`
+ * command). Calibration reads the version, the season and the crews; the importer's own record of
+ * how the leans were made passes through unread.
+ */
+export interface StandInOfficiating {
+  readonly version: (typeof KNOWN_STANDIN_OFFICIALS)[number];
+  /** The season the crews stand in: the league file's own. */
+  readonly season: number;
+  /** Exactly 17, each `{ id, referee, leans }`, the leans in the families' order. */
+  readonly crews: readonly OfficiatingCrew[];
+  /** The importer's record (the data's date, how the leans were made, the games behind each copy), unread here. */
+  readonly [key: string]: unknown;
+}
+
 interface StandInFile {
   readonly format: string;
   readonly season: number;
   readonly snapshotDate: string;
   readonly league: RatedLeague;
+  /** The league's crews, copies of the real ones (ADR-093 step 1b); absent in a file from before them. */
+  readonly officiating?: StandInOfficiating;
   /** How the players' starting development was made (ADR-087 §2.5); absent in a file from before it. */
   readonly startingDevelopment?: { readonly version: string };
 }
@@ -49,7 +85,10 @@ export interface StandInSwitches {
   readonly injuries?: boolean;
 }
 
-/** Parse a league file: traits come back from JSON as lists and go back into Sets. */
+/**
+ * Parse a league file: traits come back from JSON as lists and go back into Sets, and the officials
+ * block, when there is one, is checked and each crew kept as `{ id, referee, leans }`.
+ */
 export function readStandInFile(text: string): StandInFile {
   const file = JSON.parse(text) as StandInFile;
   if (file.format !== STANDIN_FILE_FORMAT) throw new Error(`not a stand-in league file (format "${String(file.format)}", expected "${STANDIN_FILE_FORMAT}")`);
@@ -58,11 +97,109 @@ export function readStandInFile(text: string): StandInFile {
     throw new Error(`the stand-in league file's starting development is "${version}": forSwitches does not know these records ` +
       `(it knows ${KNOWN_STARTING_DEVELOPMENT.join(", ")}); teach it what they add before playing this file`);
   }
+  const officiating = file.officiating === undefined ? undefined : readOfficials(file.officiating, file.season);
   const players: PlayerState[] = file.league.players.map((p) => ({
     ...p,
     attributes: { ...p.attributes, traits: new Set<string>(p.attributes.traits as unknown as string[]) },
   }));
-  return { ...file, league: { ...file.league, players } };
+  return { ...file, ...(officiating === undefined ? {} : { officiating }), league: { ...file.league, players } };
+}
+
+/**
+ * The NFL's 17 crews, one to a referee (REAL, ADR-093 §6.1; Q3 rules the league's 17), as franchise's
+ * crews rule counts them.
+ */
+const CREW_COUNT = 17;
+
+/** The five families a crew leans on, in the contract's order; a sixth family in contracts fails this compile. */
+const FAMILIES: Record<CrewLeanFamily, true> = { LINE_HOLDING: true, COVERAGE: true, PLAYER_SAFETY: true, TECHNICAL: true, SNAP: true };
+const CREW_FAMILIES = Object.keys(FAMILIES) as CrewLeanFamily[];
+
+/**
+ * How far a family's mean lean may sit from 50: the importer re-centers each family on 50 and rounds
+ * to whole points, which moves the mean by at most 0.5 (ADR-093 §16 A4's settle).
+ */
+const MEAN_TOLERANCE = 0.5;
+
+const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
+const shown = (v: unknown): string => (typeof v === "string" ? JSON.stringify(v) : String(v));
+
+/**
+ * Why a list cannot be a league's crews, or undefined: franchise's rule for a season's crews and a
+ * save's, copied, since calibration may not import it (ADR-078 R1). Exactly 17 objects, each with a
+ * non-empty id and a non-empty referee, both unique, and leans on exactly the five families, each a
+ * whole number from 0 to 100. Franchise checks the crews again at the season's start, so a drift
+ * between the two copies could change only which message a bad block gets, never let one play;
+ * `standInOfficials.test.ts` runs each broken list through `runSeason` too.
+ */
+export function standInCrewsProblem(crews: unknown): string | undefined {
+  if (!Array.isArray(crews)) return "the crews are not a list";
+  if (crews.length !== CREW_COUNT) return `there are ${crews.length} crews, not ${CREW_COUNT}`;
+  const ids = new Set<string>();
+  const referees = new Set<string>();
+  for (const [i, c] of (crews as unknown[]).entries()) {
+    if (!isObject(c)) return `crew ${i + 1} on the list is not a crew`;
+    if (typeof c.id !== "string" || c.id === "") return `crew ${i + 1} on the list has no id`;
+    if (ids.has(c.id)) return `crew ${c.id} appears twice`;
+    ids.add(c.id);
+    if (typeof c.referee !== "string" || c.referee === "") return `crew ${c.id} has no referee`;
+    if (referees.has(c.referee)) return `two crews have the referee ${c.referee}`;
+    referees.add(c.referee);
+    const leans = c.leans;
+    if (!isObject(leans)) return `crew ${c.id} has no leans`;
+    for (const f of CREW_FAMILIES) {
+      if (!Object.hasOwn(leans, f)) return `crew ${c.id} has no ${f} lean`;
+      const v = leans[f];
+      if (typeof v !== "number" || !Number.isInteger(v) || v < 0 || v > 100) {
+        return `crew ${c.id}'s ${f} lean is not a whole number from 0 to 100 (${shown(v)})`;
+      }
+    }
+    const extra = Object.keys(leans).filter((k) => !Object.hasOwn(FAMILIES, k));
+    if (extra.length > 0) return `crew ${c.id} leans on ${extra.join(", ")}, not one of the five families`;
+  }
+  return undefined;
+}
+
+const officialsError = (why: string): Error => new Error(`the stand-in league file's officials ${why}`);
+
+/**
+ * The file's officials block, checked (ADR-093 step 1b): an object with a list of crews, a version
+ * this loader knows, the file's own season, a league's crews (`standInCrewsProblem`), and each
+ * family's 17 leans averaging 50 within 0.5. The last is the reader's own rule: franchise plays
+ * crews as they stand, so copies off 50 would move the league's own rate of those calls with no
+ * error. Each crew comes back as `{ id, referee, leans }`, the leans in the families' order; the
+ * block's other keys pass through as they are.
+ */
+function readOfficials(block: unknown, season: number): StandInOfficiating {
+  if (!isObject(block) || !Array.isArray(block.crews)) throw officialsError("are damaged: the block must be an object with a list of crews");
+  const version = block.version;
+  if (typeof version !== "string" || !(KNOWN_STANDIN_OFFICIALS as readonly string[]).includes(version)) {
+    throw officialsError(`are ${shown(version)}: this loader does not know these crews ` +
+      `(it knows ${KNOWN_STANDIN_OFFICIALS.join(", ")}); teach it what they hold before playing this file`);
+  }
+  if (typeof block.season !== "number" || !Number.isInteger(block.season) || block.season !== season) {
+    throw officialsError(`stand in ${shown(block.season)}, not the file's season ${season}; re-run attributes' standin-officials command on this file`);
+  }
+  const problem = standInCrewsProblem(block.crews);
+  if (problem !== undefined) throw officialsError(`are not a league's crews (${problem})`);
+  const crews = block.crews as readonly OfficiatingCrew[];
+  for (const f of CREW_FAMILIES) {
+    const mean = crews.reduce((sum, c) => sum + c.leans[f], 0) / crews.length;
+    if (Math.abs(mean - 50) > MEAN_TOLERANCE) {
+      throw officialsError(`average ${mean.toFixed(2)} on ${f}, not 50 (within ${MEAN_TOLERANCE}), so they would move the league's own rate ` +
+        "of those calls; re-run attributes' standin-officials command on this file");
+    }
+  }
+  return {
+    ...block,
+    version: version as StandInOfficiating["version"],
+    season,
+    crews: crews.map((c) => ({
+      id: officiatingCrewId(c.id),
+      referee: c.referee,
+      leans: { LINE_HOLDING: c.leans.LINE_HOLDING, COVERAGE: c.leans.COVERAGE, PLAYER_SAFETY: c.leans.PLAYER_SAFETY, TECHNICAL: c.leans.TECHNICAL, SNAP: c.leans.SNAP },
+    })),
+  };
 }
 
 /** A player as a run with these switches sees him: what a switched-off step would read, left out. */
