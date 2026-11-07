@@ -305,7 +305,43 @@ describe("the s4 stream on hand-built plays (s4Stream.ts)", () => {
   });
 });
 
+/** The sack sample re-stamped s4, with `extra` (built from the first TICK's envelope and its tick) inserted after that TICK. */
+function withAfterFirstTick(extra: (at: Ev, tick: number, qb: string) => readonly Ev[]): Ev[] {
+  const events = restamp(S.sack.slice.events, S4);
+  const i = events.findIndex((e) => e.event.type === "TICK");
+  const tick = Number(payloadOf(events[i]!)["tick"]);
+  return [...events.slice(0, i + 1), ...extra(events[i]!, tick, qbOf(S.sack.slice)), ...events.slice(i + 1)];
+}
+const threat = (at: Ev, rusher: string, origin: string, approach: string, etaTick: number, state = "TRAVELLING"): Ev =>
+  like(at, "RUSH_THREAT", { rusher, origin, state, approach, alignment: "EDGE", etaTick, rollRef: `rush/${rusher}:rep` });
+const contactOf = (events: readonly Ev[], rusher: string): ContestAt => readS4Play(sliceOf(events), KEY)!.contests.find((c) => c.rusher === rusher)!;
+
+describe("the stream's class of a contact at its boundaries (code-tests CT4-4)", () => {
+  it("BEHIND: an ARC man ARRIVED at the STEP_UP's own tick was not live there, one still travelling was", () => {
+    const at = (eta: (t: number) => number): Ev[] =>
+      withAfterFirstTick((e, t, qb) => [threat(e, "p:x:ARC1", "WON_REP", "ARC", eta(t)), like(e, "QB_DECISION", { choice: "STEP_UP" }), contestCheck(e, "p:x:ARC1", qb, t, "QB_SHEDS")]);
+    expect(contactOf(at((t) => t), "p:x:ARC1").cls).toBe("NONE");
+    expect(contactOf(at((t) => t + 0.5), "p:x:ARC1").cls).toBe("BEHIND_NEVER");
+  });
+
+  it("the free-run class keys on the man's first threat, and never reaches him once his threat is a won rep", () => {
+    const free = withAfterFirstTick((e, t, qb) => [threat(e, "p:x:FR1", "UNBLOCKED", "FREE", t), contestCheck(e, "p:x:FR1", qb, t, "QB_SHEDS")]);
+    expect(contactOf(free, "p:x:FR1").cls).toBe("FREE_RUN");
+    const wonRep = withAfterFirstTick((e, t, qb) => [threat(e, "p:x:FR1", "UNBLOCKED", "FREE", t + 1), threat(e, "p:x:FR1", "WON_REP", "THROUGH", t), contestCheck(e, "p:x:FR1", qb, t, "QB_SHEDS")]);
+    expect(contactOf(wonRep, "p:x:FR1").cls).toBe("NONE");
+  });
+});
+
 describe("M3 and M6 at step 4, and the affected count", () => {
+  it("M3 credits the man who won the last RUSHER_SACKS contest, not the man shed first", () => {
+    const { events } = built(S.sack.slice, S4, { contest: "RUSHER_SACKS", sacker: "p:t:00:DT9" });
+    const sackAt = events.findIndex((e) => e.event.type === "CHECK" && payloadOf(e)["checkKind"] === "arrival_contest");
+    const shedFirst = contestCheck(events[sackAt]!, "p:t:00:DE7", qbOf(S.sack.slice), tickAt(events, sackAt), "QB_SHEDS");
+    const d = readDropback(sliceOf([...events.slice(0, sackAt), shedFirst, ...events.slice(sackAt)]))!;
+    expect(d.checks.filter((c) => c.checkKind === "arrival_contest").map((c) => c.actors[0])).toEqual(["p:t:00:DE7", "p:t:00:DT9"]);
+    expect(s4SackCreditOf(d)?.last).toBe("p:t:00:DT9");
+  });
+
   it("M3 credits the man at contact on an s4 sack, the last arrival otherwise", () => {
     const { events } = built(S.sack.slice, S4, { contest: "RUSHER_SACKS", sacker: "p:t:00:DT9" });
     const d = readDropback(sliceOf(events))!;

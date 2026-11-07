@@ -52,6 +52,7 @@ import {
   step4FoldsOf,
   type Step4Guard,
   type Step4Record,
+  type Step4Records,
 } from "../src/pocket/step4.js";
 
 const PKG = resolve(import.meta.dirname, "..");
@@ -317,6 +318,23 @@ describe("gradeStep4 on hand-built records (pure)", () => {
     expect(clause("s4.motion.int").verdict).toBe("PASS");
     // D6 equal to C2 adds no hit: the motion's band (at least +3) fails.
     expect(clause("s4.motion.hits").verdict).toBe("FAIL");
+  });
+
+  it("s4.motion.int reads D6 against C2 in that direction: D6 riskier breaches, D6 safer passes", () => {
+    const scaled = (k: number): Step4Records => {
+      const m = new Map(records);
+      const bump = (r: Step4Record): Step4Record => {
+        const c = structuredClone(r) as unknown as { report: { intGuard: Record<string, { all: { interceptions: number } }> } };
+        for (const l of ["flat", "gen"]) c.report.intGuard[l]!.all.interceptions = Math.round(c.report.intGuard[l]!.all.interceptions * k);
+        return c as unknown as Step4Record;
+      };
+      const d6 = records.get("D6")!;
+      m.set("D6", { 1: bump(d6[1]!), 2: bump(d6[2]!) });
+      return m;
+    };
+    const verdictAt = (k: number): string => gradeStep4(scaled(k), file, guard, REFS).sections.clauses.find((c) => c.id === "s4.motion.int")!.verdict;
+    expect(verdictAt(3)).toBe("FAIL");
+    expect(verdictAt(0)).toBe("PASS");
   });
 
   it("the arms not played are NOT PLAYED; the falsifiers wait; the merge card is not posted with a structural failure", () => {
