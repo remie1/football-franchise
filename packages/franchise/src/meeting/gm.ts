@@ -103,7 +103,7 @@ export function makeGm(team: Team, seed: string): StaffState {
 const BAND: Readonly<Record<AccuracyGrade, readonly [number, number]>> = {
   SHARP: [0, 0.5], CLOSE: [0.5, 1.5], OFF: [1.5, 3], MISS: [3, 5],
 };
-function pushed(truth: number, grade: AccuracyGrade, unit: number, rng: Rng, lean = 0): number {
+export function pushed(truth: number, grade: AccuracyGrade, unit: number, rng: Rng, lean = 0): number {
   const [a, b] = BAND[grade];
   const size = (a + (b - a) * rng.next()) * unit;
   // A leaning sets the direction of a wrong read two times in three; otherwise a coin.
@@ -125,7 +125,7 @@ export function pushedList<T>(truth: readonly T[], pool: readonly T[], grade: Ac
   return kept;
 }
 
-const ORDERED: readonly TeamDirection[] = ["REBUILD", "RETOOL", "CONTEND"];
+export const ORDERED: readonly TeamDirection[] = ["REBUILD", "RETOOL", "CONTEND"];
 export const LUCK_ORDER: readonly string[] = ["UNLUCKY", "EVEN", "LUCKY"];
 /** A three-step answer read at a grade: sharp and close keep it, off moves one step, a miss two where it can. */
 export function pushedOrdered<T>(order: readonly T[], truth: T, grade: AccuracyGrade, rng: Rng, lean: number): T {
