@@ -5,7 +5,7 @@
   `narrative` (rumors, deadline news, fan demands). Thread "Design the trade system".
 - **Status:** design. Q1-Q8 ruled by the owner 2026-11-07 14:07Z (all a; Q1, Q2 and Q5 with notes);
   his second round 14:15Z added full offers to the call (Q1), curve templates (Q2), and ruled P1 and
-  P2 yes. Contracts edits X1-X4 (§11) are proposed and wait for a typed yes at build. Nothing is built.
+  P2 yes. Contracts edits X1-X4 (§11) approved by the owner's typed yes (2026-11-07 15:28Z: "Yes, make contracts edits X1, X2, X3 and X4") and made. Nothing else is built.
 - **Proposal doc (plain words, the questions as put to the owner):**
   https://claude.ai/artifact/GdRrnN3veZoq5uQaczG34u
 - **Origin:** the owner, 2026-11-07 13:43Z: *"I just realized that we don't have a trade system yet."*
@@ -222,7 +222,7 @@ same talk.
 7. The many-season check against the counted figures above.
 8. News, rumors, fan demands (`narrative`).
 
-## 11. Contracts edits proposed (not made)
+## 11. Contracts edits (approved 2026-11-07 15:28Z, made)
 
 - **X1** Trade events: `TRADE_CALL` (direction, pieces asked about), `TRADE_OFFER` (pieces, reasons),
   `TRADE_AGREED`, `TRADE_PHYSICAL` (result), `TRADE_ADJUSTED`, `TRADE_VOIDED` (reason, pretext flag);

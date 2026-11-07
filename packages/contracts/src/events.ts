@@ -3,9 +3,9 @@
  * Debug text, calibration stats, UI replay, and narrative triggers are all
  * consumers of this stream. Streams are append-only and read-only to consumers.
  */
-import type { GameId, PlayId, PlayerId, TeamId, StaffId, StorylineId, AttrId, TraitId, Position } from "./ids.js";
+import type { GameId, PlayId, PlayerId, TeamId, StaffId, StorylineId, AttrId, TraitId, Position, TradeId } from "./ids.js";
 import type { CalendarStamp } from "./calendar.js";
-import type { DraftPickKind, GameKind, GameResult, PlayoffBracket } from "./league.js";
+import type { DraftPickKind, GameKind, GameResult, PlayoffBracket, PhysicalResult, TradeDirection, TradePiece, TradeReason } from "./league.js";
 import type { StaffRole, ContractKind, InjuryBand, InjurySetting } from "./players.js";
 import type { StaffDepartureReason } from "./staff.js";
 import type { RelationshipParty, RelationshipWord } from "./relationships.js";
@@ -816,7 +816,28 @@ export type FranchiseEvent =
    */
   | { type: "PLAYER_RETIRED"; payload: { player: PlayerId; timing: "IMMEDIATE"|"SLOW"|"LATE"|"SEASON_END"; reason?: "UNSIGNED" } }
   | { type: "TAG_APPLIED"; payload: { player: PlayerId; tagType: string } }
-  | { type: "TRADE_EXECUTED"; payload: { teams: TeamId[] } }
+  /**
+   * ADR-095 X1: a trade went through. `talk`, `pieces` and `capMoves` are optional so older senders
+   * still type-check. `capMoves`: each team's cap change by season, in dollars (+ adds to its cap
+   * total: salary taken on, or the sender's accelerated bonus as dead money).
+   */
+  | { type: "TRADE_EXECUTED"; payload: { teams: TeamId[]; talk?: TradeId; pieces?: TradePiece[]; capMoves?: { team: TeamId; season: number; change: number }[] } }
+  /** ADR-095 X1 §2: a team calls another, saying which way it leans and what it is asking about. */
+  | { type: "TRADE_CALL"; payload: { talk: TradeId; from: TeamId; to: TeamId; direction: TradeDirection; about: TradePiece[] } }
+  /** ADR-095 X1 §2: an offer or a counter on the table, with the offering GM's plain-words reasons. */
+  | { type: "TRADE_OFFER"; payload: { talk: TradeId; by: TeamId; pieces: TradePiece[]; reasons?: TradeReason[]; counter: boolean } }
+  /** ADR-095 X1 §2: both sides agreed; the trade now waits on the physicals. */
+  | { type: "TRADE_AGREED"; payload: { talk: TradeId; pieces: TradePiece[] } }
+  /** ADR-095 X1 §6: a receiving team's physical of a player, as its medical staff read it. */
+  | { type: "TRADE_PHYSICAL"; payload: { talk: TradeId; player: PlayerId; examiningTeam: TeamId; result: PhysicalResult } }
+  /** ADR-095 X1 §6: the terms were changed after a physical (less in return, a condition, or more from the sender). */
+  | { type: "TRADE_ADJUSTED"; payload: { talk: TradeId; by: TeamId; pieces: TradePiece[] } }
+  /**
+   * ADR-095 X1 §6: an agreed trade called off. `reason` is the one given. `pretext` (P2): the
+   * voiding GM's own motive was second thoughts, not the finding; it is his truth, never shown to the
+   * user as fact (the news may only doubt the reason).
+   */
+  | { type: "TRADE_VOIDED"; payload: { talk: TradeId; by: TeamId; reason: "FAILED_PHYSICAL" | "PHYSICAL_CONCERN" | "ADJUSTMENT_REFUSED"; pretext: boolean } }
   /** ADR-086 C5: `overall` and `kind` added (optional). */
   | { type: "DRAFT_PICK_MADE"; payload: { team: TeamId; player: PlayerId; round: number; pick: number; overall?: number; kind?: DraftPickKind } }
   /** ADR-086 C5: the compensatory picks for one draft, announced together. */

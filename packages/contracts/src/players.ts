@@ -314,6 +314,8 @@ export interface PlayerContract {
   fifthYearOption?: { season: number; price: number; exercised?: boolean };
   /** ADR-085 K2: set once the contract is over. A post-June-1 release splits its dead money over two seasons. */
   ended?: { at: CalendarStamp; reason: ContractEndReason; postJune1?: boolean };
+  /** ADR-095 X3: he cannot be traded unless he waives it. Absent = no clause. */
+  noTradeClause?: boolean;
 }
 
 export type { AttrId, CoachAttrId };
