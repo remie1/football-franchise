@@ -82,6 +82,8 @@ export function officiatingFor(save: Pick<SaveFile, "world"> | undefined): Seaso
 export interface PlayerSwitches {
   readonly development?: boolean;
   readonly injuries?: boolean;
+  /** ADR-094 §9: each computer head coach's read of his hopes moves his lineup (off by default). */
+  readonly lineupHopes?: boolean;
 }
 const switchedOn = (s: PlayerSwitches | undefined): boolean => s?.development === true || s?.injuries === true;
 
@@ -399,6 +401,7 @@ export function runRealSeason(input: RealSeasonInput): { league: League; rated?:
     players: {
       development,
       injuries: input.players?.injuries === true,
+      ...(input.players?.lineupHopes ? { lineupHopes: true } : {}),
       unfilled: (team, available, players) => unfilledPosition(squads, team, available, players),
     },
     ...(input.resume ? { resumeEvents: input.resume.events, stepsDoneThrough: input.resume.through } : {}),

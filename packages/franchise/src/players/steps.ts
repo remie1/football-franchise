@@ -17,6 +17,7 @@
  * Memory between days lives in `people.playerMemory`, so the steps stay pure functions of the people
  * and the day, and a save carries on exactly.
  */
+import { lineupHopes } from "../winNow/lineupHopes.js";
 import {
   DEFAULT_LEAGUE_RULES, positionOverall,
   type CalendarPhase, type FranchiseEvent, type GameParticipation, type LeagueRules, type PlayerId, type PlayerState, type Position, type SeasonState,
@@ -49,6 +50,12 @@ export interface PlayerStepsConfig {
   readonly unfilled?: (team: Team, available: ReadonlySet<string>, players: ReadonlyMap<string, PlayerState>) => Position | undefined;
   /** The owner's team: even depth-chart leanings until ADR-083's trait exists. */
   readonly ownerTeam?: TeamId;
+  /**
+   * ADR-094 §9: each computer head coach sizes up his team's hopes after the week's games and moves
+   * his leanings for next week's chart (a look at the young men, a desperate shake-up). Needs the
+   * coaching world (`people.coaching`); off by default, as growth and injuries are.
+   */
+  readonly lineupHopes?: boolean;
   /**
    * The cap by season, for the emergency signings' one-year minimums (ADR-085's forecast), as the
    * draft's `cap` prices its deals. Default: flat at the rules' cap, as the draft's default is. Up to
@@ -300,8 +307,15 @@ export function playerSteps(config: PlayerStepsConfig): DayStep[] {
         const grown = developmentWeek({ players, at: ctx.day, rules: ctx.rules, seed: ctx.seed, weeks });
         players = grown.players; events.push(...grown.events);
       }
+      const hopes = config.lineupHopes && people.coaching && ctx.day.phase === "REGULAR_SEASON"
+        ? lineupHopes({
+          world: people.coaching.world, state: ctx.state, season: ctx.season, week: ctx.day.week, seed: ctx.seed, teamCount: people.teams.length,
+          ...(config.ownerTeam ? { ownerTeam: config.ownerTeam } : {}),
+        })
+        : undefined;
       const depth = depthChartWeek({
         at: ctx.day, rules: ctx.rules, seed: ctx.seed, teams: people.teams, players,
+        ...(hopes ? { hopes } : {}),
         ...(people.staff ? { staff: people.staff } : {}),
         memory: { ...memory, injuries: history }, reports,
         ...(config.ownerTeam ? { ownerTeam: config.ownerTeam } : {}),
