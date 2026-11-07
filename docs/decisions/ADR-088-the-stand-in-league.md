@@ -118,6 +118,20 @@ downstream reads today.
   `PlayerContract` shape plus ADR-085 K1/K2 fields as optional extras. 2,474 of 2,528 players
   have a deal; 501 (mostly practice squad) have no 2026 row and are estimated at their deal's
   yearly average.
+  - *Amended 2026-11-07 (the cap thread, ADR-085 step 14).* An estimated deal runs its real length
+    from this season on, each year at its yearly average (`estimatedYears`). OverTheCap lists a deal's
+    years, value and guaranteed money from the day it is signed and fills in its year-by-year pay
+    later, so before, the whole 2026 rookie class sat on one-year deals: in a walk over several
+    seasons its rookies became exclusive-rights free agents after one season and restricted free
+    agents in 2029 (82 and 64 restricted tenders that year in two seeds, against 3 to 21 in other
+    years). Now 235 of the draft's picks run four years, 62 undrafted rookies three, 4 men two; 200
+    stay one year (practice-squad and late minimum deals). A deal's guaranteed money counts as a
+    signing bonus spread evenly over it, as a rookie's is, unless the whole deal is guaranteed (48: the
+    first round and half the second), when each year's salary is. Only the split by year is estimated;
+    a real rookie deal's pay rises a little each year. `standin-contracts` rebuilt the committed file's
+    estimated deals in place from the snapshot's own contract rows (nflverse's
+    `historical_contracts.parquet` of 23 October); all 1,973 deals copied from the year-by-year history
+    came out unchanged, as did every 2026 cap number.
 - **Contract details for the cap thread**: how sure each copy is (`copied` / `estimated`) is in
   `provenance.contractSource`, not on the contract; a year after the deal's real end with zero
   base and proration only is marked `voidYear` (K1; 7 such years in the 2026-10-23 copy). The
