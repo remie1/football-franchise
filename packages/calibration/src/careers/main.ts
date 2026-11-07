@@ -1,5 +1,5 @@
 /**
- * `pnpm --filter @ff/calibration nfl-careers [-- --out reports/nfl-careers] [--refresh]`
+ * `pnpm --filter @ff/calibration nfl-careers [-- --out reports/nfl-careers] [--refresh] [--measured-on YYYY-MM-DD]`
  *
  * Measures the real NFL side of the 20-season career check (ADR-087 D5b) from nflverse's public
  * tables and writes `<out>.md` and `<out>.json` (aggregates only). The files are downloaded once
@@ -28,6 +28,22 @@ const COMEBACK_YEARS = [2016, 2017, 2018, 2019, 2020, 2021, 2022] as const;
 const WIN_CARRY_SEASONS = [2020, 2021, 2022, 2023, 2024] as const;
 /** As `NFL_SPREAD` (playerChecks.ts): 2021-2024. */
 const WIN_SPREAD_SEASONS = [2021, 2022, 2023, 2024] as const;
+/** The retired list's Y (on the list in Y, credited in Y-1): code R02 is in the files from 2020, so Y starts in 2021. */
+const RETIRED_LIST_YEARS = [2021, 2022, 2023, 2024] as const;
+/** The exits' Y (credited in Y, followed through Y+2): 2022 + 2 = 2024, so 2025 is never read. */
+const EXIT_YEARS = [2016, 2017, 2018, 2019, 2020, 2021, 2022] as const;
+
+/**
+ * `--measured-on <YYYY-MM-DD>`: the date the report is stamped with (default today). A re-run on
+ * the same downloaded files that only adds measures keeps the first date, so no existing value
+ * changes; `nflCareers.ts` says when each addition was measured.
+ */
+function measuredOn(argv: readonly string[]): string {
+  const given = argValue(argv, "--measured-on");
+  if (given === undefined) return new Date().toISOString().slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(given)) throw new Error(`--measured-on wants YYYY-MM-DD, not ${JSON.stringify(given)}`);
+  return given;
+}
 
 const FIXTURE = fileURLToPath(new URL("../../../franchise/test/fixtures/nfl-seasons.json", import.meta.url));
 
@@ -78,12 +94,14 @@ async function main(argv: readonly string[]): Promise<void> {
 
   log("  measuring (bootstrap)");
   const report = buildBaseline({
-    measuredOn: new Date().toISOString().slice(0, 10),
+    measuredOn: measuredOn(argv),
     ledger, weekEight, weekEightActOnly, snaps, playerIds, fixture,
     cohort: { firstEntry: 2012, lastEntry: 2022, lastSeason: LAST_SEASON },
     comebackYears: COMEBACK_YEARS,
     winCarrySeasons: WIN_CARRY_SEASONS,
     winSpreadSeasons: WIN_SPREAD_SEASONS,
+    retiredListYears: RETIRED_LIST_YEARS,
+    exitYears: EXIT_YEARS,
     counts: { rosterRows, snapRows },
     sources,
   });

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { TeamId, SeasonSchedule } from "@ff/contracts";
 import { buildLeague, buildSchedule, BYE_WINDOW } from "../src/index.js";
+import { byeCounts } from "../src/schedule/buildSchedule.js";
 
 const league = buildLeague("world-1");
 const divisionOf = new Map(league.structure.divisions.flatMap((d) => d.teams.map((t) => [t, d] as const)));
@@ -44,6 +45,15 @@ describe("buildSchedule (season shell S3)", () => {
         expect(b.week).toBeGreaterThanOrEqual(BYE_WINDOW.first);
         expect(b.week).toBeLessThanOrEqual(BYE_WINDOW.last);
       }
+    }
+  });
+
+  it("deals the byes as byeCounts says (read by expectedAvailability): 4 teams a week in weeks 5-10, 2 a week in 11-14", () => {
+    expect(byeCounts(32)).toEqual([4, 4, 4, 4, 4, 4, 2, 2, 2, 2]);
+    for (const s of schedules.values()) {
+      const counts = new Array<number>(BYE_WINDOW.last - BYE_WINDOW.first + 1).fill(0);
+      for (const b of s.byes) counts[b.week - BYE_WINDOW.first]! += 1;
+      expect(counts).toEqual(byeCounts(teams.length));
     }
   });
 

@@ -4,16 +4,22 @@
  *
  * Pure. Every number leaving here is a count, a mean, a share or a correlation, with its standard
  * error: across seasons for the week-8 cross-section, win carry-over and win spread; a deterministic
- * bootstrap over players (`stats.ts`) for careers, peak usage and comebacks.
+ * bootstrap over players (`stats.ts`) for careers, peak usage, comebacks and (2026-11-06) the
+ * retired-list and exit rates by age. Rookies' ages at week 8 carry their SD and counts, no SE.
  */
 
 import type { AssetManifest } from "../injuries/data.js";
 import { CAREER_GROUPS, USAGE_GROUPS, foldSnapPosition, type CareerGroup } from "./groups.js";
 import {
-  CAREER_HORIZON, CROSS_MEASURES, ageOn, careerValues, cohortEntrants, cohortExclusions, comebackUnits, crossByGroup,
-  type CohortWindow, type CrossValues, type Entrant, type RosterLedger, type WeekEight,
+  CAREER_HORIZON, CROSS_MEASURES, ageOn, backOnA53Units, careerValues, cohortEntrants, cohortExclusions, comebackUnits, crossByGroup,
+  retiredListPlacements, retiredListUnits, rookieAges, startersGoneUnits,
+  type CohortWindow, type CrossValues, type Entrant, type RateCase, type RosterLedger, type WeekEight,
 } from "./measure.js";
-import { CAREER_FAMILIES, CAREER_FAMILY_KEYS, type CareerFamily } from "./nflCareers.js";
+import {
+  CAREER_FAMILIES, CAREER_FAMILY_KEYS, EXIT_AGE_BANDS, RETIRED_LIST_NOTE, SIGNING_AGE_BANDS, STARTER_MIN_SHARE, YEARS_IN_LEAGUE_BANDS, bandOf,
+  type AgeBand, type CareerFamily, type ExitAgeBand, type NflExitsByAge, type NflRateRow, type NflRatesByAge, type NflRetiredList,
+  type NflRookieAge, type YearsInLeagueBand,
+} from "./nflCareers.js";
 import type { PlayerIdRow } from "./rows.js";
 import { BOOTSTRAP_REPLICATES, BOOTSTRAP_SEED, acrossSeasons, bootstrapOverPlayers, bootstrapRng, round, type Estimate } from "./stats.js";
 import { MIN_PAIRS_PER_AGE, deltaCurve, peakAge, usagePairs, type AgePoint, type SnapSeason, type UsagePair } from "./usage.js";
@@ -97,6 +103,8 @@ export interface NflCareersReport {
     /** The written definition's reading of the 53 (status ACT alone), league only. */
     readonly actOnly: CrossRow;
     readonly perSeason: readonly WeekEightSeason[];
+    /** Rookies' ages on the 53s, pooled over the seasons' men (2026-11-06). */
+    readonly rookieAge: NflRookieAge;
   };
   readonly peakUsage: {
     readonly minPairsPerAge: number;
@@ -111,6 +119,10 @@ export interface NflCareersReport {
   };
   readonly comebacks: { readonly league: ComebackRow; readonly byGroup: Readonly<Record<CareerGroup, ComebackRow>> };
   readonly wins: { readonly yearOverYear: WinCarry; readonly spread: WinSpread };
+  /** The reserve/retired list by age (2026-11-06). */
+  readonly retiredList: NflRetiredList;
+  /** Back on a 53, and starters gone, by age (2026-11-06). */
+  readonly exitsByAge: NflExitsByAge;
   readonly coverage: Coverage;
   readonly bootstrap: { readonly seed: string; readonly replicates: number };
   readonly sources: readonly AssetManifest[];
@@ -128,6 +140,10 @@ export interface BaselineInput {
   readonly comebackYears: readonly number[];
   readonly winCarrySeasons: readonly number[];
   readonly winSpreadSeasons: readonly number[];
+  /** Y for the retired list: credited in Y-1, on the list in Y. Every Y-1 and Y must be read. */
+  readonly retiredListYears: readonly number[];
+  /** Y for the exits by age: credited in Y, followed through Y+2. Every Y+2 must be read. */
+  readonly exitYears: readonly number[];
   readonly counts: { readonly rosterRows: number; readonly snapRows: number };
   readonly sources: readonly AssetManifest[];
   readonly replicates?: number;
@@ -198,8 +214,86 @@ function comebackRow(input: BaselineInput, group: CareerGroup | null, label: str
   return { cases: cases.length, back, share: est(cases.length === 0 ? 0 : back / cases.length, boot.se, cases.length) };
 }
 
+/**
+ * A rate over the cases `keep` picks: n, the hits and their share, SE by the bootstrap over players
+ * (each player's kept cases are one unit, as for comebacks), n = cases.
+ */
+export function rateRow(units: readonly (readonly RateCase[])[], keep: (c: RateCase) => boolean, label: string, replicates: number): NflRateRow {
+  const kept = units.map((u) => u.filter(keep)).filter((u) => u.length > 0);
+  const cases = kept.flat();
+  const count = cases.filter((c) => c.hit).length;
+  const share = (s: readonly RateCase[]) => (s.length === 0 ? null : s.filter((c) => c.hit).length / s.length);
+  const boot = bootstrapOverPlayers(kept, share, bootstrapRng(label), replicates);
+  return { n: cases.length, count, share: est(cases.length === 0 ? 0 : count / cases.length, boot.se, cases.length) };
+}
+
+/** A rate in each age band (age as the case carries it), over every case, and the cases with no age. */
+export function ratesByAge<K extends string>(units: readonly (readonly RateCase[])[], bands: readonly AgeBand<K>[], label: string, replicates: number): NflRatesByAge<K> {
+  const byAge = {} as Record<K, NflRateRow>;
+  for (const b of bands) byAge[b.key] = rateRow(units, (c) => bandOf(bands, c.age) === b.key, `${label}/${b.key}`, replicates);
+  return { byAge, all: rateRow(units, () => true, `${label}/all`, replicates), noBirthDate: units.flat().filter((c) => c.age === null).length };
+}
+
+function retiredListBlock(input: BaselineInput, replicates: number): NflRetiredList {
+  const units = retiredListUnits(input.ledger, input.retiredListYears);
+  const rates = ratesByAge(units, EXIT_AGE_BANDS, "retiredList", replicates);
+  const byYearsInLeague = {} as Record<YearsInLeagueBand, NflRateRow>;
+  for (const b of YEARS_IN_LEAGUE_BANDS) {
+    byYearsInLeague[b.key] = rateRow(units, (c) => bandOf(YEARS_IN_LEAGUE_BANDS, c.yearsExp) === b.key, `retiredList/years/${b.key}`, replicates);
+  }
+  const placed = retiredListPlacements(input.ledger, input.retiredListYears);
+  const placedByAge = {} as Record<ExitAgeBand, number>;
+  for (const b of EXIT_AGE_BANDS) placedByAge[b.key] = placed.filter((p) => bandOf(EXIT_AGE_BANDS, p.age) === b.key).length;
+  const placedByYears = {} as Record<YearsInLeagueBand, number>;
+  for (const b of YEARS_IN_LEAGUE_BANDS) placedByYears[b.key] = placed.filter((p) => bandOf(YEARS_IN_LEAGUE_BANDS, p.yearsExp) === b.key).length;
+  return {
+    seasons: span(input.retiredListYears),
+    byAge: rates.byAge,
+    byYearsInLeague,
+    all: rates.all,
+    noBirthDate: rates.noBirthDate,
+    noYearsInLeague: units.flat().filter((c) => c.yearsExp === null).length,
+    placements: {
+      total: placed.length,
+      byAge: placedByAge,
+      noBirthDate: placed.filter((p) => p.age === null).length,
+      byYearsInLeague: placedByYears,
+      noYearsInLeague: placed.filter((p) => p.yearsExp === null).length,
+    },
+    note: RETIRED_LIST_NOTE,
+  };
+}
+
+function exitsBlock(input: BaselineInput, starters: ReadonlyMap<number, ReadonlySet<string>>, replicates: number): NflExitsByAge {
+  return {
+    seasons: span(input.exitYears),
+    backOnA53: ratesByAge(backOnA53Units(input.ledger, input.exitYears), SIGNING_AGE_BANDS, "exits/backOnA53", replicates),
+    startersGone: {
+      minShare: STARTER_MIN_SHARE,
+      ...ratesByAge(startersGoneUnits(input.ledger, input.exitYears, starters), EXIT_AGE_BANDS, "exits/startersGone", replicates),
+    },
+  };
+}
+
+const span = (xs: readonly number[]): readonly [number, number] => [Math.min(...xs), Math.max(...xs)];
+
+/** Every season a measure reads must be in the ledger: a season not read would look like a man on no list. */
+function assertReadable(input: BaselineInput): void {
+  const read = new Set(input.ledger.finalWeek.keys());
+  const need = (season: number, what: string) => {
+    if (!read.has(season)) throw new Error(`${what} needs season ${season}, which was not read (read: ${[...read].sort().join(", ")})`);
+  };
+  if (input.retiredListYears.length === 0 || input.exitYears.length === 0) throw new Error("the retired list and the exits by age need at least one season each");
+  for (const y of input.retiredListYears) {
+    need(y - 1, `the retired list's Y = ${y}`);
+    need(y, `the retired list's Y = ${y}`);
+  }
+  for (const y of input.exitYears) for (const s of [y, y + 1, y + 2]) need(s, `the exits' Y = ${y}`);
+}
+
 export function buildBaseline(input: BaselineInput): NflCareersReport {
   const replicates = input.replicates ?? BOOTSTRAP_REPLICATES;
+  assertReadable(input);
 
   // ---- week 8
   const rawSeasons = input.weekEight.map((w) => crossByGroup(w.rows, w.season));
@@ -247,6 +341,16 @@ export function buildBaseline(input: BaselineInput): NflCareersReport {
       if (i.age === null) noBirthDate++;
     }
   }
+  // starters each exit season, by roster id: at least STARTER_MIN_SHARE of his main team's snaps on his side
+  const starters = new Map<number, Set<string>>();
+  for (const y of input.exitYears) {
+    const ids = new Set<string>();
+    for (const [pfr, snap] of input.snaps.get(y) ?? new Map<string, SnapSeason>()) {
+      const id = snap.share >= STARTER_MIN_SHARE ? gsisOf(pfr).id : null;
+      if (id !== null) ids.add(id);
+    }
+    starters.set(y, ids);
+  }
   const stayers = usagePairs(input.snaps, infoOf, false);
   const exits = usagePairs(input.snaps, infoOf, true);
   const usageByGroup = {} as Record<UsageGroup, { stayers: PeakRow; withExits: PeakRow }>;
@@ -278,7 +382,6 @@ export function buildBaseline(input: BaselineInput): NflCareersReport {
   const wins = winsBySeason(input.fixture);
   const carry = yearOverYearR(wins, input.winCarrySeasons);
   const spread = winSpread(wins, input.winSpreadSeasons);
-  const span = (xs: readonly number[]): readonly [number, number] => [Math.min(...xs), Math.max(...xs)];
   const snapSeasonsRead = [...input.snaps.keys()].filter((s) => input.snaps.get(s)!.size > 0);
 
   return {
@@ -293,7 +396,7 @@ export function buildBaseline(input: BaselineInput): NflCareersReport {
       winCarry: span(input.winCarrySeasons),
       winSpread: span(input.winSpreadSeasons),
     },
-    weekEight: { pooled: { league: pool(rawSeasons.map((c) => c.league)), byGroup: pooledByGroup }, actOnly, perSeason },
+    weekEight: { pooled: { league: pool(rawSeasons.map((c) => c.league)), byGroup: pooledByGroup }, actOnly, perSeason, rookieAge: rookieAges(input.weekEight) },
     peakUsage: { minPairsPerAge: MIN_PAIRS_PER_AGE, byGroup: usageByGroup },
     careers: { horizon: CAREER_HORIZON, league: careerRow(entrants, "careers/league", replicates), byGroup: careersByGroup, byFamily: careersByFamily },
     comebacks: { league: comebackRow(input, null, "comebacks/league", replicates), byGroup: comebacksByGroup },
@@ -305,6 +408,8 @@ export function buildBaseline(input: BaselineInput): NflCareersReport {
       },
       spread: { bySeason: spread.bySeason.map((s) => ({ season: s.season, sd: round(s.sd) })), spread: est(spread.spread.value, spread.spread.se, spread.spread.n) },
     },
+    retiredList: retiredListBlock(input, replicates),
+    exitsByAge: exitsBlock(input, starters, replicates),
     coverage: {
       rosterRows: input.counts.rosterRows,
       snapRows: input.counts.snapRows,

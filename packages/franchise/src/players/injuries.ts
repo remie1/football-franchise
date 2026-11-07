@@ -178,7 +178,8 @@ interface Drawn {
 /** Each (setting, group)'s kind weights, worked out once: the table is fixed. */
 const KIND_WEIGHTS = new Map<string, readonly (readonly [string, number])[]>();
 
-function kindWeights(setting: InjurySetting, group: PositionGroup): readonly (readonly [string, number])[] {
+/** The kinds that can be drawn in this setting for this group, with their weights (`share` × `byGroup`); also read by `availability.ts`. */
+export function kindWeights(setting: InjurySetting, group: PositionGroup): readonly (readonly [string, number])[] {
   const key = `${setting}/${group}`;
   let weights = KIND_WEIGHTS.get(key);
   if (!weights) {
@@ -298,7 +299,8 @@ export function weekInjuries(input: WeekInjuryInput): InjuryResult {
 
 // ─── Healing and lasting marks ─────────────────────────────────────────────────────────────────
 
-const sameWeek = (a: CalendarStamp, b: CalendarStamp) => a.season === b.season && a.phase === b.phase && a.week === b.week;
+/** The same calendar week (the day aside); also read by `availability.ts`. */
+export const sameWeek = (a: CalendarStamp, b: CalendarStamp) => a.season === b.season && a.phase === b.phase && a.week === b.week;
 const atLeast = (band: InjuryBand, min: InjuryBand) => BAND_ORDER.indexOf(band) >= BAND_ORDER.indexOf(min);
 
 /** §5.4: how much more a lasting mark costs at this age (written for a 25-year-old). */

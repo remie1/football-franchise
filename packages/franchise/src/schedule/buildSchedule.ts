@@ -28,6 +28,19 @@ export const BYE_WINDOW = { first: 5, last: 14 } as const;
 /** Day of the week games are played (1 = Monday, as the Tuesday trade deadline is day 2). */
 export const GAME_DAY = 7;
 
+/**
+ * How many teams take their bye in each week of `BYE_WINDOW` (index 0 = its first week): two at a
+ * time, round the window from its first week, so the rest of each week's teams pair up. For 32 teams
+ * that is 4 a week in weeks 5-10 and 2 a week in weeks 11-14. Also read by `players/availability.ts`,
+ * which spreads a team's unknown bye the same way.
+ */
+export function byeCounts(teamCount: number): number[] {
+  const window = BYE_WINDOW.last - BYE_WINDOW.first + 1;
+  const counts = new Array<number>(window).fill(0);
+  for (let left = teamCount; left > 0; left -= 2) counts[(teamCount - left) / 2 % window]! += 2;
+  return counts;
+}
+
 export interface ScheduleOptions {
   /**
    * Last season's finish, best first, per division. Decides the same-place games.
@@ -165,9 +178,7 @@ function assignWeeks(
   const weeks = rules.weeksPerSeason;
   // Byes: an even number per week (so the rest pair up), 32 spread over weeks 5-14.
   const byeWeek = new Map<TeamId, number>();
-  const window = BYE_WINDOW.last - BYE_WINDOW.first + 1;
-  const counts = new Array<number>(window).fill(0);
-  for (let left = teams.length; left > 0; left -= 2) counts[(teams.length - left) / 2 % window]! += 2;
+  const counts = byeCounts(teams.length);
   const slots = shuffled(counts.flatMap((n, i) => new Array<number>(n).fill(BYE_WINDOW.first + i)), rng);
   shuffled(teams, rng).forEach((t, i) => byeWeek.set(t, slots[i]!));
 

@@ -7,14 +7,18 @@
  */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { buildBaseline, type BaselineInput, type NflCareersReport } from "../src/careers/baseline.js";
+import { buildBaseline, rateRow, ratesByAge, type BaselineInput, type NflCareersReport } from "../src/careers/baseline.js";
 import { HELD_OUT_FROM, careerAssets, rosterAsset, snapAsset } from "../src/careers/data.js";
 import { CAREER_GROUPS, USAGE_GROUPS, foldPosition, foldSnapPosition, type CareerGroup } from "../src/careers/groups.js";
 import {
-  actOnly, addRosterSeason, ageOn, careerValues, cohortEntrants, cohortExclusions, comebackCases, crossValues,
-  newLedger, onA53, onARoster, weekEightRows, type Entrant,
+  DAYS_PER_YEAR, actOnly, addRosterSeason, ageOn, backOnA53Units, careerValues, cohortEntrants, cohortExclusions, comebackCases, crossValues,
+  fractionalAgeOn, newLedger, onA53, onARoster, onRetiredList, retiredListPlacements, retiredListUnits, rookieAges, startersGoneUnits,
+  weekEightRows, type Entrant, type RateCase,
 } from "../src/careers/measure.js";
-import { CAREER_FAMILIES, CAREER_FAMILY_KEYS, NFL_CAREERS } from "../src/careers/nflCareers.js";
+import {
+  BY_GROUP_BY_SEASON_SEASONS, CAREER_FAMILIES, CAREER_FAMILY_KEYS, EXIT_AGE_BANDS, NFL_CAREERS, OTC_SIGNED_AGAIN, RETIRED_LIST_NOTE,
+  ROOKIE_AGE_BINS, SIGNING_AGE_BANDS, STARTER_MIN_SHARE, YEARS_IN_LEAGUE_BANDS, bandOf, rookieAgeBin,
+} from "../src/careers/nflCareers.js";
 import { renderJson, renderMarkdown } from "../src/careers/report.js";
 import { parseCareerRosters, parseCareerSnaps, parsePlayerIds, type CareerRosterRow } from "../src/careers/rows.js";
 import { BOOTSTRAP_SEED, acrossSeasons, bootstrapOverPlayers, bootstrapRng, pearson } from "../src/careers/stats.js";
@@ -145,6 +149,42 @@ describe("ages and statuses", () => {
     expect(onARoster(r("RET", "R02"))).toBe(false);
     expect(onARoster(r("TRD", null))).toBe(false);
   });
+
+  it("fractional age: days lived to 23 October over 365.2425", () => {
+    // 2000-10-23 to 2024-10-23: 24 × 365 days plus six leap days (2004 ... 2024)
+    expect(fractionalAgeOn("2000-10-23", 2024)).toBeCloseTo(8766 / DAYS_PER_YEAR, 12);
+    // a day short of 23 years: 23 × 365 + 6 − 1
+    expect(fractionalAgeOn("2001-10-24", 2024)).toBeCloseTo(8400 / DAYS_PER_YEAR, 12);
+    expect(Math.floor(fractionalAgeOn("2001-10-24", 2024)!)).toBe(ageOn("2001-10-24", 2024));
+    expect(fractionalAgeOn(null, 2024)).toBeNull();
+    expect(fractionalAgeOn("unknown", 2024)).toBeNull();
+    expect(fractionalAgeOn("2000-13-01", 2024)).toBeNull();
+  });
+
+  it("the retired list is code R02 with status RET, or RES (its 2020 form); it is on no list", () => {
+    const r = (status: string, code: string | null) => row({ gsisId: "x", season: 2023, week: 1, status, code });
+    expect(onRetiredList(r("RET", "R02"))).toBe(true);
+    expect(onRetiredList(r("RES", "R02"))).toBe(true);
+    expect(onRetiredList(r("RET", null))).toBe(false);
+    expect(onRetiredList(r("RET", "A01"))).toBe(false);
+    expect(onRetiredList(r("CUT", "R02"))).toBe(false);
+    expect(onRetiredList(r("RES", "R01"))).toBe(false);
+    expect(onARoster(r("RES", "R02"))).toBe(false);
+    expect(onA53(r("RET", "R02"))).toBe(false);
+  });
+
+  it("age bands: the oldest age in each band, the last takes every age above; none without an age", () => {
+    expect(EXIT_AGE_BANDS.map((b) => [24, 25, 26, 28, 29, 30, 31, 32, 33, 40].filter((a) => bandOf(EXIT_AGE_BANDS, a) === b.key))).toEqual([
+      [24, 25], [26, 28], [29, 30], [31, 32], [33, 40],
+    ]);
+    expect(bandOf(SIGNING_AGE_BANDS, 26)).toBe("upTo26");
+    expect(bandOf(SIGNING_AGE_BANDS, 27)).toBe("age27To28");
+    expect([0, 1, 2, 3, 5, 6, 9, 10, 17].map((y) => bandOf(YEARS_IN_LEAGUE_BANDS, y))).toEqual([
+      "exp0", "exp1To2", "exp1To2", "exp3To5", "exp3To5", "exp6To9", "exp6To9", "exp10Plus", "exp10Plus",
+    ]);
+    expect(bandOf(EXIT_AGE_BANDS, null)).toBeNull();
+    expect([19, 20, 21, 25, 26, 30].map(rookieAgeBin)).toEqual(["upTo20", "upTo20", "age21", "age25", "from26", "from26"]);
+  });
 });
 
 // ---------------------------------------------------------------- week 8
@@ -179,6 +219,142 @@ describe("week-8 rows", () => {
     ];
     // ages 22, 25, 31, 34
     expect(crossValues(four, 2023)).toEqual({ n: 4, meanAge: 28, age22OrUnder: 0.25, age31Plus: 0.5, age34Plus: 0.25, rookie: 1 / 3, undrafted: 0.5 });
+  });
+
+  it("rookies' ages: years_exp 0 on the 53s, pooled over the seasons' men, whole and fractional", () => {
+    const w2023 = weekEightRows([
+      row({ gsisId: "a", season: 2023, week: 8, yearsExp: 0, birthDate: "2001-01-01", draftNumber: 10 }), // 22
+      row({ gsisId: "b", season: 2023, week: 8, yearsExp: 0, birthDate: "2000-11-01", draftNumber: null }), // 22: birthday after 23 Oct
+      row({ gsisId: "c", season: 2023, week: 8, yearsExp: 0, birthDate: null }), // no birth date
+      row({ gsisId: "d", season: 2023, week: 8, yearsExp: 3, birthDate: "1999-01-01" }), // not a rookie
+      row({ gsisId: "x", season: 2023, week: 8, yearsExp: 0, birthDate: "2001-01-01", status: "DEV", code: "P01" }), // practice squad: not on a 53
+    ], 2023);
+    const w2024 = weekEightRows([
+      row({ gsisId: "e", season: 2024, week: 8, yearsExp: 0, birthDate: "1997-06-01", draftNumber: 200 }), // 27
+      row({ gsisId: "f", season: 2024, week: 8, yearsExp: 0, birthDate: "2004-12-01", draftNumber: null }), // 19
+    ], 2024);
+    const a = rookieAges([w2023, w2024]);
+    const fr = [fractionalAgeOn("2001-01-01", 2023)!, fractionalAgeOn("2000-11-01", 2023)!, fractionalAgeOn("1997-06-01", 2024)!, fractionalAgeOn("2004-12-01", 2024)!];
+    const m = fr.reduce((s, x) => s + x, 0) / 4;
+    expect(a.n).toBe(4);
+    expect(a.noBirthDate).toBe(1);
+    expect(a.meanWhole).toBe(22.5); // (22 + 22 + 27 + 19) / 4
+    expect(a.meanFractional).toBeCloseTo(m, 4);
+    expect(a.sd).toBeCloseTo(Math.sqrt(fr.reduce((s, x) => s + (x - m) ** 2, 0) / 3), 4);
+    expect(a.shareByWholeYear).toEqual({ upTo20: 0.25, age21: 0, age22: 0.5, age23: 0, age24: 0, age25: 0, from26: 0.25 });
+    expect(ROOKIE_AGE_BINS.reduce((s, b) => s + a.shareByWholeYear[b], 0)).toBe(1);
+    expect([a.draftedN, a.undraftedN]).toEqual([2, 2]);
+    expect(a.draftedMeanFractional).toBeCloseTo((fr[0]! + fr[2]!) / 2, 4);
+    expect(a.undraftedMeanFractional).toBeCloseTo((fr[1]! + fr[3]!) / 2, 4);
+    expect(a.perSeason.map((s) => [s.season, s.n, s.meanWhole])).toEqual([[2023, 2, 22], [2024, 2, 23]]);
+    expect(a.perSeason[1]!.meanFractional).toBeCloseTo((fr[2]! + fr[3]!) / 2, 4);
+    expect(rookieAges([])).toMatchObject({ n: 0, meanWhole: 0, sd: 0, perSeason: [] });
+  });
+});
+
+// ---------------------------------------------------------------- the retired list and exits by age
+
+/**
+ * 2020-2024 (final week 17 in 2020, 18 after). Each man's story is on his lines; ages are on
+ * 23 October of the season named. `extra` adds rows to a season.
+ */
+function exitsLedger(extra: Readonly<Record<number, readonly CareerRosterRow[]>> = {}) {
+  const fin = (season: number) => (season <= 2020 ? 17 : 18);
+  const at = (gsisId: string, season: number, p: Partial<CareerRosterRow> = {}) => row({ gsisId, season, week: fin(season), ...p });
+  const seasons: Record<number, CareerRosterRow[]> = {
+    2020: [
+      at("R1", 2020, { birthDate: "1985-01-01", yearsExp: 12 }), // 35 in 2020; on the retired list in 2021
+      at("R2", 2020, { birthDate: "1996-01-01", yearsExp: 2 }), // 24 in 2020; on a 53 in 2021 week 5 only
+      at("R4", 2020, { birthDate: "1993-01-01", yearsExp: 4, status: "DEV", code: "P01" }), // practice squad: not credited
+    ],
+    2021: [
+      row({ gsisId: "R1", season: 2021, week: 1, birthDate: "1985-01-01", yearsExp: 13, status: "RET", code: "R02" }),
+      row({ gsisId: "R2", season: 2021, week: 5, birthDate: "1996-01-01", yearsExp: 3 }),
+      row({ gsisId: "R4", season: 2021, week: 2, birthDate: "1993-01-01", yearsExp: 5, status: "RET", code: "R02" }), // placed, never credited
+      at("R3", 2021, { birthDate: "1990-06-01", yearsExp: 7 }), // 31 in 2021; on the list (its 2020 form) in 2022
+      at("R5", 2021, { birthDate: null, yearsExp: 0 }), // no birth date; out in 2022, credited again in 2023
+    ],
+    2022: [
+      row({ gsisId: "R3", season: 2022, week: 3, birthDate: "1990-06-01", yearsExp: 8, status: "RES", code: "R02" }),
+      row({ gsisId: "R3", season: 2022, week: 4, birthDate: "1990-06-01", yearsExp: 8, status: "RES", code: "R02" }),
+    ],
+    2023: [at("R5", 2023, { birthDate: null, yearsExp: 2 })],
+    2024: [at("R5", 2024, { birthDate: null, yearsExp: 3 })],
+  };
+  const ledger = newLedger();
+  for (const s of [2020, 2021, 2022, 2023, 2024]) addRosterSeason(ledger, [...seasons[s]!, ...(extra[s] ?? [])], s);
+  return ledger;
+}
+
+/**
+ * R6: credited in 2020 (26), on injured reserve in 2021 and on a practice squad in 2022, so on a
+ * team's list in both following seasons but on a 53 in neither. He tells "on no 53" from "on no list".
+ */
+const offA53: Readonly<Record<number, readonly CareerRosterRow[]>> = {
+  2020: [row({ gsisId: "R6", season: 2020, week: 17, birthDate: "1994-01-01", yearsExp: 5 })],
+  2021: [row({ gsisId: "R6", season: 2021, week: 2, birthDate: "1994-01-01", yearsExp: 6, status: "RES", code: "R01" })],
+  2022: [row({ gsisId: "R6", season: 2022, week: 3, birthDate: "1994-01-01", yearsExp: 7, status: "DEV", code: "P01" })],
+};
+
+/** The cases as plain tuples, players in ledger order: [age, years in the league, hit]. */
+const flat = (units: readonly (readonly RateCase[])[]) => units.flat().map((c) => [c.age, c.yearsExp, c.hit]);
+
+describe("the retired list and exits by age", () => {
+  it("the ledger keeps each man's seasons on a 53, on the retired list, and his years_exp", () => {
+    const l = exitsLedger();
+    expect([...l.players.get("R2")!.on53].sort()).toEqual([2020, 2021]);
+    expect([...l.players.get("R2")!.credited.keys()]).toEqual([2020]);
+    expect([...l.players.get("R1")!.retiredList]).toEqual([2021]);
+    expect([...l.players.get("R3")!.retiredList]).toEqual([2022]);
+    expect(l.players.get("R1")!.onRoster.has(2021)).toBe(false);
+    expect(l.players.get("R1")!.yearsExp.get(2021)).toBe(13);
+    expect(l.players.get("R4")!.credited.size).toBe(0);
+  });
+
+  it("the retired list: men credited in Y-1, on the list in Y, with age and years in Y-1; and every placement", () => {
+    const l = exitsLedger();
+    const units = retiredListUnits(l, [2021, 2022]);
+    // R1 (Y 2021: 35, 12 years, placed), R2 (Y 2021: 24, 2, not), R3 (Y 2022: 31, 7, placed), R5 (Y 2022: no age, 0, not)
+    expect(flat(units)).toEqual([[35, 12, true], [24, 2, false], [31, 7, true], [null, 0, false]]);
+    const rates = ratesByAge(units, EXIT_AGE_BANDS, "test/retired", 20);
+    expect(rates.all).toMatchObject({ n: 4, count: 2, share: { value: 0.5, n: 4 } });
+    expect(rates.byAge.from33).toMatchObject({ n: 1, count: 1, share: { value: 1, se: 0 } });
+    expect(rates.byAge.upTo25).toMatchObject({ n: 1, count: 0 });
+    expect(rates.byAge.age31To32).toMatchObject({ n: 1, count: 1 });
+    expect(rates.byAge.age26To28).toEqual({ n: 0, count: 0, share: { value: 0, se: 0, n: 0 } });
+    expect(rates.noBirthDate).toBe(1);
+    expect(rateRow(units, (c) => bandOf(YEARS_IN_LEAGUE_BANDS, c.yearsExp) === "exp6To9", "test/years", 20)).toMatchObject({ n: 1, count: 1 });
+    // placements: R1 in 2021 (36, 13 years), R4 in 2021 (28, 5), R3 in 2022 (32, 8); R3's two rows count once
+    expect(retiredListPlacements(l, [2021, 2022])).toEqual([{ age: 36, yearsExp: 13 }, { age: 28, yearsExp: 5 }, { age: 32, yearsExp: 8 }]);
+  });
+
+  it("back on a 53: credited in Y, on a 53 in some week of Y+1 or Y+2", () => {
+    // Y 2020: R1 (retired, not back), R2 (a 53 in 2021 week 5: back); Y 2021: R3 (not back), R5 (credited 2023: back)
+    expect(flat(backOnA53Units(exitsLedger(), [2020, 2021]))).toEqual([[35, 12, false], [24, 2, true], [31, 7, false], [null, 0, true]]);
+    // R6 (Y 2020): injured reserve in 2021, practice squad in 2022: on a list both seasons, on a 53 in neither, so not back
+    const l = exitsLedger(offA53);
+    const r6 = l.players.get("R6")!;
+    expect([r6.onRoster.has(2021), r6.onRoster.has(2022), r6.on53.has(2021), r6.on53.has(2022)]).toEqual([true, true, false, false]);
+    expect(flat(backOnA53Units(l, [2020, 2021]))).toEqual([[35, 12, false], [24, 2, true], [26, 5, false], [31, 7, false], [null, 0, true]]);
+  });
+
+  it("starters gone: credited starters on no list in Y+1 and Y+2; the retired list is no list", () => {
+    const starters = new Map([[2020, new Set(["R1", "R2"])], [2021, new Set(["R3", "R4"])]]);
+    // R1 2020: retired in 2021, nothing in 2022: gone. R2 2020: listed in 2021. R3 2021: retired list 2022, nothing 2023: gone. R4 is not credited.
+    expect(flat(startersGoneUnits(exitsLedger(), [2020, 2021], starters))).toEqual([[35, 12, true], [24, 2, false], [31, 7, true]]);
+    expect(startersGoneUnits(exitsLedger(), [2020, 2021], new Map())).toEqual([]);
+    // R6, a 2020 starter on injured reserve in 2021 and a practice squad in 2022: on a list though on no 53, so not gone
+    const withR6 = new Map([[2020, new Set(["R1", "R2", "R6"])], [2021, new Set(["R3", "R4"])]]);
+    expect(flat(startersGoneUnits(exitsLedger(offA53), [2020, 2021], withR6))).toEqual([[35, 12, true], [24, 2, false], [26, 5, false], [31, 7, true]]);
+  });
+
+  it("a rate's SE is a bootstrap over players, from its own label: deterministic, and 0 when every case agrees", () => {
+    const units = backOnA53Units(exitsLedger(), [2020, 2021]);
+    const a = rateRow(units, () => true, "test/rate", 50);
+    expect(a).toEqual(rateRow(units, () => true, "test/rate", 50));
+    expect(a.share.value).toBe(0.5);
+    expect(a.share.se).toBeGreaterThan(0);
+    expect(rateRow(units, (c) => c.hit, "test/rate", 50).share).toEqual({ value: 1, se: 0, n: 2 });
   });
 });
 
@@ -402,6 +578,8 @@ function syntheticInput(): BaselineInput {
     comebackYears: [2012, 2013],
     winCarrySeasons: [2020, 2021],
     winSpreadSeasons: [2020, 2021],
+    retiredListYears: [2013, 2014, 2015],
+    exitYears: [2012, 2013],
     counts: { rosterRows: 20, snapRows: 3 },
     sources: [],
     replicates: 20,
@@ -435,6 +613,28 @@ describe("the report", () => {
     expect(a.bootstrap.seed).toBe(BOOTSTRAP_SEED);
     expect(() => checkAggregatesOnly(JSON.parse(renderJson(a)))).not.toThrow();
   });
+
+  it("carries the 2026-11-06 additions: rookies' ages, the retired list, exits by age", () => {
+    const a = buildBaseline(syntheticInput());
+    // the two week-8 men are not rookies (years_exp 2)
+    expect(a.weekEight.rookieAge).toMatchObject({ n: 0, noBirthDate: 0, perSeason: [{ season: 2015, n: 0 }] });
+    // nobody in the fixture is on the retired list; credited 2012-2014: A, C, F; B, A, C, E; C, D, F
+    expect(a.retiredList).toMatchObject({ seasons: [2013, 2015], all: { n: 10, count: 0 }, placements: { total: 0 }, note: RETIRED_LIST_NOTE });
+    // credited 2012: A, C, F; 2013: A, B, C, E. Back on a 53 within two seasons: A12, C12, F12 (2014), C13, E13 (2015)
+    expect(a.exitsByAge.seasons).toEqual([2012, 2013]);
+    expect(a.exitsByAge.backOnA53.all).toMatchObject({ n: 7, count: 5 });
+    // the one starter is C in 2013 (snap share 0.6, joined through the player table); he is listed in 2014 and 2015
+    expect(a.exitsByAge.startersGone).toMatchObject({ minShare: STARTER_MIN_SHARE, all: { n: 1, count: 0 } });
+    const md = renderMarkdown(a);
+    for (const heading of ["## Rookies' ages at week 8", "## The reserve/retired list", "## Exits by age", "(OverTheCap, REPORTED)"]) expect(md).toContain(heading);
+    expect(md).toContain(RETIRED_LIST_NOTE);
+  });
+
+  it("refuses a season a measure needs but that was not read", () => {
+    expect(() => buildBaseline({ ...syntheticInput(), exitYears: [2014] })).toThrow(/season 2016, which was not read/);
+    expect(() => buildBaseline({ ...syntheticInput(), retiredListYears: [2012] })).toThrow(/season 2011, which was not read/);
+    expect(() => buildBaseline({ ...syntheticInput(), exitYears: [] })).toThrow(/at least one season/);
+  });
 });
 
 // ---------------------------------------------------------------- what is committed
@@ -450,6 +650,11 @@ const KEYS = new Set([
   "pooledR", "spread", "bySeason", "sd", "coverage", "rosterRows", "snapRows", "snapPlayerSeasons", "linkedByRoster",
   "linkedByPlayerTable", "unlinked", "groupFromSnapPosition", "noBirthDate", "entrantsNoGroup", "enteredBeforeWindow",
   "noEntryYear", "bootstrap", "seed", "replicates", "sources",
+  // 2026-11-06: rookies' ages, the retired list, exits by age
+  "rookieAge", "meanWhole", "meanFractional", "shareByWholeYear", ...ROOKIE_AGE_BINS, "draftedN", "draftedMeanFractional", "undraftedN",
+  "undraftedMeanFractional", "retiredList", "byAge", "byYearsInLeague", "all", "count", "noYearsInLeague", "placements", "total", "note",
+  "exitsByAge", "backOnA53", "startersGone", "minShare",
+  ...EXIT_AGE_BANDS.map((b) => b.key), ...SIGNING_AGE_BANDS.map((b) => b.key), ...YEARS_IN_LEAGUE_BANDS.map((b) => b.key),
 ]);
 const SOURCE_FIELDS: Readonly<Record<string, RegExp>> = {
   url: /^https:\/\/github\.com\/nflverse\/nflverse-data\/releases\/download\/(weekly_rosters|snap_counts|players)\/[a-z0-9_.]+\.csv$/,
@@ -468,6 +673,7 @@ function checkAggregatesOnly(value: unknown, path = "$"): void {
     const ok = GROUP_STRINGS.has(value)
       || (path === "$.measuredOn" && /^\d{4}-\d{2}-\d{2}$/.test(value))
       || (path === "$.bootstrap.seed" && value === BOOTSTRAP_SEED)
+      || (path === "$.retiredList.note" && value === RETIRED_LIST_NOTE)
       || (inSources && SOURCE_FIELDS[key] !== undefined && SOURCE_FIELDS[key]!.test(value));
     if (!ok) throw new Error(`${path}: string ${JSON.stringify(value)} is not a group or a label`);
     return;
@@ -499,6 +705,8 @@ describe("committed report", () => {
     expect(() => checkAggregatesOnly({ ...report, extra: [{ gsisId: "00-0000001" }] })).toThrow(/key "extra"/);
     expect(() => checkAggregatesOnly({ ...report, careers: { ...report.careers, league: { ...report.careers.league, name: "x" } } })).toThrow(/key "name"/);
     expect(() => checkAggregatesOnly({ ...report, measuredOn: "Alpha Test" })).toThrow(/not a group or a label/);
+    expect(() => checkAggregatesOnly({ ...report, retiredList: { ...report.retiredList, note: "Alpha Test" } })).toThrow(/not a group or a label/);
+    expect(() => checkAggregatesOnly({ ...report, exitsByAge: { ...report.exitsByAge, note: RETIRED_LIST_NOTE } })).toThrow(/not a group or a label/);
   });
 
   it("names no id in either file and reads no 2025 asset", () => {
@@ -545,5 +753,58 @@ describe("committed report", () => {
     expect(c.comebacks).toEqual({ seasons: report.seasons.comebacks, share: report.comebacks.league.share });
     expect(c.winYearOverYearR).toEqual({ seasons: report.seasons.winCarry, r: report.wins.yearOverYear.r, transitions: report.wins.yearOverYear.transitions.map((t) => t.r) });
     expect(c.winSpread).toEqual({ seasons: report.seasons.winSpread, spread: report.wins.spread.spread });
+    // 2026-11-06 additions
+    expect(c.weekEight.rookieAge).toEqual(report.weekEight.rookieAge);
+    expect(c.retiredList).toEqual(report.retiredList);
+    expect(c.exitsByAge).toEqual(report.exitsByAge);
+    expect(c.weekEight.byGroupBySeason.map((s) => s.season)).toEqual(BY_GROUP_BY_SEASON_SEASONS);
+    for (const s of c.weekEight.byGroupBySeason) {
+      const r = report.weekEight.perSeason.find((x) => x.season === s.season)!;
+      expect(Object.keys(s.byGroup)).toEqual(CAREER_GROUPS);
+      for (const g of CAREER_GROUPS) {
+        const v = r.byGroup[g];
+        expect(s.byGroup[g]).toEqual({ n: v.n, upTo22: v.age22OrUnder, age31Plus: v.age31Plus, age34Plus: v.age34Plus });
+      }
+    }
+  });
+
+  it("the additions hold together: shares sum, counts add up, rates are count / n", () => {
+    const a = report.weekEight.rookieAge;
+    expect(ROOKIE_AGE_BINS.reduce((s, b) => s + a.shareByWholeYear[b], 0)).toBeCloseTo(1, 3);
+    expect(a.draftedN + a.undraftedN).toBe(a.n);
+    expect(a.perSeason.reduce((s, x) => s + x.n, 0)).toBe(a.n);
+    expect(a.perSeason.map((x) => x.season)).toEqual(report.seasons.weekEight);
+    expect(a.meanWhole).toBeLessThan(a.meanFractional);
+    const t = report.retiredList;
+    const rows = [
+      ...EXIT_AGE_BANDS.map((b) => t.byAge[b.key]), ...YEARS_IN_LEAGUE_BANDS.map((b) => t.byYearsInLeague[b.key]), t.all,
+      ...SIGNING_AGE_BANDS.map((b) => report.exitsByAge.backOnA53.byAge[b.key]), report.exitsByAge.backOnA53.all,
+      ...EXIT_AGE_BANDS.map((b) => report.exitsByAge.startersGone.byAge[b.key]), report.exitsByAge.startersGone.all,
+    ];
+    for (const x of rows) {
+      expect(x.share.n).toBe(x.n);
+      expect(x.share.value).toBeCloseTo(x.n === 0 ? 0 : x.count / x.n, 4);
+    }
+    const sum = (xs: readonly { n: number; count: number }[]) => [xs.reduce((s, x) => s + x.n, 0), xs.reduce((s, x) => s + x.count, 0)];
+    expect(sum(EXIT_AGE_BANDS.map((b) => t.byAge[b.key]))[0]).toBe(t.all.n - t.noBirthDate);
+    expect(sum(EXIT_AGE_BANDS.map((b) => t.byAge[b.key]))[1]).toBeLessThanOrEqual(t.all.count);
+    expect(sum(YEARS_IN_LEAGUE_BANDS.map((b) => t.byYearsInLeague[b.key]))[0]).toBe(t.all.n - t.noYearsInLeague);
+    expect(EXIT_AGE_BANDS.reduce((s, b) => s + t.placements.byAge[b.key], 0) + t.placements.noBirthDate).toBe(t.placements.total);
+    expect(YEARS_IN_LEAGUE_BANDS.reduce((s, b) => s + t.placements.byYearsInLeague[b.key], 0) + t.placements.noYearsInLeague).toBe(t.placements.total);
+    expect(t.seasons).toEqual([2021, 2024]);
+    const e = report.exitsByAge;
+    expect(e.seasons).toEqual([2016, 2022]);
+    expect(e.seasons[1] + 2).toBeLessThan(HELD_OUT_FROM);
+    expect(sum(SIGNING_AGE_BANDS.map((b) => e.backOnA53.byAge[b.key]))[0]).toBe(e.backOnA53.all.n - e.backOnA53.noBirthDate);
+    expect(sum(EXIT_AGE_BANDS.map((b) => e.startersGone.byAge[b.key]))[0]).toBe(e.startersGone.all.n - e.startersGone.noBirthDate);
+    // starters are a subset of the men credited in Y
+    expect(e.startersGone.all.n).toBeLessThan(e.backOnA53.all.n);
+  });
+
+  it("OTC_SIGNED_AGAIN is REPORTED as ADR-085 step 12 gives it, and is not in the measured JSON", () => {
+    expect(OTC_SIGNED_AGAIN).toMatchObject({ status: "REPORTED", seasons: [2016, 2022], minCapShare: 0.015, withinYears: 2, n: 1799 });
+    expect(SIGNING_AGE_BANDS.map((b) => OTC_SIGNED_AGAIN.byAge[b.key])).toEqual([0.94, 0.89, 0.86, 0.71, 0.58]);
+    expect(jsonText).not.toMatch(/OverTheCap|"REPORTED"/);
+    expect(mdText).toContain("(OverTheCap, REPORTED)");
   });
 });
