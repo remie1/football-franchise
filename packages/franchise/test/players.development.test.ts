@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { describe, it, expect } from "vitest";
 import {
   ATTRIBUTE_REGISTRY_V1, CALENDAR_PHASE_ORDER, DEFAULT_LEAGUE_RULES, POSITION_PROFILES, attrId, playerId, positionOverall, teamId,
@@ -131,6 +132,13 @@ describe("the rating groups (§2.3)", () => {
     expect(listed.filter((id) => !ACTIVE.includes(id))).toEqual(["disguise"]);
     expect(RATING_GROUPS["disguise"]).toBe("SKILL");
     expect(GROUP_MEMBERS.FIXED).toEqual(["volatility", "discipline"]);
+  });
+
+  it("matches the copy calibration's 20-season check reads (its RATING_GROUP_DIGEST): change both together", () => {
+    // calibration's careerCheck.ts keeps a copy of this table (domains import only contracts) pinned by
+    // the same digest, so a change here fails one side or the other until both move.
+    expect(createHash("sha256").update(JSON.stringify(GROUP_MEMBERS)).digest("hex"))
+      .toBe("babfb713ab7386800c90ef202988d3013ca3943f7ae69f2f2bde6de6e672e416");
   });
 });
 

@@ -20,12 +20,13 @@ import {
 import { isDay, type DayStep, type DayStepContext, type LeaguePeople } from "../season/people.js";
 import { BOARD_ERROR, POSITION_VALUE, STARTERS, WANTED, needAt, type Rate } from "../draft/board.js";
 import { seasonsIn } from "../draft/cutdown.js";
-import { DRAFT_DAYS, headCoachEvaluation } from "../draft/steps.js";
+import { DRAFT_DAYS } from "../draft/steps.js";
+import { aheadView, gmEvaluation, type AheadView } from "./ahead.js";
 import { capNumber, designatedIn, expireContract, isAfterJune1, liveIn, releasePlayer, restructure, teamCapTotal } from "./money.js";
 import { BASE_CAP, CASH_FLOOR, MAX_PRORATION_YEARS, POST_JUNE_1_DESIGNATIONS, RFA_SEASONS, type TenderLevel } from "./rules.js";
 import { ROOKIE_SCALE_2026 } from "./rookieScale2026.js";
 import { minimumContract, minimumSalary, tagContract, tagPrice, tenderPrice } from "./signings.js";
-import { ageFactor, apyOf, firstYearShareFor, guaranteedShare, marketCurves, structureFor, valuePlayer, veteranContract, type MarketCurves } from "./value.js";
+import { ageFactorAt, apyOf, firstYearShareFor, guaranteedShare, marketCurves, structureFor, valuePlayer, veteranContract, type MarketCurves } from "./value.js";
 import { askingPrice, offerWorth, type MarketWindow } from "./negotiation.js";
 import { floorShortfall, planWithFloor, teamCapPlan, type CapPlan } from "./leaning.js";
 
@@ -83,7 +84,7 @@ export const MARKET = {
   lookAheadMost: 0.1,
   /** Early extensions: the lowest place in his position's market a player is extended at. */
   extendPercentile: 0.4,
-  /** ...while his age leaves at least this much of his price in the new deal's first year (`ageFactor`). */
+  /** ...while his age leaves at least this much of his price in the new deal's first year (`ageFactorAt`, read at his age for the rules: `AheadView.ruleAge`). */
   extendAgeFactor: 0.9,
   /** A drafted player may sign a new deal once this many seasons are done (the real CBA rule). */
   rookieExtensionSeasons: 3,
@@ -98,10 +99,21 @@ export const MARKET = {
 } as const;
 
 export interface LeagueYearConfig {
+  /** Today's rating: the market's curves and the depth charts. Decisions judge a man ahead (`ahead`). */
   rate: Rate;
   cap: CapForSeason;
-  /** A team's evaluator skill, 0..100 (default: its head coach's talent evaluation, as the draft reads it; 50 without a staff). */
+  /**
+   * A team's evaluator skill, 0..100. Default (step 13, owner's answer 1a): its GM's talent evaluation;
+   * with no GM seated, its head coach's (as the draft reads it); 50 without a staff.
+   */
   scouting?: (team: TeamId, people: LeaguePeople) => number;
+  /** Step 13: the view ahead, shared with the draft's cut-down in a season's walk (default: one of the year's own over `rate`). */
+  ahead?: AheadView;
+}
+
+/** The year's config with its view ahead. */
+interface YearConfig extends LeagueYearConfig {
+  readonly ahead: AheadView;
 }
 
 // ---------- shared helpers ----------
@@ -235,9 +247,15 @@ function placePlayers(players: readonly PlayerState[], teams: readonly Team[]): 
 
 // ---------- the steps ----------
 
-export function leagueYearSteps(config: LeagueYearConfig): DayStep[] {
-  const skillOf = (t: TeamId, people: LeaguePeople) => (config.scouting ?? headCoachEvaluation)(t, people);
-  return [
+
+export function leagueYearSteps(base: LeagueYearConfig): DayStep[] {
+  // Step 13 (owner's rulings, 2026-10-31 and 2026-11-06): every keep, cut, re-sign and signing judges a
+  // man ahead, over the years his team's direction sets, through its GM's eyes, and prices a deal on
+  // his expected rating across its years (`aheadView`). A man with no growth record reads as today,
+  // under today's rules.
+  const config: YearConfig = { ...base, ahead: base.ahead ?? aheadView(base.rate) };
+  const skillOf = (t: TeamId, people: LeaguePeople) => (config.scouting ?? gmEvaluation)(t, people);
+  const steps: DayStep[] = [
     {
       id: "cap-set",
       run: (people, ctx) => {
@@ -273,6 +291,7 @@ export function leagueYearSteps(config: LeagueYearConfig): DayStep[] {
       },
     },
   ];
+  return steps.map((step) => ({ ...step, run: (people, ctx) => { config.ahead.setToday({ at: ctx.day, people, rules: ctx.rules }); return step.run(people, ctx); } }));
 }
 
 /** Which market window a day is in, if the market runs that day (it runs on the first day of each week after the first). */
@@ -298,7 +317,7 @@ const hasDealIn = (book: readonly PlayerContract[], player: string, season: numb
 // ---------- re-signing, tenders and tags (OFF_EVAL) ----------
 
 function reSign(
-  people: LeaguePeople, ctx: DayStepContext, config: LeagueYearConfig, skillOf: (t: TeamId, p: LeaguePeople) => number,
+  people: LeaguePeople, ctx: DayStepContext, config: YearConfig, skillOf: (t: TeamId, p: LeaguePeople) => number,
 ): { people: LeaguePeople; events: FranchiseEvent[] } {
   const next = ctx.season + 1;
   const book: Book = { contracts: [...(people.contracts ?? [])], dead: [...(people.deadMoney ?? [])], events: [] };
@@ -312,7 +331,7 @@ function reSign(
     const carry = unusedRoom(team.id, ctx.season, people, book, config.cap);
     const skill = skillOf(team.id, people);
     const roster = playersOf(team, byId);
-    const grade = (p: PlayerState) => teamGrade(team.id, p, skill, config.rate, ctx.seed, ctx.season);
+    const grade = (p: PlayerState) => teamGrade(team.id, p, skill, config.ahead.forTeam(team.id), ctx.seed, ctx.season);
     const kept = roster.filter((p) => !book.contracts.some((c) => String(c.player) === String(p.bio.id) && endsAfter(c, ctx.season)));
     const expiring = roster.filter((p) => !kept.includes(p) && !hasDealIn(book.contracts, String(p.bio.id), next))
       .map((p) => ({ p, g: grade(p) })).sort((a, b) => b.g * POSITION_VALUE[b.p.bio.position] - a.g * POSITION_VALUE[a.p.bio.position]);
@@ -328,19 +347,19 @@ function reSign(
         // Exclusive-rights: a one-year minimum tender he must take.
         contract = { ...minimumContract({ player: p.bio.id, team: team.id, season: next, signedAt: at, creditedSeasons: cs, years: 1, capForSeason: config.cap }), kind: "ERFA_TENDER" };
       } else if (cs === RFA_SEASONS) {
-        const v = valuePlayer(p, g, curves, minimumSalary(next, cs, config.cap));
+        const v = valuePlayer(p, g, curves, minimumSalary(next, cs, config.cap), undefined, config.ahead.value(team.id, p));
         const prior = capNumber(book.contracts.find((c) => String(c.player) === String(p.bio.id) && endsAfter(c, ctx.season))!.years.find((y) => y.season === ctx.season) ?? { season: 0, baseSalary: 0, signingBonusProration: 0, guarantees: { fullyGuaranteed: false }, capHit: 0 });
         const levels: TenderLevel[] = ["FIRST_ROUND", "SECOND_ROUND", "ORIGINAL_ROUND", "RIGHT_OF_FIRST_REFUSAL"];
         const level = levels.find((l) => tenderPrice(l, config.cap(next), prior) <= v.apy) ?? "RIGHT_OF_FIRST_REFUSAL";
         const price = tenderPrice(level, config.cap(next), prior);
         if (price <= room) contract = oneYear(p, team.id, next, at, price, "RFA_TENDER");
       } else {
-        const v = valuePlayer(p, g, curves, minimumSalary(next, cs, config.cap), config.cap(next));
+        const v = valuePlayer(p, g, curves, minimumSalary(next, cs, config.cap), config.cap(next), config.ahead.value(team.id, p));
         const offer = buildOffer(p, team.id, next, at, v.apy, v.years, v.percentile, cs, config.cap, "EXTENSION");
         // A team does not let its last man at a starting seat walk over next year's room.
         const lastMan = gradesAt(pos).length < Math.max(1, STARTERS[pos]);
         if (capNumber(offer.years[0]!) <= room && (lastMan || secondYearFits(team.id, offer, book, config.cap, plan(team.id)))) {
-          const ask = askingPrice(p, valuePlayer(p, config.rate(p), curves, minimumSalary(next, cs, config.cap)).apy, "VALUE", 0, minimumSalary(next, cs, config.cap), ctx.seed, ctx.season);
+          const ask = askingPrice(p, askValue(p, config, curves, minimumSalary(next, cs, config.cap), config.cap(next)), "VALUE", 0, minimumSalary(next, cs, config.cap), ctx.seed, ctx.season);
           const worth = offerWorth(p, {
             apy: v.apy, guaranteed: guaranteedShare(offer), winShare: winShareOf(team.id, ctx.state),
             starts: wouldStart(g, pos, gradesAt(pos)), ownTeam: true,
@@ -370,15 +389,15 @@ function reSign(
       const cs = seasonsIn(p, first);
       // A drafted player cannot sign a new deal until his third season is over (the real rookie rule).
       if (old.kind === "ROOKIE" && seasonsIn(p, next) < MARKET.rookieExtensionSeasons) continue;
-      if (ageFactor(p.bio.age + 2, p.bio.position) < MARKET.extendAgeFactor) continue;
+      if (ageFactorAt(config.ahead.ruleAge(team.id, p) + 2) < MARKET.extendAgeFactor) continue;
       const g = grade(p);
       const floor = minimumSalary(first, cs, config.cap);
-      const v = valuePlayer(p, g, curves, floor, config.cap(first));
+      const v = valuePlayer(p, g, curves, floor, config.cap(first), config.ahead.value(team.id, p));
       if (v.percentile < MARKET.extendPercentile) continue;
       const offer = buildOffer(p, team.id, first, at, v.apy, v.years, v.percentile, cs, config.cap, "EXTENSION");
       if (capNumber(offer.years[0]!) > roomFor(team.id, first, book, config.cap, plan(team.id).cushion, 0, plan(team.id).lookAhead)) continue;
       if (!secondYearFits(team.id, offer, book, config.cap, plan(team.id))) continue;
-      const ask = askingPrice(p, valuePlayer(p, config.rate(p), curves, floor).apy, "VALUE", 0, floor, ctx.seed, ctx.season);
+      const ask = askingPrice(p, askValue(p, config, curves, floor, config.cap(first)), "VALUE", 0, floor, ctx.seed, ctx.season);
       const worth = offerWorth(p, {
         apy: apyOf(offer), guaranteed: guaranteedShare(offer), winShare: winShareOf(team.id, ctx.state),
         starts: wouldStart(g, p.bio.position, gradesAt(p.bio.position)), ownTeam: true,
@@ -421,6 +440,15 @@ function buildOffer(
   });
 }
 
+/**
+ * What a man thinks he is worth a year, the base of his asking price: the market's price for his
+ * rating, judged ahead with no team's error over the middle years (step 13; today's with no growth
+ * record, at his age's discount).
+ */
+function askValue(p: PlayerState, config: YearConfig, curves: MarketCurves, floor: number, cap: number): number {
+  return valuePlayer(p, config.ahead.rate(undefined, p), curves, floor, cap, config.ahead.value(undefined, p)).apy;
+}
+
 // ---------- the new league year (OFF_RESET_FA week 1 day 1) ----------
 
 /**
@@ -437,7 +465,7 @@ function floorPlan(
 }
 
 function newLeagueYear(
-  people: LeaguePeople, ctx: DayStepContext, config: LeagueYearConfig, skillOf: (t: TeamId, p: LeaguePeople) => number,
+  people: LeaguePeople, ctx: DayStepContext, config: YearConfig, skillOf: (t: TeamId, p: LeaguePeople) => number,
 ): { people: LeaguePeople; events: FranchiseEvent[] } {
   const year = ctx.season + 1;
   const book: Book = { contracts: [...(people.contracts ?? [])], dead: [...(people.deadMoney ?? [])], events: [] };
@@ -488,11 +516,11 @@ const yearBase = (c: PlayerContract, season: number): number => c.years.find((y)
  */
 function getUnderCap(
   t: Team, year: number, ctx: DayStepContext, book: Book, byId: ReadonlyMap<string, PlayerState>, freeAgents: PlayerState["bio"]["id"][],
-  config: LeagueYearConfig, skill: number, top51: boolean, carried: Pick<LeaguePeople, "capCarryover">,
+  config: YearConfig, skill: number, top51: boolean, carried: Pick<LeaguePeople, "capCarryover">,
   /** The new league year: room wanted beyond the cap, and the market to judge who is overpaid. */
   newYear?: { want: number; curves: MarketCurves; plan: CapPlan },
 ): Team {
-  const grade = (p: PlayerState) => teamGrade(t.id, p, skill, config.rate, ctx.seed, ctx.season);
+  const grade = (p: PlayerState) => teamGrade(t.id, p, skill, config.ahead.forTeam(t.id), ctx.seed, ctx.season);
   const capNow = adjustedCap(t.id, year, carried, config.cap);
   const room = () => capNow - teamCapTotal(t.id, year, book.contracts, book.dead, { top51, at: ctx.day }).total;
   const live = () => book.contracts.map((c, i) => ({ c, i })).filter(({ c }) => c.team === t.id && liveIn(c, year));
@@ -525,9 +553,9 @@ function getUnderCap(
     let designations = POST_JUNE_1_DESIGNATIONS - book.contracts.filter((c) => c.team === t.id && designatedIn(c, year)).length;
     for (const { c, i } of live()) {
       const p = byId.get(String(c.player));
-      if (!p || ageFactor(p.bio.age, p.bio.position) >= 1 || !spare(p, countAt())) continue;
+      if (!p || ageFactorAt(config.ahead.ruleAge(t.id, p)) >= 1 || !spare(p, countAt())) continue;
       const hit = capNumber(c.years.find((y) => y.season === year)!);
-      const worth = valuePlayer(p, grade(p), newYear.curves, minimumSalary(year, seasonsIn(p, year), config.cap)).apy;
+      const worth = valuePlayer(p, grade(p), newYear.curves, minimumSalary(year, seasonsIn(p, year), config.cap), config.cap(year), config.ahead.value(t.id, p)).apy;
       if (worth >= MARKET.casualtyShare * hit) continue;
       const r = releasePlayer(c, ctx.day);
       if (saving(c, r) < MARKET.casualtySaving) continue;
@@ -606,7 +634,7 @@ function mostSpare(
  * the best free agents on one-year minimum deals.
  */
 function complianceCheck(
-  people: LeaguePeople, ctx: DayStepContext, config: LeagueYearConfig, skillOf: (t: TeamId, p: LeaguePeople) => number,
+  people: LeaguePeople, ctx: DayStepContext, config: YearConfig, skillOf: (t: TeamId, p: LeaguePeople) => number,
   year: number, top51: boolean, fillTo?: number,
 ): { people: LeaguePeople; events: FranchiseEvent[] } | undefined {
   const book: Book = { contracts: [...(people.contracts ?? [])], dead: [...(people.deadMoney ?? [])], events: [] };
@@ -617,6 +645,7 @@ function complianceCheck(
   if (fillTo !== undefined) {
     const taken = new Set<string>();
     teams = teams.map((t) => {
+      const judge = config.ahead.forTeam(t.id);
       let roster = [...t.roster];
       const pool = freeAgents.map((id) => byId.get(String(id))).filter((p): p is PlayerState => !!p && !taken.has(String(p.bio.id)));
       // First every hole: a position with fewer than its starters (at least one) gets the best free
@@ -627,12 +656,12 @@ function complianceCheck(
       for (const [pass, want] of shape.entries()) for (const pos of Object.keys(STARTERS) as Position[]) {
         const here = () => playersOf({ ...t, roster }, byId).filter((p) => p.bio.position === pos).length;
         while (here() < want(pos)) {
-          const pick = pool.filter((p) => p.bio.position === pos && !taken.has(String(p.bio.id))).sort((a, b) => config.rate(b) - config.rate(a))[0];
+          const pick = pool.filter((p) => p.bio.position === pos && !taken.has(String(p.bio.id))).sort((a, b) => judge(b) - judge(a))[0];
           if (!pick) break;
           if (roster.length >= fillTo) {
             // The shape never costs a man the roster wants: only a starter hole may release.
             if (pass > 0) break;
-            const spare = mostSpare({ ...t, roster }, byId, config.rate, year, book);
+            const spare = mostSpare({ ...t, roster }, byId, judge, year, book);
             if (!spare) break;
             const r = releasePlayer(book.contracts[spare.i]!, ctx.day);
             book.contracts[spare.i] = r.contract;
@@ -652,7 +681,7 @@ function complianceCheck(
         const room = adjustedCap(t.id, year, people, config.cap) - teamCapTotal(t.id, year, book.contracts, book.dead).total;
         const here = playersOf({ ...t, roster }, byId);
         const pick = pool.filter((p) => !taken.has(String(p.bio.id)) && minimumSalary(year, seasonsIn(p, year), config.cap) <= room)
-          .sort((a, b) => (config.rate(b) + 10 * needAt(b.bio.position, here, config.rate)) - (config.rate(a) + 10 * needAt(a.bio.position, here, config.rate)))[0];
+          .sort((a, b) => (judge(b) + 10 * needAt(b.bio.position, here, judge)) - (judge(a) + 10 * needAt(a.bio.position, here, judge)))[0];
         if (!pick) break;
         const c = minimumContract({ player: pick.bio.id, team: t.id, season: year, signedAt: ctx.day, creditedSeasons: seasonsIn(pick, year), years: 1, capForSeason: config.cap });
         book.contracts.push(c);
@@ -679,7 +708,7 @@ function complianceCheck(
 const HOLE_FIRST = 1e6;
 
 function freeAgency(
-  people: LeaguePeople, ctx: DayStepContext, config: LeagueYearConfig, skillOf: (t: TeamId, p: LeaguePeople) => number,
+  people: LeaguePeople, ctx: DayStepContext, config: YearConfig, skillOf: (t: TeamId, p: LeaguePeople) => number,
   market: { window: MarketWindow; weeksIntoBargain: number },
 ): { people: LeaguePeople; events: FranchiseEvent[] } | undefined {
   if (people.freeAgents.length === 0) return undefined;
@@ -709,7 +738,7 @@ function freeAgency(
   const asks = new Map(pool.map((p) => {
     const cs = seasonsIn(p, season);
     const floor = minimumSalary(season, cs, config.cap);
-    return [String(p.bio.id), askingPrice(p, valuePlayer(p, config.rate(p), curves, floor).apy, market.window, market.weeksIntoBargain, floor, ctx.seed, season)];
+    return [String(p.bio.id), askingPrice(p, askValue(p, config, curves, floor, config.cap(season)), market.window, market.weeksIntoBargain, floor, ctx.seed, season)];
   }));
   const signed = new Set<string>();
   // Men let go to make room (step 12): they join the free agents after today's market.
@@ -729,11 +758,12 @@ function freeAgency(
       const room = roomFor(t.id, season, book, config.cap, reserve(t.id), adjustedCap(t.id, season, people, config.cap) - config.cap(season), plan(t.id).lookAhead, ctx.day);
       if (room <= 0) continue;
       const skill = skillOf(t.id, people);
+      const judge = config.ahead.forTeam(t.id);
       // A team's grade of a man is fixed for the day, so it is drawn once and kept across rounds.
       const grade = (p: PlayerState) => {
         const k = `${String(t.id)}|${String(p.bio.id)}`;
         let g = graded.get(k);
-        if (g === undefined) { g = teamGrade(t.id, p, skill, config.rate, ctx.seed, season); graded.set(k, g); }
+        if (g === undefined) { g = teamGrade(t.id, p, skill, judge, ctx.seed, season); graded.set(k, g); }
         return g;
       };
       const roster = playersOf(t, byId);
@@ -776,7 +806,7 @@ function freeAgency(
         if (signed.has(String(p.bio.id)) || turnedDown.has(`${String(t.id)}|${String(p.bio.id)}`)) continue;
         const pos = p.bio.position;
         const here = gradesHere.get(pos) ?? [];
-        if (!needs.has(pos)) needs.set(pos, needAt(pos, roster, config.rate));
+        if (!needs.has(pos)) needs.set(pos, needAt(pos, roster, judge));
         const need = needs.get(pos)!;
         const g = grade(p);
         // Step 11: a man who would make the 53 by a clear margin is worth a call, not only a starter.
@@ -784,7 +814,7 @@ function freeAgency(
         if (!upgrade && need < 0.2) continue;
         const cs = seasonsIn(p, season);
         const floor = minimumSalary(season, cs, config.cap);
-        const v = valuePlayer(p, g, curves, floor, config.cap(season));
+        const v = valuePlayer(p, g, curves, floor, config.cap(season), config.ahead.value(t.id, p));
         // Step 12: a team pays what it thinks he is worth, but never more than he asks.
         const apy = Math.max(floor, Math.min(asks.get(String(p.bio.id))!, Math.round(v.apy * (MARKET.offerBase + MARKET.offerNeed * need) / 1000) * 1000));
         let contract = buildOffer(p, t.id, season, ctx.day, apy, v.years, v.percentile, cs, config.cap, "VETERAN");
