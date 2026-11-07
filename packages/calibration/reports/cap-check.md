@@ -267,12 +267,42 @@ This command as it runs (growth off, 5 seasons), with the windows. "Before" is s
 
 With growth and injuries on (two seeds, five seasons), step 14 raised the middle class's share of the cap at week 1 from 10.1% / 9.7% to 18.9% / 18.9% (real 21.4%), and the windows brought it back to 15.5% / 14.3%; big deals hold 39.1% / 38.5% (real 39.5%). With growth on, the middle class is near real in 2027 and 2028 and falls from 2029, while dead money climbs (item 3). ADR-085's step 14 has both panels, with ages.
 
+### Real guarantees (2026-11-07)
+
+Deals used to guarantee money by the man's place in his market: a good man who signed late for a little had his whole year guaranteed. Now each deal takes the bonus share and the share guaranteed at signing that real deals of its pay and length carry (OverTheCap's 2021-25 new-team deals, medians, COUNTED): nothing at about the minimum, 23% of a deal under the middle class, 74% to 90% of a one-year middle-class or big deal, and about half of a longer one (ADR-085, step 14, has the table).
+
+This command as it runs (growth off, 5 seasons), with real guarantees. "Windows" is the build above, before real guarantees.
+
+| League year | 2027 | 2028 | 2029 | 2030 | 2031 | Mean | Windows, mean | Main, mean | Real |
+|---|---|---|---|---|---|---|---|---|---|
+| New-team deals, $2M+ | 205 | 224 | 265 | 236 | 237 | 233 | 232 | 186 | 180 to 240 |
+| New-team deals, $5M+ | 95 | 109 | 117 | 131 | 133 | 117 | 104 | 94 | 80 to 120 |
+| Own-team deals of 2+ years | 90 | 92 | 124 | 72 | 133 | 102 | 88 | 122 | 210 to 290 |
+| ... above the minimum | 79 | 84 | 98 | 51 | 111 | 85 | 83 | 117 | about 135 |
+| Middle class at week 1, share of the cap | 24.4% | 21.2% | 18.3% | 22.3% |  | 21.6% | 22.1% | 17.1% | 21.4% |
+| Middle-class men a team at week 1 | 13.9 | 11.8 | 11.7 | 13.0 |  | 12.6 | 12.3 | 8.9 | 13.7 |
+| Big deals at week 1, share of the cap | 46.3% | 48.0% | 44.7% | 39.3% |  | 44.6% | 44.3% | 49.7% | 39.5% |
+| Dead money once the season is over, mean a team ($M) | 20.3 | 36.3 | 50.2 | 50.7 |  | 39.4 | 37.6 | 35.3 | 49.3 (2026) |
+| Dead money before its cut-down and season, mean a team ($M) | 15.8 | 30.4 | 43.7 | 44.3 | 42.5 | 35.3 | 30.1 | 30.4 |  |
+| Cap used, median | 95.1% | 95.3% | 96.1% | 95.2% | 92.1% | 94.8% | 96.5% | 97.7% |  |
+| Quarterbacks' share of the cap | 10.7% | 8.9% | 8.7% | 7.4% | 9.1% | 9.0% | 9.6% | 9.4% | 10.7% |
+| Offensive line's share | 19.6% | 19.8% | 18.8% | 18.2% | 18.0% | 18.9% | 18.8% | 19.5% | 18.7% |
+
+| 2029-31 | QB | RB | WR | TE | OL | IDL | EDGE | LB | CB | S | ST |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| Step 14 with the windows | 9.4 | 4.8 | 14.2 | 3.2 | 18.3 | 8.1 | 15.7 | 5.2 | 13.3 | 5.6 | 2.1 |
+| Step 14 with real guarantees | 8.4 | 4.6 | 14.2 | 3.3 | 18.3 | 9.0 | 15.4 | 6.2 | 12.4 | 5.8 | 2.3 |
+| Real (active deals, APY) | 10.7 | 4.8 | 13.0 | 5.2 | 18.7 | 10.6 | 13.0 | 6.4 | 9.6 | 6.0 | 2.0 |
+
+- Growth off, little moved: more $5M+ deals with new teams and more own-team deals of 2+ years, a little more dead money, the middle class about the same.
+- With growth and injuries on (two seeds), cut-down day's dead money fell from $25.2M / $23.2M a team a year to $18.6M / $14.7M, while late winter's cap cuts rose from $10.9M / $11.3M to $20.8M / $18.7M; dead money once a season is over is 16.2% / 16.5% of the cap (real 16.4%). Good free agents unsigned at week 1 fell from 24 / 36 a year to 10 / 21. The middle class's share at week 1 in 2029-30 is 14.4% / 13.6% (15.5% / 14.3% with the windows).
+
 ## What does not match yet
 
-1. **Too few re-signings.** Own-team deals of 2+ years run at about 88 a year against 210 to 290; above the minimum, about 83 against about 135. Part of the gap is minimum deals of two years or more (futures deals and call-ups among them), which we sign for one year. With the real windows, room no longer stops a team's own men in late winter; value for money does, mostly men who would be backups. Real teams also re-sign about 71 of their own middle-class men a year for one year; we re-sign about 18 (growth on). Two fixes were tried and not kept (ADR-085, step 14).
-2. **A team's own middle class is short, and with growth on the middle class fades.** With growth on, the middle class holds 15.5% / 14.3% of the cap at week 1 in 2029-30 against 21.4% (about 22% in 2027), and own-team middle-class deals run at about 55 a year against 155 (item 1); growth off, 22.1%. Big deals hold 44.3% growth off against 39.5%.
-3. **Dead money.** Growth off, about $38M a team once the season is over, against $49.3M in the real 2026. With growth on it is $58M to $60M, 17% to 18% of a bigger cap (real 16.4%), and at week 1 it climbs from about 11% of the cap in 2027 to about 21% in 2029-30. Cut-down day's cuts leave the most of it, about two fifths: teams cut about 80 men a year they signed that same offseason with $1M or more still owed (real teams let about 13 such men go before they play for them) and a quarter to a half of each new class's round 3 to 5 picks (real teams keep almost all). ADR-085's step 14 has the counts. There are no trades yet.
-4. **The position mix drifts.** Corner money runs high (13.3% of the cap in 2029-31 against 9.6%), and tight end and interior line money low.
+1. **Too few re-signings.** Own-team deals of 2+ years run at about 102 a year against 210 to 290; above the minimum, about 85 against about 135. Part of the gap is minimum deals of two years or more (futures deals and call-ups among them), which we sign for one year. With the real windows, room no longer stops a team's own men in late winter; value for money does, mostly men who would be backups. Real teams also re-sign about 71 of their own middle-class men a year for one year; we re-sign about 18 (growth on). Two fixes were tried and not kept (ADR-085, step 14).
+2. **A team's own middle class is short, and with growth on the middle class fades.** With growth on, the middle class holds 14.4% / 13.6% of the cap at week 1 in 2029-30 against 21.4% (about 22% in 2027), and own-team middle-class deals run at about 60 a year against 155 (item 1); growth off, 21.6%. Big deals hold 44.6% growth off against 39.5%.
+3. **Dead money.** Growth off, about $39M a team once the season is over, against $49.3M in the real 2026. With growth on it is $55M to $59M, about 16% of a bigger cap (real 16.4%), and at week 1 it climbs from about 10% of the cap in 2027 to about 20% in 2029-30. Before real guarantees, cut-down day's cuts left the most of it, about two fifths: teams cut about 80 men a year they signed that same offseason with $1M or more still owed (real teams let about 13 such men go before they play for them) and a quarter to a half of each new class's round 3 to 5 picks (real teams keep almost all). Real guarantees cut cut-down day's share to under a third, and late winter's cap cuts now leave about as much or more. ADR-085's step 14 has the counts. There are no trades yet.
+4. **The position mix drifts.** Corner money runs high (12.4% of the cap in 2029-31 against 9.6%), and tight end, interior line and quarterback money low.
 5. **Offseason rosters reach 105 to 106** at the end of the summer, over the 90-man limit (main too).
 6. **The league file's 2026 rookie class is on one-year deals** (the importer's estimated deal, one year at its average a year, as OverTheCap's history has no year rows for them yet): 235 drafted and 69 undrafted rookies paid at least about the rookie minimum; the 139 on practice-squad pay are rightly on one-year deals. So they are exclusive-rights free agents in 2027 and 2028 and restricted free agents in 2029, when tenders jump to 54 to 82 (3 to 18 in other years). Real rookie deals run four years drafted, three undrafted. The importer should write them whole.
 

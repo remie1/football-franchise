@@ -237,8 +237,9 @@ Day steps in the season's walk, beside the draft's (ADR-086 §2):
 
 **Prices** come from the league's own contracts (`value.ts`): a player's price is the deal at the same
 place in his tag group's market as his grade holds among the players on those deals, less an age
-discount from 30 (34 for quarterbacks and specialists). Term and structure (bonus share, guaranteed
-years) follow his place in the market and his age. With the stand-in league the market is the real one.
+discount from 30 (34 for quarterbacks and specialists). Term follows his place in the market and his
+age; structure (the signing bonus's share and the share guaranteed at signing) follows the deal's pay and
+length, as in real deals (step 14). With the stand-in league the market is the real one.
 
 **Offers are judged by need** (Q5 b, `negotiation.ts`): worth = money ÷ ask, moved up to 25% by
 winning, playing time, loyalty and guarantees, by his need weights (age-reweighted per
@@ -459,6 +460,41 @@ veteran salary benefit, in-season street signings and injured reserve, compensat
   - *Where the fade's dead money comes from* (the windows, growth and injuries on, seed d5b-t2, PR #73's class talent put in by hand, the cut-downs of 2027-29; COUNTED in our walk). Cut-down day leaves more dead money than any other step, about two fifths of it ($618M, $826M and $580M league-wide, about $21M a team a year), because teams cut men they have just paid:
     - About 80 a year cut with $1M or more of dead money were signed that same offseason: 42 to 65 in March's free agency, 2 to 7 re-signed in late winter, and one-year deals of $1.2M to $2M signed in draft week or the summer, fully guaranteed (a deal for a man in the top 40% of his market was built with a guaranteed year, however small). Real teams let about 13 such men a year go (18, 6 and 16 in 2022-24): signed that year with $1M or more guaranteed and never on the signing team's roster in a regular-season week (active, inactive, reserve or unable to perform; OverTheCap's deals against nflverse's weekly rosters, COUNTED).
     - 25 to 39 a year are the new class's draft picks. Picks cut at their first cut-down, rounds 1 to 7 (2027-29): 0-6%, 0-14%, 22-42%, 36-61%, 50-61%, 56-76% and 69-79% (main, 2027-28: 0-12%, 3-6%, 15-28%, 15-25%, 33-35%, 44-47% and 59-69%). Real teams kept almost all of rounds 1 to 5: 0 of 95, 1 of 96, 0 of 116, 1 of 106, 3 of 119, 25 of 126 and 37 of 120 were not on their drafting team's 53 or reserve lists at their first week 1, practice squads included (the 2022-24 classes, nflverse's weekly rosters, COUNTED). A cut pick is rated a median 4.3 points below the weakest man kept at his position, both judged ahead (one in six within 1.5 points); one in twenty lost a close call on the cap a cut saves (§3.2), to a veteran whose small one-year deal was fully guaranteed. So most of it is how good the picks are when they arrive and how fast they are expected to grow (the aging thread's redesign), and how far ahead cut-down judges a pick: a team's years ahead plus one, at most three (step 13), where real teams judge a pick over his four-year rookie deal.
+- **Deals guarantee money as real deals at their pay and length do** (`realStructure`, `REAL_STRUCTURE`; put to the owner 2026-11-07). Before, a deal's bonus share and fully guaranteed years followed the man's place in his market (`structureFor`: a 35% bonus and two guaranteed years for the top 10%, a 20% bonus and one for the top 40%), so a good man who signed late for a little had his whole year guaranteed, and cutting him at cut-down cost all of it. Real deals guarantee by what they pay and how long they run. Each offer, in free agency, re-signing and extensions alike, now takes the real deals' bonus share and the share guaranteed at signing (bonus included) for its pay and length. COUNTED: OverTheCap's new-team veteran deals signed 2021-25 (the man's previous season with another team), medians, the bonus read from the deal's first season's proration, pay as a share of the cap, shown as bonus share / guaranteed share:
+
+  | Deal's pay | 1 year | 2 years | 3 years or more |
+  |---|---|---|---|
+  | About the minimum (up to 1.1 times his minimum; 95% of real ones guarantee nothing) | 0 / 0 | 0 / 0 | 0 / 0 |
+  | Under the middle class (to $2M of 2026's cap) | 10% / 23% | as one year | as one year |
+  | The middle class (to 4% of the cap) | 23% / 74% | 25% / 50% | 23% / 48% |
+  | Big deals (4% and up) | 24% / 90% | 22% / 60% | 25% / 52% |
+
+  Deals under the middle class run a year (276 real ones against 7 longer), so every length reads the one-year row. The guarantee is base salary from the first year on until the deal reaches its share, the year where it runs out guaranteed in part (`guaranteedSalary`); `guaranteedShare` now counts such part-year guarantees too.
+  - *Measured* (growth and injuries on, seeds d5b-t2 / d5b-t4, PR #73's class talent put in by hand, against the windows above; dead money by step as the cap check tallies it, 2027-30):
+
+    | | The windows | Real guarantees | Real |
+    |---|---|---|---|
+    | Cut-down day's dead money a team, a year | $25.2M / $23.2M | $18.6M / $14.7M |  |
+    | Late winter's cap cuts' dead money a team, a year | $10.9M / $11.3M | $20.8M / $18.7M |  |
+    | Dead money a team once the season is over | $60.3M / $58.5M | $58.9M / $55.3M | $49.3M (2026) |
+    | ... as a share of the cap | 16.7% / 17.5% | 16.2% / 16.5% | 16.4% |
+    | Good free agents (top 40% at their position) unsigned at week 1, a year | 24 / 36 | 10 / 21 |  |
+    | New-team deals of $2M+ a year | 278 / 282 | 256 / 235 | 180 to 240 |
+    | New-team deals of $5M+ a year | 106 / 111 | 112 / 109 | 80 to 120 |
+    | Own-team deals of 2+ years | 98 / 89 | 112 / 106 | 210 to 290 |
+    | ... above the minimum | 92 / 83 | 96 / 91 | about 135 |
+    | Big deals a year, own team | 44 / 44 | 47 / 54 | 60 |
+    | Big deals a year, new team | 34 / 36 | 43 / 42 | 51 |
+    | Middle-class deals a year, own team | 52 / 56 | 63 / 54 | 155 |
+    | Middle-class deals a year, new team | 166 / 179 | 178 / 154 | 199 |
+    | Middle class's share of the cap, week 1 (2029-30) | 15.5% / 14.3% | 14.4% / 13.6% | 21.4% |
+    | Big deals' share of the cap | 39.1% / 38.5% | 41.1% / 39.9% | 39.5% |
+    | Quarterbacks' share of the cap (2029-31) | 9.3% / 8.1% | 10.0% / 8.3% | 10.7% |
+    | Offensive line's share (2029-31) | 18.7% / 18.3% | 19.7% / 19.3% | 18.7% |
+    | 31 and over (week-8 53s, 2027-30) | 15.2% / 14.1% | 14.9% / 13.8% | 10.1% |
+    | Undrafted | 18.3% / 19.2% | 18.5% / 19.0% | 27.4% (2022-24: 25.7%) |
+
+    Free agency moved toward real: fewer good free agents go unsigned, new-team deals of $2M+ come down toward the real range, and more big deals are signed with new teams and own teams alike. Cut-down day's dead money fell by a quarter to a third, as a small late deal no longer guarantees its whole year; late winter's cap cuts now leave about as much more, likely as longer deals guarantee part of their second year, as real ones do. So dead money once a season is over barely moved and stays real-sized. The middle class did not move: about a point lower with growth on. Its dip is deepest in 2029, the year the cap stalls in seed d5b-t2 and falls in d5b-t4 (to $316M), and it partly comes back in 2030 as the cap jumps, so part of the fade may be these seeds' cap path. With growth off (the cap check as it runs by default, against the windows): new-team deals of $2M+ 233 a year (232), of $5M+ 117 (104); own-team deals of 2+ years 102 (88), 85 above the minimum (83); the middle class at week 1 21.6% of the cap (22.1%), big deals 44.6% (44.3%); dead money once a season is over $39.4M a team (37.6); the quarterbacks' share 9.0% (9.6%), the line's 18.9% (18.8%).
 - **Price lists count a deal's own pay.** Two things set the top of a position's price list too high, so the best man there was asked for 18% to 21% of the cap (a guard at $60M, a center at $71M; the year's biggest real deal outside quarterback was 13.7% to 16.7% of the cap, 2021-25, OverTheCap, COUNTED):
   - An extension's bonus money carried over from the old deal counted as its pay. The price list, the player's view of an extension offer and the cap check's biggest deals now count a deal's own pay (`newPayOf`: its pay over its real years and its own signing bonus), as OverTheCap counts APY.
   - The league file writes some placeholder years into a roster bonus ($50M or $100M on four deals, in years whose stored cap hit leaves them out) instead of a base salary, and one void year still carries a $50M roster bonus. They inflated the guard, tackle, defensive tackle and linebacker price lists from the first league year, in main too. The cap check now brings such a roster bonus down to what the year's stored cap hit holds (`PLACEHOLDER_SLACK`, $1M, CHOSEN) and a void year keeps only its bonus proration (`withDummyYearsVoid`). The importer should do this itself (the stand-in data fix still pending).
