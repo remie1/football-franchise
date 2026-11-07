@@ -294,11 +294,18 @@ describe("ADR-089 step 4 — throw first, and the motion", () => {
     expect(arrivals).toBeGreaterThan(0);
   });
 
-  it("releaseSeconds: one per aimed THROW under the motion, the decision tick plus rho(release) in whole ms", () => {
+  it("releaseSeconds: one per aimed THROW under the motion, the decision tick plus rho(release) in whole ms; none after an escape", () => {
     let n = 0;
+    let afterEscape = 0;
     for (const name of ["S4", "S4S", "S4L", "S4M"]) {
       for (const p of corpusOf(name)) {
-        const throws = p.events.filter((e) => typeOf(e) === "THROW");
+        // AM-7 item 6 (plan §3.2 item 10): no motion after an escape. A throw on the run (a
+        // QB_PURSUIT before it) leaves at its tick, with no releaseSeconds and no THROWING race.
+        const pursuit = p.events.find((e) => typeOf(e) === "QB_PURSUIT");
+        const allThrows = p.events.filter((e) => typeOf(e) === "THROW");
+        const throws = allThrows.filter((e) => pursuit === undefined || e.seq < pursuit.seq);
+        afterEscape += allThrows.length - throws.length;
+        if (pursuit !== undefined) expect(hits(p).filter((h) => h.at.seq > pursuit.seq && h.payload.phase === "THROWING")).toHaveLength(0);
         const rs = releases(p);
         expect(rs.length).toBe(throws.length);
         const qb = p.state.players[String(p.state.quarterback)]!;
@@ -313,6 +320,7 @@ describe("ADR-089 step 4 — throw first, and the motion", () => {
       }
     }
     expect(n).toBeGreaterThan(0);
+    expect(afterEscape).toBeGreaterThan(0);
     for (const name of ["S4C", "T"]) {
       for (const p of corpusOf(name)) {
         expect(releases(p)).toHaveLength(0);

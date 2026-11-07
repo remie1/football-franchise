@@ -1679,7 +1679,9 @@ export function simulatePassPlayWith(
         const arrivedNow = arrivedInGridOrder(threats, tick, tunables);
         const first = arrivedNow[0];
         if (first !== undefined) log.qbHit(qbHitOf(first, "ARRIVAL"));
-        if (motion !== undefined) {
+        // No motion after an escape (AM-7 item 6; plan §3.2 item 10): a throw on the run leaves at
+        // its tick, with no releaseSeconds and no THROWING race.
+        if (motion !== undefined && scramble === undefined) {
           const r = rho(getAttr(qb.attributes.values, ATTR.release), motion);
           releaseAt = toMilliseconds(tick + r) / 1000;
           const arrivedIds = new Set(arrivedNow.map((t) => String(t.rusher)));
