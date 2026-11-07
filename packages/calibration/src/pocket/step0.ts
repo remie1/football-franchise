@@ -59,7 +59,7 @@ import { BASE_ROW_IDS } from "./bands.js";
 import { constructById, M_IDS, NOBODY_OPEN_CLASSES, THROW_CLASSES, type MId, type ThrowClass } from "./constructs.js";
 import { ARM_S } from "./m2ForcingSource.js";
 import { renderStepReport, type ArmReport, type ClassIntRows, type IntGuardRows, type ReportRow, type StepReportInput } from "./report.js";
-import { dropbacksOf, isAimed, throwClassOf } from "./throwClass.js";
+import { dropbacksOf, isAimed, throwClassOf, type ThrowClassifier } from "./throwClass.js";
 import { flatBaseline, genSeason, type CorpusVisitor, type SeedSet } from "./corpus.js";
 import { fillPending, loadFiled, pendingPaths, saveFiled, type FiledFile, type JsonValue } from "./filed.js";
 import { emptyM1Fold, foldM1Game, m1Result, type M1Fold, type M1Result } from "./m1PushWindow.js";
@@ -505,10 +505,15 @@ export function emptyGuardFold(): GuardFold {
   return Object.fromEntries(THROW_CLASSES.map((c) => [c, { aimedByBin: RELEASE_BINS.map(() => 0), interceptions: 0, completions: 0 }])) as GuardFold;
 }
 
-export function foldGuardGame(fold: GuardFold, events: readonly MatchEventEnvelope[], tunables: Tunables): void {
+/**
+ * Adds a game's aimed throws to the guard fold by class. `classify` is the guard rule's class view
+ * (`guardAm1.ts`'s `guardClassifier`): `throwClassOf` by default, as steps 0 to 4 read, or step 5's
+ * `throwClassOfS5` under AM-8.
+ */
+export function foldGuardGame(fold: GuardFold, events: readonly MatchEventEnvelope[], tunables: Tunables, classify: ThrowClassifier = throwClassOf): void {
   for (const d of dropbacksOf(events)) {
     if (!isAimed(d) || d.throwTick === undefined) continue;
-    const cell = fold[throwClassOf(d, tunables).cls];
+    const cell = fold[classify(d, tunables).cls];
     const label = releaseBinOf(d.throwTick);
     const i = RELEASE_BINS.findIndex((b) => b.label === label);
     cell.aimedByBin[i] = (cell.aimedByBin[i] ?? 0) + 1;

@@ -39,7 +39,11 @@
  * an `adrLines` or `cites` entry that is not a line of the design as C0 landed it (1 to
  * `ADR_089_LINES`); a `filedBeforeStep` or `steps` entry that is not a step of ADR-089; and an arm
  * of a base map that is not an arm of this build. An entry that supersedes a guard clause must also
- * carry a guard rule `guardRuleOf` reads (the statistic, the lines and the base maps).
+ * carry a guard rule `guardRuleOf` reads (the statistic, the lines and the base maps). A guard rule's
+ * optional fields (AM-8, filed before step 5a) are checked when present: `classView` (step 5's class
+ * view, "S5", never mapping a step before 5a), `freshBases` (bases no earlier record holds, each a base
+ * in the rule's maps), `skipEqualDials` (a boolean) and `reportedSplits` (`GUARD_REPORTED_SPLITS`'
+ * classes and splits only); absent, the rule reads as AM-1's.
  *
  * **One entry's change to another's rule text** (`rule.amends`; AM-5, ADR-089 Appendix G, G.11). A
  * filed entry is never edited, so a later entry that changes words in an earlier one's rule says so in
@@ -55,7 +59,9 @@
 import { readFileSync } from "node:fs";
 import { stableDigest } from "../harness/digest.js";
 import { isAnyArmId, type ArmId } from "./arms.js";
+import type { ThrowClass } from "./constructs.js";
 import { ADR_089_LINES, STEP0_FILED_DIGEST, type FiledFile, type JsonValue } from "./filed.js";
+import { THROW_CLASS_VIEWS, type ThrowClassView } from "./throwClass.js";
 
 export const AMENDMENTS_FORMAT = "adr-089-amendments/v1";
 
@@ -236,6 +242,22 @@ export function amendedRuleText(file: AmendmentsFile, id: string, path: string):
 
 // --- the guard rule (AM-1 §4.3 to §4.5, §4.9) ------------------------------------------------------------
 
+/**
+ * The splits a guard rule may report for a class (`rule.reportedSplits`; reported, never graded): AM-1's
+ * DESPERATION by the last status at or before the release (DIRTY, CLEAN), and AM-8's three at step 5
+ * (`filing.md` §3): PROGRESSION and CLEAN_EXPIRY after a clean move or not, ON_THE_RUN after a clean
+ * break-out or a pressured escape. A rule naming a class or a split outside this table is refused.
+ */
+export const GUARD_REPORTED_SPLITS: Readonly<Partial<Record<ThrowClass, readonly string[]>>> = Object.freeze({
+  DESPERATION: Object.freeze(["DIRTY", "CLEAN"]),
+  PROGRESSION: Object.freeze(["AFTER_CLEAN_MOVE", "OTHER"]),
+  CLEAN_EXPIRY: Object.freeze(["AFTER_CLEAN_MOVE", "OTHER"]),
+  ON_THE_RUN: Object.freeze(["CLEAN_BREAKOUT", "PRESSURED"]),
+});
+
+/** The first step a class view may read at: step 5's view (AM-8) never reads a step before 5a, whose re-grades keep `throwClassOf`. */
+const CLASS_VIEW_FROM: Readonly<Record<ThrowClassView, AdrStepId>> = Object.freeze({ S5: "5a" });
+
 /** The guard rule an entry superseding `guard.mix` and `guard.byClass` carries, as the harness reads it. */
 export interface GuardRule {
   /** Per step, the graded arms and their bases (AM-1 §4.3; `rule.bases`). */
@@ -255,6 +277,24 @@ export interface GuardRule {
   readonly dirtyPocket: "lastStatusAtOrBeforeRelease";
   /** The cumulative line (reported, never graded before step 10): design and pricing arms against these. */
   readonly cumulative: { readonly design: ArmId; readonly pricing: ArmId; readonly graded: false };
+  /**
+   * The class view both sides of every pair are read with (AM-8: "S5", `throwClassOfS5`). Absent:
+   * `throwClassOf`, as steps 1 to 4 read (AM-1, AM-3, AM-6 carry none). Refused before step 5a.
+   */
+  readonly classView?: ThrowClassView;
+  /**
+   * Bases no earlier record holds, each played fresh (AM-8: E0, "played fresh and twice in separate
+   * processes, identical stream digests required"): arm to how it is played. Each must be a base in
+   * the rule's maps.
+   */
+  readonly freshBases?: Readonly<Record<string, string>>;
+  /**
+   * AM-8: a pair whose two arms have equal dials (their overlay digests, which leave the rules name
+   * out) compares a build with itself and is skipped by rule; the report says so.
+   */
+  readonly skipEqualDials?: boolean;
+  /** The splits reported beside a class (AM-1: DESPERATION's DIRTY and CLEAN; AM-8 adds three), never graded (`GUARD_REPORTED_SPLITS`). */
+  readonly reportedSplits?: Readonly<Partial<Record<ThrowClass, readonly string[]>>>;
 }
 
 /** Every problem with an entry's guard rule; empty when `guardRuleOf` can read it. */
@@ -293,6 +333,61 @@ function guardRuleProblems(rule: Record<string, unknown>, at: string, steps: rea
   const cum = rule["cumulative"];
   if (!isObject(cum) || typeof cum["design"] !== "string" || !isAnyArmId(cum["design"]) || typeof cum["pricing"] !== "string" || !isAnyArmId(cum["pricing"]) || cum["graded"] !== false) {
     out.push(`${at}.cumulative: must name a design arm and a pricing arm of this build, with graded false`);
+  }
+  out.push(...guardRuleOptionalProblems(rule, at));
+  return out;
+}
+
+/**
+ * Every problem with a guard rule's optional fields (ADR-089 step 5, AM-8; `filing.md` §3.1): absent,
+ * each leaves the rule as AM-1 reads it. `classView` is a view of `THROW_CLASS_VIEWS` and maps no step
+ * before the view's first ("S5": 5a); `freshBases` maps arms that are bases in the rule's maps to how
+ * each is played; `skipEqualDials` is a boolean; `reportedSplits` names only `GUARD_REPORTED_SPLITS`'
+ * classes and splits, each list non-empty and without repeats.
+ */
+function guardRuleOptionalProblems(rule: Record<string, unknown>, at: string): string[] {
+  const out: string[] = [];
+  const bases = isObject(rule["bases"]) ? rule["bases"] : {};
+  if ("classView" in rule) {
+    const view = rule["classView"];
+    if (typeof view !== "string" || !(THROW_CLASS_VIEWS as readonly string[]).includes(view)) out.push(`${at}.classView: must be one of ${THROW_CLASS_VIEWS.join(", ")} (got ${JSON.stringify(view ?? null)})`);
+    else {
+      const from = CLASS_VIEW_FROM[view as ThrowClassView];
+      for (const step of Object.keys(bases)) {
+        if (isAdrStepId(step) && ADR_089_STEP_IDS.indexOf(step) < ADR_089_STEP_IDS.indexOf(from)) {
+          out.push(`${at}.classView: ${view} reads from step ${from}; the rule maps step ${step}, which keeps the classes it was graded with`);
+        }
+      }
+    }
+  }
+  if ("freshBases" in rule) {
+    const fresh = rule["freshBases"];
+    const used = new Set(Object.values(bases).flatMap((m) => (isObject(m) ? Object.values(m) : [])));
+    if (!isObject(fresh) || Object.keys(fresh).length === 0) out.push(`${at}.freshBases: must map at least one base arm to how it is played`);
+    else {
+      for (const [arm, how] of Object.entries(fresh)) {
+        if (!isAnyArmId(arm)) out.push(`${at}.freshBases.${arm}: not an arm of this build`);
+        else if (!used.has(arm)) out.push(`${at}.freshBases.${arm}: not a base in the rule's maps`);
+        if (!isString(how)) out.push(`${at}.freshBases.${arm}: must say how it is played (a non-empty string)`);
+      }
+    }
+  }
+  if ("skipEqualDials" in rule && typeof rule["skipEqualDials"] !== "boolean") out.push(`${at}.skipEqualDials: must be true or false`);
+  if ("reportedSplits" in rule) {
+    const splits = rule["reportedSplits"];
+    if (!isObject(splits) || Object.keys(splits).length === 0) out.push(`${at}.reportedSplits: must map at least one class to its splits`);
+    else {
+      for (const [cls, list] of Object.entries(splits)) {
+        const known = GUARD_REPORTED_SPLITS[cls as ThrowClass];
+        if (known === undefined) {
+          out.push(`${at}.reportedSplits.${cls}: no split is read for this class (${Object.keys(GUARD_REPORTED_SPLITS).join(", ")})`);
+          continue;
+        }
+        if (!Array.isArray(list) || list.length === 0 || !list.every((x) => typeof x === "string" && known.includes(x)) || new Set(list).size !== list.length) {
+          out.push(`${at}.reportedSplits.${cls}: must list distinct splits of ${known.join(", ")}`);
+        }
+      }
+    }
   }
   return out;
 }

@@ -2,22 +2,33 @@
  * ADR-089 step 0 — D28'S THROW CLASSES, ONE CONSTRUCTED DROPBACK PER CLASS (plan §6.1).
  *
  * Each case is a constructed PASS play, read by the same `readDropback` every S3 row uses, then
- * classed by `throwClassOf`. CLEAN_EXPIRY is empty until step 5a: no legacy fact produces it.
+ * classed by `throwClassOf`. CLEAN_EXPIRY is empty under `throwClassOf`, which steps 0 to 4 read: no
+ * fact it reads produces it.
+ *
+ * ADR-089 step 5 (AM-8, filing §3.1): step 5's class view, `throwClassOfS5`, reads every class as
+ * `throwClassOf` does except that a DESPERATION throw whose last pocket status at or before the
+ * decision is CLEAN and whose best read is at 30 or more reads CLEAN_EXPIRY. The last describe tests
+ * it on constructed plays; `pocketThrowClassS5Pins.test.ts` on the golden games of the s2 to s4 pins.
  */
 import type { MatchEventEnvelope } from "@ff/contracts";
 import { DEFAULT_TUNABLES } from "@ff/engine";
 import { describe, expect, it } from "vitest";
 import { NOBODY_OPEN_CLASSES, THROW_CLASSES, type ThrowClass } from "../src/pocket/constructs.js";
 import {
+  CLEAN_EXPIRY_BAR,
+  classifierOfView,
   desperationPocketOf,
   dropbacksOf,
   isAimed,
   isCleanDropback,
+  lastStatusAtOrBefore,
   playsOf,
   readDropback,
   releaseTickOf,
   throwBarFor,
+  THROW_CLASS_VIEWS,
   throwClassOf,
+  throwClassOfS5,
   worstStatus,
   type Dropback,
 } from "../src/pocket/throwClass.js";
@@ -270,5 +281,65 @@ describe("ADR-089 step 2: DESPERATION's clean and dirty halves (desperationPocke
     expect(desperationPocketOf(away)).toBe("DIRTY");
     const sack = one(play([tick(0.5), read("wr1", 20), tick(1.0), status("IMMEDIATE"), decide("HOLD"), result(-7)]));
     expect(() => desperationPocketOf(sack)).toThrow(/has no release/);
+  });
+});
+
+describe("ADR-089 step 5: step 5's class view (throwClassOfS5; AM-8, filing §3.1)", () => {
+  /** A throw decided at 1.5 on wr1 with the given best reads (nobody at the bar of 50), after the given statuses. */
+  const expiry = (best: number, before: readonly Ev[] = [], target = best): Dropback =>
+    one(play([tick(0.5), read("wr1", target), read("wr2", best), ...before, tick(1.5), decide("THROW", "wr1"), thrown("wr1"), caught(false), result(0)]));
+  const s5 = (d: Dropback): ThrowClass => throwClassOfS5(d, T).cls;
+
+  it("reads a clean desperation throw with someone at 30 or more as CLEAN_EXPIRY, and 29 as DESPERATION", () => {
+    for (const best of [30, 31, 45, 49]) {
+      const d = expiry(best);
+      expect(throwClassOf(d, T).cls, String(best)).toBe("DESPERATION");
+      expect(throwClassOfS5(d, T), String(best)).toEqual({ ...throwClassOf(d, T), cls: "CLEAN_EXPIRY" });
+    }
+    expect(CLEAN_EXPIRY_BAR).toBe(30);
+    expect(s5(expiry(29))).toBe("DESPERATION");
+    expect(s5(expiry(0))).toBe("DESPERATION");
+  });
+
+  it("keys on the best read, not the target: a throw to a man below 30 with someone at 30 is CLEAN_EXPIRY", () => {
+    const d = expiry(35, [], 22);
+    expect(throwClassOf(d, T)).toMatchObject({ cls: "DESPERATION", best: 35, targetEffective: 22 });
+    expect(s5(d)).toBe("CLEAN_EXPIRY");
+  });
+
+  it("reads the last status at or before the decision: dirty stays DESPERATION, dirty then cleared is CLEAN_EXPIRY", () => {
+    for (const s of ["PRESSURE", "COLLAPSING", "IMMEDIATE"]) expect(s5(expiry(40, [tick(1.0), status(s)])), s).toBe("DESPERATION");
+    expect(s5(expiry(40, [tick(1.0), status("IMMEDIATE"), tick(1.2), status("CLEAN")]))).toBe("CLEAN_EXPIRY");
+    expect(s5(expiry(40, [tick(1.0), status("CLEAN")]))).toBe("CLEAN_EXPIRY");
+    expect(s5(expiry(40, [tick(1.0), status("CLEAN"), tick(1.2), status("PRESSURE")]))).toBe("DESPERATION");
+  });
+
+  it("counts a status on the decision tick, and none after it (the decision, not the release)", () => {
+    const onDecision = one(play([tick(0.5), read("wr1", 40), tick(1.0), status("PRESSURE"), decide("THROW", "wr1"), thrown("wr1"), caught(false), result(0)]));
+    expect(lastStatusAtOrBefore(onDecision, 1.0)).toBe("PRESSURE");
+    expect(s5(onDecision)).toBe("DESPERATION");
+    // Decided at 0.5 on a clean pocket, released at 1.0 after a PRESSURE status: the view reads the decision.
+    const after = one(play([tick(0.5), read("wr1", 40), decide("THROW", "wr1"), tick(1.0), status("PRESSURE"), thrown("wr1"), caught(false), result(0)]));
+    expect(lastStatusAtOrBefore(after, 0.5)).toBeUndefined();
+    expect(desperationPocketOf(after)).toBe("DIRTY");
+    expect(s5(after)).toBe("CLEAN_EXPIRY");
+  });
+
+  it("moves nothing but DESPERATION: every constructed class reads the same under the view", () => {
+    for (const [cls, events] of CASES) expect(throwClassOfS5(one(events), T), cls).toEqual(throwClassOf(one(events), T));
+    // A clean CHECKDOWN with someone at 30 or more stays CHECKDOWN; a throw on the run stays ON_THE_RUN.
+    const check = one(play([tick(0.5), read("wr1", 40), tick(1.5), read("rb", 35), decide("CHECKDOWN", "rb"), thrown("rb"), caught(true), result(3)]));
+    expect(throwClassOf(check, T).cls).toBe("CHECKDOWN");
+    expect(s5(check)).toBe("CHECKDOWN");
+    const run = one(play([tick(0.5), read("wr1", 40), tick(1.0), { type: "QB_PURSUIT", payload: {} }, tick(1.5), decide("THROW", "wr1"), thrown("wr1"), caught(false), result(0)]));
+    expect(throwClassOf(run, T).cls).toBe("ON_THE_RUN");
+    expect(s5(run)).toBe("ON_THE_RUN");
+  });
+
+  it("is the classifier of view S5; no view is throwClassOf", () => {
+    expect([...THROW_CLASS_VIEWS]).toEqual(["S5"]);
+    expect(classifierOfView(undefined)).toBe(throwClassOf);
+    expect(classifierOfView("S5")).toBe(throwClassOfS5);
+    expect(() => classifierOfView("S6" as never)).toThrow(/no class view S6/);
   });
 });

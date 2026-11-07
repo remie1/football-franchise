@@ -89,7 +89,7 @@ import { registryAttr } from "./freeRun.js";
 import { emptyM2StreamFold, foldM2StreamGame, forcingRuleOf, m2StreamSummary, type M2ForcingRule, type M2StreamFold } from "./m2ForcingSource.js";
 import { playersOfSnapshot } from "./m6Contact.js";
 import { emptyGuardFold, foldGuardGame } from "./step0.js";
-import { desperationPocketOf, isAimed, playsOf, readDropback, throwClassOf, type DesperationPocket, type Dropback, type PassStart } from "./throwClass.js";
+import { desperationPocketOf, isAimed, playsOf, readDropback, throwClassOf, type DesperationPocket, type Dropback, type PassStart, type ThrowClassifier } from "./throwClass.js";
 
 /** How many failure lines a fold keeps; the count beside them is complete. */
 export const S2_PROBLEM_SAMPLE = 20;
@@ -720,9 +720,14 @@ export function emptyDesperationSplitFold(): DesperationSplitFold {
   return { CLEAN: emptyGuardCell(), DIRTY: emptyGuardCell() };
 }
 
-/** Adds one DESPERATION throw to its half; `false` for any other dropback. */
-function addDesperation(fold: DesperationSplitFold, d: Dropback, tunables: Tunables): boolean {
-  if (!isAimed(d) || d.throwTick === undefined || throwClassOf(d, tunables).cls !== "DESPERATION") return false;
+/**
+ * Adds one DESPERATION throw to its half; `false` for any other dropback. `classify` is the guard's
+ * class view (`throwClassOf`, steps 1 to 4; `throwClassOfS5` under AM-8, where a clean expiry's throw
+ * is CLEAN_EXPIRY and so leaves DESPERATION's halves: its CLEAN half, unless the pocket went dirty
+ * between the decision, which the view reads, and the release, which the halves read).
+ */
+function addDesperation(fold: DesperationSplitFold, d: Dropback, tunables: Tunables, classify: ThrowClassifier = throwClassOf): boolean {
+  if (!isAimed(d) || d.throwTick === undefined || classify(d, tunables).cls !== "DESPERATION") return false;
   const cell = fold[desperationPocketOf(d)];
   const i = RELEASE_BINS.findIndex((b) => b.label === releaseBinOf(d.throwTick as number));
   cell.aimedByBin[i] = (cell.aimedByBin[i] ?? 0) + 1;
@@ -790,16 +795,20 @@ export interface GuardGameVector {
 
 const aimedIn = (c: GuardCell): number => c.aimedByBin.reduce((a, b) => a + b, 0);
 
-export function guardGameVector(games: GuardGameVector[], events: readonly MatchEventEnvelope[], ctx: S2Context): void {
+/**
+ * One game's guard vector (classes and DESPERATION's halves), each throw classed by `classify`: the
+ * guard rule's class view (`guardClassifier`; `throwClassOf` unless the rule names one, AM-8's "S5").
+ */
+export function guardGameVector(games: GuardGameVector[], events: readonly MatchEventEnvelope[], ctx: S2Context, classify: ThrowClassifier = throwClassOf): void {
   const guard = emptyGuardFold();
-  foldGuardGame(guard, events, ctx.tunables);
+  foldGuardGame(guard, events, ctx.tunables, classify);
   const classes: Partial<Record<ThrowClass, GuardCell>> = {};
   for (const [cls, cell] of Object.entries(guard) as [ThrowClass, GuardCell][]) if (aimedIn(cell) > 0) classes[cls] = { aimedByBin: [...cell.aimedByBin], interceptions: cell.interceptions, completions: cell.completions };
   const split = emptyDesperationSplitFold();
   let gameId = "";
   for (const play of s2PlaysOf(events)) {
     if (gameId === "") gameId = play.gameId;
-    addDesperation(split, play.dropback, ctx.tunables);
+    addDesperation(split, play.dropback, ctx.tunables, classify);
   }
   const desperation: Partial<Record<DesperationPocket, GuardCell>> = {};
   for (const half of ["CLEAN", "DIRTY"] as const) if (aimedIn(split[half]) > 0) desperation[half] = split[half];

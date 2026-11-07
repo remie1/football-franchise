@@ -26,7 +26,10 @@
  * readings, H.9), filed before step 4, leave step 2's and step 3's views where they are; the whole
  * file is then step 4's view (`STEP4_AMENDMENTS_PIN`, read in `pocketStep4.test.ts`) and `guardFor`
  * at step 4 is AM-6's. Then every rule `validateAmendments` holds, each on a copy that breaks
- * it, `rule.amends` among them.
+ * it, `rule.amends` among them. Last, ADR-089 step 5: AM-8 as its filing states it (`filing.md` §3.2),
+ * appended on a copy as a stand-in (part A1 files the real entry), validates; its rule is AM-1's but
+ * for the bases and the four optional fields; it is the guard at 5a and 5b, read with step 5's class
+ * view, while steps 2 to 4 keep `throwClassOf`; and each optional field is refused when malformed.
  */
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -49,6 +52,7 @@ import {
   AmendmentsValidationError,
   entryOf,
   guardFor,
+  GUARD_REPORTED_SPLITS,
   guardRuleOf,
   loadAmendments,
   openAmendments,
@@ -58,7 +62,8 @@ import {
   validateAmendments,
   type AmendmentsFile,
 } from "../src/pocket/amendments.js";
-import { AM1_LINES } from "../src/pocket/guardAm1.js";
+import { AM1_LINES, guardClassifier, guardClassView, guardWithView, isFreshBase, skipsEqualDials } from "../src/pocket/guardAm1.js";
+import { throwClassOf, throwClassOfS5 } from "../src/pocket/throwClass.js";
 import { POCKET_1_S3_FREE_RUN } from "../src/pocket/rules.js";
 
 const PKG = join(import.meta.dirname, "..");
@@ -525,5 +530,229 @@ describe("loading and the pin", () => {
     const next = `AM-${String(ids.length + 1)}`;
     expect(() => entryOf(committed(), next)).toThrow(`holds no ${next} (it holds ${ids.join(", ")})`);
     expect(() => guardRuleOf({ ...entryOf(committed(), "AM-1"), supersedes: ["guard.mix"] })).toThrow(/not the guard/);
+  });
+});
+
+// --- ADR-089 step 5: AM-8's guard rule fields (plan section 9 commit 2; filing.md section 3) ---------------
+
+/**
+ * AM-8 as filed in step 5's filing (`filing.md` §3.2), verbatim: a stand-in appended after the committed
+ * entries. Part A1 appends the real entry; here it only shows the rule's optional fields validate and
+ * read as the harness reads them. The committed file is never written.
+ */
+const AM8_FILED = {
+  "id": "AM-8",
+  "name": "the guard at step 5: the clean-pocket build against the s4 clean bench, the checklist on the league against step 4's design, and the clock alone",
+  "filedBeforeStep": "5a",
+  "steps": [
+    "5a",
+    "5b"
+  ],
+  "supersedes": [
+    "guard.mix",
+    "guard.byClass",
+    "s5a.int"
+  ],
+  "untouched": [
+    "acc.intGuard",
+    "guard.onTheRun.clean",
+    "guard.onTheRun.pressured",
+    "guard.removedClass"
+  ],
+  "defaults": [
+    "D9",
+    "D28"
+  ],
+  "adrLines": [
+    1306,
+    1308,
+    1053
+  ],
+  "cites": [
+    945,
+    946,
+    1049,
+    1051,
+    1159,
+    1287
+  ],
+  "record": "ADR-089 Appendix I, I.10",
+  "reason": "AM-1 (Appendix F, F.11) reads the guard at steps 2 to 10 against the previous step's arm and requires each later step's map filed as a named entry before that step's arms run; this is step 5's, for both halves. At 5a the arms run on the clean bench, which step 4 never played, so the base is the step-4 build on that bench (E0), played fresh and twice in separate processes with identical stream digests; its decisions reproduce step 0's bench exactly and its release adds the motion. The graded 5a pair is the build that can become the game, pocket-1.s5a on the bench (E9), against E0, on both leagues. At 5b the map prices the checklist where throws on the run have a base, pocket-1.s5a on the league (F5) against step 4's design (D1), and the clock alone, the selection's winner restamped (F0) against F5; when F0's dials equal F5's (the winner is S theta 11) that pair compares a build with itself and is skipped by rule. AM-1 left s5a.int to an entry filed before 5a naming its base: its base is E0 and it is E9's by-class reading under this rule, so the clause and the guard cannot disagree on one pair; its filed reading is printed beside. Section 8 says each change is priced at its step under the guard: the checklist and the floor are priced at 5a on the bench and at 5b on the league, the clock at 5b; the alone arms (E1 to E8, E10) are printed beside, unguarded. This entry files step 5's class view, one classifier applied to both sides of every step-5 pair (steps 1 to 4 keep theirs, so their re-grades do not move): CLEAN_EXPIRY is an aimed throw, not on the run, not a CHECKDOWN decision, whose last pocket status at or before the decision is CLEAN, whose best read at the decision is below the normal bar and at 30 or more. On E0 and D1 these are today's clean desperation throws with someone at 30 or more, the very situation D23 changes, so D23's class has a like-for-like base; E0's clean desperation throws with best below 30 stay DESPERATION's clean part and are the removed class (s5a.removedClass). ON_THE_RUN has no base on the bench: it is reported at 5a against the real out-of-pocket rates (2.11% clean, 3.25% pressured) and graded at 5b on F5 against D1, which has escapes. The release clock is each arm's own, raw seconds on both sides. With nothing changed, three graded pairs at AM-1's 4.8% each stop the step by chance at most about 14% of the time (about 9% when F0 against F5 is skipped), less on shared seeds; the exact figure on the classes actually scored is computed on the step-5 harness before filing and printed in I.10. A breach stops the step and goes to the owner with both seed sets (D9).",
+  "ownersWord": null,
+  "rule": {
+    "base": "previousStepArm",
+    "pricingBase": "previousStepPricingArm",
+    "bases": {
+      "5a": {
+        "E9": "E0"
+      },
+      "5b": {
+        "F5": "D1",
+        "F0": "F5"
+      }
+    },
+    "laterBases": "filed as a named entry before that step's arms run",
+    "gradedArms": "every arm in the step's map",
+    "replayMustEqualPreviousRecords": true,
+    "freshBases": {
+      "E0": "no earlier record holds the s4 clean bench: played fresh and twice in separate processes, identical stream digests required, both sets, both leagues"
+    },
+    "skipEqualDials": true,
+    "classView": "S5",
+    "allowance": "filed",
+    "se": "binomialIndependent",
+    "statistic": "pooledZ",
+    "seedSets": [
+      1,
+      2
+    ],
+    "zLeague": 2.0,
+    "zClass": 3.0,
+    "breachIf": "greaterThan",
+    "zSetSE0": 0,
+    "classes": "GUARD_CLASSES",
+    "reportedSplits": {
+      "DESPERATION": [
+        "DIRTY",
+        "CLEAN"
+      ],
+      "PROGRESSION": [
+        "AFTER_CLEAN_MOVE",
+        "OTHER"
+      ],
+      "CLEAN_EXPIRY": [
+        "AFTER_CLEAN_MOVE",
+        "OTHER"
+      ],
+      "ON_THE_RUN": [
+        "CLEAN_BREAKOUT",
+        "PRESSURED"
+      ]
+    },
+    "dirtyPocket": "lastStatusAtOrBeforeRelease",
+    "onCompositionClassBreach": [
+      "DESPERATION",
+      "CHECKDOWN"
+    ],
+    "reportFiledReading": true,
+    "reportMinimumExcess": true,
+    "reportPairedSE": true,
+    "cumulative": {
+      "design": "A0",
+      "pricing": "A14",
+      "graded": false
+    },
+    "acceptedState": {
+      "design": "A1",
+      "pricing": "A11",
+      "fromStep": "3",
+      "graded": false
+    }
+  }
+} as const;
+
+describe("ADR-089 step 5: AM-8's optional guard rule fields (classView, freshBases, skipEqualDials, reportedSplits)", () => {
+  const withAm8 = (edit: (rule: Record<string, unknown>) => void = () => undefined): ReturnType<typeof copy> => {
+    const j = copy();
+    const entry = JSON.parse(JSON.stringify(AM8_FILED)) as Record<string, unknown>;
+    expect(entry["id"]).toBe(`AM-${String(j.entries.length + 1)}`);
+    edit(entry["rule"] as Record<string, unknown>);
+    j.entries.push(entry);
+    return j;
+  };
+  const refusesAm8 = (edit: (rule: Record<string, unknown>) => void, problem: RegExp): void => {
+    const problems = amendmentsProblems(withAm8(edit), filing());
+    expect(problems.some((p) => problem.test(p)), `wanted ${String(problem)}, got:\n${problems.join("\n")}`).toBe(true);
+  };
+  const opened = (): AmendmentsFile => {
+    const j = withAm8();
+    const path = join(tmp, "am8.json");
+    writeFileSync(path, JSON.stringify(j, null, 2));
+    return openAmendments(path, filing(), amendmentsDigest(j));
+  };
+
+  it("validates as filed, and the committed file is untouched (its pin holds)", () => {
+    expect(amendmentsProblems(withAm8(), filing())).toEqual([]);
+    expect(amendmentsDigest(committed())).toBe(PINNED_DIGEST);
+  });
+
+  it("is AM-1's rule but for bases, classView, freshBases, skipEqualDials and reportedSplits", () => {
+    const am1 = ruleOf(copy());
+    const am8 = JSON.parse(JSON.stringify(AM8_FILED.rule)) as Record<string, unknown>;
+    const NEW = ["bases", "classView", "freshBases", "skipEqualDials", "reportedSplits"];
+    const differ = [...new Set([...Object.keys(am1), ...Object.keys(am8)])].filter((k) => JSON.stringify(am1[k]) !== JSON.stringify(am8[k])).sort();
+    expect(differ).toEqual([...NEW].sort());
+    for (const k of ["classView", "freshBases", "skipEqualDials"]) expect(k in am1, `AM-1 carries no ${k}`).toBe(false);
+    // AM-1 reports DESPERATION's halves; AM-8 keeps them and adds three classes' splits.
+    expect(am1["reportedSplits"]).toEqual({ DESPERATION: ["DIRTY", "CLEAN"] });
+    expect((am8["reportedSplits"] as Record<string, unknown>)["DESPERATION"]).toEqual(["DIRTY", "CLEAN"]);
+    // AM-3 and AM-6 changed only the bases (filing §3.3).
+    const j = copy();
+    for (const id of ["AM-3", "AM-6"]) {
+      const r = j.entries.find((e) => e["id"] === id)!["rule"] as Record<string, unknown>;
+      expect(Object.keys(r).filter((k) => JSON.stringify(r[k]) !== JSON.stringify(am1[k])), id).toEqual(["bases"]);
+    }
+  });
+
+  it("is the guard at 5a and 5b, read with step 5's class view; step 4's is AM-6's, read with throwClassOf", () => {
+    const file = opened();
+    for (const step of ["5a", "5b"] as const) {
+      const g = guardWithView(file, step);
+      expect(g.entry.id, step).toBe("AM-8");
+      expect(guardFor(file, step).entry.id, step).toBe("AM-8");
+      expect(g.view, step).toBe("S5");
+      expect(g.classify, step).toBe(throwClassOfS5);
+      expect(g.rule.freshBases, step).toEqual(AM8_FILED.rule.freshBases);
+      expect(g.rule.skipEqualDials, step).toBe(true);
+      expect(g.rule.reportedSplits, step).toEqual(AM8_FILED.rule.reportedSplits);
+    }
+    expect(guardWithView(file, "5a").bases).toEqual({ E9: "E0" });
+    expect(guardWithView(file, "5b").bases).toEqual({ F5: "D1", F0: "F5" });
+    for (const [step, id] of [["2", "AM-1"], ["3", "AM-3"], ["4", "AM-6"]] as const) {
+      const g = guardWithView(file, step);
+      expect(g.entry.id, step).toBe(id);
+      expect(g.view, step).toBeUndefined();
+      expect(g.classify, step).toBe(throwClassOf);
+    }
+    // The committed file maps no step-5 guard yet: its harness refuses until AM-8 is filed (part A1).
+    expect(() => guardWithView(committed(), "5a")).toThrow(/no filed amendment maps step 5a's guard bases/);
+  });
+
+  it("refuses a class view that is not one, or that maps a step before 5a", () => {
+    refusesAm8((r) => (r["classView"] = "S6"), /entries\.7\.rule\.classView: must be one of S5 \(got "S6"\)/);
+    refusesAm8((r) => (r["classView"] = 5), /entries\.7\.rule\.classView: must be one of S5 \(got 5\)/);
+    refusesAm8((r) => (r["bases"] = { "4": { D1: "C1" }, "5a": { E9: "E0" } }), /entries\.7\.rule\.classView: S5 reads from step 5a; the rule maps step 4, which keeps the classes it was graded with/);
+  });
+
+  it("refuses freshBases that are empty, name no arm of this build, name an arm the maps do not use as a base, or say nothing", () => {
+    refusesAm8((r) => (r["freshBases"] = {}), /entries\.7\.rule\.freshBases: must map at least one base arm to how it is played/);
+    refusesAm8((r) => (r["freshBases"] = ["E0"]), /entries\.7\.rule\.freshBases: must map at least one base arm/);
+    refusesAm8((r) => (r["freshBases"] = { E11: "played fresh" }), /entries\.7\.rule\.freshBases\.E11: not an arm of this build/);
+    refusesAm8((r) => (r["freshBases"] = { E9: "played fresh" }), /entries\.7\.rule\.freshBases\.E9: not a base in the rule's maps/);
+    refusesAm8((r) => (r["freshBases"] = { E0: "" }), /entries\.7\.rule\.freshBases\.E0: must say how it is played/);
+  });
+
+  it("refuses a skipEqualDials that is not a boolean", () => {
+    refusesAm8((r) => (r["skipEqualDials"] = "yes"), /entries\.7\.rule\.skipEqualDials: must be true or false/);
+    expect(amendmentsProblems(withAm8((r) => (r["skipEqualDials"] = false)), filing())).toEqual([]);
+  });
+
+  it("refuses reportedSplits naming a class or a split outside GUARD_REPORTED_SPLITS, an empty list, or a repeat", () => {
+    expect(GUARD_REPORTED_SPLITS).toEqual(AM8_FILED.rule.reportedSplits);
+    refusesAm8((r) => (r["reportedSplits"] = {}), /entries\.7\.rule\.reportedSplits: must map at least one class to its splits/);
+    refusesAm8((r) => ((r["reportedSplits"] as Record<string, unknown>)["SACK"] = ["DIRTY"]), /entries\.7\.rule\.reportedSplits\.SACK: no split is read for this class/);
+    refusesAm8((r) => ((r["reportedSplits"] as Record<string, unknown>)["DESPERATION"] = ["DIRTY", "LATE"]), /entries\.7\.rule\.reportedSplits\.DESPERATION: must list distinct splits of DIRTY, CLEAN/);
+    refusesAm8((r) => ((r["reportedSplits"] as Record<string, unknown>)["ON_THE_RUN"] = []), /entries\.7\.rule\.reportedSplits\.ON_THE_RUN: must list distinct splits/);
+    refusesAm8((r) => ((r["reportedSplits"] as Record<string, unknown>)["PROGRESSION"] = ["OTHER", "OTHER"]), /entries\.7\.rule\.reportedSplits\.PROGRESSION: must list distinct splits/);
+    // A subset of a class's splits is allowed.
+    expect(amendmentsProblems(withAm8((r) => (r["reportedSplits"] = { DESPERATION: ["CLEAN"] })), filing())).toEqual([]);
+  });
+
+  it("reads a rule without the fields as AM-1's: no view, nothing fresh, no pair skipped", () => {
+    const am1 = guardFor(committed(), "2").rule;
+    expect(guardClassView(am1)).toBeUndefined();
+    expect(guardClassifier(am1)).toBe(throwClassOf);
+    expect(isFreshBase(am1, "E0")).toBe(false);
+    expect(skipsEqualDials(am1, "fnv1a:00000001", "fnv1a:00000001")).toBe(false);
   });
 });

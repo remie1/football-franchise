@@ -30,7 +30,7 @@
  * the last status at or before the release; F.9 item 4), each with its own Z, and the rise
  * re-weighted to the base's composition of halves (AM-1 §4.5).
  */
-import { guardFor, type AmendmentsFile } from "./amendments.js";
+import { guardFor, type AdrStepId, type AmendmentEntry, type AmendmentsFile, type BaseMap, type GuardRule } from "./amendments.js";
 import type { ArmId } from "./arms.js";
 import type { ThrowClass } from "./constructs.js";
 import type { SeedSet } from "./corpus.js";
@@ -38,9 +38,54 @@ import { GUARD_CLASSES, intGuard, intGuardByClass, type GuardClock, type IntMix 
 import type { GuardCell, GuardGameVector } from "./s2Stream.js";
 import { REAL } from "./selection.js";
 import { guardNoise } from "./step1.js";
-import type { DesperationPocket } from "./throwClass.js";
+import { classifierOfView, type DesperationPocket, type ThrowClassifier, type ThrowClassView } from "./throwClass.js";
 
 export const SEED_SETS: readonly SeedSet[] = Object.freeze([1, 2] as const);
+
+// --- the class view a guard rule reads (ADR-089 step 5, AM-8; plan §3) ----------------------------------
+
+/**
+ * The class view a guard rule names (`rule.classView`): "S5" under AM-8, none under AM-1, AM-3 and
+ * AM-6 (steps 1 to 4 read `throwClassOf`, so their re-grades do not move).
+ */
+export function guardClassView(rule: Pick<GuardRule, "classView">): ThrowClassView | undefined {
+  return rule.classView;
+}
+
+/**
+ * The classifier both sides of every pair under a guard rule are read with (`classifierOfView` of its
+ * view): `throwClassOfS5` under AM-8, `throwClassOf` under any rule naming none. The guard's class
+ * mixes (`foldGuardGame`, `guardGameVector`) take it, so one function classifies base and arm alike.
+ */
+export function guardClassifier(rule: Pick<GuardRule, "classView">): ThrowClassifier {
+  return classifierOfView(guardClassView(rule));
+}
+
+/** The guard that reads at `step` (`guardFor`), with its class view and classifier. */
+export function guardWithView(file: AmendmentsFile, step: AdrStepId): {
+  readonly entry: AmendmentEntry;
+  readonly rule: GuardRule;
+  readonly bases: BaseMap;
+  readonly view: ThrowClassView | undefined;
+  readonly classify: ThrowClassifier;
+} {
+  const g = guardFor(file, step);
+  return { ...g, view: guardClassView(g.rule), classify: guardClassifier(g.rule) };
+}
+
+/** Whether a rule plays `arm` fresh as a base (`rule.freshBases`, AM-8's E0): no earlier record holds it. */
+export function isFreshBase(rule: Pick<GuardRule, "freshBases">, arm: ArmId): boolean {
+  return rule.freshBases !== undefined && Object.prototype.hasOwnProperty.call(rule.freshBases, arm);
+}
+
+/**
+ * Whether a rule skips a pair (`rule.skipEqualDials`, AM-8): the two arms' overlay digests, which leave
+ * the rules name out, are equal, so the pair compares a build with itself (F0 against F5 when the
+ * winner is S theta 11). Without the field no pair is skipped.
+ */
+export function skipsEqualDials(rule: Pick<GuardRule, "skipEqualDials">, armOverlayDigest: string, baseOverlayDigest: string): boolean {
+  return rule.skipEqualDials === true && armOverlayDigest === baseOverlayDigest;
+}
 
 /** The lines AM-1 files (`rule.zLeague`, `rule.zClass`, `rule.zSetSE0`); the harness reads them from the file. */
 export interface Am1Lines {
