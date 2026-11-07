@@ -171,6 +171,20 @@ describe("ADR-089 step 2 — no rule set without pocket.forcing runs must act or
     expect(vi.mocked(counterExcludes)).not.toHaveBeenCalled();
   });
 
+  /**
+   * ADR-089 step 4 (plan §1.1, critique 3 N3): DEFAULT_TUNABLES gains neither step-4 key, not even
+   * as `undefined`, which the overlay digest's `canonicalise` would hide; and no rule set of steps 1
+   * to 3 carries either.
+   */
+  it("no step-4 key: DEFAULT_TUNABLES has neither pocket.contact nor throwExec.motion, and no rule set carries one", () => {
+    expect("contact" in DEFAULT_TUNABLES.pocket).toBe(false);
+    expect("motion" in DEFAULT_TUNABLES.throwExec).toBe(false);
+    for (const { tunables } of RULE_SETS) {
+      expect("contact" in tunables.pocket).toBe(false);
+      expect("motion" in tunables.throwExec).toBe(false);
+    }
+  });
+
   it("the spy is wired: S2 calls mustActThreat, once a pocket tick, with both minima equal (every threat registered)", () => {
     let pocketTicks = 0;
     for (const build of STEP2_FIXTURES) {

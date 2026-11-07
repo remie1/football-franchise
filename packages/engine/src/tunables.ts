@@ -3511,11 +3511,74 @@ export interface LateBlockTunables {
 export type ClimbLaneTunables = "FRONT";
 
 /**
- * ADR-089 steps 1 to 3: the build's tunables, widened by the `pocket-1` overlay's optional blocks
+ * ADR-089 step 4, §4.5 (`pocket-1` only; absent from DEFAULT_TUNABLES until step 11): the approach
+ * tilts of the arrival contest, each on or off for an arm, with its size (CHOSEN in §4.5). At most
+ * one applies to a contact, the strongest class first (AM-7): BEHIND or NEVER over a seen PUSH or
+ * BLOCKED over the free-run clock (`resolve/contact.ts`'s `tiltOf`).
+ *  - `pushBlocked`: a seen PUSH or BLOCKED man; the quarterback `quarterbackBonus` (+20) and the
+ *    rusher's speed not read.
+ *  - `freeRun`: a man on the free-run clock (AM-2's key: D19's three origins and the untouched
+ *    exchange); the rusher `rusherBonus` (+10).
+ *  - `behindNever`: from BEHIND or never seen; the rusher `rusherBonus` (+10) and the quarterback's
+ *    agility not read.
+ */
+export interface ContactTiltsTunables {
+  readonly pushBlocked: { readonly on: boolean; readonly quarterbackBonus: number };
+  readonly freeRun: { readonly on: boolean; readonly rusherBonus: number };
+  readonly behindNever: { readonly on: boolean; readonly rusherBonus: number };
+}
+/**
+ * ADR-089 step 4, §4.5 item 6: the second arrival. `{ target }` is the design (any arrival after
+ * the play's first shed is one d100 against `target`, 15, on `:contest2`; above it, a sack: 0.85);
+ * `"RATED"` is D12's "second arrival off" (every arrival a rated `:contest`, AM-7).
+ */
+export type SecondArrivalTunables = { readonly target: number } | "RATED";
+/**
+ * ADR-089 step 4, §4.5 items 1 and 7: the design throws first and resolves contact after
+ * (`CONTEST_AFTER_THROW`); the contest before the forced throw is D13, information only.
+ */
+export type ContactOrder = "CONTEST_AFTER_THROW" | "CONTEST_BEFORE_THROW";
+/**
+ * ADR-089 step 4 (`pocket-1` only; absent from DEFAULT_TUNABLES until step 11): contact by
+ * approach, §4.5 (D11's reads, the tilts, the boundary b, the shed and its delays, the second
+ * arrival). Filed and CHOSEN values in comments.
+ */
+export interface ContactTunables {
+  /** b: RUSHER_SACKS when the margin is b or more; 5 (`resultTierLadder`'s SUCCESS boundary), fitted at step 10. */
+  readonly boundary: number;
+  readonly tilts: ContactTiltsTunables;
+  /** A shed FREE, ARC or THROUGH man goes DELAYED by this, 0.5 s (CHOSEN). */
+  readonly shedDelaySeconds: number;
+  /** A shed PUSH man stays engaged and goes DELAYED by this, 1.0 s (§4.5 item 4). */
+  readonly pushShedDelaySeconds: number;
+  readonly secondArrival: SecondArrivalTunables;
+  readonly order: ContactOrder;
+}
+/**
+ * ADR-089 step 4, D21 (§4.4.6, §4.5): how a rusher's contact time is read for the motion's race.
+ * `CONTINUOUS` is the design; `GRID` (the half-second reading) is information only, never a
+ * candidate (D14, `s4.reading`).
+ */
+export type MotionReading = "CONTINUOUS" | "GRID";
+/**
+ * ADR-089 step 4 (`pocket-1` only; absent from DEFAULT_TUNABLES until step 11): the throwing
+ * motion, §4.5 (question 6, Now). A throw decided at `t` leaves at `t + rho`,
+ * `rho = rho0 - (release - 70) / rhoD`: rho0 0.3 s (CHOSEN), rhoD 400 (CHOSEN by AM-7), so rho runs
+ * 0.475 s (release 0) to 0.2275 s (release 99).
+ */
+export interface MotionTunables {
+  readonly rho0: number;
+  readonly rhoD: number;
+  readonly reading: MotionReading;
+}
+
+/**
+ * ADR-089 steps 1 to 4: the build's tunables, widened by the `pocket-1` overlay's optional blocks
  * (`engineRules`, `passRush.beatClock`, `passRush.repClock`, `passRush.approach`, from step 2
- * `pocket.forcing`, and from step 3 `blitzPickup.freeRun`, `blitzPickup.lateBlock` and
- * `pocket.climbLane`). The run-time value of `DEFAULT_TUNABLES` carries none of them (`legacy`);
- * only the type widened.
+ * `pocket.forcing`, from step 3 `blitzPickup.freeRun`, `blitzPickup.lateBlock` and
+ * `pocket.climbLane`, and from step 4 `pocket.contact` and `throwExec.motion`). The run-time value
+ * of `DEFAULT_TUNABLES` carries none of them (`legacy`), not even as an `undefined` key; only the
+ * type widened.
  */
 export type Tunables = typeof TUNABLES & {
   readonly engineRules?: EngineRulesStamp;
@@ -3528,7 +3591,12 @@ export type Tunables = typeof TUNABLES & {
     readonly freeRun?: FreeRunTunables;
     readonly lateBlock?: LateBlockTunables;
   };
-  readonly pocket: { readonly forcing?: ForcingTunables; readonly climbLane?: ClimbLaneTunables };
+  readonly pocket: {
+    readonly forcing?: ForcingTunables;
+    readonly climbLane?: ClimbLaneTunables;
+    readonly contact?: ContactTunables;
+  };
+  readonly throwExec: { readonly motion?: MotionTunables };
 };
 
 // --- the base a patch is a patch OF (ADR-016 item 2) -------------------------

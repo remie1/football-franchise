@@ -310,8 +310,11 @@ type ThreatLabeller = (facts: Omit<ApproachFacts, "threat" | "penetrator">, rush
 function threatLabellerFor(rules: PocketRules, stunts: readonly StuntCall[]): ThreatLabeller | undefined {
   if (rules.kind === "LEGACY") return undefined;
   const penetrators = new Set(stunts.map((s) => String(s.penetrator)));
+  // ADR-089 step 4, kind T (plan §1.2): today's line plus contact labels with shape S's rows over
+  // today's facts, as calibration's step-0 approach did on today's stream.
+  const shape = rules.kind === "T" ? "S" : rules.kind;
   return (facts, rusher) =>
-    threatApproachOf({ ...facts, penetrator: penetrators.has(String(rusher)) }, rules.kind, rules.approach);
+    threatApproachOf({ ...facts, penetrator: penetrators.has(String(rusher)) }, shape, rules.approach);
 }
 
 /**
