@@ -16,10 +16,12 @@ import {
 } from "../src/season/careerCheck.js";
 import {
   bandCounts, CAREER_BANDS, groupSeasonReference, PLAN_WINDOWS, signedAgainCounts, WEEK_EIGHT_LEAGUE_YEARS, expectedCareer, familyLabel, gradeCareerCheck, gradeCheck,
-  notResolvable, outsideBand, poolSeeds, renderGradeJson, renderGradeMarkdown, rowStatus, slopeOf, trendShare, weekEightLeagueReference, type BandRule, type CareerGrade,
+  medianOf, notResolvable, outsideBand, poolSeeds, renderGradeJson, renderGradeMarkdown, rowStatus, slopeOf, trendShare, weekEightLeagueReference, type BandRule, type CareerGrade,
   type GradeInput,
 } from "../src/season/careerGrade.js";
 import { NFL_DRAFT } from "../src/season/draftCheck.js";
+import { NFL_INJURIES } from "../src/injuries/nflInjuries.js";
+import { ABILITY_GROUPS, type AbilityGroup } from "@ff/contracts";
 
 // --- made-up rows --------------------------------------------------------------------------------
 
@@ -216,6 +218,9 @@ describe("the bands", () => {
       "overall-mean-late", "groups-report", "d7-ever", "d7-round1", "win-spread-nfl", "win-spread-season-one", "win-r", "other-report",
       // The owner's aging rulings of 2026-11-06: every added row is reported, none gates.
       "share-31-group", "share-34-group", "signed-again", "back-on-53", "starters-gone", "retired-signed", "rookie-age", "availability", "nfl-count",
+      // The aging redesign's measure-only rows (ADR-087 §12, AB1): reported with no band, none gates.
+      "ability-age", "body-age", "at99-detail", "injury-age", "injury-spot", "concussion", "contact-spot", "availability-aligned", "retire-moment",
+      "team-overall", "d7-age",
     ]);
     // A card names the rows its answer set, and only those.
     expect(CAREER_BANDS.filter((b) => b.card !== undefined).map((b) => `${b.id}:${b.card}`)).toEqual([
@@ -796,6 +801,7 @@ function aging(rows: Map<string, CareerCheckRows>): Map<string, CareerCheckRows>
     retiredNextYear: [{ y: 2030, byAge: {
       "25": { n: 20, unsigned: 2, ownSigned: 0, ownUnsigned: 0 }, "34": { n: 10, unsigned: 1, ownSigned: 2, ownUnsigned: 1 },
     } }],
+    retiredNextYearByYears: [],
   };
   const tally = (n: number) => ({ n, byAge: {}, byCredited: {}, byGroup: {} });
   return new Map([...rows].map(([s, r]) => [s, {
@@ -942,5 +948,170 @@ describe("the rows added for the owner's aging rulings (rows version 5)", () => 
     expect(check(old, "nfl-count", "mean age, weeks-left variant").sim).toBeNull();
     expect(check(old, "nfl-count", "smallest team, band").sim).toBeNull();
     expect(byId(old, "nfl-count").status).toBe("REPORTED");
+  });
+});
+
+// --- the aging redesign's measure-only rows (ADR-087 §12, AB1; rows version 6) -------------------
+
+/** Every ability group at one [men, Σ means], SPEED at its own. */
+const groupsAt = (n: number, m: number, speed = m) =>
+  Object.fromEntries(ABILITY_GROUPS.map((g) => [g, [n, n * (g === "SPEED" ? speed : m)]])) as Record<AbilityGroup, [number, number]>;
+
+/** Made-up rows version 6 readings, the same every season (year 0's SPEED and team spread apart). */
+function redesign(rows: Map<string, CareerCheckRows>): Map<string, CareerCheckRows> {
+  const zeroGroups = Object.fromEntries(ABILITY_GROUPS.map((g) => [g, 0])) as Record<AbilityGroup, number>;
+  return new Map([...rows].map(([s, r]) => [s, {
+    ...r,
+    exits: {
+      ...(r.exits ?? { backOnA53: [], startersGone: [], retiredNextYear: [] }),
+      retiredNextYearByYears: [{ y: 2030, byYears: {
+        "0": { n: 10, unsigned: 1, ownSigned: 0, ownUnsigned: 0 }, "11": { n: 5, unsigned: 0, ownSigned: 1, ownUnsigned: 1 },
+      } }],
+    },
+    perSeason: r.perSeason.map((x) => {
+      const y0 = x.season === r.firstSeason;
+      const more: Partial<SeasonRow> = {
+        wins: [6, 10, 8],
+        ability: {
+          byAge: { "22": groupsAt(10, 60, y0 ? 70 : 80), "30": groupsAt(5, 55) },
+          at99: {
+            read: 1000, total: 20, byRating: { speed: 5, awareness: 15, agility: 0 },
+            byGroup: { ...zeroGroups, SPEED: 5, SMARTS: 15 }, byAge: { "24": 12, "31": 8 },
+          },
+          body: { "22": [2, 9.0, 14.0, 70, 40] },
+        },
+        durabilityByConcussions: { "0": [90, 90 * 80, 90 * 26], "1": [10, 10 * 70, 10 * 29], "2": [0, 0, 0], "3+": [0, 0, 0] },
+        teamOverall: { byTeam: [70, 72, 74], spread: y0 ? 2 : 1, r: 0.5 },
+        exposure: { cells: { "24": { QB: [1000, 1, 1], WR: [1000, 2, 1], K: [500, 1, 1] }, "31": { WR: [500, 2, 0], LT: [800, 1, 1] } }, notAfterPlayed: 3 },
+        contact: { bySpot: { WR: [1000, 50], LT: [800, 400] }, at27: { entrants: [100, 300], all: [100, 200, 300, 400] } },
+        gameWeeks: { "24": [100, 20], "34": [50, 5] },
+        concussions: { first: [10, 2], repeat: [4, 2], byAge: { "24": [8, 2, 1], "31": [6, 2, 3] } },
+        retiredHow: {
+          byMoment: {
+            IMMEDIATE: { unsigned: 0, ownSigned: 2, ownUnsigned: 0 }, SLOW: { unsigned: 0, ownSigned: 0, ownUnsigned: 0 },
+            LATE: { unsigned: 0, ownSigned: 0, ownUnsigned: 0 }, SEASON_END: { unsigned: 5, ownSigned: 0, ownUnsigned: 0 },
+          },
+          byYears: { unsigned: { "0": 1, "4": 4 }, ownSigned: { "12": 2 }, ownUnsigned: {} },
+        },
+        draftEnd: { "1": { "22": [10, 7], "27": [5, 4] }, "2": {}, "3": {}, "4-7": { "24": [20, 5] } },
+      };
+      return { ...x, ...more };
+    }),
+  } as CareerCheckRows]));
+}
+
+describe("the aging redesign's measure-only rows (rows version 6, AB1)", () => {
+  const AB1 = ["ability-age", "body-age", "at99-detail", "injury-age", "injury-spot", "concussion", "contact-spot", "availability-aligned", "retire-moment", "team-overall", "d7-age"];
+
+  it("are all REPORT with a report rule: every check REPORTED, never graded, the flip unmoved with or without their data", () => {
+    for (const id of AB1) expect(CAREER_BANDS.find((b) => b.id === id)).toMatchObject({ mark: "REPORT", rule: { kind: "report" } });
+    for (const rows of [passing(), redesign(passing())]) {
+      const g = gradeCareerCheck(passingInput(rows));
+      for (const id of AB1) {
+        expect(byId(g, id).status).toBe("REPORTED");
+        expect(byId(g, id).checks.every((c) => c.status === "REPORTED")).toBe(true);
+      }
+      expect(g.flip.recommended).toBe(true);
+    }
+    // Rows without the version-6 readings: no values, still shown.
+    const old = gradeCareerCheck(passingInput());
+    expect(check(old, "ability-age", "SPEED, 22 or under").sim).toBeNull();
+    expect(check(old, "injury-age", "upTo25, per 1,000 snaps").sim).toBeNull();
+    expect(check(old, "d7-age", "round 1, every age").sim).toBeNull();
+    expect(renderGradeMarkdown(gradeCareerCheck(passingInput(redesign(passing()))))).toContain("**measure-only**");
+  });
+
+  it("ability-group means and combine measures by age bin, year 0's same cell beside; the 99s by group, age and rating with the SMARTS share", () => {
+    const g = gradeCareerCheck(passingInput(redesign(passing())));
+    expect(check(g, "ability-age", "SPEED, 22 or under")).toMatchObject({ sim: 80, ref: 70, seSim: 0, seeds: 4 });
+    expect(check(g, "ability-age", "SPEED, 29-30")).toMatchObject({ sim: 55, ref: 55 });
+    expect(check(g, "ability-age", "SMARTS, 22 or under").sim).toBe(60);
+    expect(check(g, "ability-age", "SMARTS, 33 and over").sim).toBeNull();
+    expect(byId(g, "ability-age").checks).toHaveLength(12 * 6);
+    expect(check(g, "body-age", "forty, 22 or under")).toMatchObject({ sim: 4.5, ref: 4.5 });
+    expect(check(g, "body-age", "bench, 22 or under").sim).toBe(20);
+    expect(check(g, "at99-detail", "every group, a league-season")).toMatchObject({ sim: 20, ref: 20 });
+    expect(check(g, "at99-detail", "SMARTS share of the 99s").sim).toBe(0.75);
+    expect(check(g, "at99-detail", "SPEED, a league-season").sim).toBe(5);
+    expect(check(g, "at99-detail", "aged 23-25, a league-season").sim).toBe(12);
+    expect(check(g, "at99-detail", "aged 31-32, a league-season").sim).toBe(8);
+    expect(check(g, "at99-detail", "speed (SPEED), a league-season").sim).toBe(5);
+    // A rating with no 99 in the window or year 0 is not listed.
+    expect(byId(g, "at99-detail").checks.some((c) => c.label.startsWith("agility"))).toBe(false);
+  });
+
+  it("injuries per 1,000 snaps by age (specialists by spot left out) with the spot-group mix ratio, and by spot against the real fine spots", () => {
+    const g = gradeCareerCheck(passingInput(redesign(passing())));
+    const real = NFL_INJURIES.byAge.upTo25;
+    expect(check(g, "injury-age", "upTo25, per 1,000 snaps")).toMatchObject({ sim: 1.5, ref: (1000 * real.afterPlayed) / real.snaps });
+    expect(check(g, "injury-age", "upTo25, per 1,000 snaps").seRef).toBeCloseTo((1000 * Math.sqrt(real.afterPlayed)) / real.snaps, 12);
+    expect(check(g, "injury-age", "age31To32, per 1,000 snaps").sim).toBeCloseTo(3000 / 1300, 12);
+    expect(check(g, "injury-age", "every age, per 1,000 snaps").sim).toBeCloseTo(6000 / 3300, 12);
+    // Expected at the sim's own spot-group rates over every age: WR 4/1500, QB 1/1000, OL 1/800.
+    expect(check(g, "injury-age", "upTo25, observed / expected (spot-group mix)")).toMatchObject({ sim: expect.closeTo(9 / 11, 12), ref: 0.9891, seRef: 0.019 });
+    expect(check(g, "injury-age", "age31To32, observed / expected (spot-group mix)").sim).toBeCloseTo(9 / 7, 12);
+    expect(check(g, "injury-age", "upTo25, hurt in the game alone, per 1,000 snaps").sim).toBe(1);
+    expect(check(g, "injury-age", "not counted (no game played before it), a league-season").sim).toBe(3);
+    expect(check(g, "injury-spot", "WR, per 1,000 snaps")).toMatchObject({ sim: expect.closeTo(4000 / 1500, 12), ref: expect.closeTo(1000 * 753 / 570306, 12) });
+    expect(check(g, "injury-spot", "T, per 1,000 snaps").sim).toBe(1.25);
+    expect(check(g, "injury-spot", "K, per 1,000 snaps").sim).toBe(2);
+    expect(check(g, "injury-spot", "G, per 1,000 snaps").sim).toBeNull();
+    expect(check(g, "injury-spot", "every spot, per 1,000 snaps").sim).toBeCloseTo(7000 / 3800, 12);
+    expect(check(g, "injury-spot", "WR, against every spot")).toMatchObject({
+      sim: expect.closeTo((4000 / 1500) / (7000 / 3800), 12), ref: expect.closeTo(1.320344 / ((1000 * 5836) / 5233905), 12),
+    });
+  });
+
+  it("concussions first and later and by age, durability by concussions had; contact by spot and the median career contact at 27", () => {
+    const g = gradeCareerCheck(passingInput(redesign(passing())));
+    expect(check(g, "concussion", "first, out 4+ weeks")).toMatchObject({ sim: 0.2, ref: 0.159688, seRef: expect.closeTo(Math.sqrt((0.159688 * (1 - 0.159688)) / 452), 12) });
+    expect(check(g, "concussion", "later, out 4+ weeks (against the later ones, quick relapses set apart)")).toMatchObject({ sim: 0.5, ref: 0.263436 });
+    expect(check(g, "concussion", "later, out 4+ weeks (against every later one)").ref).toBe(0.304464);
+    expect(check(g, "concussion", "first concussions, a league-season").sim).toBe(10);
+    expect(check(g, "concussion", "upTo25, out 4+ weeks")).toMatchObject({ sim: 0.25, ref: 0.175149 });
+    expect(check(g, "concussion", "age31To32, out 4+ weeks").sim).toBeCloseTo(1 / 3, 12);
+    expect(check(g, "concussion", "upTo25, share that were later ones").sim).toBe(0.125);
+    expect(check(g, "concussion", "age31To32, share that were later ones").sim).toBe(0.5);
+    expect(check(g, "concussion", "durability, 0 concussions had").sim).toBe(80);
+    expect(check(g, "concussion", "durability, 1 concussions had").sim).toBe(70);
+    expect(check(g, "concussion", "mean age, 1 concussions had").sim).toBe(29);
+    expect(check(g, "concussion", "share of the 53s, 0 concussions had").sim).toBe(0.9);
+    expect(check(g, "concussion", "durability, 2 concussions had").sim).toBeNull();
+    expect(check(g, "contact-spot", "WR, contact a snap").sim).toBe(0.05);
+    expect(check(g, "contact-spot", "LT, contact a snap").sim).toBe(0.5);
+    expect(byId(g, "contact-spot").checks.map((c) => c.label).slice(0, 2)).toEqual(["WR, contact a snap", "LT, contact a snap"]);
+    expect(check(g, "contact-spot", "median career contact at 27, the walk's own entrants, 2029-2045").sim).toBe(200);
+    expect(check(g, "contact-spot", "median career contact at 27, every man, 2029-2045").sim).toBe(250);
+    expect(check(g, "contact-spot", "median career contact at 27, every man, later window 2033-2045").sim).toBe(250);
+    expect(medianOf([3, 1, 2])).toBe(2);
+    expect(medianOf([4, 1, 3, 2])).toBe(2.5);
+    expect(medianOf([])).toBeNull();
+  });
+
+  it("availability on the real side's game weeks, retirements by moment and years, team overall beside wins, D7 by age", () => {
+    const g = gradeCareerCheck(passingInput(redesign(passing())));
+    expect(check(g, "availability-aligned", "upTo25")).toMatchObject({ sim: 0.2, ref: 0.194692, seRef: expect.closeTo(Math.sqrt((0.194692 * (1 - 0.194692)) / 97816), 12) });
+    expect(check(g, "availability-aligned", "from33").sim).toBe(0.1);
+    const realK = 19044 + 10224 + 3630 + 1889 + 909, realN = 97816 + 55889 + 20353 + 10001 + 6172;
+    expect(check(g, "availability-aligned", "every age")).toMatchObject({ sim: expect.closeTo(25 / 150, 12), ref: expect.closeTo(realK / realN, 12) });
+    expect(check(g, "retire-moment", "IMMEDIATE, ownSigned, a season").sim).toBe(2);
+    expect(check(g, "retire-moment", "SEASON_END, unsigned, a season").sim).toBe(5);
+    expect(check(g, "retire-moment", "LATE, unsigned, a season").sim).toBe(0);
+    expect(check(g, "retire-moment", "exp0, unsigned, a season").sim).toBe(1);
+    expect(check(g, "retire-moment", "exp3To5, unsigned, a season").sim).toBe(4);
+    expect(check(g, "retire-moment", "exp10Plus, ownSigned, a season").sim).toBe(2);
+    expect(check(g, "retire-moment", "exp10Plus, final-week 53 retired within a year, own choice while signed"))
+      .toMatchObject({ sim: 0.2, ref: NFL_CAREERS.retiredList.byYearsInLeague.exp10Plus.share.value });
+    expect(check(g, "retire-moment", "exp10Plus, final-week 53 retired within a year, any way").sim).toBe(0.4);
+    expect(check(g, "retire-moment", "exp0, final-week 53 retired within a year, any way").sim).toBe(0.1);
+    expect(check(g, "team-overall", "team overall spread, 2029-2045")).toMatchObject({ sim: 1, ref: 2 });
+    expect(check(g, "team-overall", "team overall year-to-year r, 2029-2045").sim).toBe(0.5);
+    expect(check(g, "team-overall", "team overall against wins, same season (r), 2029-2045").sim).toBeCloseTo(0.5, 12);
+    expect(check(g, "team-overall", "win r, 2029-2045").ref).toBe(NFL_CAREERS.winYearOverYearR.r.value);
+    expect(check(g, "d7-age", "round 1, every age")).toMatchObject({ sim: expect.closeTo(11 / 15, 12), ref: NFL_DRAFT.starterRate["1"] });
+    expect(check(g, "d7-age", "round 1, aged 22 or under").sim).toBeCloseTo(0.7, 12);
+    expect(check(g, "d7-age", "round 1, aged 26-28").sim).toBeCloseTo(0.8, 12);
+    expect(check(g, "d7-age", "round 4-7, every age").sim).toBe(0.25);
+    expect(check(g, "d7-age", "round 2, every age").sim).toBeNull();
   });
 });

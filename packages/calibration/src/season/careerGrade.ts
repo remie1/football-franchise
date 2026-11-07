@@ -105,14 +105,31 @@
  *    men each reading leaves out with the teams' sizes (`nflCount`), so the CHOSEN band can be judged.
  * Bands on these rows are CHOSEN (they never block); references are REAL except OverTheCap's, which
  * is REPORTED by the cap thread.
+ *
+ * ADDED FOR THE AGING REDESIGN (ADR-087 §12, step AB1; rows version 6): measure-only rows, every one
+ * REPORT with no band (`agingRedesignRows`): shown with the sim's MEASURED values beside a reference
+ * (REAL, or the walk's own year 0), never graded, never blocking; no GATE row reads them. Ability-group
+ * means by age and the combine measures by age; the 99s by group, age and rating, and the SMARTS
+ * share; football time-loss injuries per snap by age (with the real side's spot-mix ratio) and by
+ * spot played; concussions out 4+ weeks, first and later and by age, and durability by concussions
+ * had; contact per snap by spot (roll sets, information only) and career contact at 27 (AB6's
+ * `free`); the share of game weeks missed hurt by age on the real side's definition; retirements by
+ * moment and by years in the league; the teams' overall spread and year-to-year r beside the win
+ * spread and win r; D7's starter rate by round band and age. The real injury numbers are
+ * `NFL_INJURIES` (`injuries/nflInjuries.ts`, copied from `reports/injury-rates.json`). Rows written
+ * before version 6 have none of these readings: the loader refuses to grade two versions together
+ * (`checkRecordVersion`), and a row that lacks them shows no data.
  */
 import {
   bandOf as ageBandOf, BY_GROUP_BY_SEASON_SEASONS, CAREER_FAMILIES, CAREER_FAMILY_KEYS, EXIT_AGE_BANDS, NFL_CAREERS, OTC_SIGNED_AGAIN, ROOKIE_AGE_BINS,
-  rookieAgeBin, SIGNING_AGE_BANDS, type AgeBand, type CareerFamily, type NflCareers, type NflGroupAgeShares, type NflWeekEightSeason, type ReportedSignedAgain,
+  rookieAgeBin, SIGNING_AGE_BANDS, YEARS_IN_LEAGUE_BANDS, type AgeBand, type CareerFamily, type NflCareers, type NflGroupAgeShares, type NflWeekEightSeason, type ReportedSignedAgain,
 } from "../careers/nflCareers.js";
 import type { Estimate } from "../careers/stats.js";
+import { ABILITY_GROUPS, type AbilityGroup, type Position } from "@ff/contracts";
+import { NFL_INJURIES, REAL_SPOT_OF, type NflInjuries } from "../injuries/nflInjuries.js";
+import { ABILITY_GROUP_COPY, CONCUSSION_CLASSES, INJURY_SPOT_GROUP, SPECIALIST_SPOTS, SPOT_ORDER } from "./careerAging.js";
 import {
-  addCells, CAREER_GROUPS, kaplanMeier, lifeTable, RETIREMENT_WAYS, SPECIALIST_GROUPS, usagePeak,
+  addCells, CAREER_GROUPS, kaplanMeier, lifeTable, pearson, RETIREMENT_MOMENTS, RETIREMENT_WAYS, SPECIALIST_GROUPS, usagePeak,
   type CareerCheckRows, type CareerEntrant, type CareerGroup, type GroupPicture, type NflCount, type RetirementWay, type RosterPicture, type SeasonRow, type UsageCell,
 } from "./careerCheck.js";
 import { NFL_DRAFT } from "./draftCheck.js";
@@ -213,6 +230,18 @@ export const CAREER_BANDS: readonly CareerBand[] = [
   { id: "rookie-age", row: "Rookies' ages on the week-8 53s (the 53 counted like the NFL)", reference: "NFL wk 8 rookies, 2018-24 (pooled over the men)", band: "mean ±0.3 years; whole-year shares ±5 pts (reported)", mark: "REPORT", judged: "mean of 2029-45; 2033-45 beside it", rule: { kind: "abs", half: 0.05, halfFor: { mean: 0.3 } } },
   { id: "availability", row: "Expected availability by age (man-weeks on a 53 not out injured)", reference: "None merged (the injuries part's real share by age)", band: "Reported", mark: "REPORT", judged: "2029-45; 2033-45 beside it", rule: { kind: "report" } },
   { id: "nfl-count", row: "The 53 counted like the NFL: the weeks-left variant, the whole 53s, the men left out", reference: "The band reading (week8Nfl) the NFL rows are graded on", band: "Reported", mark: "REPORT", judged: "mean of 2029-45; 2033-45 beside it", rule: { kind: "report" } },
+  // Added for the aging redesign (ADR-087 §12, AB1; rows version 6): measure-only, all REPORT with no band.
+  { id: "ability-age", row: "Ability-group means by age (week-8 53s; measure-only)", reference: "Year 0, the same group and ages", band: "Reported (measure-only)", mark: "REPORT", judged: "2029-45, men pooled over the seasons", rule: { kind: "report" } },
+  { id: "body-age", row: "Combine measures by age (men with a body record; measure-only)", reference: "Year 0, the same ages", band: "Reported (measure-only)", mark: "REPORT", judged: "2029-45, men pooled over the seasons", rule: { kind: "report" } },
+  { id: "at99-detail", row: "Ratings of 99 by ability group, age and rating; the SMARTS share (measure-only)", reference: "Year 0", band: "Reported (measure-only)", mark: "REPORT", judged: "mean of 2029-45, a league-season; the SMARTS share 2033-45 beside it", rule: { kind: "report" } },
+  { id: "injury-age", row: "Football time-loss injuries per snap by age, after a game played (measure-only)", reference: "NFL 2019-24 (injury-rates.md, Injuries by age)", band: "Reported (measure-only)", mark: "REPORT", judged: "2029-45; 2033-45 beside it", rule: { kind: "report" } },
+  { id: "injury-spot", row: "Football time-loss injuries per snap by spot played (measure-only)", reference: "NFL 2019-24 by fine listed position (injury-rates.md, By depth-chart spot)", band: "Reported (measure-only)", mark: "REPORT", judged: "2029-45", rule: { kind: "report" } },
+  { id: "concussion", row: "Concussions out 4+ weeks, first and later and by age; durability by concussions had (measure-only)", reference: "NFL 2019-24 (injury-rates.md, Repeat concussions; concussion class by age)", band: "Reported (measure-only)", mark: "REPORT", judged: "2029-45", rule: { kind: "report" } },
+  { id: "contact-spot", row: "Contact per snap by spot (roll sets; information only) and career contact at 27", reference: "None (AB6's free value is the median at 27)", band: "Reported (measure-only)", mark: "REPORT", judged: "2029-45; the median at 27 2033-45 beside it", rule: { kind: "report" } },
+  { id: "availability-aligned", row: "Share of game weeks missed hurt by age, the real side's game weeks (measure-only)", reference: "NFL 2019-24 (injury-rates.md, By age: missed for injury)", band: "Reported (measure-only)", mark: "REPORT", judged: "2029-45; 2033-45 beside it", rule: { kind: "report" } },
+  { id: "retire-moment", row: "Retirements by moment and way, and by years in the league (measure-only)", reference: "NFL reserve/retired list by years in the league, Y 2021-24 (a lower bound)", band: "Reported (measure-only)", mark: "REPORT", judged: "2029-45, a season; final-week 53s of 2029-45 with a year followed", rule: { kind: "report" } },
+  { id: "team-overall", row: "Team overall: spread and year-to-year r, beside the win spread and win r (measure-only)", reference: "Year 0's spread; NFL win spread (2021-24) and win r (2020-24)", band: "Reported (measure-only)", mark: "REPORT", judged: "2029-45 (r: the pairs inside it); 2033-45 beside it", rule: { kind: "report" } },
+  { id: "d7-age", row: "D7 starter rate by round band and age, switches on (measure-only)", reference: "NFL_DRAFT (drafts 2011-18; no age split)", band: "Reported (measure-only)", mark: "REPORT", judged: "in-run drafts over the whole walk, seeds pooled", rule: { kind: "report" } },
 ];
 
 const bandOf = (id: string): CareerBand => {
@@ -414,6 +443,8 @@ export interface GradeInput {
   readonly coach: { readonly seeds: readonly string[]; readonly incumbent: ReadonlyMap<string, CareerCheckRows>; readonly form: ReadonlyMap<string, CareerCheckRows> };
   readonly nfl?: NflCareers;
   readonly nflDraft?: typeof NFL_DRAFT;
+  /** The real injury numbers the aging redesign's rows are set against (rows version 6). */
+  readonly nflInjuries?: NflInjuries;
   readonly windows?: GradeWindows;
   /**
    * The owner's answers that decide OWNER rows' marks: an answered OWNER row takes the answer's
@@ -596,6 +627,442 @@ export const familyLabel = (f: CareerFamily): string => {
   const groups = CAREER_FAMILIES[f];
   return groups.length === 1 ? f : `${f} (${groups.join(", ")})`;
 };
+
+// --- the aging redesign's measure-only rows (ADR-087 §12, AB1; rows version 6) -------------------
+
+/** The age bins the ability, combine and draft-age rows read (CHOSEN): the young side split finer than the exit bands. */
+export const ABILITY_AGE_BINS: readonly AgeBand<string>[] = [
+  { key: "22 or under", last: 22 }, { key: "23-25", last: 25 }, { key: "26-28", last: 28 },
+  { key: "29-30", last: 30 }, { key: "31-32", last: 32 }, { key: "33 and over", last: Infinity },
+];
+
+const seasonsIn = (r: CareerCheckRows, w: readonly [number, number]) => r.perSeason.filter((s) => inWindow(s.season, w));
+const ageNumber = (a: string): number | null => (a === "?" || a === "" || !Number.isFinite(Number(a)) ? null : Number(a));
+const NONE = { value: null, se: null };
+/** A real count per 1,000 snaps with its Poisson SE, √count over snaps (CHOSEN, as the real side's own ratio SE). */
+const per1000Ref = (k: number, snaps: number) => ({ value: (1000 * k) / snaps, se: (1000 * Math.sqrt(k)) / snaps });
+/** A real share with a binomial SE, √(p(1 - p)/n) (CHOSEN: a Kaplan-Meier share's own SE is not in the report). */
+const shareRef = (p: number, n: number) => ({ value: p, se: n > 0 ? Math.sqrt((p * (1 - p)) / n) : null });
+export function medianOf(xs: readonly number[]): number | null {
+  if (xs.length === 0) return null;
+  const s = [...xs].sort((a, b) => a - b);
+  const m = s.length >> 1;
+  return s.length % 2 === 1 ? s[m]! : (s[m - 1]! + s[m]!) / 2;
+}
+const add3 = (m: Map<string, [number, number, number]>, k: string, c: readonly [number, number, number]) => {
+  const t = m.get(k) ?? [0, 0, 0];
+  t[0] += c[0]; t[1] += c[1]; t[2] += c[2];
+  m.set(k, t);
+};
+
+/** One seed's ability-group means by age bin over the window: by bin, each group's [men, Σ group means] (men pooled over the seasons). */
+export function abilityByBin(r: CareerCheckRows, w: readonly [number, number]): Map<string, Record<AbilityGroup, [number, number]>> {
+  const out = new Map<string, Record<AbilityGroup, [number, number]>>();
+  for (const s of seasonsIn(r, w)) {
+    for (const [age, groups] of Object.entries(s.ability?.byAge ?? {})) {
+      const bin = ageBandOf(ABILITY_AGE_BINS, ageNumber(age));
+      if (bin === null) continue;
+      let into = out.get(bin);
+      if (into === undefined) out.set(bin, (into = Object.fromEntries(ABILITY_GROUPS.map((g) => [g, [0, 0]])) as Record<AbilityGroup, [number, number]>));
+      for (const g of ABILITY_GROUPS) {
+        const c = groups[g];
+        if (c === undefined) continue;
+        into[g][0] += c[0]; into[g][1] += c[1];
+      }
+    }
+  }
+  return out;
+}
+
+/** One seed's combine measures by age bin over the window: [men, Σ forty, Σ cone, Σ vertical, Σ bench]. */
+export function bodyByBin(r: CareerCheckRows, w: readonly [number, number]): Map<string, [number, number, number, number, number]> {
+  const out = new Map<string, [number, number, number, number, number]>();
+  for (const s of seasonsIn(r, w)) {
+    for (const [age, c] of Object.entries(s.ability?.body ?? {})) {
+      const bin = ageBandOf(ABILITY_AGE_BINS, ageNumber(age));
+      if (bin === null) continue;
+      const t = out.get(bin) ?? [0, 0, 0, 0, 0];
+      out.set(bin, [t[0] + c[0], t[1] + c[1], t[2] + c[2], t[3] + c[3], t[4] + c[4]]);
+    }
+  }
+  return out;
+}
+
+/**
+ * One seed's injury exposure over the window, cells summed under `keyOf` (age in the season, null
+ * not known; the chart spot), a cell `keyOf` gives null left out: [snaps, football time-loss injuries
+ * after a game played, of them hurt in the game].
+ */
+export function exposureBy(r: CareerCheckRows, w: readonly [number, number], keyOf: (age: number | null, spot: string) => string | null): Map<string, [number, number, number]> {
+  const out = new Map<string, [number, number, number]>();
+  for (const s of seasonsIn(r, w)) {
+    for (const [age, spots] of Object.entries(s.exposure?.cells ?? {})) {
+      for (const [spot, c] of Object.entries(spots)) {
+        const k = keyOf(ageNumber(age), spot);
+        if (k !== null) add3(out, k, c);
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * One seed's injuries by age band over the window, the real side's way (listed K/P left out there;
+ * here K, P and LS by the spot played, and ages not known): per 1,000 snaps, hurt in the game alone
+ * per 1,000 snaps, and observed / expected at each spot group's all-age rate (the sim's own,
+ * `INJURY_SPOT_GROUP`, as the real side's "expected" uses each listed group's).
+ */
+export function injuriesByAge(r: CareerCheckRows, w: readonly [number, number]): Map<string, { per1000: number | null; game1000: number | null; ratio: number | null }> {
+  const keep = (age: number | null, spot: string) => age !== null && !SPECIALIST_SPOTS.has(spot as Position);
+  const byBand = exposureBy(r, w, (age, spot) => (keep(age, spot) ? ageBandOf(EXIT_AGE_BANDS, age) : null));
+  const byGroup = exposureBy(r, w, (age, spot) => (keep(age, spot) ? INJURY_SPOT_GROUP[spot as Position] ?? null : null));
+  const byBoth = exposureBy(r, w, (age, spot) => (keep(age, spot) ? `${ageBandOf(EXIT_AGE_BANDS, age)}|${INJURY_SPOT_GROUP[spot as Position]}` : null));
+  const out = new Map<string, { per1000: number | null; game1000: number | null; ratio: number | null }>();
+  for (const b of EXIT_AGE_BANDS) {
+    const c = byBand.get(b.key);
+    if (c === undefined || c[0] === 0) { out.set(b.key, { per1000: null, game1000: null, ratio: null }); continue; }
+    let expected = 0;
+    for (const [g, t] of byGroup) if (t[0] > 0) expected += (t[1] / t[0]) * (byBoth.get(`${b.key}|${g}`)?.[0] ?? 0);
+    out.set(b.key, { per1000: (1000 * c[1]) / c[0], game1000: (1000 * c[2]) / c[0], ratio: expected > 0 ? c[1] / expected : null });
+  }
+  return out;
+}
+
+/** One seed's injuries per 1,000 snaps by the real side's fine spot (`REAL_SPOT_OF`, every age), and over every spot ("all"). */
+export function injuriesBySpot(r: CareerCheckRows, w: readonly [number, number]): Map<string, [number, number]> {
+  const out = new Map<string, [number, number]>();
+  for (const [k, c] of exposureBy(r, w, (_age, spot) => REAL_SPOT_OF[spot] ?? null)) out.set(k, [c[0], c[1]]);
+  const all = exposureBy(r, w, () => "all").get("all");
+  if (all !== undefined) out.set("all", [all[0], all[1]]);
+  return out;
+}
+
+/** A sum of [n, k] pairs over seasons. */
+const sumPairs = (xs: readonly (readonly [number, number] | undefined)[]): [number, number] => {
+  const t: [number, number] = [0, 0];
+  for (const x of xs) if (x !== undefined) { t[0] += x[0]; t[1] += x[1]; }
+  return t;
+};
+
+/**
+ * The aging redesign's measure-only rows (ADR-087 §12, AB1; rows version 6). Every row is REPORT
+ * with a `report` rule: shown, never graded, never blocking. Rows written before version 6 have
+ * none of these readings and show no data (the loader refuses to mix versions; a test's rows may
+ * lack them).
+ */
+export function agingRedesignRows(
+  runs: readonly CareerCheckRows[], windows: GradeWindows, nfl: NflCareers, nflDraft: typeof NFL_DRAFT, real: NflInjuries = NFL_INJURIES,
+): GradeRow[] {
+  const rows: GradeRow[] = [];
+  const perSeed = (f: (r: CareerCheckRows) => number | null | undefined) => poolSeeds(runs.map(f));
+  const asRef = (p: { value: number | null; se: number | null }) => ({ value: p.value, se: p.se });
+  const report: BandRule = { kind: "report" };
+  const laterLabel = `later window ${windowLabel(windows.later)}`;
+  const firstOf = (r: CareerCheckRows): readonly [number, number] => [r.firstSeason, r.firstSeason];
+  const per = (k: number, n: number) => (n === 0 ? null : k / n);
+  /** A seed's mean over the window's seasons of `pick` (seasons it gives no number left out). */
+  const seasonMean = (r: CareerCheckRows, w: readonly [number, number], pick: (s: SeasonRow) => number | null | undefined) => {
+    const xs = seasonsIn(r, w).map(pick).filter((x): x is number => typeof x === "number" && Number.isFinite(x));
+    return xs.length === 0 ? null : mean(xs);
+  };
+
+  // Ability-group means by age, against year 0's same cell.
+  {
+    const early = runs.map((r) => abilityByBin(r, windows.early));
+    const zero = runs.map((r) => abilityByBin(r, firstOf(r)));
+    const cell = (m: Map<string, Record<AbilityGroup, [number, number]>>, bin: string, g: AbilityGroup) => { const c = m.get(bin)?.[g]; return c === undefined || c[0] === 0 ? null : c[1] / c[0]; };
+    const checks: GradeCheck[] = [];
+    for (const g of ABILITY_GROUPS) {
+      for (const b of ABILITY_AGE_BINS) {
+        checks.push(gradeCheck(report, `${g}, ${b.key}`, poolSeeds(early.map((m) => cell(m, b.key, g))), asRef(poolSeeds(zero.map((m) => cell(m, b.key, g))))));
+      }
+    }
+    rows.push(row("ability-age", checks,
+      "Each ability group's mean rating (ADR-087 §12.2.1; a man's group mean is the plain mean of the group's ratings he has, CHOSEN; the membership is " +
+      "`ABILITY_GROUP_COPY`, which AB3's franchise table must match) on the week-8 53s, by age in the season, men pooled over the window's seasons; " +
+      "year 0's same cell beside it. The body groups are read on the ratings; the combine measures are the next row. Measure-only (AB1)."));
+  }
+  // The combine measures by age (growth on: the men with a body record).
+  {
+    const measures = ["forty", "cone", "vertical", "bench"] as const;
+    const early = runs.map((r) => bodyByBin(r, windows.early));
+    const zero = runs.map((r) => bodyByBin(r, firstOf(r)));
+    const cell = (m: Map<string, [number, number, number, number, number]>, bin: string, i: number) => { const c = m.get(bin); return c === undefined || c[0] === 0 ? null : c[i + 1]! / c[0]; };
+    const checks: GradeCheck[] = [];
+    measures.forEach((name, i) => {
+      for (const b of ABILITY_AGE_BINS) checks.push(gradeCheck(report, `${name}, ${b.key}`, poolSeeds(early.map((m) => cell(m, b.key, i))), asRef(poolSeeds(zero.map((m) => cell(m, b.key, i))))));
+    });
+    rows.push(row("body-age", checks,
+      "The combine measures (contracts `PlayerDevelopment.body`: forty and cone in seconds, vertical in inches, bench in reps) of the week-8 53s' men who carry a " +
+      "body record, by age in the season, men pooled over the window's seasons; year 0 beside it. Optional: a league whose men carry no body record shows no data."));
+  }
+  // The 99s by ability group, by age and by rating, and the SMARTS share.
+  {
+    const at99 = (s: SeasonRow) => s.ability?.at99;
+    const groupMean = (r: CareerCheckRows, w: readonly [number, number], g: AbilityGroup) => seasonMean(r, w, (s) => at99(s)?.byGroup[g]);
+    const checks: GradeCheck[] = [
+      gradeCheck(report, "every group, a league-season", perSeed((r) => seasonMean(r, windows.early, (s) => at99(s)?.total)), asRef(perSeed((r) => seasonMean(r, firstOf(r), (s) => at99(s)?.total)))),
+    ];
+    const smarts = (r: CareerCheckRows, w: readonly [number, number]) => {
+      const xs = seasonsIn(r, w).map(at99).filter((x) => x !== undefined);
+      return per(xs.reduce((a, x) => a + x.byGroup.SMARTS, 0), xs.reduce((a, x) => a + x.total, 0));
+    };
+    checks.push(gradeCheck(report, "SMARTS share of the 99s", perSeed((r) => smarts(r, windows.early)), asRef(perSeed((r) => smarts(r, firstOf(r))))));
+    checks.push(laterCheck(gradeCheck(report, `SMARTS share of the 99s, ${laterLabel}`, perSeed((r) => smarts(r, windows.later)), asRef(perSeed((r) => smarts(r, firstOf(r)))))));
+    for (const g of ABILITY_GROUPS) checks.push(gradeCheck(report, `${g}, a league-season`, perSeed((r) => groupMean(r, windows.early, g)), asRef(perSeed((r) => groupMean(r, firstOf(r), g)))));
+    const byBin = (r: CareerCheckRows, w: readonly [number, number], bin: string) => seasonMean(r, w, (s) => {
+      const a = at99(s);
+      if (a === undefined) return null;
+      let n = 0;
+      for (const [age, k] of Object.entries(a.byAge)) if (ageBandOf(ABILITY_AGE_BINS, ageNumber(age)) === bin) n += k;
+      return n;
+    });
+    for (const b of ABILITY_AGE_BINS) checks.push(gradeCheck(report, `aged ${b.key}, a league-season`, perSeed((r) => byBin(r, windows.early, b.key)), asRef(perSeed((r) => byBin(r, firstOf(r), b.key)))));
+    for (const g of ABILITY_GROUPS) {
+      for (const id of ABILITY_GROUP_COPY[g]) {
+        const sim = perSeed((r) => seasonMean(r, windows.early, (s) => at99(s)?.byRating[id]));
+        const ref = perSeed((r) => seasonMean(r, firstOf(r), (s) => at99(s)?.byRating[id]));
+        if ((sim.value ?? 0) > 0 || (ref.value ?? 0) > 0) checks.push(gradeCheck(report, `${id} (${g}), a league-season`, sim, asRef(ref)));
+      }
+    }
+    rows.push(row("at99-detail", checks,
+      "Ratings at 99 on the week-8 53s (every rating of the 12 ability groups: the at99 row's ratings), a league-season over the window: all of them (the at99 row's own count), " +
+      "the share in SMARTS (§12.6: the largest source under variant D in the toy), by group, by age in the season, and by rating (only the ratings with a 99 in the window or in year 0). " +
+      "Year 0 beside each."));
+  }
+  // Injuries per snap by age and by spot, against the real side's.
+  {
+    const realBand = real.byAge;
+    const realAll = EXIT_AGE_BANDS.reduce((a, b) => ({ k: a.k + realBand[b.key].afterPlayed, n: a.n + realBand[b.key].snaps }), { k: 0, n: 0 });
+    const early = runs.map((r) => injuriesByAge(r, windows.early));
+    const later = runs.map((r) => injuriesByAge(r, windows.later));
+    const everyAge = (r: CareerCheckRows, w: readonly [number, number]) => {
+      const c = exposureBy(r, w, (age, spot) => (age !== null && !SPECIALIST_SPOTS.has(spot as Position) ? "all" : null)).get("all");
+      return c === undefined || c[0] === 0 ? null : (1000 * c[1]) / c[0];
+    };
+    const checks: GradeCheck[] = [];
+    for (const b of EXIT_AGE_BANDS) {
+      const rb = realBand[b.key];
+      checks.push(gradeCheck(report, `${b.key}, per 1,000 snaps`, poolSeeds(early.map((m) => m.get(b.key)?.per1000)), per1000Ref(rb.afterPlayed, rb.snaps)));
+    }
+    checks.push(gradeCheck(report, "every age, per 1,000 snaps", perSeed((r) => everyAge(r, windows.early)), per1000Ref(realAll.k, realAll.n)));
+    for (const b of EXIT_AGE_BANDS) {
+      checks.push(gradeCheck(report, `${b.key}, observed / expected (spot-group mix)`, poolSeeds(early.map((m) => m.get(b.key)?.ratio)), { value: realBand[b.key].mixPerSnap.ratio, se: realBand[b.key].mixPerSnap.se }));
+    }
+    for (const b of EXIT_AGE_BANDS) checks.push(gradeCheck(report, `${b.key}, hurt in the game alone, per 1,000 snaps`, poolSeeds(early.map((m) => m.get(b.key)?.game1000)), NONE));
+    checks.push(gradeCheck(report, "not counted (no game played before it), a league-season", perSeed((r) => seasonMean(r, windows.early, (s) => s.exposure?.notAfterPlayed)), NONE));
+    for (const b of EXIT_AGE_BANDS) {
+      const rb = realBand[b.key];
+      checks.push(laterCheck(gradeCheck(report, `${b.key}, per 1,000 snaps, ${laterLabel}`, poolSeeds(later.map((m) => m.get(b.key)?.per1000)), per1000Ref(rb.afterPlayed, rb.snaps))));
+      checks.push(laterCheck(gradeCheck(report, `${b.key}, observed / expected, ${laterLabel}`, poolSeeds(later.map((m) => m.get(b.key)?.ratio)), { value: rb.mixPerSnap.ratio, se: rb.mixPerSnap.se })));
+    }
+    rows.push(row("injury-age", checks,
+      "Football (game or practice; AWAY, illness and the rest away from football, left out) time-loss (a week or more) injuries in the regular season, counted after a game he played " +
+      "(his team's last game at or before the injury's week is one he took a snap in), at the spot and age of that game, over every snap he took (offense, defense, special teams); " +
+      "K, P and LS by the spot played left out, as the real side leaves listed K/P out. Observed / expected sets each band against the sim's own spot-group rates over all ages, " +
+      "as the real side's sets it against each listed group's. The real side cannot see an injury after a team's last game and leaves that game out; the sim counts it (CHOSEN). " +
+      "Reference SEs: per 1,000 snaps √count / snaps (Poisson, CHOSEN); the ratio's the real side's own. Ages: the sim's bio.age in the season, the real side's whole years on 23 October."));
+    const spotEarly = runs.map((r) => injuriesBySpot(r, windows.early));
+    const spotChecks: GradeCheck[] = [];
+    const realLeague = (1000 * real.all.afterPlayed) / real.all.snaps;
+    const rate = (m: Map<string, [number, number]>, k: string) => { const c = m.get(k); return c === undefined || c[0] === 0 ? null : (1000 * c[1]) / c[0]; };
+    for (const [spot, x] of Object.entries(real.bySpot)) {
+      spotChecks.push(gradeCheck(report, `${spot}, per 1,000 snaps`, poolSeeds(spotEarly.map((m) => rate(m, spot))), per1000Ref(x.afterPlayed, x.snaps)));
+    }
+    spotChecks.push(gradeCheck(report, "every spot, per 1,000 snaps", poolSeeds(spotEarly.map((m) => rate(m, "all"))), per1000Ref(real.all.afterPlayed, real.all.snaps)));
+    for (const [spot, x] of Object.entries(real.bySpot)) {
+      spotChecks.push(gradeCheck(report, `${spot}, against every spot`, poolSeeds(spotEarly.map((m) => { const a = rate(m, spot), all = rate(m, "all"); return a === null || all === null || all === 0 ? null : a / all; })),
+        { value: x.per1000Snaps / realLeague, se: null }));
+    }
+    rows.push(row("injury-spot", spotChecks,
+      "The same injuries by the spot played (the chart key that listed him that game, the first in contracts' Position order; off the chart, the spot he last played at this season, " +
+      "else his listed position): LT and RT read the real side's T, LG and RG its G (CHOSEN). The real rates are by fine listed position (nflverse depth_chart_position), not " +
+      "the game-day chart. 'Against every spot' is the spot's rate over the league's, the shape §12.3.1's spot factors carry. Every age; specialists included here."));
+  }
+  // Concussions: first and later, by age; durability by how many a man has had.
+  {
+    const sums = (r: CareerCheckRows, w: readonly [number, number], pick: "first" | "repeat") => sumPairs(seasonsIn(r, w).map((s) => s.concussions?.[pick]));
+    const shareOf = (r: CareerCheckRows, w: readonly [number, number], pick: "first" | "repeat") => { const [n, k] = sums(r, w, pick); return per(k, n); };
+    const c = real.concussion;
+    const checks: GradeCheck[] = [
+      gradeCheck(report, "first, out 4+ weeks", perSeed((r) => shareOf(r, windows.early, "first")), shareRef(c.first.out4, c.first.n)),
+      gradeCheck(report, "later, out 4+ weeks (against the later ones, quick relapses set apart)", perSeed((r) => shareOf(r, windows.early, "repeat")), shareRef(c.laterApart.out4, c.laterApart.n)),
+      gradeCheck(report, "later, out 4+ weeks (against every later one)", perSeed((r) => shareOf(r, windows.early, "repeat")), shareRef(c.later.out4, c.later.n)),
+      gradeCheck(report, "first concussions, a league-season", perSeed((r) => seasonMean(r, windows.early, (s) => s.concussions?.first[0])), NONE),
+      gradeCheck(report, "later concussions, a league-season", perSeed((r) => seasonMean(r, windows.early, (s) => s.concussions?.repeat[0])), NONE),
+    ];
+    const byBand = (r: CareerCheckRows, w: readonly [number, number]) => {
+      const out = new Map<string, [number, number, number]>();
+      for (const s of seasonsIn(r, w)) {
+        for (const [age, x] of Object.entries(s.concussions?.byAge ?? {})) {
+          const a = ageNumber(age);
+          if (a !== null) add3(out, ageBandOf(EXIT_AGE_BANDS, a)!, x);
+        }
+      }
+      return out;
+    };
+    const early = runs.map((r) => byBand(r, windows.early));
+    for (const b of EXIT_AGE_BANDS) {
+      const rb = real.byAge[b.key];
+      checks.push(gradeCheck(report, `${b.key}, out 4+ weeks`, poolSeeds(early.map((m) => { const x = m.get(b.key); return x === undefined ? null : per(x[1], x[0]); })), shareRef(rb.concussionOut4, rb.concussions)));
+    }
+    for (const b of EXIT_AGE_BANDS) {
+      checks.push(gradeCheck(report, `${b.key}, share that were later ones`, poolSeeds(early.map((m) => { const x = m.get(b.key); return x === undefined ? null : per(x[2], x[0]); })), NONE));
+    }
+    const dur = (r: CareerCheckRows, w: readonly [number, number], cls: string) => {
+      let n = 0, d = 0, a = 0, all = 0;
+      for (const s of seasonsIn(r, w)) {
+        const x = s.durabilityByConcussions;
+        if (x === null || x === undefined) continue;
+        for (const [k, v] of Object.entries(x)) { all += v[0]; if (k === cls) { n += v[0]; d += v[1]; a += v[2]; } }
+      }
+      return { durability: per(d, n), age: per(a, n), share: per(n, all) };
+    };
+    for (const cls of CONCUSSION_CLASSES) {
+      checks.push(gradeCheck(report, `durability, ${cls} concussions had`, perSeed((r) => dur(r, windows.early, cls).durability), NONE));
+      checks.push(gradeCheck(report, `mean age, ${cls} concussions had`, perSeed((r) => dur(r, windows.early, cls).age), NONE));
+      checks.push(gradeCheck(report, `share of the 53s, ${cls} concussions had`, perSeed((r) => dur(r, windows.early, cls).share), NONE));
+    }
+    rows.push(row("concussion", checks,
+      "Time-loss football concussions in the regular season, out 4+ weeks by the draw's length, first and later: later is any after a concussion of his earlier in the walk " +
+      "(every draw counts, any phase, setting or band; the league file's current injuries do not). The real side's first is the first seen since 2019 and its shares are Kaplan-Meier " +
+      "(reference SEs binomial on its counts, CHOSEN); 'quick relapses set apart' is its later row without the relapses after one game back (§12.3.4's 26.3%). By age: the sim's " +
+      "out 4+ share and how many of the band's were later ones, beside the real concussion class's out 4+ share by age (§12.3.3: 'Concussion: not yet', measured here). " +
+      "Durability on the week-8 53s by how many concussions a man has had (the sim's PlayerMemory.injuries), with the class's mean age and share."));
+  }
+  // Contact per snap by spot (information only) and career contact at 27 (AB6's free value).
+  {
+    const bySpot = (r: CareerCheckRows, w: readonly [number, number], spot: string) => {
+      const [snaps, contact] = sumPairs(seasonsIn(r, w).map((s) => s.contact?.bySpot[spot]));
+      return per(contact, snaps);
+    };
+    const spots = [...new Set(runs.flatMap((r) => r.perSeason.flatMap((s) => Object.keys(s.contact?.bySpot ?? {}))))];
+    const order = (s: string) => { const i = SPOT_ORDER.indexOf(s as Position); return i < 0 ? SPOT_ORDER.length : i; };
+    spots.sort((a, b) => order(a) - order(b) || a.localeCompare(b));
+    const checks: GradeCheck[] = spots.map((spot) => gradeCheck(report, `${spot}, contact a snap`, perSeed((r) => bySpot(r, windows.early, spot)), NONE));
+    const at27 = (r: CareerCheckRows, w: readonly [number, number], who: "entrants" | "all") => medianOf(seasonsIn(r, w).flatMap((s) => s.contact?.at27[who] ?? []));
+    for (const [w, label] of [[windows.early, windowLabel(windows.early)], [windows.later, laterLabel]] as const) {
+      for (const who of ["entrants", "all"] as const) {
+        const c = gradeCheck(report, `median career contact at 27, ${who === "entrants" ? "the walk's own entrants" : "every man"}, ${label}`, perSeed((r) => at27(r, w, who)), NONE);
+        checks.push(w === windows.later ? laterCheck(c) : c);
+      }
+    }
+    rows.push(row("contact-spot", checks,
+      "Contact taken (ADR-087 §12.3.6, information only): each game, for each roll set of CONTACT_RATINGS (careerAging.ts CONTACT_ROLL_SETS, read from the engine), the largest " +
+      "won + lost among its ratings, summed over the sets; a lower bound on contact contests that never counts one twice. Per snap at the spot played (every snap: offense, defense, " +
+      "special teams). Career contact at 27: of the men aged 27 in a season with a regular-season snap, the median of each man's contact over the walk's regular-season games " +
+      "through that season (each seed's median, then the mean over seeds); the walk's own entrants apart, whose whole careers are in the walk once the window is late enough " +
+      "(a league-file man's count starts at the walk's start, as AB6's counter starts at 0 for everyone). AB6's `free` is this median (§12.3.6)."));
+  }
+  // Availability, the real side's way: the share of game weeks missed hurt by age.
+  {
+    const weeksOf = (r: CareerCheckRows, w: readonly [number, number]) => {
+      const byAge: Record<string, [number, number]> = {};
+      for (const s of seasonsIn(r, w)) for (const [a, [n, k]] of Object.entries(s.gameWeeks ?? {})) { const t = (byAge[a] ??= [0, 0]); t[0] += n; t[1] += k; }
+      return bandCounts(EXIT_AGE_BANDS, byAge);
+    };
+    const realAll = EXIT_AGE_BANDS.reduce((a, b) => ({ k: a.k + real.byAge[b.key].missed, n: a.n + real.byAge[b.key].gameWeeks }), { k: 0, n: 0 });
+    const checks: GradeCheck[] = EXIT_AGE_BANDS.map((b) => gradeCheck(report, b.key, perSeed((r) => shareOrNull(weeksOf(r, windows.early).get(b.key))),
+      shareRef(real.byAge[b.key].missedShare, real.byAge[b.key].gameWeeks)));
+    checks.push(gradeCheck(report, "every age", perSeed((r) => { const t = sumPairs([...weeksOf(r, windows.early).values()]); return per(t[1], t[0]); }), shareRef(realAll.k / realAll.n, realAll.n)));
+    for (const b of EXIT_AGE_BANDS) {
+      checks.push(laterCheck(gradeCheck(report, `${b.key}, ${laterLabel}`, perSeed((r) => shareOrNull(weeksOf(r, windows.later).get(b.key))), shareRef(real.byAge[b.key].missedShare, real.byAge[b.key].gameWeeks))));
+    }
+    rows.push(row("availability-aligned", checks,
+      "The share of game weeks missed hurt, by age, read the real side's way (injury-rates.md, 'Game weeks'): for each team game, of the men on its 53 or a reserve list, " +
+      "a game week is one he played (a snap), was healthy on the 53 and did not play, or missed hurt (an injury of any setting, illness included, and no snap); a healthy man on a " +
+      "reserve list is not counted. K, P and LS by spot left out, as the real side leaves listed K/P out. The real share is 'Missed for injury' (any cause; 'football' alone is a " +
+      "little lower), 2019-24. The real side's IR rules (2019's season-ending IR, the stashing of young men) lift its youngest band. The availability row above reads the sim's " +
+      "own older definition (man-weeks on a 53, day 1 of each week)."));
+  }
+  // Retirements by moment and way, and by years in the league.
+  {
+    const momentMean = (r: CareerCheckRows, m: (typeof RETIREMENT_MOMENTS)[number], way: RetirementWay) => seasonMean(r, windows.early, (s) => s.retiredHow?.byMoment[m][way]);
+    const checks: GradeCheck[] = [];
+    for (const m of RETIREMENT_MOMENTS) for (const way of RETIREMENT_WAYS) checks.push(gradeCheck(report, `${m}, ${way}, a season`, perSeed((r) => momentMean(r, m, way)), NONE));
+    const yearsMean = (r: CareerCheckRows, b: string, way: RetirementWay) => seasonMean(r, windows.early, (s) => {
+      const x = s.retiredHow?.byYears[way];
+      if (x === undefined) return null;
+      let n = 0;
+      for (const [y, k] of Object.entries(x)) if (ageBandOf(YEARS_IN_LEAGUE_BANDS, ageNumber(y)) === b) n += k;
+      return n;
+    });
+    for (const b of YEARS_IN_LEAGUE_BANDS) for (const way of RETIREMENT_WAYS) checks.push(gradeCheck(report, `${b.key}, ${way}, a season`, perSeed((r) => yearsMean(r, b.key, way)), NONE));
+    const cohort = (r: CareerCheckRows, w: readonly [number, number], way: RetirementWay | "any") => {
+      const byYears: Record<string, [number, number]> = {};
+      for (const c of r.exits?.retiredNextYearByYears ?? []) {
+        if (!inWindow(c.y, w)) continue;
+        for (const [y, x] of Object.entries(c.byYears)) {
+          const t = (byYears[y] ??= [0, 0]);
+          t[0] += x.n;
+          t[1] += way === "any" ? x.unsigned + x.ownSigned + x.ownUnsigned : x[way];
+        }
+      }
+      return bandCounts(YEARS_IN_LEAGUE_BANDS, byYears);
+    };
+    for (const b of YEARS_IN_LEAGUE_BANDS) {
+      checks.push(gradeCheck(report, `${b.key}, final-week 53 retired within a year, own choice while signed`, perSeed((r) => shareOrNull(cohort(r, windows.early, "ownSigned").get(b.key))),
+        est(nfl.retiredList.byYearsInLeague[b.key].share)));
+    }
+    for (const b of YEARS_IN_LEAGUE_BANDS) checks.push(gradeCheck(report, `${b.key}, final-week 53 retired within a year, any way`, perSeed((r) => shareOrNull(cohort(r, windows.early, "any").get(b.key))), NONE));
+    rows.push(row("retire-moment", checks,
+      "The season's retirements by moment (PLAYER_RETIRED.timing: IMMEDIATE, SLOW, LATE, SEASON_END) and way (unsigned, his own choice while signed, his own choice unsigned), " +
+      "and by way and years in the league (the season less his first, as the real rosters' years_exp; bands as nfl-careers'), each a season over the window. Then the final-week " +
+      "cohorts of the retired-signed row by years in the league, against the reserve/retired list by years in the league (Y 2021-24, a lower bound: only men under contract are placed on it)."));
+  }
+  // The teams' overall: its spread and how it carries, beside the win spread and win r.
+  {
+    const rWindow: readonly [number, number] = [windows.early[0] + 1, windows.early[1]];
+    const rLater: readonly [number, number] = [windows.later[0] + 1, windows.later[1]];
+    const withWins = (s: SeasonRow) => {
+      const t = s.teamOverall;
+      if (t === null || t === undefined) return null;
+      const xs: number[] = [], ys: number[] = [];
+      t.byTeam.forEach((x, i) => { if (x !== null && s.wins[i] !== undefined) { xs.push(x); ys.push(s.wins[i]!); } });
+      return pearson(xs, ys);
+    };
+    const checks: GradeCheck[] = [
+      gradeCheck(report, `team overall spread, ${windowLabel(windows.early)}`, perSeed((r) => seasonMean(r, windows.early, (s) => s.teamOverall?.spread)),
+        asRef(perSeed((r) => seasonMean(r, firstOf(r), (s) => s.teamOverall?.spread)))),
+      gradeCheck(report, `team overall year-to-year r, ${windowLabel(windows.early)}`, perSeed((r) => seasonMean(r, rWindow, (s) => s.teamOverall?.r)), NONE),
+      gradeCheck(report, `team overall against wins, same season (r), ${windowLabel(windows.early)}`, perSeed((r) => seasonMean(r, windows.early, withWins)), NONE),
+      gradeCheck(report, `win spread, ${windowLabel(windows.early)}`, perSeed((r) => seasonMean(r, windows.early, (s) => s.winSpread)), est(nfl.winSpread.spread)),
+      gradeCheck(report, `win r, ${windowLabel(windows.early)}`, perSeed((r) => seasonMean(r, rWindow, (s) => s.winR)), est(nfl.winYearOverYearR.r)),
+      laterCheck(gradeCheck(report, `team overall spread, ${laterLabel}`, perSeed((r) => seasonMean(r, windows.later, (s) => s.teamOverall?.spread)),
+        asRef(perSeed((r) => seasonMean(r, firstOf(r), (s) => s.teamOverall?.spread))))),
+      laterCheck(gradeCheck(report, `team overall year-to-year r, ${laterLabel}`, perSeed((r) => seasonMean(r, rLater, (s) => s.teamOverall?.r)), NONE)),
+    ];
+    rows.push(row("team-overall", checks,
+      "Each team's starters' mean overall at week 8 (the starters as the engine fields them, each at his own position, as teamStrength reads them; a short team left out): its " +
+      "spread (population sd over the teams, as the win spread is) against year 0's, its year-to-year r over the pairs inside the window, and its r with the same season's wins; " +
+      "the win spread and win r beside it against the NFL's (§12.6: a team of late faders should stay good longer)."));
+  }
+  // D7 by round band with starts by age, the whole walk.
+  {
+    const cells = (r: CareerCheckRows) => {
+      const out = new Map<string, [number, number]>();
+      for (const s of r.perSeason) {
+        for (const [band, byAge] of Object.entries(s.draftEnd ?? {})) {
+          for (const [age, [n, k]] of Object.entries(byAge)) {
+            const bin = ageBandOf(ABILITY_AGE_BINS, ageNumber(age));
+            for (const key of [`${band}|all`, ...(bin === null ? [] : [`${band}|${bin}`])]) { const t = out.get(key) ?? [0, 0]; t[0] += n; t[1] += k; out.set(key, t); }
+          }
+        }
+      }
+      return out;
+    };
+    const all = runs.map(cells);
+    const checks: GradeCheck[] = [];
+    for (const band of ["1", "2", "3", "4-7"]) {
+      checks.push(gradeCheck(report, `round ${band}, every age`, poolSeeds(all.map((m) => shareOrNull(m.get(`${band}|all`)))), { value: nflDraft.starterRate[band] ?? null, se: null }));
+      for (const b of ABILITY_AGE_BINS) checks.push(gradeCheck(report, `round ${band}, aged ${b.key}`, poolSeeds(all.map((m) => shareOrNull(m.get(`${band}|${b.key}`)))), NONE));
+    }
+    rows.push(row("d7-age", checks,
+      "The walk's own draftees on a 53 at each season's end (the people after the year turn, as the D7 starter rate reads them), the share that started (the first STARTING men at his " +
+      "position on the chart), by round band and age in the season, over the whole walk. 'Every age' is the D7 starter rate's own reading, against NFL_DRAFT (no age split there)."));
+  }
+  return rows;
+}
 
 export function gradeCareerCheck(input: GradeInput): CareerGrade {
   const nfl = input.nfl ?? NFL_CAREERS;
@@ -1006,7 +1473,8 @@ export function gradeCareerCheck(input: GradeInput): CareerGrade {
   for (const b of EXIT_AGE_BANDS) availabilityChecks.push(laterCheck(gradeCheck(reported, `${b.key}, ${laterLabel}`, perSeed((r) => available(availabilityOf(r, windows.later).get(b.key))), { value: null, se: null })));
   rows.push(row("availability", availabilityChecks,
     "On day 1 of each regular-season week, the men on a 53 and of them those out with an injury they cannot play on, by age in the season; shown as the share available. " +
-    "No real availability by age is merged yet (the injuries part's), so the sim's alone is shown."));
+    "This is the sim's own reading, with no real reference; the real side's share of game weeks missed by age is merged on its own definition in the availability-aligned row " +
+    "(rows version 6)."));
 
   // The NFL count itself: each NFL row's league reading on the weeks-left variant and on the whole 53s,
   // against the band reading the row is graded on; then the men each reading leaves out and the teams' sizes.
@@ -1050,6 +1518,9 @@ export function gradeCareerCheck(input: GradeInput): CareerGrade {
     "(week8Nfl: an unhealed LONG or MAJOR injury, 4+ weeks, left out; CHOSEN). Here each league reading on the weeks-left variant (week8NflWeeksLeft: 4+ weeks " +
     "still to go) and on the whole 53s (week8) is set beside the band reading as its reference, so the choice can be judged; then the men each reading leaves out " +
     "and the teams' sizes (nflCount; the smallest and largest team are each seed's mean over the window's seasons). Week 8, day 1."));
+
+  // The aging redesign's measure-only rows (ADR-087 §12, AB1; rows version 6): all REPORT.
+  rows.push(...agingRedesignRows(runs, windows, nfl, nflDraft, input.nflInjuries ?? NFL_INJURIES));
 
   // The owner's answers: an answered OWNER row takes the answer's mark.
   const marked = rows.map((r): GradeRow => {
@@ -1125,6 +1596,12 @@ export function renderGradeMarkdown(grade: CareerGrade): string {
     "as the real count leaves out injured reserve); the later window is reported beside each early check; and the group shares, signed again and back on a 53, " +
     "retirements and starters gone, rookies' ages, availability by age and the NFL count itself (its weeks-left variant and the men left out) are new rows, " +
     "all REPORT (shown, never blocking).");
+  say();
+  say("Added for the aging redesign (ADR-087 §12, step AB1; rows version 6), **measure-only**: ability-group means and combine measures by age, the 99s by group, age " +
+    "and rating with the SMARTS share, injuries per snap by age and by spot, concussion lengths (first, later, by age) and durability by concussions had, contact per snap by " +
+    "spot and career contact at 27, the share of game weeks missed by age on the real side's definition, retirements by moment and by years in the league, the teams' overall " +
+    "spread and year-to-year r beside the win spread and win r, and D7 by round with starts by age. Every one is REPORT with no band: its checks are shown, never graded, " +
+    "and no GATE row reads them. They come last.");
   const pending = grade.rows.filter((r) => r.mark === "OWNER");
   if (pending.length > 0) {
     say();

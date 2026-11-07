@@ -54,6 +54,24 @@
  *  - Availability by age (`availability`): on day 1 of each regular-season week, the men on a 53 and
  *    those of them out with an injury they cannot play on.
  *
+ * Added for the aging redesign (ADR-087 §12, step AB1; rows version 6). Still only watching, every
+ * number the sim's (MEASURED), every reading that is not the real side's own CHOSEN; the pieces are
+ * in `careerAging.ts`:
+ *  - At week 8, on the 53s: each ability group's mean by age, the 99s by rating, group and age, the
+ *    combine measures of the men with a body record (`ability`, `abilityPicture`); durability by how
+ *    many concussions a man has had (`durabilityByConcussions`); each team's starters' mean overall
+ *    (`teamOverall`), whose spread and year-to-year r sit beside the win spread and win r.
+ *  - Every regular-season game: the spot each man played at (`chartSpots`), his snaps and the contact
+ *    he took there, counted by roll sets (`contactOf`); each team's game week, the real side's way, for
+ *    availability (`addGameWeeks`: played, healthy on the 53 and not played, or missed hurt).
+ *  - After each season: football time-loss injuries per snap by age and spot, counted after a game he
+ *    played (`exposure`, `injuryExposure`); concussion lengths, first and later (`concussionLengths`);
+ *    retirements by moment and way, and by years in the league (`retiredHow`); the walk's own
+ *    draftees by round band and age at the season's end, read as the draft check reads its starter
+ *    rate (`draftEnd`); career contact at 27 (`contact.at27`, the "free" value AB6 needs). The roster
+ *    way's retired-within-a-year cohorts are also read by years in the league
+ *    (`exits.retiredNextYearByYears`).
+ *
  * Ages. A man's age is his `bio.age` during the season (as read at week 8); the year turn at the end
  * of each walk adds one, so an age read after it (in `onRun`'s people) is next season's (`seasonAge`).
  *
@@ -83,6 +101,10 @@ import { PersonnelUnavailableError } from "@ff/playbook";
 import { MIN_PAIRS_PER_AGE } from "../careers/usage.js";
 import { lastTeams, limboPlayers, runCapCheck, VETERAN_DEAL_KINDS, type CapCheckDayGames, type CapCheckInput, type CapCheckRun } from "./capCheck.js";
 import { draftReader, STARTING, type DraftCheckResult, type DraftReaderState } from "./draftCheck.js";
+import {
+  abilityPicture, addGameWeeks, chartSpots, concussionLengths, contactOf, durabilityByConcussions, injuryExposure, injuryReads, sortNumericKeys,
+  SPOT_ORDER, type AbilityPicture, type ConcussionTally, type ExposureCells, type PlayedGame,
+} from "./careerAging.js";
 import { fieldedStarters } from "./playerChecks.js";
 import type { SeasonPeople } from "./realSeason.js";
 
@@ -789,8 +811,11 @@ export interface RetirementTally {
 }
 export type Retirements = Record<RetirementWay, RetirementTally>;
 
-/** One retirement, read: who, when, how. */
-export interface RetirementRead { readonly player: string; readonly at: CalendarStamp; readonly way: RetirementWay }
+/** One retirement, read: who, when, how, and at which moment (`PLAYER_RETIRED.timing`; rows version 6). */
+export interface RetirementRead {
+  readonly player: string; readonly at: CalendarStamp; readonly way: RetirementWay;
+  readonly timing?: "IMMEDIATE" | "SLOW" | "LATE" | "SEASON_END";
+}
 
 /**
  * Was one of these deals live at a moment: signed by then, and not ended before it. A deal that
@@ -840,15 +865,19 @@ export function retirementsOf(
     bump(t.byAge, p === undefined ? "?" : String(p.bio.age));
     bump(t.byCredited, p === undefined ? "?" : String(p.bio.creditedSeasons ?? 0));
     bump(t.byGroup, p === undefined ? "?" : CAREER_GROUP[p.bio.position]);
-    reads.push({ player: id, at, way });
+    reads.push({ player: id, at, way, timing: e.payload.timing });
   }
   const sorted = (m: Record<string, number>) => Object.fromEntries(Object.keys(m).sort().map((k) => [k, m[k]!]));
   const tally = Object.fromEntries(RETIREMENT_WAYS.map((w) => [w, { n: raw[w].n, byAge: sorted(raw[w].byAge), byCredited: sorted(raw[w].byCredited), byGroup: sorted(raw[w].byGroup) }])) as Retirements;
   return { tally, reads };
 }
 
-/** A man on a final-week 53 (week 18 day 7, counted like the NFL): his age in that season (null if not known), and whether he started (`STARTER_SHARE`). */
-export interface FinalWeekMan { readonly id: string; readonly age: number | null; readonly starter: boolean }
+/**
+ * A man on a final-week 53 (week 18 day 7, counted like the NFL): his age in that season (null if not
+ * known), whether he started (`STARTER_SHARE`), and his years in the league in that season (the season
+ * less his first, as the real rosters' years_exp reads; null if not known; rows version 6).
+ */
+export interface FinalWeekMan { readonly id: string; readonly age: number | null; readonly starter: boolean; readonly years?: number | null }
 
 /** A starter, for "starters gone": at least half his main team's snaps on his side (the real side's 50%, CHOSEN there too). */
 export const STARTER_SHARE = 0.5;
@@ -888,17 +917,20 @@ export type RetiredCounts = Record<string, { n: number } & Record<RetirementWay,
 
 /**
  * Of the men on a final-week 53 in Y, those who retired from that day on and before the next
- * season's (Y + 1, week 18 day 7), each way, by age in Y: the sim's side of the reserve/retired list
+ * season's (Y + 1, week 18 day 7), each way, by age in Y (or by `keyOf`: rows version 6 also reads
+ * them by years in the league, `FinalWeekMan.years`): the sim's side of the reserve/retired list
  * (`retiredList`: men credited in Y - 1 placed on it in Y), whose real men are under contract. The
  * cohort is read first that day (the watch step runs before the day's players' steps), so a man who
  * retires at that season's end, stamped that same day, is Y's; one who retires at Y + 1's is Y + 1's.
  */
-export function retiredNextYear(men: readonly FinalWeekMan[], retired: ReadonlyMap<string, RetirementRead>, y: number): RetiredCounts {
+export function retiredNextYear(
+  men: readonly FinalWeekMan[], retired: ReadonlyMap<string, RetirementRead>, y: number, keyOf: (m: FinalWeekMan) => number | null = (m) => m.age,
+): RetiredCounts {
   const from: CalendarStamp = { season: y, ...SEASON_ENDS };
   const until: CalendarStamp = { season: y + 1, ...SEASON_ENDS };
   const out: RetiredCounts = {};
   for (const m of men) {
-    const c = (out[ageKey(m.age)] ??= { n: 0, unsigned: 0, ownSigned: 0, ownUnsigned: 0 });
+    const c = (out[ageKey(keyOf(m))] ??= { n: 0, unsigned: 0, ownSigned: 0, ownUnsigned: 0 });
     c.n++;
     const r = retired.get(m.id);
     if (r !== undefined && compareStamps(r.at, from) >= 0 && compareStamps(r.at, until) < 0) c[r.way]++;
@@ -919,6 +951,106 @@ export function addAvailability(into: AgeCounts, people: Pick<SeasonPeople, "tea
     }
   }
 }
+
+// --- added for the aging redesign (ADR-087 §12, AB1; rows version 6) -----------------------------
+
+/** The retirement moments (`PLAYER_RETIRED.timing`, contracts E6), in the year's order. */
+export const RETIREMENT_MOMENTS = ["IMMEDIATE", "SLOW", "LATE", "SEASON_END"] as const;
+
+/** A season's retirements by moment and way, and by way and years in the league ("?" not known). */
+export interface RetiredHow {
+  readonly byMoment: Record<(typeof RETIREMENT_MOMENTS)[number], Record<RetirementWay, number>>;
+  readonly byYears: Record<RetirementWay, Record<string, number>>;
+}
+
+/**
+ * The season's retirements (`retirementsOf`'s reads, each with its moment) by moment and way, and
+ * by way and years in the league in the season (`yearsOf`: the season less his first in the league,
+ * the ledger's, as the real rosters' years_exp reads). A read with no moment is left out of
+ * `byMoment` (every `PLAYER_RETIRED` carries one; a test's read may not).
+ */
+export function retiredHow(reads: readonly RetirementRead[], yearsOf: (id: string) => number | undefined): RetiredHow {
+  const byMoment = Object.fromEntries(RETIREMENT_MOMENTS.map((m) => [m, Object.fromEntries(RETIREMENT_WAYS.map((w) => [w, 0]))])) as RetiredHow["byMoment"];
+  const byYears = Object.fromEntries(RETIREMENT_WAYS.map((w) => [w, {}])) as RetiredHow["byYears"];
+  for (const r of reads) {
+    if (r.timing !== undefined) byMoment[r.timing][r.way]++;
+    const y = yearsOf(r.player);
+    bump(byYears[r.way], y === undefined ? "?" : String(y));
+  }
+  for (const w of RETIREMENT_WAYS) byYears[w] = sortNumericKeys(byYears[w]);
+  return { byMoment, byYears };
+}
+
+/**
+ * Each team's starters' mean overall at one moment, by team id, read as `RosterPicture.teamStrength`
+ * reads it: the starters as the engine fields them (`teamStarters`) among the team's 53, each at his
+ * own position (`positionOverall` at `bio.position`, which only judges him, R1); null for a team that
+ * cannot field a side (a short team, left out of `teamStrength` too).
+ */
+export function teamOveralls(people: Pick<SeasonPeople, "teams" | "players">): Map<string, number | null> {
+  const byId = new Map(people.players.map((p) => [String(p.bio.id), p]));
+  const out = new Map<string, number | null>();
+  for (const t of people.teams) {
+    const f = teamStarters(t, byId);
+    if (f.short) { out.set(String(t.id), null); continue; }
+    const xs = t.roster.filter((id) => f.ids.has(String(id))).map((id) => byId.get(String(id)))
+      .filter((p): p is PlayerState => p !== undefined).map((p) => positionOverall(p.bio.position, p.attributes.values));
+    out.set(String(t.id), mean(xs));
+  }
+  return out;
+}
+
+/** The teams' overall in a season: each team's (league team order; null a short team or one not read), their spread, and the year-to-year r. */
+export interface TeamOverallRow { readonly byTeam: (number | null)[]; readonly spread: number; readonly r: number | null }
+
+/**
+ * The teams' overall (`teamOveralls`) in `teams` order, their spread (the population sd of the known
+ * values, as the win spread is) and Pearson's r against last season's, team by team over the teams
+ * known both seasons (null in the first season, or with fewer than two such teams).
+ */
+export function teamOverallRow(
+  now: ReadonlyMap<string, number | null>, teams: readonly Pick<Team, "id">[], last: ReadonlyMap<string, number | null> | undefined,
+): TeamOverallRow {
+  const byTeam = teams.map((t) => now.get(String(t.id)) ?? null);
+  const known = byTeam.filter((x): x is number => x !== null);
+  const xs: number[] = [], ys: number[] = [];
+  if (last !== undefined) {
+    for (const t of teams) {
+      const a = last.get(String(t.id)) ?? null, b = now.get(String(t.id)) ?? null;
+      if (a !== null && b !== null) { xs.push(a); ys.push(b); }
+    }
+  }
+  return { byTeam, spread: sd(known), r: last === undefined ? null : pearson(xs, ys) };
+}
+
+/**
+ * The walk's own draftees on a 53 at a season's end, by round band then age in the season: [on a 53,
+ * of them started] (`AgeCounts`, men first), read as the draft check's starter rate reads them (`draftReader`): the people after the
+ * year turn, each team's 53, a draftee whose draft is after `season` left out, a starter one of the
+ * first `STARTING` men at his position (`bio.position`) on its chart. Ages after the year turn are
+ * one on, so a man's age in the season is `seasonAge(age, true)`.
+ */
+export function draftByAge(
+  season: number, people: Pick<SeasonPeople, "teams" | "players">, draftOf: (id: string) => { year: number; round: number } | undefined,
+): Record<string, AgeCounts> {
+  const byId = new Map(people.players.map((p) => [String(p.bio.id), p]));
+  const out: Record<string, AgeCounts> = Object.fromEntries(BANDS.map((b) => [b, {}]));
+  for (const t of people.teams) {
+    for (const id of t.roster) {
+      const d = draftOf(String(id));
+      const p = byId.get(String(id));
+      if (d === undefined || d.year > season || p === undefined) continue;
+      const started = (t.depthChart[p.bio.position] ?? []).slice(0, STARTING[p.bio.position]).some((x) => String(x) === String(id));
+      const c = (out[band(d.round)]![String(seasonAge(p.bio.age, true))] ??= [0, 0]);
+      c[0]++;
+      if (started) c[1]++;
+    }
+  }
+  return Object.fromEntries(BANDS.map((b) => [b, sortAges(out[b]!)]));
+}
+
+/** Contact by spot in a season: [snaps at the spot, contact taken there] (`contactOf`). */
+export type ContactBySpot = Record<string, [number, number]>;
 
 /**
  * The head coach sitting at each team, by team id: a man whose current job (the last on his résumé,
@@ -1455,10 +1587,34 @@ export interface SeasonRow {
   readonly retirements: Retirements;
   /** Man-weeks on a 53 and of them out injured, by age (`addAvailability`, day 1 of each regular-season week; rows version 5). */
   readonly availability: AgeCounts;
+  // Rows version 6 (ADR-087 §12, AB1): measure-only, read by REPORT rows alone.
+  /** The week-8 53s by age and ability group, the 99s by rating, group and age, the combine measures (`abilityPicture`); null if the walk never got there. */
+  readonly ability: AbilityPicture | null;
+  /** Durability on the week-8 53s by concussions had: none, one, two, three or more, [men, Σ durability, Σ age] (`durabilityByConcussions`); null if the walk never got there. */
+  readonly durabilityByConcussions: Record<string, [number, number, number]> | null;
+  /** Each team's starters' mean overall at week 8 (`teamOveralls`), their spread and the r against last season's week 8 (`teamOverallRow`); null if the walk never got there. */
+  readonly teamOverall: TeamOverallRow | null;
+  /** Football time-loss injuries per snap by age then spot (`injuryExposure`), and those not counted after a game he played. */
+  readonly exposure: { readonly cells: ExposureCells; readonly notAfterPlayed: number };
+  /**
+   * Contact taken (`contactOf`, by roll sets; information only): by spot played, [snaps, contact]; and
+   * of the men aged 27 this season with a regular-season snap, each man's career contact through this
+   * season (the walk's regular-season games; a league-file man's count starts at the walk's start, as
+   * AB6's counter starts at 0 for everyone), the walk's own entrants (drafted or undrafted) apart.
+   */
+  readonly contact: { readonly bySpot: ContactBySpot; readonly at27: { readonly entrants: number[]; readonly all: number[] } };
+  /** Game weeks by age, the real side's way (`addGameWeeks`): [game weeks, missed hurt]. */
+  readonly gameWeeks: AgeCounts;
+  /** Concussion lengths, first and later (`concussionLengths`). */
+  readonly concussions: ConcussionTally;
+  /** The season's retirements by moment and way, and by way and years in the league (`retiredHow`). */
+  readonly retiredHow: RetiredHow;
+  /** The walk's own draftees on a 53 at the season's end, by round band then age in the season: [on a 53, of them started] (`draftByAge`). */
+  readonly draftEnd: Record<string, AgeCounts>;
 }
 
 /** What the rows hold and the reader saves: a change to either starts a fresh version. */
-export const CAREER_ROWS_VERSION = 5;
+export const CAREER_ROWS_VERSION = 6;
 
 export interface CareerCheckRows {
   readonly version: typeof CAREER_ROWS_VERSION;
@@ -1521,6 +1677,8 @@ export interface CareerCheckRows {
     readonly backOnA53: { readonly y: number; readonly byAge: AgeCounts }[];
     readonly startersGone: { readonly y: number; readonly byAge: AgeCounts }[];
     readonly retiredNextYear: { readonly y: number; readonly byAge: RetiredCounts }[];
+    /** The same cohorts' retirements by years in the league in Y (`FinalWeekMan.years`; rows version 6). */
+    readonly retiredNextYearByYears: { readonly y: number; readonly byYears: RetiredCounts }[];
   };
 }
 
@@ -1561,6 +1719,10 @@ export interface CareerReaderState {
   readonly on53: [number, string[]][];
   readonly retiredAt: [string, RetirementRead][];
   readonly exits: CareerCheckRows["exits"];
+  /** Rows version 6: last season's week-8 team overall by team; each man's concussions so far and career contact so far (men still in the league). */
+  readonly lastTeamOverall: [string, number | null][] | null;
+  readonly concussions: [string, number][];
+  readonly contactCareer: [string, number][];
 }
 
 /** The reader's watchers and what they wrote down; `rows` takes the draft check's rows to put beside its own. */
@@ -1606,12 +1768,28 @@ interface SeasonTally {
   /** Men on a 53 on the regular season's last day, counted like the NFL (`nflRosterIds`): the roster way's cohort. */
   week18Nfl: Set<string>;
   availability: AgeCounts;
+  // Rows version 6.
+  ability: AbilityPicture | null;
+  durabilityByConcussions: Record<string, [number, number, number]> | null;
+  teamOverall: Map<string, number | null> | null;
+  /** Each man's regular-season games: week, team, spot, snaps. */
+  played: Map<string, PlayedGame[]>;
+  /** The regular-season weeks each team played a game in. */
+  teamWeeks: Map<string, Set<number>>;
+  /** The spot each man last played at this season. */
+  lastSpot: Map<string, Position>;
+  contactBySpot: ContactBySpot;
+  /** Each man's contact this season. */
+  contact: Map<string, number>;
+  gameWeeks: AgeCounts;
 }
 
 const newTally = (): SeasonTally => ({
   touched: false, week8: null, slots: [], fileOn53: 0, draftWeek8: emptyBands(), faCamp: 0, faWeek8: 0, waits: new Map(),
   week18: new Map(), snaps: new Map(), busiest: new Map(), groupReads: new Map(), ages: new Map(), lastSeen: new Map(), leanings: null,
   week8Nfl: null, week8NflWeeksLeft: null, nflCount: null, on53: new Set(), week18Nfl: new Set(), availability: {},
+  ability: null, durabilityByConcussions: null, teamOverall: null, played: new Map(), teamWeeks: new Map(), lastSpot: new Map(),
+  contactBySpot: {}, contact: new Map(), gameWeeks: {},
 });
 
 /** The D5b reader: watchers for the cap check's walk and the rows they add up to. */
@@ -1639,7 +1817,11 @@ export function careerReader(input: CareerReaderInput): CareerReader {
   let finalWeeks: { season: number; men: FinalWeekMan[] }[] = [];
   let on53BySeason = new Map<number, Set<string>>();
   let retiredAt = new Map<string, RetirementRead>();
-  let exits: CareerCheckRows["exits"] = { backOnA53: [], startersGone: [], retiredNextYear: [] };
+  let exits: CareerCheckRows["exits"] = { backOnA53: [], startersGone: [], retiredNextYear: [], retiredNextYearByYears: [] };
+  // Rows version 6: last season's week-8 team overall; each man's concussions and career contact so far.
+  let lastTeamOverall: Map<string, number | null> | undefined;
+  let concussionCounts = new Map<string, number>();
+  let contactCareer = new Map<string, number>();
   /** The cap by league year, as the walk's own (`capForecast` of the same seed: real history, then the seed's projection). */
   const cap = capForecast(input.seed);
   const switched = input.switches.development || input.switches.injuries;
@@ -1653,6 +1835,9 @@ export function careerReader(input: CareerReaderInput): CareerReader {
     tally.slots = starterSlots(people.teams);
     tally.faWeek8 = people.freeAgents.length;
     tally.leanings = headCoachLeanings(people.staff, people.teams);
+    tally.ability = abilityPicture(people);
+    tally.durabilityByConcussions = durabilityByConcussions(people);
+    tally.teamOverall = teamOveralls(people);
     const byId = new Map(people.players.map((p) => [String(p.bio.id), p]));
     for (const t of people.teams) {
       for (const id of t.roster) {
@@ -1670,17 +1855,45 @@ export function careerReader(input: CareerReaderInput): CareerReader {
     }
   };
 
-  const readGames = (people: SeasonPeople, games: CapCheckDayGames) => {
+  const readGames = (people: SeasonPeople, games: CapCheckDayGames, week: number) => {
     const byId = new Map(people.players.map((p) => [String(p.bio.id), p]));
+    const teamsById = new Map(people.teams.map((t) => [String(t.id), t]));
     for (const g of games) {
       const report = (g.extras as { participation?: readonly GameParticipation[] } | undefined)?.participation;
       if (!Array.isArray(report)) continue;
       addGame(g.game, report, tally.snaps, tally.busiest);
+      // Rows version 6: each side's chart (the one the game was played on: the watch step runs
+      // before the week's players' step rebuilds it), each man's spot, snaps and contact, the game week.
+      const charts = new Map<string, Map<string, Position>>();
+      const playedBy = new Map<string, Set<string>>();
+      for (const side of [String(g.game.home), String(g.game.away)]) {
+        const t = teamsById.get(side);
+        charts.set(side, t === undefined ? new Map() : chartSpots(t));
+        playedBy.set(side, new Set());
+        (tally.teamWeeks.get(side) ?? tally.teamWeeks.set(side, new Set()).get(side)!).add(week);
+      }
       for (const r of report) {
         const p = byId.get(String(r.player));
-        if (p === undefined || r.snaps.offense + r.snaps.defense + (r.snaps.special ?? 0) === 0) continue;
-        tally.lastSeen.set(String(r.player), p.bio.position);
-        if (!tally.ages.has(String(r.player))) tally.ages.set(String(r.player), p.bio.age);
+        const snaps = r.snaps.offense + r.snaps.defense + (r.snaps.special ?? 0);
+        if (p === undefined || snaps === 0) continue;
+        const id = String(r.player), team = String(r.team);
+        tally.lastSeen.set(id, p.bio.position);
+        if (!tally.ages.has(id)) tally.ages.set(id, p.bio.age);
+        const spot = charts.get(team)?.get(id) ?? tally.lastSpot.get(id) ?? p.bio.position;
+        tally.lastSpot.set(id, spot);
+        const games_ = tally.played.get(id) ?? tally.played.set(id, []).get(id)!;
+        games_.push({ week, team, spot, snaps });
+        const contact = contactOf(r.contests ?? []);
+        const c = (tally.contactBySpot[spot] ??= [0, 0]);
+        c[0] += snaps; c[1] += contact;
+        tally.contact.set(id, (tally.contact.get(id) ?? 0) + contact);
+        playedBy.get(team)?.add(id);
+      }
+      for (const [side, played] of playedBy) {
+        const t = teamsById.get(side);
+        if (t === undefined) continue;
+        const chart = charts.get(side)!;
+        addGameWeeks(tally.gameWeeks, t, byId, played, (p) => chart.get(String(p.bio.id)) ?? tally.lastSpot.get(String(p.bio.id)) ?? p.bio.position);
       }
     }
   };
@@ -1722,7 +1935,7 @@ export function careerReader(input: CareerReaderInput): CareerReader {
       tally.week18Nfl = new Set(nflRosterIds(people));
     }
     const regular = games.filter((g) => g.game.kind === "REGULAR");
-    if (regular.length > 0) readGames(people, regular);
+    if (regular.length > 0) readGames(people, regular, day.week);
   };
 
   const onRun: CareerReader["onRun"] = (season, events, people, { run, before }) => {
@@ -1789,14 +2002,20 @@ export function careerReader(input: CareerReaderInput): CareerReader {
     const { tally: retirements, reads } = retirementsOf(season, run.events, before, people);
     for (const r of reads) retiredAt.set(r.player, r);
     on53BySeason.set(season, tally.on53);
+    const yearsIn = (id: string) => { const f = ledger.firstSeasonOf(id); return f === undefined ? undefined : season - f; };
     for (const cohort of finalWeeks) {
-      if (cohort.season === season - 1) exits.retiredNextYear.push({ y: cohort.season, byAge: retiredNextYear(cohort.men, retiredAt, cohort.season) });
+      if (cohort.season === season - 1) {
+        exits.retiredNextYear.push({ y: cohort.season, byAge: retiredNextYear(cohort.men, retiredAt, cohort.season) });
+        exits.retiredNextYearByYears.push({ y: cohort.season, byYears: retiredNextYear(cohort.men, retiredAt, cohort.season, (m) => m.years ?? null) });
+      }
       if (cohort.season === season - 2) {
         exits.backOnA53.push({ y: cohort.season, byAge: backOnA53(cohort.men, on53BySeason.get(season - 1) ?? new Set(), tally.on53) });
         exits.startersGone.push({ y: cohort.season, byAge: startersGone(cohort.men, (id, y) => ledger.wasPresent(id, y), cohort.season) });
       }
     }
-    const finalWeek: FinalWeekMan[] = [...tally.week18Nfl].map((id) => ({ id, age: ageIn.get(id) ?? null, starter: (now.get(id)?.share ?? 0) >= STARTER_SHARE }));
+    const finalWeek: FinalWeekMan[] = [...tally.week18Nfl].map((id) => ({
+      id, age: ageIn.get(id) ?? null, starter: (now.get(id)?.share ?? 0) >= STARTER_SHARE, years: yearsIn(id) ?? null,
+    }));
     finalWeeks = [...finalWeeks.filter((c) => c.season >= season - 1), { season, men: finalWeek }];
     on53BySeason = new Map([...on53BySeason].filter(([y]) => y >= season));
     retiredAt = new Map([...retiredAt].filter(([, r]) => r.at.season >= season));
@@ -1807,6 +2026,28 @@ export function careerReader(input: CareerReaderInput): CareerReader {
     const followed = followExpiries([...openExpiryList, ...opened.open], season, run.events);
     expiries.push(...followed.filter((x) => x.record.c >= 2).map((x) => x.record));
     openExpiryList = followed.filter((x) => x.record.c < 2);
+    // Rows version 6 (measure-only): injuries per snap, concussion lengths, retirements by moment and
+    // years, the draftees by age at the season's end, the teams' overall, contact at 27.
+    const injuryList = injuryReads(run.events);
+    const exposure = injuryExposure(tally.played, tally.teamWeeks, injuryList, (id) => tally.ages.get(id) ?? ageIn.get(id));
+    const concussed = concussionLengths(injuryList, concussionCounts, (id) => tally.ages.get(id) ?? ageIn.get(id));
+    const teamOverall = tally.teamOverall === null ? null : teamOverallRow(tally.teamOverall, teams, lastTeamOverall);
+    lastTeamOverall = tally.teamOverall ?? undefined;
+    for (const [id, c] of tally.contact) contactCareer.set(id, (contactCareer.get(id) ?? 0) + c);
+    const at27 = { entrants: [] as number[], all: [] as number[] };
+    for (const id of tally.played.keys()) {
+      if (tally.ages.get(id) !== 27) continue;
+      const c = contactCareer.get(id) ?? 0;
+      at27.all.push(c);
+      const route = ledger.route(id);
+      if (route === "DRAFT" || route === "UDFA") at27.entrants.push(c);
+    }
+    at27.all.sort((a, b) => a - b);
+    at27.entrants.sort((a, b) => a - b);
+    // Men who left the league (retired, forgotten) are never read again.
+    const still = new Set(people.players.map((p) => String(p.bio.id)));
+    concussionCounts = new Map([...concussed.counts].filter(([id]) => still.has(id)));
+    contactCareer = new Map([...contactCareer].filter(([id]) => still.has(id)));
     rows.push({
       season,
       week8: tally.week8,
@@ -1834,6 +2075,15 @@ export function careerReader(input: CareerReaderInput): CareerReader {
       nflCount: tally.nflCount,
       retirements,
       availability: sortAges(tally.availability),
+      ability: tally.ability,
+      durabilityByConcussions: tally.durabilityByConcussions,
+      teamOverall,
+      exposure,
+      contact: { bySpot: Object.fromEntries(SPOT_ORDER.filter((x) => tally.contactBySpot[x] !== undefined).map((x) => [x, tally.contactBySpot[x]!])), at27 },
+      gameWeeks: sortAges(tally.gameWeeks),
+      concussions: concussed.tally,
+      retiredHow: retiredHow(reads, yearsIn),
+      draftEnd: draftByAge(season, people, (id) => ledger.draftOf(id)),
     });
     tally = newTally();
   };
@@ -1921,6 +2171,9 @@ export function careerReader(input: CareerReaderInput): CareerReader {
       on53: [...on53BySeason].map(([y, ids]) => [y, [...ids]]),
       retiredAt: [...retiredAt],
       exits,
+      lastTeamOverall: lastTeamOverall === undefined ? null : [...lastTeamOverall],
+      concussions: [...concussionCounts],
+      contactCareer: [...contactCareer],
     })) as CareerReaderState;
   };
 
@@ -1947,6 +2200,9 @@ export function careerReader(input: CareerReaderInput): CareerReader {
     on53BySeason = new Map(copy.on53.map(([y, ids]) => [y, new Set(ids)]));
     retiredAt = new Map(copy.retiredAt);
     exits = copy.exits;
+    lastTeamOverall = copy.lastTeamOverall === null ? undefined : new Map(copy.lastTeamOverall);
+    concussionCounts = new Map(copy.concussions);
+    contactCareer = new Map(copy.contactCareer);
   };
 
   return { onDay, onRun, rows: rowsOf, save, restore };

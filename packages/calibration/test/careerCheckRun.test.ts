@@ -187,6 +187,28 @@ describe("the cache's files", () => {
     }
   });
 
+  it("refuses a cached record of another check or rows version (version 5 rows are never read beside version 6)", () => {
+    const dir = scratch();
+    try {
+      expect(CAREER_CHECK_VERSION).toBe(6);
+      expect(CAREER_ROWS_VERSION).toBe(6);
+      const { rows } = careerCachePaths(dir, "both", "old-seed", 20);
+      const record = (version: number, rowsVersion: number) => JSON.stringify({ version, seed: "old-seed", arm: "both", seasons: 20, rows: { version: rowsVersion } });
+      writeFileSync(rows, record(5, 5));
+      expect(() => readCareerRecords(dir, "both", ["old-seed"], 20)).toThrow(/check version 5 \(rows version 5\), not 6 \(rows 6\)/);
+      writeFileSync(rows, record(6, 5));
+      expect(() => readCareerRecords(dir, "both", ["old-seed"], 20)).toThrow(/rows version 5/);
+      writeFileSync(rows, record(6, 6));
+      expect([...readCareerRecords(dir, "both", ["old-seed"], 20).records.keys()]).toEqual(["old-seed"]);
+      // The seed runner reads its cache through the same guard.
+      writeFileSync(rows, record(5, 5));
+      expect(() => runCareerSeed({ file: {} as never, league: { path: "x", sha256: "y" }, seed: "old-seed", arm: "both", seasons: 20, cacheDir: dir, fingerprint: "f" }))
+        .toThrow(/never read together/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("lists each build's folder and its finished rows by arm", () => {
     const dir = scratch();
     try {
