@@ -65,9 +65,9 @@ const PKG_ROOT = fileURLToPath(new URL("../..", import.meta.url));
 
 /** Step 3's committed records, the re-played bases' reference (relative to the package). */
 export const STEP3_RECORDS_JSON = "reports/adr-089-step3.json";
-/** Step 4's committed records, never written over once `STEP4_RECORDS_FINAL`. */
+/** Step 4's committed records (d7fe0f5), never written over once `STEP4_RECORDS_FINAL`, which is set: they are final. */
 export const STEP4_RECORDS = ["reports/adr-089-step4.md", "reports/adr-089-step4.json"] as const;
-export const STEP4_RECORDS_FINAL: boolean = false;
+export const STEP4_RECORDS_FINAL: boolean = true;
 
 /**
  * The digest step 4's view of the amendments file must equal before any graded run (AM-1 to AM-7).

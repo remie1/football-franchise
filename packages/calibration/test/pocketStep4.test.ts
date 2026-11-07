@@ -30,6 +30,7 @@ import { emptyS4Fold, type S4Fold } from "../src/pocket/s4Stream.js";
 import { jsonText, type Step1Env } from "../src/pocket/step1.js";
 import {
   closedStep4Writes,
+  STEP4_RECORDS_FINAL,
   gradeStep4,
   isStep4ArmId,
   loadStep3References,
@@ -244,9 +245,12 @@ describe("the plan, --part1, --digests and the closed writes", () => {
     }
   });
 
-  it("never writes over steps 1 to 3's committed records", () => {
+  it("never writes over steps 1 to 4's committed records", () => {
     expect(closedStep4Writes({ report: "reports/adr-089-step3.md", out: "reports/adr-089-step2.json" }, PKG)).toEqual(["--report reports/adr-089-step3.md", "--out reports/adr-089-step2.json"]);
-    expect(closedStep4Writes({ report: "reports/adr-089-step4.md" }, PKG)).toEqual([]);
+    // Step 4's records are final (committed at d7fe0f5): the graded command refuses them by default.
+    expect(STEP4_RECORDS_FINAL).toBe(true);
+    expect(closedStep4Writes({ report: "reports/adr-089-step4.md", out: "reports/adr-089-step4.json" }, PKG)).toEqual(["--report reports/adr-089-step4.md", "--out reports/adr-089-step4.json"]);
+    expect(closedStep4Writes({ report: "reports/adr-089-step4.md" }, PKG, PKG, false)).toEqual([]);
     expect(closedStep4Writes({ report: "reports/adr-089-step4.md" }, PKG, PKG, true)).toEqual(["--report reports/adr-089-step4.md"]);
     // A probe run never writes over step 4's own records, final or not (review 2 N5).
     expect(closedStep4Writes({ report: "reports/adr-089-step4.md", out: "reports/adr-089-step4.json", probes: true }, PKG)).toEqual(["--report reports/adr-089-step4.md", "--out reports/adr-089-step4.json"]);
