@@ -256,9 +256,9 @@ describe("week-8 rows", () => {
 
 /**
  * 2020-2024 (final week 17 in 2020, 18 after). Each man's story is on his lines; ages are on
- * 23 October of the season named.
+ * 23 October of the season named. `extra` adds rows to a season.
  */
-function exitsLedger() {
+function exitsLedger(extra: Readonly<Record<number, readonly CareerRosterRow[]>> = {}) {
   const fin = (season: number) => (season <= 2020 ? 17 : 18);
   const at = (gsisId: string, season: number, p: Partial<CareerRosterRow> = {}) => row({ gsisId, season, week: fin(season), ...p });
   const seasons: Record<number, CareerRosterRow[]> = {
@@ -282,9 +282,19 @@ function exitsLedger() {
     2024: [at("R5", 2024, { birthDate: null, yearsExp: 3 })],
   };
   const ledger = newLedger();
-  for (const s of [2020, 2021, 2022, 2023, 2024]) addRosterSeason(ledger, seasons[s]!, s);
+  for (const s of [2020, 2021, 2022, 2023, 2024]) addRosterSeason(ledger, [...seasons[s]!, ...(extra[s] ?? [])], s);
   return ledger;
 }
+
+/**
+ * R6: credited in 2020 (26), on injured reserve in 2021 and on a practice squad in 2022, so on a
+ * team's list in both following seasons but on a 53 in neither. He tells "on no 53" from "on no list".
+ */
+const offA53: Readonly<Record<number, readonly CareerRosterRow[]>> = {
+  2020: [row({ gsisId: "R6", season: 2020, week: 17, birthDate: "1994-01-01", yearsExp: 5 })],
+  2021: [row({ gsisId: "R6", season: 2021, week: 2, birthDate: "1994-01-01", yearsExp: 6, status: "RES", code: "R01" })],
+  2022: [row({ gsisId: "R6", season: 2022, week: 3, birthDate: "1994-01-01", yearsExp: 7, status: "DEV", code: "P01" })],
+};
 
 /** The cases as plain tuples, players in ledger order: [age, years in the league, hit]. */
 const flat = (units: readonly (readonly RateCase[])[]) => units.flat().map((c) => [c.age, c.yearsExp, c.hit]);
@@ -321,6 +331,11 @@ describe("the retired list and exits by age", () => {
   it("back on a 53: credited in Y, on a 53 in some week of Y+1 or Y+2", () => {
     // Y 2020: R1 (retired, not back), R2 (a 53 in 2021 week 5: back); Y 2021: R3 (not back), R5 (credited 2023: back)
     expect(flat(backOnA53Units(exitsLedger(), [2020, 2021]))).toEqual([[35, 12, false], [24, 2, true], [31, 7, false], [null, 0, true]]);
+    // R6 (Y 2020): injured reserve in 2021, practice squad in 2022: on a list both seasons, on a 53 in neither, so not back
+    const l = exitsLedger(offA53);
+    const r6 = l.players.get("R6")!;
+    expect([r6.onRoster.has(2021), r6.onRoster.has(2022), r6.on53.has(2021), r6.on53.has(2022)]).toEqual([true, true, false, false]);
+    expect(flat(backOnA53Units(l, [2020, 2021]))).toEqual([[35, 12, false], [24, 2, true], [26, 5, false], [31, 7, false], [null, 0, true]]);
   });
 
   it("starters gone: credited starters on no list in Y+1 and Y+2; the retired list is no list", () => {
@@ -328,6 +343,9 @@ describe("the retired list and exits by age", () => {
     // R1 2020: retired in 2021, nothing in 2022: gone. R2 2020: listed in 2021. R3 2021: retired list 2022, nothing 2023: gone. R4 is not credited.
     expect(flat(startersGoneUnits(exitsLedger(), [2020, 2021], starters))).toEqual([[35, 12, true], [24, 2, false], [31, 7, true]]);
     expect(startersGoneUnits(exitsLedger(), [2020, 2021], new Map())).toEqual([]);
+    // R6, a 2020 starter on injured reserve in 2021 and a practice squad in 2022: on a list though on no 53, so not gone
+    const withR6 = new Map([[2020, new Set(["R1", "R2", "R6"])], [2021, new Set(["R3", "R4"])]]);
+    expect(flat(startersGoneUnits(exitsLedger(offA53), [2020, 2021], withR6))).toEqual([[35, 12, true], [24, 2, false], [26, 5, false], [31, 7, true]]);
   });
 
   it("a rate's SE is a bootstrap over players, from its own label: deterministic, and 0 when every case agrees", () => {
