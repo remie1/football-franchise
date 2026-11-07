@@ -16,6 +16,7 @@ function parse(argv: readonly string[]) {
   let out: string | undefined;
   let views = false;
   let gms = false;
+  let midseason = true;
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]!;
     const next = (): string => {
@@ -29,15 +30,16 @@ function parse(argv: readonly string[]) {
     else if (arg === "--out") out = next();
     else if (arg === "--views") views = true;
     else if (arg === "--gms") gms = true;
+    else if (arg === "--no-midseason") midseason = false;
     else throw new SyntaxError(`unknown argument ${arg}`);
   }
   if (!Number.isInteger(seasons) || seasons < 1) throw new SyntaxError("--seasons must be a whole number above 0");
-  return { seed, seasons, out, views, gms };
+  return { seed, seasons, out, views, gms, midseason };
 }
 
 const args = parse(process.argv.slice(2));
 const started = Date.now();
-const r = staffTurnoverCheck({ seed: args.seed, seasons: args.seasons, views: args.views, gms: args.gms });
+const r = staffTurnoverCheck({ seed: args.seed, seasons: args.seasons, views: args.views, gms: args.gms, midseason: args.midseason });
 const s = r.summary;
 const b = (x: Band) => `${x.mean.toFixed(1)} a year (from ${x.min} to ${x.max})`;
 const pct = (x: number | undefined) => `${Math.round((x ?? 0) * 100)}%`;
@@ -65,6 +67,9 @@ if (args.views) {
   const all = Object.values(words).reduce((a, b) => a + b, 0);
   console.log(`Views (ADR-084): ${(walked / r.seasons).toFixed(2)} coordinators a year refused a new contract; views after each offseason: ` +
     ["close", "good", "professional", "strained", "broken"].map((w) => `${w} ${pct1((words[w] ?? 0) / Math.max(1, all))}`).join(", "));
+}
+if (s.midseason) {
+  console.log(`Fired in midseason          head coaches ${b(s.midseason.HEAD_COACH)}   NFL: 19 in 2018-2025, about 2.4 a year (counted)` + (s.gm ? `; GMs ${b(s.midseason.GM)}   NFL: 10 in 2018-2026, about 1 a year (counted)` : ""));
 }
 if (s.gm) {
   const g = s.gm;

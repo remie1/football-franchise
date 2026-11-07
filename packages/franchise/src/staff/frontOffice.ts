@@ -45,7 +45,7 @@ export const GM_TUNING = {
   // The president's verdict, over the whole tenure (§8: judged slower than a coach).
   /** Each season back counts this much less in his tenure's average. */
   tenureDecay: 0.75,
-  fireBase: -1.7,
+  fireBase: -2.1,
   fireShortfall: 10,
   playoffTrip: 1.2,
   perPlayoffWin: 0.5,

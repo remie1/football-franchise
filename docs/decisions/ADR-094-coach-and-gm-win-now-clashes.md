@@ -295,6 +295,35 @@ Midseason firings (Q13 a) come in the next PR.
   real count). When midseason firings land, about 1 of the 4 moves to midseason and this is re-tuned.
 - Tests: `test/staff.gm.test.ts` (15).
 
+**Step 2, midseason part (2026-11-07, same thread; Q13 a).** In `packages/franchise`; no contracts change.
+- Counted (Wikipedia team season pages, infobox coach field): 19 head coaches fired in midseason
+  over 2018-2025, by season 2, 2, 3, 1, 3, 3, 3, 2 (about 2.4 a year; Gruden's 2021 resignation and
+  the COVID fill-ins left out). Of their 19 interims, 1 was kept as head coach (Pierce, Raiders, 2024).
+  GMs: 10 in 2018-2026 (Appendix A), about 1.1 a year.
+- `src/staff/midseason.ts` `runMidseasonWeek`: after each regular-season week's games, from week 4
+  to the fourth-last week, each president's chance of firing his head coach that week is 0.09 x p^3
+  and his GM 0.12 x p^2, p being his chance of firing him if the season ended today (the offseason
+  formulas on the season so far; Q8 a's half-and-half for the head coach). The better head coach of
+  the two coordinators takes over, and his seat goes to the best position coach on that side (a new
+  one if none); a fired GM's chair goes to the better of the scouting director and cap manager. Each
+  interim's contract runs to the season's end (`isInterimContract`: signed in the regular season,
+  ending with it). The fired man's season so far goes on his résumé; his salary stays on the books.
+  The user's team is never touched. Rates CHOSEN.
+- `src/staff/offseason.ts`: an interim is kept on with chance `INTERIM_KEEP` (head coach 0.05,
+  COUNTED 1 of 19; GM 0.05, CHOSEN), otherwise his contract ends and the job is opened. The offseason
+  firing base for head coaches moved from -1.2 to -1.7 and for GMs from -1.7 to -2.1, so the total
+  changes stay where they were with midseason firings added.
+- `src/staff/steps.ts`: the step `staff:midseason` runs on each regular-season week's last day.
+- `src/winNow/pressure.ts`: `gmPressure`, a GM's pressure the same way as a head coach's.
+- `staff-check` runs midseason firings by default (`--no-midseason` leaves them out), laying each
+  stand-in season's games out week by week from each team's own dice. Seed staff-check, 50 seasons:
+  without GMs, head coach changes 7.7 a year (8.1 before; REPORTED about 7), 2.5 fired in midseason
+  (COUNTED 2.4); with GMs, 2.7 head coaches and 1.1 GMs fired in midseason (COUNTED 2.4 and 1.1), GM
+  changes 4.2 a year from 2 to 7 (COUNTED about 4, from 2 to 7), hire mix 82/13/4/1 (COUNTED 78/14/6/3),
+  sitting GMs' median 3.8 seasons served. An interim's year is left out of the tenure counts.
+- Tests: `test/staff.midseason.test.ts` (8); the season-walk tests now read the world as the
+  playoffs end for the carousel and count seated GMs.
+
 ## Appendix A: new GMs by season, 2018-2026 (counted from Wikipedia season pages)
 
 Background: FO = came up through a front office; Re = former GM; HC = head coach given GM power;

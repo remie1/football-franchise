@@ -36,6 +36,10 @@ export {
   isFrontOfficeRole, ladderJob, makeLadderMan, makeOutsider,
   type GmCandidateReport, type GmSource, type GmVerdict, type LadderRole,
 } from "./staff/frontOffice.js";
+// ADR-094 Q13 a: midseason firings, an interim finishing the year.
+export { MIDSEASON, runMidseasonWeek, type MidseasonInput, type MidseasonResult } from "./staff/midseason.js";
+export { INTERIM_KEEP } from "./staff/offseason.js";
+export { isInterimContract } from "./staff/world.js";
 export {
   candidateReport, readResume, reputation, experiencePoints, inTree, firedStigma, hasRunSomething,
   sideLean, unprovenPenalty, expectedShare, rosterExpectation,
@@ -170,5 +174,5 @@ export {
   LEAN_CENTER, LEAN_NUDGE, LEAN_SPREAD, WIN_NOW_LEAN, WIN_NOW_STREAM, drawWinNowLean, leanHolderOf, winNowLean, withWinNowLean,
   type LeanHolder,
 } from "./winNow/lean.js";
-export { CONTRACT_YEAR_PRESSURE, PRESSURE_PUSH, headCoachPressure, workingLean, type SeasonSoFar } from "./winNow/pressure.js";
+export { CONTRACT_YEAR_PRESSURE, PRESSURE_PUSH, gmPressure, headCoachPressure, workingLean, type SeasonSoFar } from "./winNow/pressure.js";
 

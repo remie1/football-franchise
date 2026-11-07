@@ -8,7 +8,9 @@ import { averageSkill, seatScore } from "./ratings.js";
 import { buildStaff } from "./buildStaff.js";
 import { runStaffOffseason, type GmMove, type HireSource, type StaffMove } from "./offseason.js";
 import { makeGm } from "../meeting/gm.js";
-import { currentJob } from "./world.js";
+import { currentJob, isInterimContract } from "./world.js";
+import { runMidseasonWeek } from "./midseason.js";
+import { createRng, type WinLossTie } from "@ff/contracts";
 import type { GmSource } from "./frontOffice.js";
 import { standInSeason } from "./standIn.js";
 import { isRetired, seatOf, offseasonStamp, type StaffWorld } from "./world.js";
@@ -33,6 +35,8 @@ export interface SeasonTally {
   walked?: number;
   /** With views: how many views stood in each word after the offseason. */
   words?: Record<string, number>;
+  /** ADR-094 Q13 a: head coaches and GMs fired in midseason (an interim finishing the year). */
+  midseason?: { HEAD_COACH: number; GM: number };
   /** With GMs (ADR-094 §8): GM changes, why the old ones left, where the new ones came from, and the sitting GMs' seasons in the job. */
   gm?: { changes: number; reasons: Record<string, number>; sources: Partial<Record<GmSource, number>>; medianTenure: number; cleanSweeps: number };
 }
@@ -56,6 +60,8 @@ export interface TurnoverReport {
     poolSize: Band;
     meanHcAge: Band;
     exHeadCoaches: { atStart: { OC: number; DC: number }; OC: Band; DC: Band };
+    /** ADR-094 Q13 a: midseason firings a year. */
+    midseason?: { HEAD_COACH: Band; GM: Band };
     /** With GMs (ADR-094 §8), after a ten-season warm-up (every GM starts the check new in the job). */
     gm?: {
       changesPerYear: Band;
@@ -144,7 +150,38 @@ function gmTally(world: StaffWorld, moves: StaffMove[], gmMoves: GmMove[]): NonN
 /** Every GM starts the check new in the job, with contracts ending together; ten seasons wash that out. */
 const GM_WARMUP = 10;
 
-export function staffTurnoverCheck(opts: { seed: string; seasons?: number; firstSeason?: number; views?: boolean; gms?: boolean }): TurnoverReport {
+/**
+ * ADR-094 Q13 a: the stand-in season's records week by week. The stand-in model gives only each
+ * team's final record; its games are laid out in an order drawn from the team's own dice, one a week
+ * with the bye in a drawn week.
+ */
+function weeklyRecords(finals: readonly { team: unknown; record: WinLossTie }[], season: number, seed: string, weeks: number): Map<string, WinLossTie>[] {
+  const out: Map<string, WinLossTie>[] = Array.from({ length: weeks }, () => new Map());
+  for (const f of finals) {
+    const rng = createRng(seed, `franchise:staff-check/weeks/${season}/${String(f.team)}`);
+    const games: ("W" | "L" | "T")[] = [...Array(f.record.wins).fill("W"), ...Array(f.record.losses).fill("L"), ...Array(f.record.ties).fill("T")];
+    for (let i = games.length - 1; i > 0; i--) { const j = rng.int(0, i); [games[i], games[j]] = [games[j]!, games[i]!]; }
+    const bye = rng.int(5, Math.max(5, weeks - 4));
+    const r = { wins: 0, losses: 0, ties: 0 };
+    let g = 0;
+    for (let w = 1; w <= weeks; w++) {
+      if (w !== bye && g < games.length) {
+        const x = games[g++]!;
+        if (x === "W") r.wins++; else if (x === "L") r.losses++; else r.ties++;
+      }
+      out[w - 1]!.set(String(f.team), { ...r });
+    }
+  }
+  return out;
+}
+
+const CHECK_WEEKS = 18;
+
+export function staffTurnoverCheck(opts: {
+  seed: string; seasons?: number; firstSeason?: number; views?: boolean; gms?: boolean;
+  /** ADR-094 Q13 a: midseason firings, as the season's walk has them (default on). */
+  midseason?: boolean;
+}): TurnoverReport {
   const seasons = opts.seasons ?? 50;
   const firstSeason = opts.firstSeason ?? 2026;
   const league = buildLeague(opts.seed);
@@ -179,10 +216,25 @@ export function staffTurnoverCheck(opts: { seed: string; seasons?: number; first
     const season = world.season;
     const played = standInSeason(league, world, standIn, opts.seed);
     standIn = played.state;
+    const midseason = { HEAD_COACH: 0, GM: 0 };
+    if (opts.midseason !== false) {
+      const byWeek = weeklyRecords(played.summaries, season, opts.seed, CHECK_WEEKS);
+      for (let week = 1; week <= CHECK_WEEKS; week++) {
+        const m = runMidseasonWeek({
+          world, season, week, weeks: CHECK_WEEKS, at: { season, phase: "REGULAR_SEASON", week, day: 7 }, records: byWeek[week - 1]!,
+          seed: opts.seed, ...(views ? { relationships: { views } } : {}),
+        });
+        world = m.world;
+        if (m.relationships) views = m.relationships;
+        midseason.HEAD_COACH += m.moves.filter((x) => x.kind === "DEPARTED").length;
+        midseason.GM += m.gmMoves.filter((x) => x.kind === "DEPARTED").length;
+      }
+    }
     if (views) for (let w = 0; w < 52; w++) views = driftWeek(views, world, offseasonStamp(season, 1)).views;
     const r = runStaffOffseason({ world, results: played.summaries, seed: opts.seed, ...(views ? { relationships: { views } } : {}) });
     world = r.world;
     const row = tally(world, season, r.moves);
+    if (opts.midseason !== false) row.midseason = midseason;
     if (opts.gms) row.gm = gmTally(world, r.moves, r.gmMoves);
     if (r.relationships) {
       views = r.relationships;
@@ -193,12 +245,14 @@ export function staffTurnoverCheck(opts: { seed: string; seasons?: number; first
     perSeason.push(row);
   }
 
-  // Head coach tenures that ended during the check.
+  // Head coach tenures that ended during the check (a midseason interim's year left out).
+  const interimJobs = new Set(world.contracts.filter(isInterimContract).map((c) => `${String(c.staff)}/${String(c.team)}/${c.firstSeason}/${c.role}`));
+  const isInterimJob = (s: StaffState, job: StaffState["career"][number]) => interimJobs.has(`${String(s.id)}/${String(job.team)}/${job.firstSeason}/${job.role}`);
   const lengths: number[] = [];
   for (const s of world.staff) {
     for (const job of s.career) {
       if (job.level !== "NFL" || job.role !== "HEAD_COACH" || job.lastSeason === undefined) continue;
-      if (job.lastSeason < firstSeason) continue;
+      if (job.lastSeason < firstSeason || isInterimJob(s, job)) continue;
       lengths.push(job.seasons.length);
     }
   }
@@ -226,7 +280,8 @@ export function staffTurnoverCheck(opts: { seed: string; seasons?: number; first
     for (const [k, v] of Object.entries(srcs)) sourceShares[k as GmSource] = v / Math.max(1, hires);
     const ended: number[] = [];
     for (const s of world.staff) for (const job of s.career) {
-      if (job.level === "NFL" && job.role === "GM" && job.lastSeason !== undefined && job.firstSeason >= firstSeason + GM_WARMUP) ended.push(job.seasons.length);
+      if (job.level === "NFL" && job.role === "GM" && job.lastSeason !== undefined && job.firstSeason >= firstSeason + GM_WARMUP
+        && !isInterimJob(s, job)) ended.push(job.seasons.length);
     }
     ended.sort((a, b) => a - b);
     gm = {
@@ -267,6 +322,12 @@ export function staffTurnoverCheck(opts: { seed: string; seasons?: number; first
         DC: band(perSeason.map((p) => p.exHeadCoaches.DC)),
       },
       ...(gm ? { gm } : {}),
+      ...(opts.midseason !== false ? {
+        midseason: {
+          HEAD_COACH: band(perSeason.map((p) => p.midseason!.HEAD_COACH)),
+          GM: band(perSeason.slice(opts.gms ? Math.min(GM_WARMUP, perSeason.length - 1) : 0).map((p) => p.midseason!.GM)),
+        },
+      } : {}),
     },
   };
 }

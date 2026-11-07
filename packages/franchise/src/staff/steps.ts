@@ -4,6 +4,8 @@
  * In `runSeason` with `people.coaching`:
  *   every day, first           a league with no views yet gets them, each at its rest point (§3)
  *   each week's last day       every view drifts 2% toward its rest point (§4)
+ *   each regular-season week's last day   ADR-094 Q13 a: presidents may fire a GM or head coach,
+ *                              an interim taking over for the rest of the year (`runMidseasonWeek`)
  *   OFF_EVAL week 1 day 1      the coaching carousel (ADR-080 §6-§7) on the season just played, read
  *                              by `summariseSeason`, carrying the views (§5.2, §5.4), with roster
  *                              fit read from the teams' rosters that day
@@ -18,6 +20,7 @@ import { driftWeek, seatRelationships, type RelationshipContext } from "../relat
 import { lineupFor } from "../players/lineup.js";
 import { DAYS_PER_WEEK } from "../calendar/clock.js";
 import { runStaffOffseason, type StaffOffseasonInput } from "./offseason.js";
+import { runMidseasonWeek } from "./midseason.js";
 import { summariseSeason } from "./summarise.js";
 import { seatOf } from "./world.js";
 
@@ -49,6 +52,26 @@ export function staffSteps(config: StaffStepsConfig = {}): DayStep[] {
         const coaching = people.coaching;
         if (!coaching || coaching.relationships !== undefined) return undefined;
         return { people: { ...people, coaching: { ...coaching, relationships: seatRelationships(coaching.world, ctx) } }, events: [] };
+      },
+    },
+    {
+      id: `${STAFF_STEP_PREFIX}midseason`,
+      run: (people, day) => {
+        const coaching = people.coaching;
+        if (!coaching || day.day.phase !== "REGULAR_SEASON" || day.day.day !== DAYS_PER_WEEK) return undefined;
+        if (coaching.world.season !== day.season) return undefined;
+        const records = new Map(day.state.standings.map((r) => [String(r.team), r.overall]));
+        const r = runMidseasonWeek({
+          world: coaching.world, season: day.season, week: day.day.week, weeks: day.rules.weeksPerSeason, at: day.day,
+          records, seed: day.seed, ...(ctx.userTeam !== undefined ? { userTeam: ctx.userTeam } : {}),
+          ...(coaching.relationships ? { relationships: { views: coaching.relationships, context: ctx } } : {}),
+        });
+        if (r.events.length === 0) return undefined;
+        const world = { ...r.world, staff: withLineups(coaching.world.staff, r.world.staff, day.seed) };
+        return {
+          people: { ...people, staff: world.staff, coaching: { world, ...(r.relationships ? { relationships: r.relationships } : {}) } },
+          events: r.events.map((e) => e.event),
+        };
       },
     },
     {
