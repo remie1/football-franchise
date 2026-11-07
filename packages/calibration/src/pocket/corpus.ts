@@ -32,6 +32,7 @@ import { generateSeeds } from "../harness/seeds.js";
 import { buildFlatLeague } from "../league/flat.js";
 import { indexLeague, type LeagueIndex } from "../league/snapshot.js";
 import type { SimGameObservation } from "../metrics/collect.js";
+import type { RatingOverride } from "./ratingOverride.js";
 import { buildGeneratedLeague } from "../season/generatedLeague.js";
 import { runRealSeason } from "../season/realSeason.js";
 import type { GoldenLeague } from "./golden.js";
@@ -95,6 +96,8 @@ export interface CorpusOptions {
   /** ADR-089 M5 measurement arms only — see `RunGameInput.mirror`. */
   readonly mirror?: boolean;
   readonly callerVersion?: CallerVersion;
+  /** ADR-089 step-4 probes only: see `RunGameInput.ratings`. Absent, every game is today's. */
+  readonly ratings?: readonly RatingOverride[];
 }
 
 export interface CorpusRun {
@@ -103,11 +106,12 @@ export interface CorpusRun {
 }
 
 /** `runOneGame`'s optional fields, written only where given. */
-function gameFields(opts: CorpusOptions): { readonly tunables?: Tunables; readonly mirror?: boolean; readonly callerVersion?: CallerVersion } {
+function gameFields(opts: CorpusOptions): { readonly tunables?: Tunables; readonly mirror?: boolean; readonly callerVersion?: CallerVersion; readonly ratings?: readonly RatingOverride[] } {
   return {
     ...(opts.tunables === undefined ? {} : { tunables: opts.tunables }),
     ...(opts.mirror === undefined ? {} : { mirror: opts.mirror }),
     ...(opts.callerVersion === undefined ? {} : { callerVersion: opts.callerVersion }),
+    ...(opts.ratings === undefined ? {} : { ratings: opts.ratings }),
   };
 }
 
@@ -179,12 +183,13 @@ export function genSeason(set: SeedSet, visit: CorpusVisitor, opts: CorpusOption
     season: def.season,
     stopAfter: { ...def.stopAfter, week },
     ...(opts.callerVersion === undefined ? {} : { callerVersion: opts.callerVersion }),
-    ...(opts.tunables === undefined && opts.mirror === undefined
+    ...(opts.tunables === undefined && opts.mirror === undefined && opts.ratings === undefined
       ? {}
       : {
           game: {
             ...(opts.tunables === undefined ? {} : { tunables: opts.tunables }),
             ...(opts.mirror === undefined ? {} : { mirror: opts.mirror }),
+            ...(opts.ratings === undefined ? {} : { ratings: opts.ratings }),
           },
         }),
     onGame: (observation, game, snapshot) => {

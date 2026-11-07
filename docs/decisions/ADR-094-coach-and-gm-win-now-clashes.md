@@ -444,6 +444,58 @@ jobs only, never names (ADR-082 Q1).
   news5 (72 polite, 57 open, 11 rifts), most of them repeats of a split already going.
 - Tests: `test/staff.test.ts` (4 more).
 
+**Step 7 (2026-11-07, same thread; the many-season check).** In `packages/franchise`; no contracts
+change, nothing in play changes. No real count exists for any of these, so the targets are judgment.
+- `staff-check --win-now` (implies `--gms --views`): every team's GM and head coach read the stand-in
+  season week by week after any midseason firing, pick buy, hold or sell and argue, as the season's
+  walk does (`weeklyStance` now also takes each week's records directly, `recordsAt`, where no season
+  state is kept). Without `--win-now` the report is byte-for-byte the same as before.
+- Three seeds (staff-check, wn-2, wn-3), 50 seasons each:
+  - Arguments 134 to 138 a season, a quarter of team-weeks split; polite 35-43%, open 30-33%, rifts
+    27-32%. A team's stance changes about four times a season.
+  - Split at the trade deadline (the GM overruling the coach after week 9's games): 7.3 to 8.6 teams
+    a season (from 3 to 15). Stances then: sell 13 to 15, buy 10 to 11, hold 7 to 8.
+  - The coach wins the argument on the day 40-46% of the time, but the course is the coach's in
+    under 1% of arguments: Q3 b's meeting halfway needs the GM's view of him at 20 or more, and GM
+    views of their coaches are "good" in 0.1% of pairs.
+  - GM and head coach grudges opened: 7.7 to 8.9 a season. After the first 10 seasons GM and coach
+    views of each other are professional 67-72%, strained 18-20%, broken 10-13% (all other views:
+    strained 0.4%, broken 0.0%).
+  - Knock-on: head coach changes 7.5 to 8.3 a year against 7.2 to 7.9 without (REPORTED about 7);
+    head coaches fired in midseason 2.5 to 3.0 against 2.1 to 2.7 (COUNTED 2.4). GM changes unchanged
+    (4.0 to 4.4, COUNTED about 4).
+- The meeting (§7, `headCoach` switch on), eight test-league seasons (seeds dir-0 to dir-7, 256
+  meetings): the GM and coach read the window alike in 92; of the 164 WINDOW arguments, the course
+  moved toward the coach in none, for the same reason.
+- The owner, asked whether a winning coach should move his GM more often (2026-11-07 16:14Z): keep
+  Q3 b as ruled. The GM gives ground only when he thinks well of the coach.
+- Tests: `test/staff.check.test.ts` (2 more).
+
+**Step 6 (2026-11-07, same thread; §9, contracts W3).** Contracts: `DepthChartSituation` gains
+`YOUTH_LOOK` and `SHAKE_UP` (owner's typed yes, 2026-11-07 15:30Z: "Yes to editing the W3 contract").
+In `packages/franchise`, behind the players' steps' `lineupHopes` switch, off by default (the season
+command's `--lineup-hopes`, with `--development` or `--injuries`; not kept in saves yet, so not with
+`--load`):
+- `src/winNow/lineupHopes.ts`: after each regular-season week's games, every computer head coach's
+  own playoff guess (step 3's read, the same guess his weekly stance reads), his pressure and his
+  team's losing streak. A look at the young men when his guess is under 15% after at least 4 games
+  and his pressure is 0.5 or under: his veteran leaning falls by up to 40 points, more the lower his
+  guess. A shake-up when his pressure is over 0.5 and his team has just lost its third straight game
+  (only that week, so once a streak). All CHOSEN.
+- `src/players/depthChart.ts`, in the regular season only: under a young look, a younger challenger
+  needs only the open-battle margin against the man he would replace, and the change is labeled
+  `YOUTH_LOOK` (morale -6); a shake-up benches the fit starter whose recent games graded worst, among
+  those with a challenger whose view is within 2 points, for the best challenger at his spot
+  (`SHAKE_UP`, morale -8), and the coach's incumbent leaning is halved that week. Age is the only
+  thing read about a man; nothing reads a position. The owner's team is left out.
+- Two stand-in seasons with growth and injuries (seeds hope1, hope2), switch on against off: 9 and 10
+  young looks and 6 and 8 shake-ups a season across the league; the other labels move by a few.
+- The playing-time thread's proposal (coaches sharing snaps at a spot) fits beside this: once a
+  planned snap share exists, a young look can give the young man a share rather than the whole job.
+- Before it is switched on by default, the aging thread runs its 20-season check with it (agreed
+  2026-11-06 22:46Z).
+- Tests: `test/winNow.lineupHopes.test.ts` (5); contracts `test/meeting.test.ts` (1 more).
+
 ## Appendix A: new GMs by season, 2018-2026 (counted from Wikipedia season pages)
 
 Background: FO = came up through a front office; Re = former GM; HC = head coach given GM power;

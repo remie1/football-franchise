@@ -62,6 +62,8 @@
  *  - **No wall-clock, host or path field** in any record or file, and no clock is read here.
  */
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import type { MatchEventEnvelope } from "@ff/contracts";
+import type { GameSnapshot, Tunables } from "@ff/engine";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { canonicalise } from "../harness/digest.js";
@@ -156,8 +158,8 @@ export const STEP2_RECORDS_JSON = "reports/adr-089-step2.json";
 export const STEP2_CLOSED_RECORDS = ["reports/adr-089-step2.md", "reports/adr-089-step2.json"] as const;
 /** Step 3's records, relative to the package; once final they are never written over (plan §2.10). */
 export const STEP3_RECORDS = ["reports/adr-089-step3.md", "reports/adr-089-step3.json"] as const;
-/** False until the measuring stream commits step 3's records and closes the step; a named commit flips it. */
-export const STEP3_RECORDS_FINAL: boolean = false;
+/** True: step 3's records (d8247c9) are closed, flipped in a named commit with step 4's record (step-4 plan R17). */
+export const STEP3_RECORDS_FINAL: boolean = true;
 
 /** The graded set (set 1, as steps 1 and 2 graded); set 2 is printed beside it. */
 export const GRADED_SEED_SET: SeedSet = 1;
@@ -671,6 +673,17 @@ export interface PlayStep3Options {
   readonly log?: (line: string) => void;
   /** The step-3 view's digest the record stamps. */
   readonly amendments: string;
+  /**
+   * Step 4's harness only (`step4.ts`), each defaulting to step 3's own behavior: the log label; a
+   * visit after step 3's on every game; whether step 3's folds (late block, census, part 1, the Wait
+   * count) run (default: the arm plays `pocket-1.s3`); whether M2 STREAM runs (default: it does not
+   * fold step 3's); whether C1's corpora are played mirrored (default: the arm is C1).
+   */
+  readonly label?: string;
+  readonly visit?: (league: League, o: { readonly events: readonly MatchEventEnvelope[] }, snapshot: GameSnapshot, tunables: Tunables) => void;
+  readonly s3Folds?: boolean;
+  readonly m2?: boolean;
+  readonly m5?: boolean;
 }
 
 const stripFreeRun = (g: M5Game): M5Game => {
@@ -685,8 +698,9 @@ const stripFreeRun = (g: M5Game): M5Game => {
  */
 export function playStep3Arm(id: ArmId, seedSet: SeedSet, env: Step1Env, opts: PlayStep3Options): Step3Record {
   const corpus = opts.corpus ?? FULL_CORPUS;
-  const s3 = isS3Arm(id);
-  const m5 = id === STEP3_M5_ARM;
+  const s3 = opts.s3Folds ?? isS3Arm(id);
+  const m2 = opts.m2 ?? !s3;
+  const m5 = opts.m5 ?? id === STEP3_M5_ARM;
   interface LeagueState {
     s2: S2Folds;
     s3: S3Folds;
@@ -702,7 +716,7 @@ export function playStep3Arm(id: ArmId, seedSet: SeedSet, env: Step1Env, opts: P
   const state: Record<League, LeagueState> = { flat: fresh(), gen: fresh() };
   const base = playArm(id, seedSet, env, {
     corpus,
-    label: "pocket step 3",
+    label: opts.label ?? "pocket step 3",
     ...(opts.log === undefined ? {} : { log: opts.log }),
     visit: (league, o, snapshot, tunables) => {
       const L = state[league];
@@ -735,7 +749,7 @@ export function playStep3Arm(id: ArmId, seedSet: SeedSet, env: Step1Env, opts: P
         if (s3) foldWaitLiteral(L.wait, play.dropback, m8);
       }
       s2Checks.guardGame(L.s2.guardGames, o.events, ctx);
-      if (!s3) s2Checks.m2(L.s2.m2, o.events, ctx);
+      if (m2) s2Checks.m2(L.s2.m2, o.events, ctx);
       L.eta.push(`${String(sum)}/${String(n)}`);
       L.clockEta.push(`${String(clockSum)}/${String(clockN)}`);
       if (s3) {
@@ -743,6 +757,7 @@ export function playStep3Arm(id: ArmId, seedSet: SeedSet, env: Step1Env, opts: P
         foldPart1Game(L.part1, o.events, snapshot, tunables);
       }
       if (m5) L.unmirrored.push(m5GameOf(o.events, tunables));
+      opts.visit?.(league, o, snapshot, tunables);
     },
     finish: (league, accumulator) => {
       state[league].missSplit = missSplitRecordOf(accumulator);

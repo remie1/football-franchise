@@ -6,7 +6,7 @@ rules live in `ARCHITECTURE_CHARTER.md`, and the full working history lives in `
 This page points into both and should stay short. Update the "Where things stand" section when
 a big piece lands.
 
-_Last updated: 31 October 2026._
+_Last updated: 7 November 2026._
 
 ## What the game is
 
@@ -133,7 +133,21 @@ down 0.9 on the made-up one); the interception check did not trip. But too many 
 come quickly and from rushers nobody blocked (three of the four graded pocket predictions missed),
 and you chose to accept the misses as they stand and to merge step 3 with its switch off (1 November
 2026); a protection design stays open for later (numbers in
-`packages/calibration/reports/adr-089-step3.md`).
+`packages/calibration/reports/adr-089-step3.md`). Step 4, also behind the switch, makes a rusher who
+reaches the quarterback win or lose a rated tussle with him (the quarterback can shake him off and
+go on), and gives the throw a short motion during which a rusher can still hit him; the shared
+types gained a hit event, the tussle's roll and the release time, each with your typed yes (7
+November 2026). Default play has still not changed. With the switch on, against step 3 on the same
+graded games, pressure held at about 22 to 23% of dropbacks, hits or sacks rose from about 3 to about 7
+per 100 dropbacks on the flat-rated test league and from about 3.5 to about 10 on the made-up league,
+sacks fell by about 0.7 per 100 dropbacks, and the quarterback held the ball about a quarter of a
+second longer, because the throw now takes time. The interception check did not trip. Seven of the
+twelve graded predictions held. Five missed: on today's line the tussle leaves slightly too many
+sacks on the made-up league, takes away a little too many hits on the flat one, and leaves too
+large a share of hits ending in sacks on both; and later throws do not draw more hits, which the
+design answers by choosing step 5b's block clock on the pressure curve instead. These go to you
+to accept as they stand or to try a fix first, and to merge with the switch off (numbers in
+`packages/calibration/reports/adr-089-step4.md`; the record is ADR-089 Appendix I).
 
 **Next after the pocket fix:** the made-up league intercepts about 6.8% of passes against the
 NFL's 2.3%, because tipped balls go to the fastest reactor and strong passers throw into covered
@@ -247,6 +261,18 @@ turnover. The real-player stand-in league now carries growth records and today's
 rookie ages, the retired list, signed again and exits by age, the league file recounted the real way
 (`standin-recount`), and each player's expected games available ahead (`expectedAvailability`, for the
 cap). Next is aging by ability group, with no rule by position.
+
+**Fans and media have a mood (ADR-096 step 2, built 7 November 2026, off by default):** with
+`--mood` (beside `--development` or `--injuries`) every team's fans and local media hold a mood from
+-100 (furious) to +100 (thrilled) about the team, the head coach, the GM, both coordinators and up
+to six players they are watching. It moves after each game by how far the result beat or missed
+what the two rosters said, how it happened (a rout, a blown lead, a late loss, a home loss) and any
+streak; the offense's and defense's shares go to their coordinators, and the GM also answers for a
+thin roster behind a hurt starter, an aging unit and next year's cap. Fans swing hard and fast;
+the media move slower and stay near the record. Firings, hires, big signings and first-round picks
+move it in the offseason, and in weeks without a game it settles back. Nothing in the game reads it
+yet; the weekly podcast will (step 3 on). `mood-check` plays many seasons to see that fans are not
+furious all the time (`reports/mood-check.md`).
 
 **Your coach's personality (ADR-083, ruled 23 October 2026, not built):** your type builds up from
 how you answer people, shown as five meters on your coach page. Only your main trait counts, and it

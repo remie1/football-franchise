@@ -150,6 +150,31 @@ export type CheckKind =
   | "pass_rush_beat"
   | "pass_rush_tick" | "run_block" | "second_level_climb" | "stunt_communication" | "blitz_pickup"
   | "qb_read" | "anticipation" | "qb_decision" | "unseen_defender" | "hold_decision" | "pocket_movement" | "scramble"
+  /**
+   * ADR-089 P6: a rusher reaching the quarterback while the ball is in his hand (ADR-089 §4.5),
+   * written only under `pocket-1` from `pocket-1.s4`, never `legacy`. One CHECK per contact, with
+   * no `rollRef` (a contact derives from no earlier roll); `tier` is the ladder's tier of `margin`,
+   * and `band`, not `tier`, decides (ADR-011). One kind, three uses, each on its own fork label:
+   *  - `.../t<tick>/<rusherId>:contest`, a rated contact: the play's first (and every contact under
+   *    an arm that rates the second arrival too). `actors` are the rusher, then the quarterback.
+   *    `roll` is the rusher's d100 plus tackling/5 and speed/5, drawn on this label; `opposedRoll`
+   *    the quarterback's d100 plus strength/5 and agility/5, drawn on
+   *    `.../t<tick>/<quarterbackId>:contest:<rusherId>`. At most one approach tilt enters, as a
+   *    modifier, and a tilt that is on also drops a read: no rusher speed under the seen PUSH or
+   *    BLOCKED tilt, no quarterback agility under the BEHIND or never-seen tilt (ADR-089 §4.5).
+   *    `testsAttrs` lists the ratings read. `margin` is `roll.total` minus `opposedRoll.total` and
+   *    `target` the boundary b; `band` RUSHER_SACKS when the margin is b or more, else QB_SHEDS.
+   *  - `.../t<tick>/<rusherId>:contest2`, any contact after the play's first shed (ADR-089 §4.5
+   *    item 6). `actors` as above; one d100 with no modifier and no `opposedRoll`; `testsAttrs` empty
+   *    (no rating is read); `target` the second arrival's target (15 in `pocket-1.s4`); `margin` is
+   *    `roll.total` minus `target`; `band` RUSHER_SACKS when the margin is 1 or more, else QB_SHEDS.
+   *  - `.../t<tick>/<rusherId>:dodge`, the SIDESTEP of ADR-089 step 7 (§4.8), drawn nowhere before
+   *    it. Its rolls, `actors` and bands are written into this comment at step 7, under that step's
+   *    yes (P15), before the first `:dodge` is drawn.
+   * A RUSHER_SACKS contact is a sack credited to `actors[0]`, followed by the `QB_HIT` of phase SACK
+   * that names it by `rollRef` (its `roll.rngLabel`); a QB_SHEDS one by the `QB_HIT` of phase SHED.
+   */
+  | "arrival_contest"
   | "passing_lane" | "accuracy" | "dline_tip"
   | "catch" | "contested_catch" | "deflection_quality" | "deflection_recovery"
   | "yac_tackle" | "downfield_block" | "breakaway"
@@ -258,6 +283,22 @@ export type ThreatOrigin = "WON_REP" | "UNBLOCKED" | "PICKUP_LOST" | "STUNT_LOOP
  * still engaged. BLOCKED: still in his block; never on a `RUSH_THREAT`, whose field excludes it.
  */
 export type RushApproach = "FREE" | "ARC" | "THROUGH" | "PUSH" | "BLOCKED";
+/**
+ * ADR-089 P7: how a rusher's contact with the quarterback ended (ADR-089 §4.5).
+ *  - ARRIVAL: he arrived on the tick the ball went: a throw on his arrival tick (§4.5 item 1, from
+ *    `pocket-1.s4`), or a throwaway with a hand on him (from ADR-089 step 7).
+ *  - THROWING: he reached the quarterback inside the throwing motion, and the ball still went.
+ *  - SHED: the quarterback won the `arrival_contest` (QB_SHEDS), a caught escape's included (from
+ *    ADR-089 step 6).
+ *  - SACK: the rusher won the `arrival_contest` (RUSHER_SACKS); the play is his sack.
+ */
+export type QbHitPhase = "ARRIVAL" | "THROWING" | "SHED" | "SACK";
+/**
+ * ADR-089 P7: where the contact came from, on ADR-089 §4.0's card. FRONT and SIDE as the card gives
+ * them by approach and alignment. BEHIND: an ARC rusher who was live (not ARRIVED) when the
+ * quarterback stepped up earlier on this play; from ADR-089 step 7 also after a won SIDESTEP.
+ */
+export type ContactFrom = "FRONT" | "SIDE" | "BEHIND";
 export type RoutePhase = "JAMMED" | "DEVELOPING" | "OPEN" | "SETTLED" | "DECAYING" | "SCRAMBLE_DRILL";
 export type QbDecisionChoice = "THROW" | "HOLD" | "STEP_UP" | "SCRAMBLE" | "THROWAWAY" | "CHECKDOWN";
 export type CarryType = "DESIGNED" | "SCRAMBLE";
@@ -324,9 +365,10 @@ export type MatchEvent =
         /**
          * ADR-093 F4: every kind but the foul roll and the officials' two, which are always CHECKs:
          * a `penalty_check` is the CHECK a `FOUL`, a `PENALTY` and the officials' rolls name, and
-         * each officials' roll names the `penalty_check` it judges.
+         * each officials' roll names the `penalty_check` it judges. ADR-089 P6: nor
+         * `arrival_contest`, which happens only after the snap.
          */
-        kind: Exclude<CheckKind, "penalty_check" | "official_sees" | "phantom_flag">;
+        kind: Exclude<CheckKind, "penalty_check" | "official_sees" | "phantom_flag" | "arrival_contest">;
         roll: RollDetail; target: number; tier: ResultTier;
         /** The read's own band label (a free string, ADR-011): §5.1's six-band ladder for
          *  `coverage_read` and `blitz_recognition` (ADR-068 §2, ADR-073); HELD / BROKE for
@@ -461,6 +503,36 @@ export type MatchEvent =
         closingSpeed?: number;
       } } & MatchEventBase)
   /**
+   * ADR-089 P7: a rusher reached the quarterback while the ball was in his hand or leaving it
+   * (ADR-089 §4.5, §4.4.6). Written only under `pocket-1` from `pocket-1.s4`, never `legacy`.
+   * At most one ARRIVAL and one THROWING a throw, both before its THROW; a SHED or a SACK right
+   * after the `arrival_contest` CHECK it names, so the cause precedes the effect. A sack with no
+   * `arrival_contest` (rules without the contact block) carries no `QB_HIT`. `tick` is the tick it is
+   * written on: a THROWING hit's is the decision tick, and its contact comes after it.
+   */
+  | ({ type: "QB_HIT"; payload: {
+        qb: PlayerId;
+        rusher: PlayerId;
+        phase: QbHitPhase;
+        /**
+         * Seconds from the snap that he reached the quarterback, on ADR-089's default D21 reading:
+         * a free runner's free-run time in tenths; a beaten blocker's man his breaking time (shape
+         * S) or crossing time (shape L) plus his travel; every DELAYED wait included. On a play
+         * with no block clock, or under the motion's half-second reading (D14), his arrival time as
+         * `RUSH_THREAT.etaTick` states it. A THROWING hit's `contactSeconds`, rounded to whole
+         * milliseconds, is at or before its THROW's `releaseSeconds`. `RUSH_THREAT.etaTick` keeps
+         * its own meaning.
+         */
+        contactSeconds: number;
+        /** The `arrival_contest` CHECK behind a SHED or a SACK (its `roll.rngLabel`); absent on ARRIVAL and THROWING. */
+        rollRef?: string;
+        /** His approach on the card, as on his `RUSH_THREAT` (BLOCKED only on a caught escape, from step 6). */
+        approach?: RushApproach;
+        from?: ContactFrom;
+        /** Whether the quarterback had seen him: true on every contact before ADR-089 step 7. */
+        seen?: boolean;
+      } } & MatchEventBase)
+  /**
    * §8.8's PURSUIT CLOCK — the quarterback has left structure and pursuit is running him down.
    *
    * ⛔ THIS IS NOT A `RUSH_THREAT`, AND ADR-054 IS THE ARGUMENT FOR WHY IT MUST NOT BE ONE. It was
@@ -531,6 +603,16 @@ export type MatchEvent =
         accuracyTier: ResultTier;
         /** The accuracy CHECK's rngLabel — §10.4's placement band lives there (ADR-011). */
         rollRef?: string;
+        /**
+         * ADR-089 P8: seconds from the snap that the ball left his hand, in whole milliseconds: his
+         * decision's tick plus his throwing motion (ADR-089 §4.4.6, §4.5),
+         * `rho = rho0 - (release - 70) / rho_d`, with the dials of the rules `PLAY_START` names. On
+         * every aimed THROW from the pocket of a play whose rules carry the throwing motion
+         * (`pocket-1` from `pocket-1.s4`); absent on a throw after an escape (no motion on the run,
+         * ADR-089 AM-7 item 6), under `legacy` and `pocket-1.s1` to `.s3`. A THROWAWAY has no such
+         * field: its release stays its tick.
+         */
+        releaseSeconds?: number;
       } } & MatchEventBase)
   /**
    * THE ACT, not the decision (ADR-056 Option C). `QB_DECISION{choice:"THROWAWAY"}` stays as
@@ -792,9 +874,14 @@ export type MatchEvent =
 /** ADR-087: a body measurement development tracks (40 and 3-cone in seconds, vertical in inches, bench in reps). */
 export type BodyMeasure = "forty" | "cone" | "vertical" | "bench";
 
-/** ADR-087 E5: why a depth chart changed, from what the player himself can see (§3.1). */
+/**
+ * ADR-087 E5: why a depth chart changed, from what the player himself can see (§3.1). ADR-094 W3:
+ * `YOUTH_LOOK`, a coach whose season looks lost giving a younger man the spot, and `SHAKE_UP`, a coach
+ * on the hot seat benching a starter after a losing streak.
+ */
 export type DepthChartSituation =
-  | "OPEN_COMPETITION" | "INJURY_COVER" | "STARTER_RETURNS" | "KEPT_AFTER_INJURY" | "FORM" | "SUDDEN";
+  | "OPEN_COMPETITION" | "INJURY_COVER" | "STARTER_RETURNS" | "KEPT_AFTER_INJURY" | "FORM" | "SUDDEN"
+  | "YOUTH_LOOK" | "SHAKE_UP";
 
 export type FranchiseEvent =
   | { type: "CALENDAR_PHASE_ENTERED"; payload: { phase: string } }
@@ -977,6 +1064,13 @@ export type FranchiseEvent =
  *
  * ADR-093 F6: a `PENALTY_OPTION` COACH_DECISION, which is game-scoped, carries the `rollRef` of its
  * flag's `penalty_check`, a roll in the play it decides on (ADR-014 item 13).
+ *
+ * ADR-089 P6: under `pocket-1` from `pocket-1.s4`, a rated contact draws the rusher's die on
+ * `.../t<tick>/<rusherId>:contest` and the quarterback's on `.../t<tick>/<quarterbackId>:contest:<rusherId>`,
+ * and a second arrival one die on `.../t<tick>/<rusherId>:contest2`, each once, recorded on its
+ * `arrival_contest` CHECK; a `QB_HIT` refers to that CHECK by its `roll.rngLabel` (`rollRef`).
+ * `:contact` (the contact choice, a `pocket_movement` CHECK) and `:dodge` are reserved for ADR-089
+ * step 7 and drawn nowhere before it.
  *
  * Stated here rather than left implicit so the next author does not have to
  * re-derive whether it is allowed. An implicit generalization gets re-litigated

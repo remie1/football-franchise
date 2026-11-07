@@ -26,7 +26,10 @@ import {
   SW_TUNABLES,
   S_TUNABLES,
   buildBullRushScenario,
+  PASS_FIXTURES,
 } from "./pocketTunables.js";
+import { P6_IN_CONTRACTS, P7_IN_CONTRACTS, P8_IN_CONTRACTS } from "../src/sim/pocketRules.js";
+import { S4S_TUNABLES } from "./step4Fixtures.js";
 
 describe("determinism (Charter pillar 5)", () => {
   it("same seed produces a byte-identical event stream and identical new state", () => {
@@ -603,6 +606,51 @@ describe("ADR-089 step 1 — pocket-1 determinism", () => {
     expect(sawBeat).toBe(true);
     expect(sawDieless).toBe(true);
   });
+
+  /**
+   * ADR-089 P6's testsAttrs exception, from `pocket-1.s4`: a second arrival (`:contest2`) is one
+   * d100 against a target and reads no rating, so its `testsAttrs` is empty. Keyed by the label,
+   * never by the kind (a rated `:contest` reads the four ratings), and PAIRED with the play's first
+   * contact, a rated `:contest` whose `testsAttrs` is not empty, as ADR-059's landing checklist
+   * requires of any kind added to the exception. Runs once P6, P7 and P8 are in contracts.
+   */
+  it.runIf(P6_IN_CONTRACTS && P7_IN_CONTRACTS && P8_IN_CONTRACTS)(
+    "every CHECK populates testsAttrs under pocket-1.s4, a :contest2 excepted and paired with the play's :contest",
+    () => {
+      let sawContest = 0;
+      let sawContest2 = 0;
+      for (const [, build] of PASS_FIXTURES) {
+        for (let i = 0; i < 40; i++) {
+          const { state, calls } = build();
+          const { events } = simulatePassPlay(state, calls, `audit-s4-${i}`, S4S_TUNABLES);
+          let ratedBefore = false;
+          for (const { event } of events) {
+            if (event.type !== "CHECK") continue;
+            const kind: string = event.payload.checkKind;
+            const label = event.payload.roll?.rngLabel ?? "";
+            if (kind === "arrival_contest" && label.endsWith(":contest2")) {
+              sawContest2 += 1;
+              expect(event.payload.testsAttrs).toEqual([]);
+              expect(event.payload.roll?.modifiers).toEqual([]);
+              expect(event.payload.opposedRoll).toBeUndefined();
+              expect(ratedBefore, `${label}: a second arrival with no rated contact before it`).toBe(true);
+            } else if (kind === "deflection_quality" || kind === "pass_rush_tick" || kind === "pass_rush_beat") {
+              expect(event.payload.testsAttrs).toEqual([]);
+            } else {
+              expect(event.payload.testsAttrs.length, `${kind} ${label}`).toBeGreaterThan(0);
+            }
+            if (kind === "arrival_contest" && label.endsWith(":contest")) {
+              sawContest += 1;
+              ratedBefore = true;
+              expect(event.payload.testsAttrs.length).toBeGreaterThan(0);
+            }
+          }
+        }
+      }
+      expect(sawContest).toBeGreaterThan(0);
+      expect(sawContest2).toBeGreaterThan(0);
+    },
+  );
 });
 
 /**

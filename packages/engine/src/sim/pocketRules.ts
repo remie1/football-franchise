@@ -51,18 +51,33 @@
  * below, each lifted after the owner's typed yes landed its text (plan §3.3, §3.4: E4b, E6b; what
  * each lift changed is on the constants).
  * `PLAY_START.rules` still keeps its two keys: the step-3 blocks are named by the overlay digest.
+ *
+ * ADR-089 step 4 (plan §1.1, §1.2) adds two blocks, `pocket.contact` (contact by approach, §4.5) and
+ * `throwExec.motion` (the throwing motion, D21), each optional. Shapes S and L read both. A third
+ * kind, `T` ("today's line plus contact", arms D3 and D4 only), is a stamped bundle with the
+ * approach card and the contact block and nothing else: no block clock, no forcing, no step-3 block
+ * and no motion. Any other bundle with a step-4 block and no block clock is refused, and so is
+ * either block without its stamp. Until petitions P6, P7 and P8 are in contracts (the three
+ * constants below, all false), every bundle carrying a step-4 block is refused before the first
+ * die, as P5 and P17 refused s2 and s3 before their lifts; nothing writes a `QB_HIT`, an
+ * `arrival_contest` CHECK or `THROW.releaseSeconds` before then. `PLAY_START.rules` keeps its two
+ * keys: the step-4 blocks, and kind T, are named by the overlay digest.
  */
 import { ATTR_SCALE } from "@ff/contracts";
 import type {
   ApproachTunables,
   BeatClockTunables,
   ClimbLaneTunables,
+  ContactOrder,
+  ContactTunables,
   ForcingTunables,
   FreeRunOrigin,
   FreeRunPicture,
   FreeRunReading,
   FreeRunTunables,
   LateBlockTunables,
+  MotionReading,
+  MotionTunables,
   RepClockTunables,
   Tunables,
 } from "../tunables.js";
@@ -114,7 +129,42 @@ export interface PocketStep3Rules {
   readonly threatGeometry: boolean;
 }
 
-/** Which rules a play runs under. `S` and `L` are the two candidate block clocks of §4.1. */
+/**
+ * ADR-089 step 4: the rules' step-4 part. Each block is the tunables' own object, or `undefined`
+ * when the bundle does not carry it (steps 1 to 3's bundles carry neither, and their plays run
+ * exactly as before).
+ */
+export interface PocketStep4Rules {
+  /** Contact by approach (§4.5); `undefined` is today's automatic sack on an arrival. */
+  readonly contact: ContactTunables | undefined;
+  /** The throwing motion (D21); `undefined` is today's release on the decision tick. */
+  readonly motion: MotionTunables | undefined;
+}
+
+/**
+ * ADR-089 step 4, kind T (plan §1.2): "today's line plus contact", the named arm of §6.4's contact
+ * clauses (AM-7 item 1: A0's settings plus the contact block). No block clock; its step-2 and
+ * step-3 parts are today's (`STEP_1`, no free-run or late block, the climb lane `INTERIOR`, no
+ * published geometry), and it carries no motion. Its threats are labeled by shape S's rows over
+ * today's facts.
+ */
+export interface TodaysLinePlusContact {
+  readonly kind: "T";
+  readonly approach: ApproachTunables;
+  readonly rules: PublishedRules;
+  readonly forcing: "STEP_1";
+  readonly freeRun: undefined;
+  readonly lateBlock: undefined;
+  readonly climbLane: "INTERIOR";
+  readonly threatGeometry: false;
+  readonly contact: ContactTunables;
+  readonly motion: undefined;
+}
+
+/**
+ * Which rules a play runs under. `S` and `L` are the two candidate block clocks of §4.1; `T` is
+ * today's line plus contact (ADR-089 step 4, arms D3 and D4).
+ */
 export type PocketRules =
   | { readonly kind: "LEGACY" }
   | ({
@@ -123,14 +173,17 @@ export type PocketRules =
       readonly approach: ApproachTunables;
       readonly rules: PublishedRules;
       readonly forcing: PocketForcing;
-    } & PocketStep3Rules)
+    } & PocketStep3Rules &
+      PocketStep4Rules)
   | ({
       readonly kind: "L";
       readonly repClock: RepClockTunables;
       readonly approach: ApproachTunables;
       readonly rules: PublishedRules;
       readonly forcing: PocketForcing;
-    } & PocketStep3Rules);
+    } & PocketStep3Rules &
+      PocketStep4Rules)
+  | TodaysLinePlusContact;
 
 /**
  * ADR-089 step 3: the contract petitions the step-3 rules wait on, as code constants (plan §3.3,
@@ -157,13 +210,43 @@ export type PocketRules =
 export const P5_IN_CONTRACTS = true;
 export const P17_IN_CONTRACTS = true;
 
-/** Which of the two petitions are in contracts: the constants above, or a test's own pair. */
+/**
+ * ADR-089 step 4: the three contract petitions the step-4 rules waited on (plan §6, `petitions.md`),
+ * as code constants. All three are true: the owner's typed yes ("Yes, make contracts edits P6, P7
+ * and P8.", 2026-11-07) and contracts-guardian's review landed their text in `packages/contracts`:
+ *  - P6: `CheckKind` gains `"arrival_contest"` (the contact, the second arrival and the dodge);
+ *  - P7: the `QB_HIT` event, with `QbHitPhase` and `ContactFrom`;
+ *  - P8: `THROW.payload.releaseSeconds`.
+ * The gate is joint: while any of the three is false, `pocketRulesOf` refuses every bundle carrying a
+ * step-4 block (`pocket.contact` or `throwExec.motion`) before the first die, since both blocks write a
+ * `QB_HIT`, the contact an `arrival_contest` CHECK and the motion `THROW.releaseSeconds`. A test still
+ * withholds one through `pocketRulesUnder` with its own petitions. Calibration's own three constants
+ * (`calibration/src/pocket/rules.ts`) flipped in the same commit (`engineRulesS4.test.ts` ties them).
+ */
+export const P6_IN_CONTRACTS = true;
+export const P7_IN_CONTRACTS = true;
+export const P8_IN_CONTRACTS = true;
+
+/**
+ * Which petitions are in contracts: the constants above, or a test's own set. P6, P7 and P8 may be
+ * left out, and then read as their constants (so a test that gives only P5 and P17 sees the build's
+ * step-4 gate).
+ */
 export interface ContractPetitions {
   readonly P5: boolean;
   readonly P17: boolean;
+  readonly P6?: boolean;
+  readonly P7?: boolean;
+  readonly P8?: boolean;
 }
 
-const IN_CONTRACTS: ContractPetitions = Object.freeze({ P5: P5_IN_CONTRACTS, P17: P17_IN_CONTRACTS });
+const IN_CONTRACTS: ContractPetitions = Object.freeze({
+  P5: P5_IN_CONTRACTS,
+  P17: P17_IN_CONTRACTS,
+  P6: P6_IN_CONTRACTS,
+  P7: P7_IN_CONTRACTS,
+  P8: P8_IN_CONTRACTS,
+});
 
 const LEGACY: PocketRules = Object.freeze({ kind: "LEGACY" });
 
@@ -181,6 +264,11 @@ const FREE_RUN_READINGS: readonly FreeRunReading[] = ["B", "C", "A"];
 const FREE_RUN_ORIGINS: readonly FreeRunOrigin[] = ["UNBLOCKED", "BLOWN_UP", "LOOPER_FREE"];
 const FREE_RUN_PICTURES: readonly FreeRunPicture[] = ["AS_RULED", "MUG_HEAD_ONLY"];
 const CLIMB_LANES: readonly ClimbLaneTunables[] = ["FRONT"];
+/** ADR-089 step 4's closed sets. */
+const CONTACT_ORDERS: readonly ContactOrder[] = ["CONTEST_AFTER_THROW", "CONTEST_BEFORE_THROW"];
+const MOTION_READINGS: readonly MotionReading[] = ["CONTINUOUS", "GRID"];
+/** `delayThreat` publishes a delayed `etaTick` in tenths of a second (`toFixed(1)`). */
+const DELAY_ROUNDING_SECONDS = 0.1;
 /** The clock rounds an ETA with `toFixed(1)`, as every published `etaTick` is rounded (`resolve/rushThreat.ts`). */
 const ETA_ROUNDING_SECONDS = 0.1;
 /** The held groups AM-2 names, in its order. */
@@ -388,6 +476,115 @@ function step3BlocksOf(tunables: Tunables): readonly { readonly name: string; re
 }
 
 /**
+ * ADR-089 step 4's two blocks, each named as its refusals name it, in this order. Kept apart from
+ * `step3BlocksOf` because kind T carries the contact block with no block clock, which the step-3
+ * blocks may never do; `playsLegacyRules` reads both lists, so a tree carrying a step-4 block is
+ * never taken for `legacy` (critique 3 N3).
+ */
+function step4BlocksOf(tunables: Tunables): readonly { readonly name: string; readonly value: unknown }[] {
+  return [
+    { name: CONTACT_BLOCK, value: tunables.pocket.contact },
+    { name: MOTION_BLOCK, value: tunables.throwExec.motion },
+  ].filter((block) => block.value !== undefined);
+}
+
+const CONTACT_BLOCK = "the contact block (pocket.contact)";
+const MOTION_BLOCK = "the throwing motion (throwExec.motion)";
+
+function onTheTenth(value: number, what: string): void {
+  const tenths = value / DELAY_ROUNDING_SECONDS;
+  if (!(Math.abs(tenths - Math.round(tenths)) < 1e-9)) {
+    throw new PocketRulesError(`${what} must be a whole number of tenths of a second (a delayed etaTick is published in tenths), got ${String(value)}`);
+  }
+}
+
+function wholeNumber(value: unknown, what: string): number {
+  if (typeof value !== "number" || !Number.isInteger(value)) {
+    throw new PocketRulesError(`${what} must be a whole number (the d100 margins and the closed forms are whole numbers), got ${String(value)}`);
+  }
+  return value;
+}
+
+function isBoolean(value: unknown, what: string): void {
+  if (typeof value !== "boolean") throw new PocketRulesError(`${what} must be true or false, got ${String(value)}`);
+}
+
+/**
+ * ADR-089 step 4: the contact block's dials (plan §1.1). The boundary b a whole number (the margin
+ * of two d100s plus whole modifiers is whole, and the closed forms are stated for whole b); each
+ * tilt on or off, with a size of 0 or more (a tilt moves the margin only in its own direction,
+ * §6.4); the shed delays 0 or more and on the tenth; the second arrival `"RATED"` or a whole target
+ * from 0 to 100; the contact order from its closed set.
+ */
+function checkContact(block: unknown): ContactTunables {
+  if (!isObject(block)) throw new PocketRulesError(`${CONTACT_BLOCK} must be an object, got ${String(block)}`);
+  const leaf = (name: string): string => `pocket.contact.${name}`;
+  wholeNumber(block.boundary, leaf("boundary"));
+  const tilts = block.tilts;
+  if (!isObject(tilts)) {
+    throw new PocketRulesError(`${leaf("tilts")} must be an object { pushBlocked, freeRun, behindNever }, got ${String(tilts)}`);
+  }
+  const tiltSizes = [
+    ["pushBlocked", "quarterbackBonus"],
+    ["freeRun", "rusherBonus"],
+    ["behindNever", "rusherBonus"],
+  ] as const;
+  for (const [name, size] of tiltSizes) {
+    const tilt = tilts[name];
+    if (!isObject(tilt)) {
+      throw new PocketRulesError(`${leaf(`tilts.${name}`)} must be an object { on, ${size} }, got ${String(tilt)}`);
+    }
+    isBoolean(tilt.on, leaf(`tilts.${name}.on`));
+    atLeast(tilt[size], 0, leaf(`tilts.${name}.${size}`));
+  }
+  for (const name of ["shedDelaySeconds", "pushShedDelaySeconds"] as const) {
+    atLeast(block[name], 0, leaf(name));
+    onTheTenth(block[name] as number, leaf(name));
+  }
+  const second = block.secondArrival;
+  if (second !== "RATED") {
+    if (!isObject(second)) {
+      throw new PocketRulesError(`${leaf("secondArrival")} must be "RATED" or an object { target }, got ${String(second)}`);
+    }
+    const target = wholeNumber(second.target, leaf("secondArrival.target"));
+    if (target < 0 || target > 100) {
+      throw new PocketRulesError(`${leaf("secondArrival.target")} must lie from 0 to 100 (a d100 above it is a sack), got ${String(target)}`);
+    }
+  }
+  oneOf(block.order, CONTACT_ORDERS, `the contact order (${leaf("order")})`);
+  return block as unknown as ContactTunables;
+}
+
+/**
+ * ADR-089 step 4: the motion's dials (plan §1.1). rho0 and rhoD above 0; the reading from its closed
+ * set; and over the whole rating scale rho must be 0 or more (the ball never leaves before the
+ * decision) and below one tick step (the motion never reaches the next tick of the grid, so a
+ * throw never leaves its decision tick's release bin and a threat ARRIVED on the next tick is never
+ * inside it; with rho0 0.3 and rhoD 400 it runs 0.2275 to 0.475 s).
+ */
+function checkMotion(block: unknown, tickStepSeconds: number): MotionTunables {
+  if (!isObject(block)) throw new PocketRulesError(`${MOTION_BLOCK} must be an object, got ${String(block)}`);
+  positive(block.rho0, "throwExec.motion.rho0");
+  positive(block.rhoD, "throwExec.motion.rhoD");
+  oneOf(block.reading, MOTION_READINGS, "the motion's arrival reading (throwExec.motion.reading)");
+  const rho0 = block.rho0 as number;
+  const rhoD = block.rhoD as number;
+  const longest = rho0 - (ATTR_SCALE.min - 70) / rhoD;
+  const shortest = rho0 - (ATTR_SCALE.max - 70) / rhoD;
+  if (shortest < 0) {
+    throw new PocketRulesError(
+      `the throwing motion (throwExec.motion) runs ${String(shortest)} s at release ${String(ATTR_SCALE.max)}: rho must be 0 or more over the rating scale`,
+    );
+  }
+  if (!(longest < tickStepSeconds)) {
+    throw new PocketRulesError(
+      `the throwing motion (throwExec.motion) runs ${String(longest)} s at release ${String(ATTR_SCALE.min)}: rho must stay below one tick step (${String(tickStepSeconds)} s) over the rating scale`,
+    );
+  }
+  return block as unknown as MotionTunables;
+}
+
+/**
  * ADR-089 step 3's part of a stamped bundle's rules (plan §2.1), checked after the clock: each
  * block's own dials; the late block refused on shape L while P17 is not in contracts; reading C
  * with a late block and reading A without one refused; `threatGeometry` from the free-run block
@@ -434,7 +631,36 @@ export function playsLegacyRules(tunables: Tunables): boolean {
     repClock === undefined &&
     approach === undefined &&
     tunables.pocket.forcing === undefined &&
-    step3BlocksOf(tunables).length === 0
+    step3BlocksOf(tunables).length === 0 &&
+    step4BlocksOf(tunables).length === 0
+  );
+}
+
+/**
+ * ADR-089 step 4 (plan §1.2, critique 3 B1): whether the game loop plays the stem and the count read
+ * before this snap, which today's line does: true under `legacy` and for kind T ("today's line plus
+ * contact", arms D3 and D4: A0's settings plus contact, and nothing else), false otherwise. Like
+ * `playsLegacyRules` it validates nothing and never throws; a T-shaped tree the rules refuse is still
+ * refused at the top of the pass play that runs it (and today every step-4 tree is, by the gates).
+ */
+export function playsTodaysLine(tunables: Tunables): boolean {
+  // The T branch is reached only by a tree carrying the contact block, which no rule set of steps 1
+  // to 3 (nor DEFAULT_TUNABLES) does: under them this is `playsLegacyRules`, call for call (P-18).
+  return playsLegacyRules(tunables) || (tunables.pocket.contact !== undefined && isTodaysLinePlusContactTree(tunables));
+}
+
+/** Kind T's shape: a stamp, the approach card, the contact block, and no clock, forcing, step-3 block or motion. */
+function isTodaysLinePlusContactTree(tunables: Tunables): boolean {
+  const { beatClock, repClock, approach } = tunables.passRush;
+  return (
+    tunables.engineRules !== undefined &&
+    beatClock === undefined &&
+    repClock === undefined &&
+    approach !== undefined &&
+    tunables.pocket.forcing === undefined &&
+    step3BlocksOf(tunables).length === 0 &&
+    tunables.pocket.contact !== undefined &&
+    tunables.throwExec.motion === undefined
   );
 }
 
@@ -456,6 +682,9 @@ export function pocketRulesUnder(tunables: Tunables, petitions: ContractPetition
   const { beatClock, repClock, approach } = tunables.passRush;
   const forcingBlock = tunables.pocket.forcing;
   const step3Blocks = step3BlocksOf(tunables);
+  const step4Blocks = step4BlocksOf(tunables);
+  const contactBlock: unknown = tunables.pocket.contact;
+  const motionBlock: unknown = tunables.throwExec.motion;
   const clocks = (beatClock === undefined ? 0 : 1) + (repClock === undefined ? 0 : 1);
 
   if (clocks === 2) {
@@ -464,7 +693,8 @@ export function pocketRulesUnder(tunables: Tunables, petitions: ContractPetition
   if (clocks === 1 && approach === undefined) {
     throw new PocketRulesError("a block clock without the approach card (passRush.approach); pocket-1 publishes the approach on every threat");
   }
-  if (clocks === 0 && approach !== undefined) {
+  // ADR-089 step 4: the card without a clock is kind T's, and only with the contact block.
+  if (clocks === 0 && approach !== undefined && contactBlock === undefined) {
     throw new PocketRulesError("the approach card (passRush.approach) without a block clock (passRush.beatClock or passRush.repClock)");
   }
   // ADR-089 step 2: a forcing block alone is refused, never ignored.
@@ -483,10 +713,28 @@ export function pocketRulesUnder(tunables: Tunables, petitions: ContractPetition
       throw new PocketRulesError(`${block.name} without its rules stamp (engineRules { name, overlayDigest })`);
     }
   }
+  // ADR-089 step 4: a step-4 block without its stamp is refused, never ignored. Without a block
+  // clock only kind T is accepted: the stamp, the approach card and the contact block, and none of
+  // the forcing block (refused above), the step-3 blocks (refused above) and the motion.
+  for (const block of step4Blocks) {
+    if (stamp === undefined) {
+      throw new PocketRulesError(`${block.name} without its rules stamp (engineRules { name, overlayDigest })`);
+    }
+  }
+  if (clocks === 0 && motionBlock !== undefined) {
+    throw new PocketRulesError(
+      `${MOTION_BLOCK} without a block clock (passRush.beatClock or passRush.repClock); today's line plus contact (kind T) runs the contact alone`,
+    );
+  }
+  if (clocks === 0 && contactBlock !== undefined && approach === undefined) {
+    throw new PocketRulesError(
+      `${CONTACT_BLOCK} without a block clock needs the approach card (passRush.approach): today's line plus contact (kind T) labels every threat by shape S's rows`,
+    );
+  }
   if (stamp === undefined) {
     throw new PocketRulesError("a pocket-1 overlay without its rules stamp (engineRules { name, overlayDigest })");
   }
-  if (clocks === 0) {
+  if (clocks === 0 && contactBlock === undefined) {
     throw new PocketRulesError(`a rules stamp (${String(stamp.name)}) without a pocket-1 block; legacy carries no stamp`);
   }
   if (typeof stamp.name !== "string" || !POCKET_1_NAME.test(stamp.name)) {
@@ -499,6 +747,27 @@ export function pocketRulesUnder(tunables: Tunables, petitions: ContractPetition
   range(approach.pushMinMargin, approach.pushMaxMargin, "the approach card's PUSH range");
   const rules: PublishedRules = Object.freeze({ name: stamp.name, overlayDigest: stamp.overlayDigest });
   const forcing = forcingOf(tunables);
+  const contact = contactBlock === undefined ? undefined : checkContact(contactBlock);
+  const motion = motionBlock === undefined ? undefined : checkMotion(motionBlock, tunables.clock.tickStepSeconds);
+  step4Gate(step4Blocks, petitions);
+
+  if (clocks === 0) {
+    if (contact === undefined) throw new PocketRulesError("unreachable: kind T without the contact block");
+    const t: TodaysLinePlusContact = {
+      kind: "T",
+      approach,
+      rules,
+      forcing: "STEP_1",
+      freeRun: undefined,
+      lateBlock: undefined,
+      climbLane: "INTERIOR",
+      threatGeometry: false,
+      contact,
+      motion: undefined,
+    };
+    return Object.freeze(t);
+  }
+  const step4: PocketStep4Rules = { contact, motion };
 
   if (beatClock !== undefined) {
     positive(beatClock.thetaSeconds, "passRush.beatClock.thetaSeconds");
@@ -510,9 +779,31 @@ export function pocketRulesUnder(tunables: Tunables, petitions: ContractPetition
       positive(w.lengthSeconds, "passRush.beatClock.pushWindow.lengthSeconds");
       onTheGrid(w.lengthSeconds, tunables.clock.tickStepSeconds, "passRush.beatClock.pushWindow.lengthSeconds");
     }
-    return Object.freeze({ kind: "S", beatClock, approach, rules, forcing, ...step3RulesOf(tunables, "S", petitions) });
+    return Object.freeze({ kind: "S", beatClock, approach, rules, forcing, ...step3RulesOf(tunables, "S", petitions), ...step4 });
   }
   if (repClock === undefined) throw new PocketRulesError("unreachable: no block clock");
   positive(repClock.fullExpressionSeconds, "passRush.repClock.fullExpressionSeconds");
-  return Object.freeze({ kind: "L", repClock, approach, rules, forcing, ...step3RulesOf(tunables, "L", petitions) });
+  return Object.freeze({ kind: "L", repClock, approach, rules, forcing, ...step3RulesOf(tunables, "L", petitions), ...step4 });
+}
+
+/**
+ * ADR-089 step 4's gate (plan §1.1): while any of P6, P7 and P8 is not in contracts, a bundle
+ * carrying a step-4 block is refused, before the first die, naming the blocks and the petitions
+ * that are missing. A petition a test leaves out reads as its constant.
+ */
+function step4Gate(blocks: readonly { readonly name: string }[], petitions: ContractPetitions): void {
+  if (blocks.length === 0) return;
+  const missing = (
+    [
+      ["P6", petitions.P6 ?? P6_IN_CONTRACTS],
+      ["P7", petitions.P7 ?? P7_IN_CONTRACTS],
+      ["P8", petitions.P8 ?? P8_IN_CONTRACTS],
+    ] as const
+  )
+    .filter(([, granted]) => !granted)
+    .map(([name]) => name);
+  if (missing.length === 0) return;
+  throw new PocketRulesError(
+    `${blocks.map((b) => b.name).join(" and ")} ${blocks.length === 1 ? "is" : "are"} refused until petitions P6, P7 and P8 are in contracts (not yet: ${missing.join(", ")}): a contact writes an arrival_contest CHECK and a QB_HIT, the throwing motion a QB_HIT and THROW.releaseSeconds`,
+  );
 }

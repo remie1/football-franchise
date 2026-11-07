@@ -1515,3 +1515,161 @@ export function renderStep3Sections(s: Step3Sections): readonly string[] {
   }
   return out;
 }
+
+// --- step 4 (ADR-089 step 4; step-4 plan §5, §8) ----------------------------------------------------------
+
+/** AM-7's reading of one tilt clause: the tilted arm against D8, first rated `:contest`s of the class, both leagues and sets summed. */
+export interface Step4TiltRow {
+  readonly clause: string;
+  readonly arm: string;
+  readonly against: string;
+  readonly direction: "UP" | "DOWN";
+  readonly tilted: { readonly contacts: number; readonly sacks: number };
+  readonly untilted: { readonly contacts: number; readonly sacks: number };
+  /** Sacks per contact, tilted minus untilted, in points (null when either side has no contact). */
+  readonly diff: number | null;
+  readonly se: number | null;
+  /** FAIL only beyond 2 SE the wrong way; UNREADABLE under 30 contacts on either side (never a pass). */
+  readonly verdict: "PASS" | "FAIL" | "UNREADABLE" | "REPORTED" | "NOT PLAYED";
+  /** Per league and per set, printed beside. */
+  readonly beside: readonly string[];
+}
+
+/** A step-4 guard row's role: AM-6's graded map, or a reading printed beside it and never graded (plan §3.1). */
+export type Step4GuardRole = "graded" | "cumulative" | "accepted" | "information";
+
+/** AM-6's reading of one arm on one league (AM-1's statistic), the own-clock print beside. */
+export interface Step4GuardRow {
+  readonly arm: string;
+  readonly against: string;
+  readonly league: League;
+  /** "graded" for AM-6's map; the cumulative line, the accepted state and the information readings are printed beside, never graded. */
+  readonly role?: Step4GuardRole;
+  readonly verdict: string;
+  readonly graded: boolean;
+  readonly Z: number | null;
+  readonly breaches: readonly string[];
+  readonly filedBreaches: readonly string[];
+  /** Each set's league-wide reading with each side on its own clock: printed, never graded. */
+  readonly ownClock: readonly string[];
+}
+
+/** One arm's s4 folds on one league and set, as printed. */
+export interface Step4ArmRow {
+  readonly arm: string;
+  readonly league: League;
+  readonly seedSet: number;
+  readonly s4Plays: number;
+  readonly lines: readonly string[];
+  readonly problemCount: number;
+  readonly firstProblem?: string;
+}
+
+/** A re-played base against step 3's committed record, on the stamp-free projection. */
+export interface Step4ReplayRow {
+  readonly arm: string;
+  readonly seedSet: number;
+  readonly verdict: "PASS" | "FAIL" | "NOT CHECKED";
+  readonly detail: string;
+}
+
+export interface Step4Sections {
+  readonly amendments: { readonly digest: string; readonly am6: string; readonly am7: string };
+  readonly oneSet?: number;
+  readonly outcome: Step2Outcome;
+  readonly clauses: readonly Step2ClauseResult[];
+  readonly proofs: readonly Step2Proof[];
+  readonly guard: readonly Step4GuardRow[];
+  readonly tilts: readonly Step4TiltRow[];
+  readonly replay: readonly Step4ReplayRow[];
+  readonly arms: readonly Step4ArmRow[];
+  /** AM-6's declared prints (plan §3.1): interceptions on aimed throws by guard class, THROWING-hit against unhit (D1, D2, D5, D6) and after a SHED (D1, D2, D3, D7). */
+  readonly declared?: readonly string[];
+  /** The step-4 probes' printed lines (the gen release probe, the game-level rating probes), never graded. */
+  readonly probes?: readonly string[];
+  /** What this report cannot read yet, by name (the release probe, R-1, T_L on D17). */
+  readonly waits: readonly string[];
+}
+
+export function renderStep4Sections(s: Step4Sections): readonly string[] {
+  const out: string[] = [];
+  const o = s.outcome;
+  const a = s.amendments;
+  out.push("## What failed, first");
+  out.push("");
+  if (s.oneSet !== undefined) out.push(`A one-set run (seed set ${String(s.oneSet)}): every reading here is reported, never graded, and the step cannot close on it.`);
+  else if (o.structuralFailures.length === 0 && o.foldFaults.length === 0 && o.gradedFailures.length === 0 && o.guardBreaches.length === 0) {
+    out.push(`Nothing: every structural proof and fold check passes, every graded clause reads as filed (${a.am7} for the tilts), and the guard as ${a.am6} maps it finds no breach.`);
+  }
+  for (const f of o.structuralFailures) out.push(`- STRUCTURAL (a build fault, fixed before the owner sees anything): ${f}`);
+  for (const f of o.foldFaults) out.push(`- FOLD FAULT (the clause is not judged and the step cannot close until the fold is fixed): ${f}`);
+  for (const f of o.guardBreaches) out.push(`- GUARD BREACH under ${a.am6} (the step stops and goes to the owner, D9): ${f}`);
+  for (const f of o.gradedFailures) out.push(`- GRADED, a failed prediction (taken to the owner; nothing in it is automatic): ${f}`);
+  for (const f of o.next) out.push(`- NEXT: ${f}`);
+  out.push("");
+
+  out.push(`## The s4 clauses (seed set 1 graded, set 2 beside; amendments at step 4 ${a.digest})`);
+  out.push("");
+  for (const c of s.clauses) {
+    out.push(`- ${c.id} (${c.kind}; ${c.arms.join(" against ")}; filed ${c.filed}): ${c.verdict}${c.values.length === 0 ? "" : `: ${c.values.join("; ")}`}${c.note === undefined ? "" : ` (${c.note})`}`);
+  }
+  out.push("");
+
+  out.push(`## The guard under ${a.am6} (AM-1's statistic; both mixes on the arm's own release clock, the own-clock reading beside, never graded)`);
+  out.push("");
+  for (const g of s.guard) {
+    const role = g.role === undefined || g.role === "graded" ? "" : ` [${g.role}, printed beside, never graded]`;
+    out.push(`- ${g.arm} against ${g.against}, ${g.league}${role}: ${g.verdict}${g.graded ? "" : " (not graded)"}; Z ${fmt(g.Z)}; breaches ${g.breaches.length === 0 ? "none" : g.breaches.join(", ")}; filed reading beside: ${g.filedBreaches.length === 0 ? "no breach" : g.filedBreaches.join(", ")}`);
+    for (const line of g.ownClock) out.push(`  - own clock (printed, never graded): ${line}`);
+  }
+  out.push("");
+
+  out.push(`## The tilts under ${a.am7} (first rated :contest of the class, tilted arm against D8, both leagues and sets summed; a FAIL only beyond 2 SE the wrong way; under 30 contacts unreadable)`);
+  out.push("");
+  for (const t of s.tilts) {
+    out.push(
+      `- ${t.clause}: ${t.arm} against ${t.against}, direction ${t.direction}: ${t.verdict}; tilted ${String(t.tilted.sacks)}/${String(t.tilted.contacts)}, untilted ${String(t.untilted.sacks)}/${String(t.untilted.contacts)}; ` +
+        `difference ${fmt(t.diff)} points (SE ${fmt(t.se)})`,
+    );
+    for (const b of t.beside) out.push(`  - ${b}`);
+  }
+  out.push("");
+
+  out.push("## The structural proofs and fold checks");
+  out.push("");
+  for (const p of s.proofs) out.push(`- ${p.id} (${p.kind === "fold" ? "fold check" : "structural"}; ${p.what}): ${p.verdict === "PASS" ? "PASSES" : p.verdict === "FAIL" ? "FAILS" : p.verdict}. ${p.detail}`);
+  out.push("");
+
+  out.push("## The re-played bases against step 3's records (the stamp-free projection)");
+  out.push("");
+  for (const r of s.replay) out.push(`- ${r.arm} set ${String(r.seedSet)}: ${r.verdict}. ${r.detail}`);
+  out.push("");
+
+  out.push("## Each arm's step-4 folds");
+  out.push("");
+  for (const r of s.arms) {
+    out.push(`- ${r.arm} ${r.league} set ${String(r.seedSet)}: ${String(r.s4Plays)} pocket-1.s4 dropbacks; ${String(r.problemCount)} stream problem(s)${r.firstProblem === undefined ? "" : `, first: ${r.firstProblem}`}`);
+    for (const line of r.lines) out.push(`  - ${line}`);
+  }
+  out.push("");
+
+  if (s.declared !== undefined) {
+    out.push("## AM-6's declared prints (interceptions/aimed throws by guard class; never graded)");
+    out.push("");
+    out.push("Each throw's class is read once, at the decision instant, as the fold reads it; the own-clock reading of these counts is not built (named under \"Waiting, by name\").");
+    for (const line of s.declared) out.push(`- ${line}`);
+    out.push("");
+  }
+
+  if (s.probes !== undefined) {
+    out.push("## The step-4 probes, printed beside the falsifiers (paired SE; never graded)");
+    out.push("");
+    for (const line of s.probes) out.push(`- ${line}`);
+    out.push("");
+  }
+
+  out.push("## Waiting, by name");
+  out.push("");
+  for (const w of s.waits) out.push(`- ${w}`);
+  return out;
+}

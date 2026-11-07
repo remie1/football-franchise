@@ -51,3 +51,26 @@ describe("the turnover check (ADR-080 C5)", () => {
       .toEqual(r.perSeason.slice(0, 3));
   }, 30_000);
 });
+
+describe("the win-now rows (ADR-094 step 7)", () => {
+  const r = staffTurnoverCheck({ seed: "staff-check-win-now", seasons: 4, gms: true, views: true, winNow: true });
+  it("reads every team every week but the last, and counts the deadline's stances once a team", () => {
+    for (const p of r.perSeason) {
+      const w = p.winNow!;
+      expect(w.teamWeeks).toBe(32 * 17);
+      expect(w.deadlineStances.BUY + w.deadlineStances.HOLD + w.deadlineStances.SELL).toBe(32);
+      expect(w.heat.POLITE + w.heat.OPEN_ARGUMENT + w.heat.RIFT).toBe(w.argued);
+      expect(w.argued).toBeGreaterThan(0);
+      expect(w.overruled).toBeLessThanOrEqual(w.argued);
+      expect(w.deadlineSplits).toBeLessThanOrEqual(32);
+      expect(Object.values(w.pairWords).reduce((a, b) => a + b, 0)).toBeGreaterThan(0);
+    }
+    expect(r.summary.winNow!.total.argued).toBe(r.perSeason.reduce((n, p) => n + p.winNow!.argued, 0));
+  });
+  it("is the same with the same seed, and leaves the rows out unless asked", () => {
+    expect(staffTurnoverCheck({ seed: "staff-check-win-now", seasons: 4, gms: true, views: true, winNow: true }).perSeason).toEqual(r.perSeason);
+    const plain = staffTurnoverCheck({ seed: "staff-check-win-now", seasons: 2, gms: true, views: true });
+    expect(plain.perSeason.every((p) => p.winNow === undefined)).toBe(true);
+    expect(plain.summary.winNow).toBeUndefined();
+  });
+});

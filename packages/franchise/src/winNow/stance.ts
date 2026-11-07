@@ -174,7 +174,10 @@ function readWeek(
 export interface WeeklyStanceInput {
   world: StaffWorld;
   teams: readonly Team[];
-  state: SeasonState;
+  /** The season so far: each week's records are read from its results (`recordsAfter`). */
+  state?: SeasonState;
+  /** Or, where no season state is kept (the staff check's stand-in seasons), each team's record and games left after a week. */
+  recordsAt?: (week: number) => ReadonlyMap<string, { record: WinLossTie; left: number }>;
   season: number;
   /** The regular-season week just played, and how many there are. */
   week: number;
@@ -204,10 +207,15 @@ export function weeklyStance(input: WeeklyStanceInput): WeeklyStanceResult {
   const viewScores = new Map((input.views ?? []).map((v) => [viewKey(v.from, v.of), v.score]));
   const contractEnds = (s: StaffState) => input.world.contracts.some((c) => c.staff === s.id && c.terminated === undefined && c.lastSeason === season);
   const teamCount = input.teams.length;
-  const recordsCache = new Map<number, Map<string, { record: WinLossTie; left: number }>>();
+  const recordsCache = new Map<number, ReadonlyMap<string, { record: WinLossTie; left: number }>>();
   const records = (w: number) => {
     let r = recordsCache.get(w);
-    if (!r) { r = recordsAfter(input.state, w); recordsCache.set(w, r); }
+    if (!r) {
+      if (input.recordsAt) r = input.recordsAt(w);
+      else if (input.state) r = recordsAfter(input.state, w);
+      else throw new Error("weeklyStance needs the season's state or its records");
+      recordsCache.set(w, r);
+    }
     return r;
   };
 

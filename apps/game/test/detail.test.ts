@@ -114,7 +114,7 @@ describe("buildPlayDetail", () => {
 // ADR-089 §9: the pocket fix's new kinds (a `pass_rush_beat` CHECK, P2; `QB_HIT`, P7; the
 // `SLIDE_POCKET` and `SIDESTEP` choices, P14 and P15) render rather than crash. Built loosely, as a
 // newer engine's file would carry them: the contracts did not have them at step 0, and still do not
-// have P7, P14 or P15. The beat here is step 0's stand-in, on a d100, kept as the check that a CHECK
+// have P14 or P15 (P7 is in since step 4, and its hit has its own timeline line). The beat here is step 0's stand-in, on a d100, kept as the check that a CHECK
 // is worded from its own fields; the beat as P2 has it, on a uniform, is typed at the end of this
 // file with the dieless tick and the approach (ADR-089 step 1, V-b). A roll-less `pass_rush_tick`
 // CHECK (P3) is built loosely too, below: the dice row reads the roll through P3's guard (ADR-089
@@ -157,7 +157,7 @@ function withPocketFixKinds(file: GameFile): GameFile {
 describe("the pocket fix's new kinds (ADR-089 §9)", () => {
   const changed = withPocketFixKinds(FIXTURE);
 
-  it("render without throwing; the new choices show as their words, QB_HIT is skipped", () => {
+  it("render without throwing; the new choices show as their words, and QB_HIT (ADR-089 P7) has its line", () => {
     expect(() => buildPlayDetail(changed, "p1")).not.toThrow();
     expect(() => buildPlayDetail(changed, "p2")).not.toThrow();
     const p1 = buildPlayDetail(changed, "p1");
@@ -167,11 +167,13 @@ describe("the pocket fix's new kinds (ADR-089 §9)", () => {
       { tick: "1", text: "Throws to Wes Reed (bullet, success)" },
       { tick: "1", text: "Wes Reed: caught (routine)" },
       { tick: "1", text: "Decides: slide pocket" },
+      { tick: "1", text: "Dez Edge hits Ada Quinn as he throws at 1.40s" },
       { tick: "1", text: "Result: 25 yards" },
     ]);
     expect(buildPlayDetail(changed, "p2").timeline).toEqual([
       { tick: "snap", text: "Dez Edge (edge): arrived [won rep]" },
       { tick: "snap", text: "Decides: sidestep" },
+      { tick: "snap", text: "Dez Edge gets to Ada Quinn at 1.50s" },
       { tick: "snap", text: "Result: -7 yards" },
     ]);
   });
@@ -650,5 +652,80 @@ describe("the late block and free runners on the play detail (ADR-089 step 3)", 
     for (const playId of ["p1", "p2", "p3", "p4", "p5", "x1", "k1"]) {
       expect(buildPlayDetail(withPlay(SHAPE_S), playId)).toEqual(buildPlayDetail(FIXTURE, playId));
     }
+  });
+});
+
+// ADR-089 step 4 (P6, P7, P8 in contracts): the quarterback hits, the arrival contest and the release
+// on the play detail. Typed as contracts have them, so a field they lack does not compile.
+describe("ADR-089 step 4 on the play detail: QB_HIT, arrival_contest and THROW.releaseSeconds", () => {
+  type Hit = Extract<MatchEvent, { type: "QB_HIT" }>;
+  type Check = Extract<MatchEvent, { type: "CHECK" }>;
+  const base = { gameId: "g:test" as GameId, playId: "p2" as PlayId };
+  const hit = (payload: Hit["payload"]): Hit => ({ type: "QB_HIT", ...base, tick: 3, payload });
+  const contest = (label: string, band: "RUSHER_SACKS" | "QB_SHEDS", opposed: boolean): Check => ({
+    type: "CHECK",
+    ...base,
+    tick: 3,
+    payload: {
+      checkKind: "arrival_contest",
+      actors: ["fs" as PlayerId, "qb" as PlayerId],
+      testsAttrs: [],
+      roll: { ...roll(40, 40), rngLabel: label },
+      ...(opposed ? { opposedRoll: { ...roll(22, 22), rngLabel: `${label}:qb` } } : { target: 15 }),
+      margin: opposed ? 18 : 25,
+      tier: "SUCCESS" as ResultTier,
+      band,
+    },
+  });
+  /** The fixture with `added` in front of play 2's result, and play 1's THROW released at `release`. */
+  function withStep4(added: readonly MatchEvent[], release?: number): GameFile {
+    const events = FIXTURE.events.flatMap((e) => {
+      const playId = "playId" in e.event ? String(e.event.playId) : undefined;
+      const before = e.event.type === "PLAY_RESULT" && playId === "p2" ? added : [];
+      const event =
+        release !== undefined && e.event.type === "THROW" && playId === "p1" ? ({ ...e.event, payload: { ...e.event.payload, releaseSeconds: release } } as MatchEvent) : e.event;
+      return [...before.map((n) => ({ ...e, event: n })), { ...e, event }];
+    });
+    return { ...FIXTURE, events: events.map((e, seq) => ({ ...e, seq })) };
+  }
+  const ALL_PHASES: readonly MatchEvent[] = [
+    hit({ qb: "qb" as PlayerId, rusher: "de" as PlayerId, phase: "ARRIVAL", contactSeconds: 2.004, approach: "ARC", from: "SIDE", seen: true }),
+    hit({ qb: "qb" as PlayerId, rusher: "de" as PlayerId, phase: "THROWING", contactSeconds: 2.3, approach: "THROUGH", from: "FRONT", seen: true }),
+    contest("p2/t3/fs:contest", "QB_SHEDS", true),
+    hit({ qb: "qb" as PlayerId, rusher: "fs" as PlayerId, phase: "SHED", contactSeconds: 2.75, rollRef: "p2/t3/fs:contest", from: "BEHIND", seen: false }),
+    contest("p2/t3/fs:contest2", "RUSHER_SACKS", false),
+    hit({ qb: "qb" as PlayerId, rusher: "fs" as PlayerId, phase: "SACK", contactSeconds: 3.1, rollRef: "p2/t3/fs:contest2", approach: "FREE", from: "BEHIND", seen: true }),
+  ];
+
+  it("gives every phase its own timeline line, at the seconds it states, with where he came from and whether he was seen", () => {
+    const p2 = buildPlayDetail(withStep4(ALL_PHASES), "p2");
+    expect(p2.timeline.map((r) => r.text)).toEqual([
+      "Dez Edge (edge): arrived [won rep]",
+      "Dez Edge gets to Ada Quinn at 2.00s, from the side [round the corner]",
+      "Dez Edge hits Ada Quinn as he throws at 2.30s, from the front [straight through]",
+      "Ada Quinn sheds Finn Shaw at 2.75s, from behind, unseen",
+      "Finn Shaw sacks Ada Quinn at 3.10s, from behind [free]",
+      "Result: -7 yards",
+    ]);
+  });
+
+  it("lists the arrival contest with the dice: the rated die against the quarterback's, and the second arrival's bare d100 so marked", () => {
+    const p2 = buildPlayDetail(withStep4(ALL_PHASES), "p2");
+    const contests = p2.dice.filter((d) => d.kind.startsWith("Arrival contest"));
+    expect(contests).toEqual([
+      { kind: "Arrival contest", who: "Finn Shaw vs Ada Quinn", roll: "40", modifiers: "", against: "vs 22", margin: 18, tier: "Success", band: "Qb sheds" },
+      { kind: "Arrival contest (second arrival)", who: "Finn Shaw vs Ada Quinn", roll: "40", modifiers: "", against: "needs 15", margin: 25, tier: "Success", band: "Rusher sacks" },
+    ]);
+  });
+
+  it("says when the ball left his hand on a THROW that states it, and nothing on one that does not", () => {
+    const released = buildPlayDetail(withStep4([], 2.413), "p1").timeline.find((r) => r.text.startsWith("Throws to"));
+    expect(released?.text).toBe("Throws to Wes Reed (bullet, success); ball out at 2.41s");
+    expect(buildPlayDetail(FIXTURE, "p1").timeline.find((r) => r.text.startsWith("Throws to"))?.text).toBe("Throws to Wes Reed (bullet, success)");
+  });
+
+  it("leaves every other play as it was", () => {
+    const changed = withStep4(ALL_PHASES);
+    for (const playId of ["p1", "p3", "p4", "p5", "x1", "k1"]) expect(buildPlayDetail(changed, playId)).toEqual(buildPlayDetail(FIXTURE, playId));
   });
 });

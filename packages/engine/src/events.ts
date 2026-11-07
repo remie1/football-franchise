@@ -14,6 +14,7 @@ import type {
   PlayId,
   PlayerId,
   QbDecisionChoice,
+  QbHitPhase as ContractsQbHitPhase,
   ResultTier,
   RollDetail,
   RoutePhase,
@@ -25,6 +26,7 @@ import type {
   ThrowType,
 } from "@ff/contracts";
 import type { PocketStatusRung } from "./resolve/pocket.js";
+import type { ContestBand } from "./resolve/contact.js";
 import type { AtTheLineRecord, PassPlayStartPayload, RunPlayStartPayload } from "./types.js";
 
 /**
@@ -128,6 +130,74 @@ export interface ThreatGeometry {
 }
 
 /**
+ * ADR-089 step 4: WHAT CONTACT AND THE MOTION WRITE (petitions P6, P7 and P8, in contracts since
+ * the owner's yes of 2026-11-07): an `arrival_contest` CHECK (P6), a `QB_HIT` (P7) and
+ * `THROW.payload.releaseSeconds` (P8). Before the lift the engine named each in its own stand-in
+ * types and refused to write them; they are now the contracts types, and `arrivalContest`, `qbHit`
+ * and `throwBall`'s `releaseSeconds` push them onto the stream. Only rules carrying a step-4 block
+ * (`pocket.contact` or `throwExec.motion`, `pocket-1` from `pocket-1.s4`) reach any of them.
+ */
+
+/** The CHECK kind P6 added: a rusher reaching the quarterback with the ball in his hand. */
+export const ARRIVAL_CONTEST_KIND = "arrival_contest" as const satisfies CheckKind;
+
+/**
+ * An `arrival_contest` CHECK as P6 writes it. `actors` are the rusher, then the quarterback. On
+ * `:contest`, `roll` is the rusher's d100 plus his reads and `opposedRoll` the quarterback's; `margin`
+ * is the first total minus the second and `target` the boundary b. On `:contest2`, one d100 against
+ * `target` (15), no `opposedRoll`, `margin` the roll's total minus the target, `testsAttrs` empty.
+ * `tier` is the result ladder's tier of the margin, as for every other opposed CHECK.
+ */
+export interface ArrivalContestEmission {
+  readonly checkKind: typeof ARRIVAL_CONTEST_KIND;
+  readonly actors: readonly [PlayerId, PlayerId];
+  readonly roll: RollDetail;
+  readonly opposedRoll?: RollDetail;
+  readonly target: number;
+  readonly tier: ResultTier;
+  readonly band: ContestBand;
+  readonly margin: number;
+  readonly testsAttrs: readonly AttrId[];
+}
+
+/** The contracts CHECK payload. */
+export type CheckPayload = Extract<MatchEvent, { type: "CHECK" }>["payload"];
+
+/**
+ * The CHECK payload an `ArrivalContestEmission` is, in `checkPayload`'s key order for a CHECK with a
+ * roll (`checkKind`, `actors`, `roll`, `tier`, `margin`, `testsAttrs`, `target`, `opposedRoll`,
+ * `band`); no `rollRef` (a contact derives from no earlier roll).
+ */
+export function arrivalContestPayload(c: ArrivalContestEmission): CheckPayload {
+  return {
+    checkKind: c.checkKind,
+    actors: [...c.actors],
+    roll: c.roll,
+    tier: c.tier,
+    margin: c.margin,
+    testsAttrs: [...c.testsAttrs],
+    target: c.target,
+    ...(c.opposedRoll === undefined ? {} : { opposedRoll: c.opposedRoll }),
+    band: c.band,
+  };
+}
+
+/**
+ * P7's `QbHitPhase`: the ball went on his arrival tick, inside the motion, the quarterback broke
+ * free (QB_SHEDS), or the rusher won the contest (RUSHER_SACKS, the play his sack; contracts-guardian
+ * G-6). A sack with no `arrival_contest` (rules without the contact block) carries no `QB_HIT`.
+ */
+export type QbHitPhase = ContractsQbHitPhase;
+
+/**
+ * A `QB_HIT` payload as P7 writes it, in its key order. `rollRef` is the `arrival_contest` CHECK
+ * behind a SHED or a SACK (absent on ARRIVAL and THROWING); `approach`, `from` and `seen` are on
+ * every hit under `pocket-1` (`seen` true until ADR-089 step 7). `contactSeconds` is D21's contact
+ * time, seconds from the snap (`sim/contactBook.ts`).
+ */
+export type QbHitRecord = Extract<MatchEvent, { type: "QB_HIT" }>["payload"];
+
+/**
  * A PRE-SNAP check (§5). Its own shape rather than a `CheckEmission`, because
  * `PRESNAP_READ`'s payload is genuinely different: ONE actor, a bare target, no
  * opposed roll.
@@ -145,9 +215,10 @@ export interface PresnapEmission {
   /**
    * Every kind but the foul roll and the officials' two (ADR-093 F4), which are always CHECKs and
    * never a pre-snap read: a `penalty_check` is the CHECK a foul and a flag name, and each
-   * officials' roll names the `penalty_check` it judges.
+   * officials' roll names the `penalty_check` it judges. Nor `arrival_contest` (ADR-089 P6), which
+   * happens only after the snap.
    */
-  readonly kind: Exclude<CheckKind, "penalty_check" | "official_sees" | "phantom_flag">;
+  readonly kind: Exclude<CheckKind, "penalty_check" | "official_sees" | "phantom_flag" | "arrival_contest">;
   readonly roll: RollDetail;
   readonly target: number;
   readonly tier: ResultTier;
@@ -454,12 +525,27 @@ export class PlayEventLog {
     throwType: ThrowType,
     accuracyTier: ResultTier,
     rollRef: string,
+    /**
+     * ADR-089 P8: the ball left his hand at this many seconds from the snap, in whole milliseconds,
+     * under the throwing motion only; written after `rollRef`, so a THROW without it keeps its bytes.
+     */
+    releaseSeconds?: number,
   ): void {
     this.push({
       type: "THROW",
-      payload: { target, throwType, accuracyTier, rollRef },
+      payload: { target, throwType, accuracyTier, rollRef, ...(releaseSeconds === undefined ? {} : { releaseSeconds }) },
       ...this.base(),
     });
+  }
+
+  /** ADR-089 P6: an `arrival_contest` CHECK. */
+  arrivalContest(c: ArrivalContestEmission): void {
+    this.push({ type: "CHECK", payload: arrivalContestPayload(c), ...this.base() });
+  }
+
+  /** ADR-089 P7: a `QB_HIT`, right after the `arrival_contest` CHECK it names (SHED, SACK) or before its THROW. */
+  qbHit(hit: QbHitRecord): void {
+    this.push({ type: "QB_HIT", payload: { ...hit }, ...this.base() });
   }
 
   /**
