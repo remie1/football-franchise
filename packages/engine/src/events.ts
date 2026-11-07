@@ -14,6 +14,7 @@ import type {
   PlayId,
   PlayerId,
   QbDecisionChoice,
+  QbHitPhase as ContractsQbHitPhase,
   ResultTier,
   RollDetail,
   RoutePhase,
@@ -25,7 +26,6 @@ import type {
   ThrowType,
 } from "@ff/contracts";
 import type { PocketStatusRung } from "./resolve/pocket.js";
-import type { QbHitPhase as ContractsQbHitPhase } from "@ff/contracts";
 import type { ContestBand } from "./resolve/contact.js";
 import type { AtTheLineRecord, PassPlayStartPayload, RunPlayStartPayload } from "./types.js";
 
