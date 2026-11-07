@@ -119,8 +119,18 @@ export interface CapYear {
   readonly cap: number;
   /** Each team's top-51 total over its own cap (the league's plus its carryover; dead money counted), lowest first. */
   readonly capUse: number[];
-  /** Each team's dead money this league year (dollars), lowest first. */
+  /**
+   * Each team's dead money this league year (dollars), lowest first, as it stands at the end of the walk
+   * before it: the new league year's cuts and void years are in, its cut-down day and its season's cuts
+   * are not yet, so it reads low. `playedYearDead` counts a league year once its season is over.
+   */
   readonly deadMoney: number[];
+  /**
+   * The league year just played (the walk's own season), counted once its season is over: each team's
+   * dead money for it, lowest first, with the new league year's cuts, cut-down day and the season's cuts
+   * all in (ADR-085 step 14). The first walk's year starts with the league file's own dead money.
+   */
+  readonly playedYearDead: { readonly leagueYear: number; readonly cap: number; readonly perTeam: number[] };
   /** What each team carried into this league year (dollars), lowest first. */
   readonly carryover: number[];
   /** Share of all live cap numbers by position group. */
@@ -163,15 +173,19 @@ export function lastTeams(contracts: readonly PlayerContract[]): Map<string, str
 const live = (c: PlayerContract, season: number) => c.ended === undefined && c.years.some((y) => y.season === season && !y.voidYear);
 const capHit = (c: PlayerContract, season: number) => c.years.find((y) => y.season === season)?.capHit ?? 0;
 
+/** Each team's dead money charged to league year `year`, in the people's order of teams. */
+export function deadByTeam(people: Pick<SeasonPeople, "teams" | "deadMoney">, year: number): number[] {
+  const by = new Map<string, number>();
+  for (const d of people.deadMoney ?? []) if (d.season === year) by.set(String(d.team), (by.get(String(d.team)) ?? 0) + d.amount);
+  return people.teams.map((t) => by.get(String(t.id)) ?? 0);
+}
+
 function measure(
   people: SeasonPeople, events: readonly FranchiseEvent[], year: number, cap: number, seconds: number,
-  lastTeam: ReadonlyMap<string, string>,
+  lastTeam: ReadonlyMap<string, string>, played: { leagueYear: number; cap: number },
 ): CapYear {
   const contracts = people.contracts ?? [];
-  const dead = (people.deadMoney ?? []).filter((d) => d.season === year);
   const position = new Map(people.players.map((p) => [String(p.bio.id), p.bio.position]));
-  const deadBy = new Map<string, number>();
-  for (const d of dead) deadBy.set(String(d.team), (deadBy.get(String(d.team)) ?? 0) + d.amount);
   const capUse = people.teams.map((t) => {
     const carry = people.capCarryover?.find((c) => c.team === t.id && c.season === year)?.amount ?? 0;
     return teamCapTotal(t.id, year, contracts, people.deadMoney ?? [], { top51: true }).total / (cap + carry);
@@ -202,7 +216,8 @@ function measure(
   const comp = events.filter((e): e is Extract<FranchiseEvent, { type: "COMPENSATORY_PICKS_AWARDED" }> => e.type === "COMPENSATORY_PICKS_AWARDED");
   return {
     leagueYear: year, cap, capUse,
-    deadMoney: people.teams.map((t) => deadBy.get(String(t.id)) ?? 0).sort((a, b) => a - b),
+    deadMoney: deadByTeam(people, year).sort((a, b) => a - b),
+    playedYearDead: { ...played, perTeam: deadByTeam(people, played.leagueYear).sort((a, b) => a - b) },
     carryover: people.teams.map((t) => people.capCarryover?.find((c) => c.team === t.id && c.season === year)?.amount ?? 0).sort((a, b) => a - b),
     groupShare: Object.fromEntries(Object.entries(groups).map(([g, v]) => [g, total === 0 ? 0 : v / total])),
     topDeals,
@@ -390,7 +405,7 @@ export function runCapCheck(input: CapCheckInput): CapYear[] {
     input.onRun?.(season, events, people, { run, before });
     if (switched) people = sweepLimbo(people);
     current = { ...current, teams: people.teams };
-    const year = measure(people, events, season + 1, cap(season + 1), (Date.now() - started) / 1000, lastTeam);
+    const year = measure(people, events, season + 1, cap(season + 1), (Date.now() - started) / 1000, lastTeam, { leagueYear: season, cap: cap(season) });
     years.push(year);
     input.onYear?.(year);
     input.onSeasonEnd?.(season, people);

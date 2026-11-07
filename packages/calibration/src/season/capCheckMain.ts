@@ -51,7 +51,9 @@ function print(y: CapYear): void {
   console.log(`\nLeague year ${y.leagueYear}: cap ${m(y.cap)} (${y.seconds.toFixed(0)}s)`);
   console.log(`  cap used (top 51 + dead): lowest ${pct(y.capUse[0]!)}, median ${pct(mid(y.capUse))}, highest ${pct(y.capUse[y.capUse.length - 1]!)}`);
   console.log(`  carried over a team: mean ${m(mean(y.carryover))}, median ${m(mid(y.carryover))}, most ${m(y.carryover[y.carryover.length - 1]!)}`);
-  console.log(`  dead money a team: mean ${m(mean(y.deadMoney))}, median ${m(mid(y.deadMoney))}, most ${m(y.deadMoney[y.deadMoney.length - 1]!)}`);
+  console.log(`  dead money a team: mean ${m(mean(y.deadMoney))}, median ${m(mid(y.deadMoney))}, most ${m(y.deadMoney[y.deadMoney.length - 1]!)} (before its cut-down and season)`);
+  const played = y.playedYearDead;
+  console.log(`  league year ${played.leagueYear} over, dead money a team: mean ${m(mean(played.perTeam))} (${pct(mean(played.perTeam) / played.cap)} of its cap), median ${m(mid(played.perTeam))}, most ${m(played.perTeam[played.perTeam.length - 1]!)}   [real 2026: $49.3M, 16.4%, counted from the league file]`);
   console.log(`  share by group: ${Object.entries(y.groupShare).map(([g, s]) => `${g} ${pct(s)}`).join(", ")}`);
   console.log(`  biggest deals: ${y.topDeals.map((d) => `${d.position} ${m(d.apy)}`).join(", ")}`);
   const c = y.counts;

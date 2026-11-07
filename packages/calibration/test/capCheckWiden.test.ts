@@ -149,7 +149,7 @@ describe("the cap check's walk, widened (made-up seasons answer runSeason)", () 
     freeAgents: p.freeAgents.some((id) => String(id) === String(C)) ? p.freeAgents : [...p.freeAgents, C],
   });
   /** A walk whose every season is answered with its starting people, `edit`ed, and no events. */
-  function madeUpWalk(input: Omit<CapCheckInput, "seed" | "file">, edit: (p: SeasonPeople) => SeasonPeople = (p) => p) {
+  function madeUpWalk(input: Omit<CapCheckInput, "seed" | "file">, edit: (p: SeasonPeople, season: number) => SeasonPeople = (p) => p) {
     const handed: SeasonInput[] = [];
     const returned: SeasonRun[] = [];
     const years = withRunSeason((i) => {
@@ -157,7 +157,7 @@ describe("the cap check's walk, widened (made-up seasons answer runSeason)", () 
       const run = {
         state: { season: i.season } as unknown as SeasonRun["state"],
         calendar: { season: i.season, phase: "OFF_SUMMER", week: 1, day: 7 } as CalendarStamp,
-        events: [], complete: true, people: edit(i.people!),
+        events: [], complete: true, people: edit(i.people!, i.season),
       } satisfies SeasonRun;
       returned.push(run);
       return run;
@@ -187,6 +187,30 @@ describe("the cap check's walk, widened (made-up seasons answer runSeason)", () 
     expect(handed[1]!.people!.freeAgents).not.toContain(B);
     expect(handed[1]!.people!.freeAgents.filter((id) => String(id) === String(C))).toHaveLength(1);
     expect(limboPlayers(returned[1]!.people!)).toEqual([]);
+  }, 300_000);
+
+  it("counts a league year's dead money once its season is over, beside next year's as it stands (step 14)", () => {
+    // Each made-up season leaves a $5M charge on the first team for the year it played (a cut-down cut)
+    // and a $2M one for the next league year (a cap cut at its start).
+    const team = file.league.teams[0]!.id;
+    const who = file.league.players[0]!.bio.id;
+    const base = madeUpWalk({ seasons: 2 }).years;
+    const { years } = madeUpWalk({ seasons: 2 }, (p, season) => ({
+      ...p,
+      deadMoney: [...(p.deadMoney ?? []),
+        { team, player: who, season, amount: 5_000_000, reason: "RELEASED" as const },
+        { team, player: who, season: season + 1, amount: 2_000_000, reason: "RELEASED" as const }],
+    }));
+    const sum = (xs: readonly number[]) => xs.reduce((a, x) => a + x, 0);
+    expect(years.map((y) => y.playedYearDead.leagueYear)).toEqual([2026, 2027]);
+    expect(years.map((y) => y.leagueYear)).toEqual([2027, 2028]);
+    expect(years[0]!.playedYearDead.cap).toBe(capForecast(SEED)(2026));
+    // The year just played has its season's charge; next year's has only what its start has charged so far.
+    expect(sum(years[0]!.playedYearDead.perTeam) - sum(base[0]!.playedYearDead.perTeam)).toBe(5_000_000);
+    expect(sum(years[0]!.deadMoney) - sum(base[0]!.deadMoney)).toBe(2_000_000);
+    // 2027, once played: the $2M charged at its start and the $5M of its own season.
+    expect(sum(years[1]!.playedYearDead.perTeam) - sum(base[1]!.playedYearDead.perTeam)).toBe(7_000_000);
+    expect(years.every((y) => y.playedYearDead.perTeam.every((x, i, xs) => i === 0 || xs[i - 1]! <= x))).toBe(true);
   }, 300_000);
 
   it("switched off, nothing is swept: the next season starts with the people the last one left", () => {

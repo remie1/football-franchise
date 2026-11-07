@@ -23,10 +23,11 @@ import { seasonsIn } from "../draft/cutdown.js";
 import { DRAFT_DAYS } from "../draft/steps.js";
 import { aheadView, gmEvaluation, type AheadView } from "./ahead.js";
 import { capNumber, designatedIn, expireContract, isAfterJune1, liveIn, releasePlayer, restructure, teamCapTotal } from "./money.js";
-import { BASE_CAP, CASH_FLOOR, MAX_PRORATION_YEARS, POST_JUNE_1_DESIGNATIONS, RFA_SEASONS, type TenderLevel } from "./rules.js";
+import { BASE_CAP, CASH_FLOOR, MAX_PRORATION_YEARS, POST_JUNE_1_DESIGNATIONS, RFA_SEASONS, TAG_GROUP, type TenderLevel } from "./rules.js";
 import { ROOKIE_SCALE_2026 } from "./rookieScale2026.js";
 import { minimumContract, minimumSalary, tagContract, tagPrice, tenderPrice } from "./signings.js";
 import { ageFactorAt, apyOf, firstYearShareFor, guaranteedShare, marketCurves, structureFor, valuePlayer, veteranContract, type MarketCurves } from "./value.js";
+import { pushedOut, valueForMoney } from "./valueForMoney.js";
 import { askingPrice, offerWorth, type MarketWindow } from "./negotiation.js";
 import { floorShortfall, planWithFloor, teamCapPlan, type CapPlan } from "./leaning.js";
 
@@ -54,6 +55,12 @@ export const MARKET = {
   rounds: 8,
   /** Seats kept on the 90 for the draft's picks before it is made. */
   draftSeats: 9,
+  /**
+   * Step 14, §3.3 (owner's okay, 2026-11-06): seats also kept before the draft for the undrafted rookies
+   * signed after it. COUNTED: about 16 undrafted rookie deals a team a year, 2022-25 (OverTheCap's
+   * contract histories, nflverse).
+   */
+  undraftedSeats: 16,
   /** A player a team wants back: he makes its 53 by its own grade. */
   keepIfOnWanted: true,
   /** Percentile at or above which a declined star is franchise-tagged, if the team can afford it. */
@@ -199,12 +206,10 @@ function roomFor(team: TeamId, season: number, book: Book, cap: CapForSeason, re
  * picks are not listed in `people.picks`, so a team holds its own unless someone else does.
  */
 export function rookieReserve(team: TeamId, draft: number, people: LeaguePeople, rules: LeagueRules, cap: CapForSeason): number {
-  const rounds = rules.draft?.rounds ?? DEFAULT_LEAGUE_RULES.draft?.rounds ?? 7;
-  const listed = people.picks.filter((p) => p.draft === draft);
+  const byRound = picksHeld(team, draft, people, rules);
   let total = 0;
-  for (let r = 1; r <= rounds; r++) {
-    const tradedAway = listed.some((p) => p.round === r && p.originalTeam === team && p.owner !== team);
-    const held = (tradedAway ? 0 : 1) + listed.filter((p) => p.round === r && p.owner === team && p.originalTeam !== team).length;
+  for (let r = 1; r <= byRound.length; r++) {
+    const held = byRound[r - 1]!;
     const slots = ROOKIE_SCALE_2026.slice((r - 1) * 32, r * 32);
     const avg = slots.length ? slots.reduce((a, s) => a + s[0], 0) / slots.length : ROOKIE_SCALE_2026.at(-1)![0];
     total += held * avg / 4 * cap(draft) / BASE_CAP;
@@ -223,6 +228,63 @@ function withDepth(t: Team, byId: ReadonlyMap<string, PlayerState>, rate: Rate):
 }
 
 /** Does `grade` make the team's wanted count at his position, by the team's own grades? */
+/** How many picks a team holds in each round of a draft (index 0 = round 1): its own unless traded away, plus those it got. */
+function picksHeld(team: TeamId, draft: number, people: Pick<LeaguePeople, "picks">, rules: LeagueRules): number[] {
+  const rounds = rules.draft?.rounds ?? DEFAULT_LEAGUE_RULES.draft?.rounds ?? 7;
+  const listed = people.picks.filter((p) => p.draft === draft);
+  return Array.from({ length: rounds }, (_, i) => {
+    const r = i + 1;
+    const tradedAway = listed.some((p) => p.round === r && p.originalTeam === team && p.owner !== team);
+    return (tradedAway ? 0 : 1) + listed.filter((p) => p.round === r && p.owner === team && p.originalTeam !== team).length;
+  });
+}
+
+/** Step 14, §3.4: the classes a typical pick of each round is read from, the last this many. CHOSEN. */
+export const PICK_SEAT_CLASSES = 3;
+
+/**
+ * Step 14, §3.4 (owner's yes, 2026-11-06): what a pick of each round has become in this league, the
+ * mean rating today of the picks of that round in the last `PICK_SEAT_CLASSES` classes before `draft`.
+ * A round with no such pick is left out.
+ */
+export function typicalPicks(players: readonly PlayerState[], draft: number, rate: Rate): Map<number, number> {
+  const sum = new Map<number, { s: number; n: number }>();
+  for (const p of players) {
+    const d = p.bio.draft;
+    if (typeof d !== "object" || d.year < draft - PICK_SEAT_CLASSES || d.year >= draft) continue;
+    const o = sum.get(d.round) ?? { s: 0, n: 0 };
+    o.s += rate(p);
+    o.n += 1;
+    sum.set(d.round, o);
+  }
+  return new Map([...sum].map(([r, o]) => [r, o.s / o.n]));
+}
+
+/**
+ * Step 14, §3.4: the seats a team holds on re-signing day for its own coming picks. Each pick is a
+ * stand-in man rated what a pick of its round has become here (`typicalPicks`), seated at the position
+ * the team needs most that no earlier pick took, rounds in order. Its own free agents are judged with
+ * them in the room: whether they make the 53, and what they add for the money.
+ */
+function pickSeats(
+  team: TeamId, kept: readonly PlayerState[], grade: Rate, people: Pick<LeaguePeople, "picks">, draft: number, rules: LeagueRules,
+  typical: ReadonlyMap<number, number>,
+): Map<Position, number[]> {
+  const seats = new Map<Position, number[]>();
+  if (typical.size === 0) return seats;
+  const need = new Map((Object.keys(WANTED) as Position[]).map((pos) => [pos, needAt(pos, kept, grade)]));
+  picksHeld(team, draft, people, rules).forEach((n, i) => {
+    const g = typical.get(i + 1);
+    for (let k = 0; k < n && g !== undefined; k++) {
+      let at: Position | undefined;
+      for (const [pos, x] of need) if (!seats.has(pos) && (at === undefined || x > need.get(at)!)) at = pos;
+      if (at === undefined) return;
+      seats.set(at, [g]);
+    }
+  });
+  return seats;
+}
+
 function makesTheRoster(grade: number, position: Position, others: readonly number[]): boolean {
   return others.filter((g) => g > grade).length < WANTED[position];
 }
@@ -326,6 +388,7 @@ function reSign(
   const at = ctx.day;
   const plan = (t: TeamId) => teamCapPlan(t, people.staff);
   const reserveFor = (t: TeamId) => rookieReserve(t, next, people, ctx.rules, config.cap) + plan(t).cushion;
+  const typical = typicalPicks(people.players, next, config.rate);
   for (const team of people.teams) {
     // Before the new league year the carryover is not set: the team counts on the room it has now.
     const carry = unusedRoom(team.id, ctx.season, people, book, config.cap);
@@ -334,8 +397,18 @@ function reSign(
     const grade = (p: PlayerState) => teamGrade(team.id, p, skill, config.ahead.forTeam(team.id), ctx.seed, ctx.season);
     const kept = roster.filter((p) => !book.contracts.some((c) => String(c.player) === String(p.bio.id) && endsAfter(c, ctx.season)));
     const expiring = roster.filter((p) => !kept.includes(p) && !hasDealIn(book.contracts, String(p.bio.id), next))
-      .map((p) => ({ p, g: grade(p) })).sort((a, b) => b.g * POSITION_VALUE[b.p.bio.position] - a.g * POSITION_VALUE[a.p.bio.position]);
-    const gradesAt = (pos: Position) => kept.filter((k) => k.bio.position === pos).map(grade);
+      .map((p) => ({ p, g: grade(p) }));
+    // Step 14, §3.4: seats held for the team's own coming picks count as men at their positions.
+    const picks = pickSeats(team.id, kept, grade, people, next, ctx.rules, typical);
+    const gradesAt = (pos: Position) => [...kept.filter((k) => k.bio.position === pos).map(grade), ...(picks.get(pos) ?? [])];
+    // Step 14, §3.1: the team takes its own free agents in value-for-money order, every man it keeps at
+    // his position counted, so the room goes first to the men worth most over their price.
+    const worthFirst = new Map(expiring.map((e) => {
+      const floor = minimumSalary(next, seasonsIn(e.p, next), config.cap);
+      const v = valuePlayer(e.p, e.g, curves, floor, config.cap(next), config.ahead.value(team.id, e.p));
+      return [e, valueForMoney({ position: e.p.bio.position, here: gradesAt(e.p.bio.position), grade: e.g, apy: v.apy, floor, curve: curves.get(TAG_GROUP[e.p.bio.position]) })] as const;
+    }));
+    expiring.sort((a, b) => worthFirst.get(b)! - worthFirst.get(a)!);
     const declined: { p: PlayerState; g: number; percentile: number; prior: number }[] = [];
     for (const { p, g } of expiring) {
       const pos = p.bio.position;
@@ -358,6 +431,8 @@ function reSign(
         const offer = buildOffer(p, team.id, next, at, v.apy, v.years, v.percentile, cs, config.cap, "EXTENSION");
         // A team does not let its last man at a starting seat walk over next year's room.
         const lastMan = gradesAt(pos).length < Math.max(1, STARTERS[pos]);
+        // Nor does it keep a man worth less to it than his price (step 14, §3.1): he goes to the market.
+        if (!lastMan && valueForMoney({ position: pos, here: gradesAt(pos), grade: g, apy: apyOf(offer), floor: dealFloor(offer, cs, config.cap), curve: curves.get(TAG_GROUP[pos]) }) < 0) continue;
         if (capNumber(offer.years[0]!) <= room && (lastMan || secondYearFits(team.id, offer, book, config.cap, plan(team.id)))) {
           const ask = askingPrice(p, askValue(p, config, curves, minimumSalary(next, cs, config.cap), config.cap(next)), "VALUE", 0, minimumSalary(next, cs, config.cap), ctx.seed, ctx.season);
           const worth = offerWorth(p, {
@@ -438,6 +513,18 @@ function buildOffer(
     player: p.bio.id, team, season, signedAt: at, apy, years, bonusShare: s.bonusShare, guaranteedYears: s.guaranteedYears,
     minimum: (i) => minimumSalary(season + i, cs + i, cap), kind, firstYearShare: firstYearShareFor(apy / cap(season)),
   });
+}
+
+/**
+ * The least a team could pay a man a year over a deal's real years: each year's minimum salary, by his
+ * credited seasons then, averaged. Value for money weighs his pay over this, so a deal at the minimum
+ * every year costs nothing over it, however long it runs.
+ */
+function dealFloor(c: PlayerContract, cs: number, cap: CapForSeason): number {
+  const real = c.years.filter((y) => !y.voidYear);
+  if (real.length === 0) return 0;
+  const first = real[0]!.season;
+  return real.reduce((a, y) => a + minimumSalary(y.season, cs + (y.season - first), cap), 0) / real.length;
 }
 
 /**
@@ -753,7 +840,7 @@ function freeAgency(
     const order = shuffled(teams.map((t) => t.id), ctx.seed, `fa/${String(ctx.day.phase)}/${ctx.day.week}/${ctx.day.day}/${round}`);
     for (const teamId of order) {
       const t = teams.find((x) => x.id === teamId)!;
-      const seats = limit - t.roster.length - (beforeDraft ? MARKET.draftSeats : 0);
+      const seats = limit - t.roster.length - (beforeDraft ? MARKET.draftSeats + MARKET.undraftedSeats : 0);
       if (seats <= 0) continue;
       const room = roomFor(t.id, season, book, config.cap, reserve(t.id), adjustedCap(t.id, season, people, config.cap) - config.cap(season), plan(t.id).lookAhead, ctx.day);
       if (room <= 0) continue;
@@ -781,6 +868,15 @@ function freeAgency(
       const liveAt = new Map<string, number>();
       book.contracts.forEach((c, i) => { if (c.team === t.id && !c.ended && c.years.some((y) => y.season === season && !y.voidYear)) liveAt.set(String(c.player), i); });
       const cutCost = new Map<number, { dead: number; saving: number }>();
+      // What letting the man on deal `i` go today would cost: dead money in all seasons, and this season's saving.
+      const costOfCut = (i: number) => cutCost.get(i) ?? (() => {
+        const c = book.contracts[i]!;
+        const charges = releasePlayer(c, ctx.day).charges;
+        const now = charges.filter((x) => x.season === season).reduce((a, x) => a + x.amount, 0);
+        const v = { dead: charges.reduce((a, x) => a + x.amount, 0), saving: capNumber(c.years.find((y) => y.season === season)!) - now };
+        cutCost.set(i, v);
+        return v;
+      })();
       const totals = new Map<number, number>();
       const cutFor = (pos: Position, g: number, short: number) => {
         let pick: { i: number; p: PlayerState; saving: number } | undefined;
@@ -788,14 +884,7 @@ function freeAgency(
           if (gr > g - MARKET.upgradeMargin) continue;
           const i = liveAt.get(String(r.bio.id));
           if (i === undefined) continue;
-          const k = cutCost.get(i) ?? (() => {
-            const c = book.contracts[i]!;
-            const charges = releasePlayer(c, ctx.day).charges;
-            const now = charges.filter((x) => x.season === season).reduce((a, x) => a + x.amount, 0);
-            const v = { dead: charges.reduce((a, x) => a + x.amount, 0), saving: capNumber(c.years.find((y) => y.season === season)!) - now };
-            cutCost.set(i, v);
-            return v;
-          })();
+          const k = costOfCut(i);
           if (k.dead > MARKET.swapDeadMost * config.cap(season)) continue;
           const saving = k.saving;
           if (saving >= short && (!pick || saving > pick.saving)) pick = { i, p: r, saving };
@@ -833,7 +922,20 @@ function freeAgency(
         }
         // A hole (fewer than the position's starters, at least one) comes before any upgrade.
         const hole = here.length < Math.max(1, STARTERS[pos]) ? HOLE_FIRST : 0;
-        const score = hole + (g - 50) * POSITION_VALUE[pos] * (1 + need);
+        // Step 14, §3.1: then value for money, every man at the position counted (`valueForMoney.ts`).
+        // A signing that would push a teammate off the 53 counts that man's dead money, spread over the
+        // new deal, and is passed over when the cut would leave more than a swap may (`swapDeadMost`).
+        let seat = 0;
+        const out = pushedOut(menAt.get(pos) ?? [], pos, g);
+        const outAt = out ? liveAt.get(String(out.r.bio.id)) : undefined;
+        if (outAt !== undefined) {
+          const k = costOfCut(outAt);
+          if (k.dead > MARKET.swapDeadMost * config.cap(season)) continue;
+          seat = k.dead / Math.max(1, contract.years.filter((y) => !y.voidYear).length);
+        }
+        const value = valueForMoney({ position: pos, here, grade: g, apy: apyOf(contract), floor: dealFloor(contract, cs, config.cap), curve: curves.get(TAG_GROUP[pos]), extraCost: seat });
+        if (!hole && value < 0) continue;
+        const score = hole + value;
         if (!best || score > best.score) best = { p, contract, score, starts: wouldStart(g, pos, here), ...(cut ? { cut: { i: cut.i, p: cut.p } } : {}) };
       }
       if (!best) continue;
