@@ -1147,9 +1147,13 @@ export function runStep4Digests(opts: { readonly filedPath: string; readonly ame
 
 // --- the command -----------------------------------------------------------------------------------------
 
-/** The `--report` and `--out` that would write over a closed step's committed records (steps 1 to 3, and step 4's once `STEP4_RECORDS_FINAL`); empty when none does. */
-export function closedStep4Writes(args: Pick<Step4Args, "report" | "out">, cwd: string, pkgRoot: string = PKG_ROOT, final: boolean = STEP4_RECORDS_FINAL): readonly string[] {
-  const closed = new Set([...STEP1_CLOSED_RECORDS, ...STEP2_CLOSED_RECORDS, ...STEP3_RECORDS, ...(final ? STEP4_RECORDS : [])].map((r) => realOf(join(pkgRoot, r))));
+/**
+ * The `--report` and `--out` that would write over a closed step's committed records (steps 1 to 3,
+ * and step 4's once `STEP4_RECORDS_FINAL`); empty when none does. A `--probes` run never writes
+ * step 4's own records, final or not (review 2 N5): those are the graded run's.
+ */
+export function closedStep4Writes(args: Pick<Step4Args, "report" | "out" | "probes">, cwd: string, pkgRoot: string = PKG_ROOT, final: boolean = STEP4_RECORDS_FINAL): readonly string[] {
+  const closed = new Set([...STEP1_CLOSED_RECORDS, ...STEP2_CLOSED_RECORDS, ...STEP3_RECORDS, ...(final || args.probes === true ? STEP4_RECORDS : [])].map((r) => realOf(join(pkgRoot, r))));
   return (["report", "out"] as const).flatMap((flag) => {
     const value = args[flag];
     return value !== undefined && closed.has(realOf(resolve(cwd, value))) ? [`--${flag} ${value}`] : [];

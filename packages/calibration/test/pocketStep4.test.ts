@@ -235,6 +235,9 @@ describe("the plan, --part1, --digests and the closed writes", () => {
     expect(closedStep4Writes({ report: "reports/adr-089-step3.md", out: "reports/adr-089-step2.json" }, PKG)).toEqual(["--report reports/adr-089-step3.md", "--out reports/adr-089-step2.json"]);
     expect(closedStep4Writes({ report: "reports/adr-089-step4.md" }, PKG)).toEqual([]);
     expect(closedStep4Writes({ report: "reports/adr-089-step4.md" }, PKG, PKG, true)).toEqual(["--report reports/adr-089-step4.md"]);
+    // A probe run never writes over step 4's own records, final or not (review 2 N5).
+    expect(closedStep4Writes({ report: "reports/adr-089-step4.md", out: "reports/adr-089-step4.json", probes: true }, PKG)).toEqual(["--report reports/adr-089-step4.md", "--out reports/adr-089-step4.json"]);
+    expect(closedStep4Writes({ report: "/tmp/probes.md", probes: true }, PKG)).toEqual([]);
   });
 });
 
