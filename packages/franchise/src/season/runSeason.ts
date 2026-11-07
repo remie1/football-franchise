@@ -271,11 +271,13 @@ export function runSeason(input: RunSeasonInput): SeasonRun {
       return;
     }
     stepped = day;
+    const dayStart = people!;
+    const earlier: FranchiseEvent[] = [];
     for (const step of steps) {
-      const r = step.run(people!, { day, season, seed, rules, state, games });
+      const r = step.run(people!, { day, season, seed, rules, state, games, dayStart, earlier });
       if (!r) continue;
       people = r.people;
-      for (const event of r.events) stepEmit(step.id, event);
+      for (const event of r.events) { stepEmit(step.id, event); earlier.push(event); }
     }
   };
   const moveTo = (to: CalendarStamp) => {

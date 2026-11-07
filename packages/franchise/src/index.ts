@@ -36,6 +36,9 @@ export {
   isFrontOfficeRole, ladderJob, makeLadderMan, makeOutsider,
   type GmCandidateReport, type GmSource, type GmVerdict, type LadderRole,
 } from "./staff/frontOffice.js";
+export {
+  FORMER_PLAYERS, enterFormerPlayers, fromPlayer, retireeGoes, scoutsReady, standInRetirees, type Retiree,
+} from "./staff/formerPlayers.js";
 // ADR-094 Q13 a: midseason firings, an interim finishing the year.
 export { MIDSEASON, runMidseasonWeek, type MidseasonInput, type MidseasonResult } from "./staff/midseason.js";
 export { INTERIM_KEEP } from "./staff/offseason.js";
@@ -51,7 +54,7 @@ export { rosterFit } from "./staff/style.js";
 export { makeCoach, drawDisguise, type Cohort } from "./staff/makeCoach.js";
 export { makeRatings, seatScore, averageSkill, COACH_SKILLS, MEETING_SKILLS, type CoachRatings } from "./staff/ratings.js";
 export { initStandIn, standInSeason, collegeRecord, programStrength, type StandInState } from "./staff/standIn.js";
-export { staffTurnoverCheck, type TurnoverReport, type SeasonTally, type Band } from "./staff/check.js";
+export { FORMER_WARMUP, staffTurnoverCheck, type FormerTally, type TurnoverReport, type SeasonTally, type Band } from "./staff/check.js";
 export {
   currentJob, isRetired, seatOf, sideOf, winShare,
   type StaffWorld, type TeamSeasonSummary,
@@ -175,4 +178,8 @@ export {
   type LeanHolder,
 } from "./winNow/lean.js";
 export { CONTRACT_YEAR_PRESSURE, PRESSURE_PUSH, gmPressure, headCoachPressure, workingLean, type SeasonSoFar } from "./winNow/pressure.js";
+export {
+  PLAYOFF_ODDS, STANCE, guessChance, missSd, playoffChance, readSkill, recordsAfter, stanceFor, stepToward, stepsBetween, weeklyStance,
+  type WeekRead, type WeeklyStanceInput, type WeeklyStanceResult,
+} from "./winNow/stance.js";
 

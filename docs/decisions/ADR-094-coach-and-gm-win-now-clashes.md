@@ -324,6 +324,80 @@ Midseason firings (Q13 a) come in the next PR.
 - Tests: `test/staff.midseason.test.ts` (8); the season-walk tests now read the world as the
   playoffs end for the carousel and count seated GMs.
 
+**Step 3 (2026-11-07, same thread; §3-§6, contracts W1 and W2).** Contracts: `TeamStance`,
+`Team.stance`, `TEAM_STANCE_SET` and `COURSE_ARGUED` (owner's typed yes, 2026-11-07). In
+`packages/franchise`, `src/winNow/stance.ts`:
+- The playoff chance (Q6 a), MEASURED from 45 seasons of our own league (seeds odds-1 to odds-45,
+  `season` command, engine `legacy`; 24,480 team-weeks): a fitted curve rather than a raw table,
+  since the table's corners are thin. A team is on course for its wins so far plus the games left
+  at its pace pulled toward .500 as if it had played 17.6 more games at .500; the chance is a
+  logistic in that against a center of 8.93 wins, its spread sqrt(0.46^2 + 0.11 x games left).
+  Against the measured rows: 5-3 70% (71% measured), 4-2 71% (69%), 3-3 41% (40%), 2-4 17% (17%),
+  every tenth of the chance within 3 points. Beside the real NFL, COUNTED from nflverse's schedules
+  (2021-2025, 14 of 32 make it, 17 games; teams' records after each week): 5-3 71% (31 teams), 4-2
+  75% (44), 3-3 35% (46), 2-4 21% (33), 6-2 86% (35). Over 2002-2025 (12 or 14 made it): 5-3 59%,
+  4-2 65%, 3-3 33%, close to the REPORTED 57, 61 and 35 above. Our records mean a little less
+  than real ones (the real fit pulls toward .500 by about 10 games, ours by 17.6): more luck in our
+  league's results.
+- The read (§3): each man's guess is the truth moved in log-odds by his miss, sd 0.6 at read skill 25
+  and 0.45 at 85 (25% smaller, outlook Q2 b), read skill being the mean of forecasting and
+  performance analysis. One draw per man, team and week, but 0.8 of last week's miss carries into
+  this week's, so a man holds an opinion rather than flipping with each draw; with independent
+  draws and an sd of 1.0, 41% of teams' men called sell after one game. All CHOSEN.
+- Stance (§4), argument (§5) and souring (§6) as ruled; Q4 a's "last week" is worked out again from
+  the season's results and the seated men with the same dice, so nothing new is kept and a stop or a
+  save plays the same. Whether the two split, and how far, comes out exactly; the heat of the weeks
+  compared reads the two men's views as they stand today. A man seated in midseason counts the split
+  from his first week. `OVERRULED_ON_COURSE` (-3) goes on the coach's view of the GM whenever the
+  week's course is not the coach's.
+- `src/staff/steps.ts`: the step `staff:stance` runs after `staff:midseason` on each regular-season
+  week's last day but the season's last, in a league whose teams have a GM, coach and president
+  (the `season` command's league seats its GMs, ADR-081 G1, so it runs there; play is unchanged). The
+  user's team is left out until it has a screen. `Team.direction` is untouched (Q5 a); nothing in
+  play reads the stance yet.
+- Ten stand-in seasons with GMs (made-up results, seeds stats-0 to stats-9): the two split in 23% of
+  team-weeks, about 4 arguments a team-season of which 2.5 cost (POLITE 48%, OPEN 33%, RIFT 19%);
+  the stance changes about 4 times a team-season; after week 9, 42% buy, 19% hold, 39% sell. Head
+  coaches win 3 of 4 arguments that have a winner, because our GMs' politics run lower (mean 46
+  against head coaches' 56); the GM decides all the same, and at ADR-084's rest views no GM thinks
+  well enough of his coach (20) to meet him, so Q3 b's one step waits on warmer views.
+- Tests: `test/winNow.stance.test.ts` (8); calibration's real-season test now lets the weekly
+  arguments move the views.
+
+**Step 3b (2026-11-07, same thread; §10).** In `packages/franchise`; no contracts change (W4's
+`StaffState.formerPlayer` was made with the design).
+- COUNTED, 2026-11-07, from the 32 teams' Wikipedia staff templates (29 read cleanly; the Vikings',
+  Saints' and Commanders' did not parse), a man counted as having played when his page carries a
+  Pro Football Reference player id (camp-only men cannot be told apart this way, and an unlinked
+  coach is taken as not having played, since a man who played an NFL game has a page): head coaches
+  7 of 29 (24%; 9 of 32, 28%, in the design's count), offensive and defensive coordinators 9 of 56
+  (16%; a lower bound: at least one coordinator who played was missed), special teams coordinators 7
+  of 26, position coaches and their assistants 151 of 532 (28%), quality control 12 of 66.
+- `src/staff/formerPlayers.ts`: when a player retires, he goes into coaching with log-odds -5.2 +
+  0.03 per point of awareness over 50 + 0.02 per point of discipline + 0.3 per credited season (up to
+  10), or into scouting with -4.9 + the same awareness and discipline terms; nobody over 40. The
+  league has no leadership rating, so none is read; his position never is. A coach joins a team
+  drawn by his own dice as a position coach (his side drawn as any new coach's), a scout as a
+  `SCOUT` on its front office, each under his own name and age. Q14 b: his ratings are drawn as
+  anyone's; Q15 b: nothing in hiring reads `formerPlayer`. All CHOSEN.
+- `src/staff/offseason.ts`: a scouting director's empty chair goes first to the team's best scout
+  (by GM skills) with 4 or more seasons scouting, else to a new man as before. Scouts are on the
+  front-office track, never coaching candidates.
+- `src/staff/steps.ts`: the step `staff:former-players` runs on any day a player retires (today only
+  unsigned players do, ADR-087 §6.1, so only with the players' switches on), reading the retiree as
+  he stood that morning. `runSeason` now hands each step the day's people as they started and what
+  the steps before it emitted.
+- `staff-check` retires about 350 made-up players a year (half never credited, the rest 1 to 15
+  seasons), on by default (`--no-former-players` leaves them out). Shares read after 25 seasons,
+  three seeds, 80 seasons, with GMs: head coaches 20-27% played and 5-6% camp only; coordinators
+  24-30% and 5-7%; position coaches 24-30% and 7-9%; new GMs 14-17% played and 14-19% camp only
+  (COUNTED 14% and 14%). Turnover holds (head coach changes 7.7 a year, 7.8 without; GM changes 3.9
+  to 4.5, hire mix within 5 points of the count). The pool grows from about 300 to 356 men and the
+  average head coach is 46 rather than 48, since former players start young.
+- The made-up history and the stand-in league's copied coaches start with no former players (W4
+  needs a player in this league), so the shares build over the first decades of a league.
+- Tests: `test/staff.formerPlayers.test.ts` (6).
+
 ## Appendix A: new GMs by season, 2018-2026 (counted from Wikipedia season pages)
 
 Background: FO = came up through a front office; Re = former GM; HC = head coach given GM power;

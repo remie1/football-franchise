@@ -16,11 +16,13 @@
  */
 import type { PlayerState, StaffState } from "@ff/contracts";
 import { isDay, type DayStep, type LeaguePeople } from "../season/people.js";
-import { driftWeek, seatRelationships, type RelationshipContext } from "../relationships/ledger.js";
+import { driftWeek, seatRelationships, syncViews, type RelationshipContext } from "../relationships/ledger.js";
 import { lineupFor } from "../players/lineup.js";
 import { DAYS_PER_WEEK } from "../calendar/clock.js";
 import { runStaffOffseason, type StaffOffseasonInput } from "./offseason.js";
 import { runMidseasonWeek } from "./midseason.js";
+import { weeklyStance } from "../winNow/stance.js";
+import { enterFormerPlayers, fromPlayer } from "./formerPlayers.js";
 import { summariseSeason } from "./summarise.js";
 import { seatOf } from "./world.js";
 
@@ -71,6 +73,40 @@ export function staffSteps(config: StaffStepsConfig = {}): DayStep[] {
         return {
           people: { ...people, staff: world.staff, coaching: { world, ...(r.relationships ? { relationships: r.relationships } : {}) } },
           events: r.events.map((e) => e.event),
+        };
+      },
+    },
+    {
+      // ADR-094 §10: players who retired today may come back as coaches or scouts.
+      id: `${STAFF_STEP_PREFIX}former-players`,
+      run: (people, day) => {
+        const coaching = people.coaching;
+        if (!coaching || !day.earlier || !day.dayStart) return undefined;
+        const gone = new Set(day.earlier.flatMap((e) => (e.type === "PLAYER_RETIRED" ? [String(e.payload.player)] : [])));
+        if (gone.size === 0) return undefined;
+        const retirees = day.dayStart.players.filter((p) => gone.has(String(p.bio.id))).map(fromPlayer);
+        const world = enterFormerPlayers(coaching.world, retirees, coaching.world.season, day.seed);
+        if (world === coaching.world) return undefined;
+        const relationships = coaching.relationships ? syncViews(coaching.relationships, world, ctx) : undefined;
+        return { people: { ...people, staff: world.staff, coaching: { world, ...(relationships ? { relationships } : {}) } }, events: [] };
+      },
+    },
+    {
+      // ADR-094 §3-§6: after the week's games (and any firing), each computer team's GM and coach read its chances and set a stance.
+      id: `${STAFF_STEP_PREFIX}stance`,
+      run: (people, day) => {
+        const coaching = people.coaching;
+        if (!coaching || day.day.phase !== "REGULAR_SEASON" || day.day.day !== DAYS_PER_WEEK) return undefined;
+        if (coaching.world.season !== day.season) return undefined;
+        const r = weeklyStance({
+          world: coaching.world, teams: people.teams, state: day.state, season: day.season, week: day.day.week,
+          weeks: day.rules.weeksPerSeason, at: day.day, seed: day.seed, context: ctx,
+          ...(coaching.relationships ? { views: coaching.relationships } : {}),
+        });
+        if (r.events.length === 0) return undefined;
+        return {
+          people: { ...people, teams: r.teams, coaching: { ...coaching, ...(r.views ? { relationships: r.views } : {}) } },
+          events: r.events,
         };
       },
     },

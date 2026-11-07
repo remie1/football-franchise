@@ -74,6 +74,8 @@ export const RELATIONSHIP_MOVES = {
   /** The GM's view of the user. */
   OVERRULED_GM: { kind: "EVERYDAY", delta: -1 },
   OVERRULED_GM_HARD: { kind: "EVERYDAY", delta: -2 },
+  /** ADR-094 Q4a: the coach's view of the GM when the week's course goes against him (each repeat at most every few weeks). */
+  OVERRULED_ON_COURSE: { kind: "EVERYDAY", delta: -3 },
   CREDITED_IN_PRESS: { kind: "EVERYDAY", delta: 1 },
   LOSS_PUT_ON_HIS_UNIT: { kind: "EVERYDAY", delta: -2 },
   ASKED_HOW_SURE: { kind: "EVERYDAY", delta: -2, byRest: { coldBelow: 0, cold: -3, warmFrom: 10, warm: -1 } },

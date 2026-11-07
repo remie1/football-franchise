@@ -39,6 +39,19 @@ describe("the end-of-season meeting (ADR-081)", () => {
     expect(set.payload).toMatchObject({ direction: "CONTEND" });
   });
 
+  it("ADR-094 W1 and W2: a team carries its stance, and setting and arguing it are events", () => {
+    const t: Pick<Team, "stance"> = { stance: "SELL" };
+    const set: FranchiseEvent = { type: "TEAM_STANCE_SET", payload: { team, season: 2027, week: 9, stance: "BUY", authority: "GM" } };
+    const argued: FranchiseEvent = {
+      type: "COURSE_ARGUED",
+      payload: { team, season: 2027, week: 9, gm: sid("gm"), coach: sid("hc"), gmStance: "SELL", coachStance: "BUY", heat: "OPEN_ARGUMENT", outcome: "HOLD" },
+    };
+    expect(t.stance).toBe("SELL");
+    expect(JSON.parse(JSON.stringify(set))).toEqual(set);
+    expect(JSON.parse(JSON.stringify(argued))).toEqual(argued);
+    expect(argued.type === "COURSE_ARGUED" && argued.payload.winner).toBeUndefined();
+  });
+
   it("G5: five new staff skills join the coaches' list, after the first 19", () => {
     const ids = Object.keys(COACH_ATTRIBUTE_REGISTRY_V1);
     expect(ids).toHaveLength(24);
