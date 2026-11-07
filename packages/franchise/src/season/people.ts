@@ -69,6 +69,10 @@ export interface DayStepContext {
   state: SeasonState;
   /** The games played on this day, with whatever the resolver handed back beside the score. */
   games: readonly { game: ScheduledGame; result: GameResult; extras?: unknown }[];
+  /** The people as this day's steps found them, before the first step ran (ADR-094 §10 reads who left today). */
+  dayStart?: LeaguePeople;
+  /** What the steps before this one emitted today. */
+  earlier?: readonly FranchiseEvent[];
 }
 
 export interface DayStep {

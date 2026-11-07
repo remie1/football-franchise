@@ -14,7 +14,8 @@ import { createRng, type WinLossTie } from "@ff/contracts";
 import type { GmSource } from "./frontOffice.js";
 import { standInSeason } from "./standIn.js";
 import { isRetired, seatOf, offseasonStamp, type StaffWorld } from "./world.js";
-import { driftWeek, seatRelationships, wordFor } from "../relationships/ledger.js";
+import { driftWeek, seatRelationships, syncViews, wordFor } from "../relationships/ledger.js";
+import { enterFormerPlayers, standInRetirees } from "./formerPlayers.js";
 import type { StaffState } from "@ff/contracts";
 import type { Seat } from "./tables.js";
 
@@ -37,11 +38,19 @@ export interface SeasonTally {
   words?: Record<string, number>;
   /** ADR-094 Q13 a: head coaches and GMs fired in midseason (an interim finishing the year). */
   midseason?: { HEAD_COACH: number; GM: number };
+  /** ADR-094 §10: seated men who played in the league (any credited season, or camp only), and this offseason's new ones. */
+  former?: FormerTally;
   /** With GMs (ADR-094 §8): GM changes, why the old ones left, where the new ones came from, and the sitting GMs' seasons in the job. */
   gm?: { changes: number; reasons: Record<string, number>; sources: Partial<Record<GmSource, number>>; medianTenure: number; cleanSweeps: number };
 }
 
 export interface Band { mean: number; min: number; max: number }
+
+/** Shares of seated men who played (a credited season) or were in camp only; `hired` counts new head coaches and GMs. */
+export interface FormerTally {
+  seated: Record<"HEAD_COACH" | "COORDINATOR" | "POSITION_COACH" | "GM", { men: number; played: number; camp: number }>;
+  hired: Record<"HEAD_COACH" | "GM", { men: number; played: number; camp: number }>;
+}
 
 export interface TurnoverReport {
   seed: string;
@@ -58,6 +67,8 @@ export interface TurnoverReport {
     anchor: { coordinatorAverageSkill: number; headCoachAverageSkill: number; headCoachSeatScore: number; coordinatorSeatScore: number };
     dcDisguiseMean: { atStart: number; min: number; max: number };
     poolSize: Band;
+    /** ADR-094 §10, over the seasons after `FORMER_WARMUP`. */
+    former?: FormerTally;
     meanHcAge: Band;
     exHeadCoaches: { atStart: { OC: number; DC: number }; OC: Band; DC: Band };
     /** ADR-094 Q13 a: midseason firings a year. */
@@ -181,6 +192,8 @@ export function staffTurnoverCheck(opts: {
   seed: string; seasons?: number; firstSeason?: number; views?: boolean; gms?: boolean;
   /** ADR-094 Q13 a: midseason firings, as the season's walk has them (default on). */
   midseason?: boolean;
+  /** ADR-094 §10: made-up players retire each year and a few come back as coaches and scouts (default on). */
+  formerPlayers?: boolean;
 }): TurnoverReport {
   const seasons = opts.seasons ?? 50;
   const firstSeason = opts.firstSeason ?? 2026;
@@ -211,6 +224,8 @@ export function staffTurnoverCheck(opts: {
   const disguiseAtStart = mean(seated(world, "DC").filter((s) => s.disguise).map((s) => s.disguise!.passSnapMaskShare));
 
   const perSeason: SeasonTally[] = [];
+  /** Each made-up retiree's credited seasons, by player id. */
+  const careers = new Map<string, number>();
   let views = opts.views ? seatRelationships(world) : undefined;
   for (let y = 0; y < seasons; y++) {
     const season = world.season;
@@ -234,6 +249,13 @@ export function staffTurnoverCheck(opts: {
     const r = runStaffOffseason({ world, results: played.summaries, seed: opts.seed, ...(views ? { relationships: { views } } : {}) });
     world = r.world;
     const row = tally(world, season, r.moves);
+    if (opts.formerPlayers !== false) {
+      row.former = formerTally(world, r.moves, r.gmMoves, careers);
+      const retirees = standInRetirees(season, world.teams.length, opts.seed);
+      for (const x of retirees) careers.set(String(x.id), x.seasons);
+      world = enterFormerPlayers(world, retirees, world.season, opts.seed);
+      if (r.relationships) r.relationships = syncViews(r.relationships, world);
+    }
     if (opts.midseason !== false) row.midseason = midseason;
     if (opts.gms) row.gm = gmTally(world, r.moves, r.gmMoves);
     if (r.relationships) {
@@ -322,6 +344,7 @@ export function staffTurnoverCheck(opts: {
         DC: band(perSeason.map((p) => p.exHeadCoaches.DC)),
       },
       ...(gm ? { gm } : {}),
+      ...(opts.formerPlayers !== false ? { former: sumFormer(perSeason.slice(Math.min(FORMER_WARMUP, perSeason.length - 1)).map((p) => p.former!)) } : {}),
       ...(opts.midseason !== false ? {
         midseason: {
           HEAD_COACH: band(perSeason.map((p) => p.midseason!.HEAD_COACH)),
@@ -330,4 +353,47 @@ export function staffTurnoverCheck(opts: {
       } : {}),
     },
   };
+}
+
+/** ADR-094 §10: former players reach the top seats over decades, so their shares are read after this many seasons. */
+export const FORMER_WARMUP = 25;
+
+function formerTally(world: StaffWorld, moves: readonly StaffMove[], gmMoves: readonly GmMove[], careers: ReadonlyMap<string, number>): FormerTally {
+  const zero = () => ({ men: 0, played: 0, camp: 0 });
+  const t: FormerTally = {
+    seated: { HEAD_COACH: zero(), COORDINATOR: zero(), POSITION_COACH: zero(), GM: zero() },
+    hired: { HEAD_COACH: zero(), GM: zero() },
+  };
+  const add = (x: { men: number; played: number; camp: number }, s: StaffState) => {
+    x.men++;
+    if (s.formerPlayer === undefined) return;
+    if ((careers.get(String(s.formerPlayer)) ?? 0) > 0) x.played++; else x.camp++;
+  };
+  const byId = new Map(world.staff.map((s) => [String(s.id), s]));
+  for (const s of world.staff) {
+    if (isRetired(s)) continue;
+    const seat = seatOf(s);
+    if (seat === "HEAD_COACH") add(t.seated.HEAD_COACH, s);
+    else if (seat === "OC" || seat === "DC") add(t.seated.COORDINATOR, s);
+    else if (s.role === "GM" && s.teamId !== undefined) add(t.seated.GM, s);
+    else if (currentJob(s)?.role === "POSITION_COACH" && currentJob(s)?.level === "NFL") add(t.seated.POSITION_COACH, s);
+  }
+  for (const m of moves) if (m.kind === "HIRED" && m.seat === "HEAD_COACH") add(t.hired.HEAD_COACH, byId.get(String(m.staff))!);
+  for (const m of gmMoves) if (m.kind === "HIRED") add(t.hired.GM, byId.get(String(m.staff))!);
+  return t;
+}
+
+function sumFormer(rows: readonly FormerTally[]): FormerTally {
+  const zero = () => ({ men: 0, played: 0, camp: 0 });
+  const t: FormerTally = {
+    seated: { HEAD_COACH: zero(), COORDINATOR: zero(), POSITION_COACH: zero(), GM: zero() },
+    hired: { HEAD_COACH: zero(), GM: zero() },
+  };
+  for (const r of rows) for (const group of ["seated", "hired"] as const) {
+    for (const [k, v] of Object.entries(r[group])) {
+      const into = (t[group] as Record<string, { men: number; played: number; camp: number }>)[k]!;
+      into.men += v.men; into.played += v.played; into.camp += v.camp;
+    }
+  }
+  return t;
 }
