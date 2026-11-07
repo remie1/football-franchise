@@ -7,6 +7,12 @@ import type { PlayerId, StaffId, TeamId } from "./ids.js";
 
 /** G3: the course the team's decision-maker sets after the meeting. */
 export type TeamDirection = "CONTEND" | "RETOOL" | "REBUILD";
+/**
+ * ADR-094 W1: a team's stance for the rest of the season, set by its GM after a week's games: add
+ * for now (BUY), stand pat (HOLD), or trade for later (SELL). Apart from `TeamDirection`, which
+ * is set once a year at the meeting.
+ */
+export type TeamStance = "BUY" | "HOLD" | "SELL";
 
 /** G2: the nine points, in the meeting's three parts (the season we had, next season, the season after). */
 export type MeetingPoint =
