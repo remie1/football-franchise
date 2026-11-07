@@ -25,6 +25,12 @@ import { STEP1_CALLER } from "../src/pocket/step1.js";
 /** The design, the pricing build, contact alone on today's line, and the BEHIND or NEVER tilt alone. */
 const ARMS: readonly ArmId[] = ["D1", "D2", "D3", "D11"];
 const GAMES = 20;
+/**
+ * The contests the rebuild cannot compare (a man reset on the contest's own tick) stay rare: seen
+ * once in 499 contests on D4 (review 2 S3). More than this many in a hundred is a fault to look at,
+ * not a skip to pass over.
+ */
+const UNCOMPARED_PER_HUNDRED = 2;
 
 describe.skipIf(!step4PetitionsIn())("ADR-089 step 4 — on played step-4 games, the stream's from equals the engine's", () => {
   for (const id of ARMS) {
@@ -62,6 +68,7 @@ describe.skipIf(!step4PetitionsIn())("ADR-089 step 4 — on played step-4 games,
       expect(contests).toBeGreaterThan(0);
       expect(compared).toBeGreaterThan(0);
       expect(sacks).toBeGreaterThan(0);
+      expect((contests - compared) * 100, `${id}: ${String(contests - compared)} of ${String(contests)} contests not compared`).toBeLessThanOrEqual(UNCOMPARED_PER_HUNDRED * contests);
     });
   }
 });
