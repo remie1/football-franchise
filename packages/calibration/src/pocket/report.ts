@@ -1535,11 +1535,16 @@ export interface Step4TiltRow {
   readonly beside: readonly string[];
 }
 
-/** AM-6's reading of one mapped arm on one league (AM-1's statistic), the own-clock print beside. */
+/** A step-4 guard row's role: AM-6's graded map, or a reading printed beside it and never graded (plan §3.1). */
+export type Step4GuardRole = "graded" | "cumulative" | "accepted" | "information";
+
+/** AM-6's reading of one arm on one league (AM-1's statistic), the own-clock print beside. */
 export interface Step4GuardRow {
   readonly arm: string;
   readonly against: string;
   readonly league: League;
+  /** "graded" for AM-6's map; the cumulative line, the accepted state and the information readings are printed beside, never graded. */
+  readonly role?: Step4GuardRole;
   readonly verdict: string;
   readonly graded: boolean;
   readonly Z: number | null;
@@ -1578,6 +1583,8 @@ export interface Step4Sections {
   readonly tilts: readonly Step4TiltRow[];
   readonly replay: readonly Step4ReplayRow[];
   readonly arms: readonly Step4ArmRow[];
+  /** AM-6's declared prints (plan §3.1): interceptions on aimed throws by guard class, THROWING-hit against unhit (D1, D2, D5, D6) and after a SHED (D1, D2, D3, D7). */
+  readonly declared?: readonly string[];
   /** What this report cannot read yet, by name (the release probe, R-1, T_L on D17). */
   readonly waits: readonly string[];
 }
@@ -1609,7 +1616,8 @@ export function renderStep4Sections(s: Step4Sections): readonly string[] {
   out.push(`## The guard under ${a.am6} (AM-1's statistic; both mixes on the arm's own release clock, the own-clock reading beside, never graded)`);
   out.push("");
   for (const g of s.guard) {
-    out.push(`- ${g.arm} against ${g.against}, ${g.league}: ${g.verdict}${g.graded ? "" : " (not graded)"}; Z ${fmt(g.Z)}; breaches ${g.breaches.length === 0 ? "none" : g.breaches.join(", ")}; filed reading beside: ${g.filedBreaches.length === 0 ? "no breach" : g.filedBreaches.join(", ")}`);
+    const role = g.role === undefined || g.role === "graded" ? "" : ` [${g.role}, printed beside, never graded]`;
+    out.push(`- ${g.arm} against ${g.against}, ${g.league}${role}: ${g.verdict}${g.graded ? "" : " (not graded)"}; Z ${fmt(g.Z)}; breaches ${g.breaches.length === 0 ? "none" : g.breaches.join(", ")}; filed reading beside: ${g.filedBreaches.length === 0 ? "no breach" : g.filedBreaches.join(", ")}`);
     for (const line of g.ownClock) out.push(`  - own clock (printed, never graded): ${line}`);
   }
   out.push("");
@@ -1642,6 +1650,14 @@ export function renderStep4Sections(s: Step4Sections): readonly string[] {
     for (const line of r.lines) out.push(`  - ${line}`);
   }
   out.push("");
+
+  if (s.declared !== undefined) {
+    out.push("## AM-6's declared prints (interceptions/aimed throws by guard class; never graded)");
+    out.push("");
+    out.push("Each throw's class is read once, at the decision instant, as the fold reads it; the own-clock reading of these counts is not built and waits with the lift.");
+    for (const line of s.declared) out.push(`- ${line}`);
+    out.push("");
+  }
 
   out.push("## Waiting, by name");
   out.push("");

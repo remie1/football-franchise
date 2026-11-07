@@ -30,6 +30,7 @@ import { jsonText, type Step1Env } from "../src/pocket/step1.js";
 import {
   closedStep4Writes,
   gradeStep4,
+  isStep4ArmId,
   loadStep3References,
   part1Findings,
   planStep4,
@@ -37,6 +38,7 @@ import {
   preflightStep4Previews,
   q4Problems,
   q4Projection,
+  readingProblems,
   renderStep4Report,
   runStep4,
   runStep4Digests,
@@ -249,7 +251,11 @@ const folds = (f: S4Fold = emptyS4Fold()) => ({ s4: f, m3: emptyM3Fold(), m6: em
 const recordOf = (id: ArmId, from: ArmId, s: SeedSet, s4: S4Fold = emptyS4Fold()): Step4Record => {
   const r = structuredClone(step3Of(from, s));
   delete r["m5"];
-  return { ...r, format: STEP4_ARM_FORMAT, stamp: { ...(r["stamp"] as object), arm: id }, s4: { flat: folds(s4), gen: folds(s4) } } as unknown as Step4Record;
+  const d = isStep4ArmId(id);
+  // A D arm is stamped pocket-1.s4 and, like every arm with a base, carries its affected plays.
+  const report = r["report"] as Record<string, unknown>;
+  if (d && report["affectedPlays"] === undefined) report["affectedPlays"] = { flat: 0, gen: 0 };
+  return { ...r, format: STEP4_ARM_FORMAT, stamp: { ...(r["stamp"] as object), arm: id, ...(d ? { rules: "pocket-1.s4" } : {}) }, s4: { flat: folds(s4), gen: folds(s4) } } as unknown as Step4Record;
 };
 const tilted = (cls: "PUSH_BLOCKED" | "FREE_RUN" | "BEHIND_NEVER", contacts: number, sacks: number): S4Fold => {
   const f = emptyS4Fold();
@@ -310,8 +316,9 @@ describe("gradeStep4 on hand-built records (pure)", () => {
   });
 
   it("the guard under AM-6 on D1, D2 and D6: an arm equal to its base breaches nothing; the own-clock print is beside", () => {
-    expect(s.guard.map((g) => `${g.arm}:${g.against}:${g.league}`)).toEqual(["D1:C1:flat", "D1:C1:gen", "D2:C2:flat", "D2:C2:gen", "D6:C2:flat", "D6:C2:gen"]);
-    for (const g of s.guard) {
+    const mapped = s.guard.filter((g) => g.role === "graded");
+    expect(mapped.map((g) => `${g.arm}:${g.against}:${g.league}`)).toEqual(["D1:C1:flat", "D1:C1:gen", "D2:C2:flat", "D2:C2:gen", "D6:C2:flat", "D6:C2:gen"]);
+    for (const g of mapped) {
       expect(g.verdict).toBe("PASS");
       expect(g.ownClock).toHaveLength(2);
     }
@@ -348,9 +355,91 @@ describe("gradeStep4 on hand-built records (pure)", () => {
     expect(renderStep4Sections(s).join("\n")).toMatch(/## Waiting, by name/);
   });
 
+  it("time to throw beside every hit and sack figure; D4 beside the contact clauses, D5, D1 and D2 beside the motion's (F6, F8)", () => {
+    const sack = clause("s4.contact.flat.sack").values;
+    expect(sack[0]).toMatch(/^flat set 1 \S+ \(set 2 \S+\) \[time to throw D3 \d+\.\d{3} s \(throwaways in\)\]$/);
+    expect(sack.some((v) => v === "beside, never graded: D4 flat set 1 not played")).toBe(true);
+    expect(clause("s4.contact.hitOrSack").values.some((v) => v.startsWith("beside, never graded: D4 against A14 flat"))).toBe(true);
+    expect(clause("s4.contact.hitOrSack").values[0]).toMatch(/\[time to throw D3 .* against A0 .*\]$/);
+    // Pressure is not a hit or sack figure: no time to throw on it.
+    expect(clause("s4.contact.pressure").values[0]).not.toMatch(/time to throw/);
+    const hits = clause("s4.motion.hits").values;
+    expect(hits.some((v) => /^beside, never graded: D1 against C1 flat set 1 \S+ \(set 2 \S+\) \[time to throw D1 /.test(v))).toBe(true);
+    expect(hits.some((v) => v.startsWith("beside, never graded: D2 against C2 gen"))).toBe(true);
+    expect(hits.some((v) => v === "beside, never graded: D5 against C1 flat set 1 not played")).toBe(true);
+    const curve = clause("s4.motion.curveRises").values;
+    expect(curve.some((v) => v.startsWith("beside, never graded: D1 flat set 1 aimed-weighted"))).toBe(true);
+    expect(curve.some((v) => v === "raw release bins against decision bins (AM-7 item 3; rho below 0.5, so 0): throws moved on D6 flat set 1 0, set 2 0")).toBe(true);
+    expect(s.arms.find((a) => a.arm === "D9")!.lines[2]).toMatch(/\[time to throw n\/a s \(throwaways in\), n\/a s aimed\]$/);
+  });
+
+  it("AM-6's printed-beside rows: the cumulative line, the accepted state and the information readings, never graded (F4)", () => {
+    const beside = s.guard.filter((g) => g.role !== "graded");
+    expect(beside.map((g) => `${g.role}:${g.arm}:${g.against}:${g.league}`)).toEqual([
+      "cumulative:D1:A0:flat", "cumulative:D1:A0:gen", "cumulative:D2:A14:flat", "cumulative:D2:A14:gen",
+      "accepted:D1:A1:flat", "accepted:D1:A1:gen", "accepted:D2:A11:flat", "accepted:D2:A11:gen",
+      "information:D3:A0:flat", "information:D3:A0:gen", "information:D4:A14:flat", "information:D4:A14:gen",
+      "information:D5:C1:flat", "information:D5:C1:gen", "information:D7:C1:flat", "information:D7:C1:gen",
+    ]);
+    expect(beside.filter((g) => g.arm === "D1").every((g) => g.verdict === "REPORTED" && !g.graded && g.ownClock.length === 2)).toBe(true);
+    expect(beside.filter((g) => g.arm === "D4" || g.arm === "D5" || g.arm === "D7").every((g) => g.verdict === "NOT PLAYED")).toBe(true);
+    // D1 far riskier than A0 reads as a breach on the statistic, and is still never graded or a guard breach.
+    const m = new Map(records);
+    const bump = (r: Step4Record): Step4Record => {
+      const c = structuredClone(r) as unknown as { report: { intGuard: Record<string, { all: { interceptions: number } }> } };
+      for (const l of ["flat", "gen"]) c.report.intGuard[l]!.all.interceptions *= 5;
+      return c as unknown as Step4Record;
+    };
+    m.set("D1", { 1: bump(records.get("D1")![1]!), 2: bump(records.get("D1")![2]!) });
+    const g = gradeStep4(m, file, guard, REFS).sections;
+    const cumulative = g.guard.filter((x) => x.role === "cumulative" && x.arm === "D1");
+    expect(cumulative.some((x) => x.breaches.length > 0)).toBe(true);
+    expect(cumulative.every((x) => x.verdict === "REPORTED")).toBe(true);
+    expect(g.outcome.guardBreaches.every((b) => b.startsWith("D1 against C1"))).toBe(true);
+    expect(renderStep4Sections(s).join("\n")).toMatch(/- D1 against A0, flat \[cumulative, printed beside, never graded\]: REPORTED/);
+  });
+
+  it("AM-6's declared prints and the EXT-4 reports are printed (F5, F7)", () => {
+    expect(s.declared!.some((l) => l.startsWith("D1 flat set 1: interceptions/aimed throws on THROWING-hit throws"))).toBe(true);
+    expect(s.declared!.some((l) => l.startsWith("D3 gen set 2: interceptions/aimed throws after a SHED"))).toBe(true);
+    expect(s.declared!.some((l) => l.startsWith("D5 "))).toBe(false);
+    expect(grade.groups.map((x) => `${String(x.seedSet)}:${x.input.arms.map((a) => a.arm.split(" ")[0]).join(",")}`)).toEqual([
+      "1:C1,D1", "1:C2,D2,D6,D8", "1:A0,D3", "1:D8,D9,D10,D11",
+      "2:C1,D1", "2:C2,D2,D6,D8", "2:A0,D3", "2:D8,D9,D10,D11",
+    ]);
+    const text = renderStep4Report(grade, records);
+    expect(text).toMatch(/## AM-6's declared prints/);
+    expect(text).toMatch(/## The EXT-4 reports, one per base and seed set/);
+    expect(text).toMatch(/ADR-089 step 4: the pocket report \(2 arms; both leagues/);
+    // A D arm without its affected plays is a structural failure, named, not a thrown report.
+    const m = new Map(records);
+    const bare = structuredClone(records.get("D3")![1]!) as unknown as { report: Record<string, unknown> };
+    delete bare.report["affectedPlays"];
+    m.set("D3", { ...records.get("D3")!, 1: bare as unknown as Step4Record });
+    expect(gradeStep4(m, file, guard, REFS).sections.outcome.structuralFailures.some((f) => f.startsWith("the EXT-4 report for A0 with D3, set 1, is refused"))).toBe(true);
+  });
+
+  it("s4.rawBins: an aimed throw off its decision bin is a fold fault; s4.reading is read from the arms and their stamps (F20, F19)", () => {
+    expect(s.proofs.find((p) => p.id === "s4.rawBins")!.verdict).toBe("PASS");
+    const m = new Map(records);
+    const moved = emptyS4Fold();
+    moved.rawBinMoved = 1;
+    m.set("D6", { ...records.get("D6")!, 1: recordOf("D6", "C2", 1, moved) });
+    const g = gradeStep4(m, file, guard, REFS).sections;
+    expect(g.outcome.foldFaults.some((f) => f.startsWith("s4.rawBins: 2 failing"))).toBe(true);
+    expect(clause("s4.reading").verdict).toBe("PASS");
+    const wrong = new Map(records);
+    const r = structuredClone(records.get("D1")![1]!) as unknown as { stamp: Record<string, unknown> };
+    r.stamp["rules"] = "pocket-1.s3";
+    wrong.set("D1", { ...records.get("D1")!, 1: r as unknown as Step4Record });
+    expect(readingProblems(wrong, guard)).toEqual(["D1 set 1 is stamped pocket-1.s3, not pocket-1.s4"]);
+    expect(gradeStep4(wrong, file, guard, REFS).sections.clauses.find((c) => c.id === "s4.reading")!.verdict).toBe("FAIL");
+    expect(readingProblems(records, { bases: { D14: "D1" } as never })).toEqual(["D14 is in the guard's map"]);
+  });
+
   it("a one-set run grades nothing", () => {
     const one = gradeStep4(records, file, guard, REFS, 1).sections;
-    expect(one.clauses.filter((c) => c.verdict === "PASS" || c.verdict === "FAIL").map((c) => c.id).sort()).toEqual(["s4.qbHitFields", "s4.sackCredit"]);
+    expect(one.clauses.filter((c) => c.verdict === "PASS" || c.verdict === "FAIL").map((c) => c.id).sort()).toEqual(["s4.qbHitFields", "s4.reading", "s4.sackCredit"]);
     expect(one.outcome.gradedFailures).toEqual([]);
   });
 

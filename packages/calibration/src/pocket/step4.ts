@@ -39,7 +39,7 @@ import { fileURLToPath } from "node:url";
 import { canonicalise } from "../harness/digest.js";
 import { positionsFromSnapshot } from "../knownTruth/pocketChannelShares.js";
 import { AMENDMENTS_PATH, amendmentsAtStep, amendmentsDigest, entryOf, guardFor, loadAmendments, STEP3_AMENDMENTS_DIGEST, type AmendmentsFile, type BaseMap } from "./amendments.js";
-import { armById, armRefusal, STEP4_ARM_BASES, STEP4_ARM_IDS, STEP4_RUN_IDS, type ArmId, type Step4ArmId } from "./arms.js";
+import { armById, armRefusal, STEP4_ARM_BASES, STEP4_ARM_DEFS, STEP4_ARM_IDS, STEP4_RUN_IDS, type ArmId, type Step4ArmId } from "./arms.js";
 import { FILED_PATH, intGuardOwnClock, type GuardClock, type IntMix } from "./bands.js";
 import { goldenGames, type SeedSet } from "./corpus.js";
 import { filedDigest, pendingPaths, STEP0_FILED_DIGEST, type BandClause, type FiledFile, type JsonValue } from "./filed.js";
@@ -47,9 +47,9 @@ import { foldDigests, gameBytesDigest, gameDigest, GOLDEN_LEAGUES } from "./gold
 import { am1ArmReading, s4MotionIntEntryOf, s4MotionIntReading, SEED_SETS, type Am1Lines, type GuardSide } from "./guardAm1.js";
 import { emptyM3Fold, foldM3Game, sharesPct, type M3Fold } from "./m3SackerMix.js";
 import { emptyM6Step4Fold, foldM6Step4Game, m6Step4Summary, type M6Step4Fold } from "./m6Contact.js";
-import { LEAGUES, renderStep4Sections, type League, type Step2ClauseResult, type Step2Outcome, type Step2Proof, type Step4ArmRow, type Step4GuardRow, type Step4ReplayRow, type Step4Sections, type Step4TiltRow } from "./report.js";
+import { LEAGUES, renderStep4Sections, renderStepReport, reportProblems, type ArmReport, type League, type StepReportInput, type Step4GuardRole, type Step2ClauseResult, type Step2Outcome, type Step2Proof, type Step4ArmRow, type Step4GuardRow, type Step4ReplayRow, type Step4Sections, type Step4TiltRow } from "./report.js";
 import { readsStep3Facts, step4PetitionsIn, type Step4Petitions } from "./rules.js";
-import { emptyS4Fold, foldS4Game, hitCurveSlope, mergeS4Folds, per100, s4Problems, sackShareOf, secondArrivalRateOf, type S4Fold, type TiltClass } from "./s4Stream.js";
+import { emptyS4Fold, foldS4Game, hitCurveSlope, meanSeconds, mergeS4Folds, per100, s4Problems, sackShareOf, secondArrivalRateOf, type S4Fold, type TiltClass } from "./s4Stream.js";
 import { openFiling, PR33_STATE, sanitize, type Step4Args } from "./step0.js";
 import { armFileOf, FULL_CORPUS, isUnder, jsonText, realOf, STEP1_CALLER, STEP1_CLOSED_RECORDS, step1Env, stampProblems, writeAtomic, type Step1Corpus, type Step1Env } from "./step1.js";
 import { playStep3Arm, rowValueOf, STEP2_CLOSED_RECORDS, STEP3_RECORDS, step3StampOf, timesFromPicture, unmadeChoicesOf, type PlayStep3Options, type Step3Record, type Step3Stamp } from "./step3.js";
@@ -356,7 +356,35 @@ export type Step4Records = ReadonlyMap<ArmId, Readonly<Partial<Record<SeedSet, S
 
 export interface Step4Grade {
   readonly sections: Step4Sections;
+  /** The §6 intro's EXT-4 reporting: `renderStepReport` once per base and seed set, each base with the D arms on it (`STEP4_ARM_BASES`). */
+  readonly groups: readonly { readonly seedSet: SeedSet; readonly input: StepReportInput }[];
 }
+
+/**
+ * AM-6's readings printed beside the graded map, never graded (plan §3.1; the step-4 filing's H.8
+ * draft "Printed beside, unguarded"): the cumulative line (D1 against A0, D2 against A14), the
+ * accepted state (D1 against A1, D2 against A11) and the information readings (D3 against A0 and D4
+ * against A14, whose throws after a shed the declared prints count; D5 and D7 against C1).
+ */
+export const STEP4_GUARD_BESIDE: readonly { readonly arm: ArmId; readonly against: ArmId; readonly role: Exclude<Step4GuardRole, "graded"> }[] = Object.freeze([
+  { arm: "D1", against: "A0", role: "cumulative" },
+  { arm: "D2", against: "A14", role: "cumulative" },
+  { arm: "D1", against: "A1", role: "accepted" },
+  { arm: "D2", against: "A11", role: "accepted" },
+  { arm: "D3", against: "A0", role: "information" },
+  { arm: "D4", against: "A14", role: "information" },
+  { arm: "D5", against: "C1", role: "information" },
+  { arm: "D7", against: "C1", role: "information" },
+] as const);
+
+/** AM-6's declared prints (plan §3.1): THROWING-hit against unhit throws by class on these arms, and throws after a SHED by class on these. */
+export const STEP4_DECLARED_HIT_ARMS: readonly ArmId[] = Object.freeze(["D1", "D2", "D5", "D6"]);
+export const STEP4_DECLARED_SHED_ARMS: readonly ArmId[] = Object.freeze(["D1", "D2", "D3", "D7"]);
+
+/** AM-7 item 1's other reading and item 2's, printed beside the graded clause, never graded: [arm, against]. */
+const CONTACT_BESIDE_SINGLE: readonly (readonly [ArmId, ArmId | null])[] = [["D4", null]];
+const CONTACT_BESIDE_DIFF: readonly (readonly [ArmId, ArmId | null])[] = [["D4", "A14"]];
+const MOTION_BESIDE: readonly (readonly [ArmId, ArmId | null])[] = [["D5", "C1"], ["D1", "C1"], ["D2", "C2"]];
 
 const num = (v: number | null | undefined, dp = 2): string => (v === null || v === undefined || !Number.isFinite(v) ? "n/a" : v.toFixed(dp));
 const diffOf = (a: number | null, b: number | null): number | null => (a === null || b === null ? null : a - b);
@@ -428,23 +456,39 @@ export function gradeStep4(records: Step4Records, file: FiledFile, guard: Step4G
     clauses.push({ id: c.id, kind: c.kind, arms, filed: bandText(c), values: played(arms) ? values : [`not played: ${arms.filter((id) => at(id, graded) === undefined).join(", ")}`], verdict, ...(note === undefined ? {} : { note }) });
   };
 
-  // The bands on one arm's row, or a difference of two arms' rows.
-  const rowClause = (id: string, arm: ArmId, base: ArmId | null, row: string, leagues: readonly League[]): void => {
+  // Time to throw beside a hit or sack figure (ADR:933): each arm's row (throwaways in) and, on an s4 arm, its aimed throws.
+  const tttOf = (id: ArmId, s: SeedSet, l: League): string => {
+    const f = s4Of(at(id, s), l);
+    const aimed = f !== undefined && f.tttAimed.n > 0 ? `, ${num(meanSeconds(f.tttAimed), 3)} s aimed` : "";
+    return `${id} ${num(rowValueOf(at(id, s), "time_to_throw", l), 3)} s (throwaways in)${aimed}`;
+  };
+  const tttText = (ids: readonly ArmId[], s: SeedSet, l: League): string => `[time to throw ${ids.map((id) => tttOf(id, s, l)).join(" against ")}]`;
+
+  // The bands on one arm's row, or a difference of two arms' rows; the other readings AM-7 names printed beside, never graded.
+  const rowClause = (id: string, arm: ArmId, base: ArmId | null, row: string, leagues: readonly League[], besides: readonly (readonly [ArmId, ArmId | null])[] = []): void => {
     const c = clauseOf(id);
     if (c === undefined) return;
-    const value = (s: SeedSet, l: League): number | null => (base === null ? rowValueOf(at(arm, s), row, l) : diffOf(rowValueOf(at(arm, s), row, l), rowValueOf(at(base, s), row, l)));
-    const values = leagues.map((l) => `${l} set ${String(graded)} ${num(value(graded, l))}${sets.length > 1 ? ` (${beside((s) => value(s, l))})` : ""}`);
+    const hitOrSack = row !== "threat_creation_rate";
+    const valueOf = (a: ArmId, b: ArmId | null, s: SeedSet, l: League): number | null => (b === null ? rowValueOf(at(a, s), row, l) : diffOf(rowValueOf(at(a, s), row, l), rowValueOf(at(b, s), row, l)));
+    const value = (s: SeedSet, l: League): number | null => valueOf(arm, base, s, l);
+    const ttt = (a: ArmId, b: ArmId | null, l: League): string => (hitOrSack ? ` ${tttText(b === null ? [a] : [a, b], graded, l)}` : "");
+    const besideValues = besides.flatMap(([a, b]) => leagues.map((l) => {
+      const v = (s: SeedSet): number | null => valueOf(a, b, s, l);
+      const shown = at(a, graded) === undefined || (b !== null && at(b, graded) === undefined) ? "not played" : `${num(v(graded))}${sets.length > 1 ? ` (${beside(v)})` : ""}${ttt(a, b, l)}`;
+      return `beside, never graded: ${a}${b === null ? "" : ` against ${b}`} ${l} set ${String(graded)} ${shown}`;
+    }));
+    const values = [...leagues.map((l) => `${l} set ${String(graded)} ${num(value(graded, l))}${sets.length > 1 ? ` (${beside((s) => value(s, l))})` : ""}${ttt(arm, base, l)}`), ...besideValues];
     const reads = leagues.map((l) => value(graded, l));
     const split = leagues.some((l) => sets.length > 1 && inBand(value(graded, l), c) !== inBand(value(sets.find((s) => s !== graded)!, l), c));
     push(c, base === null ? [arm] : [arm, base], values, reads.some((v) => v === null) ? null : reads.every((v) => inBand(v, c)), split ? "split: in its band on one seed set and out on the other (reported, AM-7 seedSets)" : undefined);
   };
-  rowClause("s4.contact.flat.sack", "D3", null, "sack_rate", ["flat"]);
-  rowClause("s4.contact.gen.sack", "D3", null, "sack_rate", ["gen"]);
-  rowClause("s4.contact.pressure", "D3", "A0", "threat_creation_rate", LEAGUES);
-  rowClause("s4.contact.hitOrSack", "D3", "A0", "hit_or_sack_rate", LEAGUES);
-  rowClause("s4.contact.gen.share", "D3", null, "sack_share_of_hit_or_sack", ["gen"]);
-  rowClause("s4.contact.flat.share", "D3", null, "sack_share_of_hit_or_sack", ["flat"]);
-  rowClause("s4.motion.hits", "D6", "C2", "hits_on_aimed_throws_per_dropback", LEAGUES);
+  rowClause("s4.contact.flat.sack", "D3", null, "sack_rate", ["flat"], CONTACT_BESIDE_SINGLE);
+  rowClause("s4.contact.gen.sack", "D3", null, "sack_rate", ["gen"], CONTACT_BESIDE_SINGLE);
+  rowClause("s4.contact.pressure", "D3", "A0", "threat_creation_rate", LEAGUES, CONTACT_BESIDE_DIFF);
+  rowClause("s4.contact.hitOrSack", "D3", "A0", "hit_or_sack_rate", LEAGUES, CONTACT_BESIDE_DIFF);
+  rowClause("s4.contact.gen.share", "D3", null, "sack_share_of_hit_or_sack", ["gen"], CONTACT_BESIDE_SINGLE);
+  rowClause("s4.contact.flat.share", "D3", null, "sack_share_of_hit_or_sack", ["flat"], CONTACT_BESIDE_SINGLE);
+  rowClause("s4.motion.hits", "D6", "C2", "hits_on_aimed_throws_per_dropback", LEAGUES, MOTION_BESIDE);
 
   // s4.motion.curveRises: D6's slope over the bins from 2.0 s on, aimed-weighted (AM-7), attempt-weighted beside.
   {
@@ -454,7 +498,15 @@ export function gradeStep4(records: Step4Records, file: FiledFile, guard: Step4G
         const f = s4Of(at("D6", s), l);
         return f === undefined ? null : slopeOrNull(f, w);
       };
-      const values = LEAGUES.map((l) => `${l} set ${String(graded)} aimed-weighted ${num(slope(graded, l, "AIMED"), 4)} (attempt-weighted ${num(slope(graded, l, "ATTEMPTS"), 4)})${sets.length > 1 ? `; ${beside((s) => slope(s, l, "AIMED"))}` : ""}`);
+      const moved = (id: ArmId, l: League): string => sets.map((s) => `set ${String(s)} ${s4Of(at(id, s), l) === undefined ? "n/a" : String(s4Of(at(id, s), l)!.rawBinMoved ?? 0)}`).join(", ");
+      const values = [
+        ...LEAGUES.map((l) => `${l} set ${String(graded)} aimed-weighted ${num(slope(graded, l, "AIMED"), 4)} (attempt-weighted ${num(slope(graded, l, "ATTEMPTS"), 4)})${sets.length > 1 ? `; ${beside((s) => slope(s, l, "AIMED"))}` : ""}`),
+        ...(["D5", "D1", "D2"] as const).flatMap((id) => LEAGUES.map((l) => {
+          const f = s4Of(at(id, graded), l);
+          return `beside, never graded: ${id} ${l} set ${String(graded)} ${f === undefined ? "not played" : `aimed-weighted ${num(slopeOrNull(f, "AIMED"), 4)} (attempt-weighted ${num(slopeOrNull(f, "ATTEMPTS"), 4)})`}`;
+        })),
+        ...LEAGUES.map((l) => `raw release bins against decision bins (AM-7 item 3; rho below 0.5, so 0): throws moved on D6 ${l} ${moved("D6", l)}`),
+      ];
       const reads = LEAGUES.map((l) => slope(graded, l, "AIMED"));
       push(c, ["D6"], values, reads.some((v) => v === null) ? null : reads.every((v) => v! > 0), "a falling curve records default D1's fallback at step 4 for step 5b's selection (AM-7 missRule)");
     }
@@ -547,6 +599,7 @@ export function gradeStep4(records: Step4Records, file: FiledFile, guard: Step4G
   const sackCredit = every((r, _s, l) => (r.s4[l].s4.uncreditedSacks > 0 ? `${String(r.s4[l].s4.uncreditedSacks)} s4 sack(s) with a man ARRIVED in the pocket under the contact block and no RUSHER_SACKS contest` : undefined));
   const qbHitFields = every((r, _s, l) => (r.s4[l].s4.qbHitsMissingFields > 0 ? `${String(r.s4[l].s4.qbHitsMissingFields)} QB_HIT(s) missing approach, from or seen` : undefined));
   const m6 = every((r, _s, l) => (r.s4[l].m6.fight !== r.s4[l].m6.contacts ? "a contact not FIGHT" : r.s4[l].m6.throwawayWithArrived > 0 ? `${String(r.s4[l].m6.throwawayWithArrived)} THROWAWAY(s) while a man stood ARRIVED (a contact choice, step 7's)` : undefined));
+  proof("s4.rawBins", "on every s4 arm no aimed throw's raw release (THROW.releaseSeconds) leaves the decision tick's release bin (AM-7 item 3: rho below 0.5)", every((r, _s, l) => ((r.s4[l].s4.rawBinMoved ?? 0) > 0 ? `${String(r.s4[l].s4.rawBinMoved)} aimed throw(s) moved off the decision bin` : undefined)), "fold");
   proof("m6.step4", "every contact is FIGHT and no THROWAWAY is made while a man stands ARRIVED (no contact choice before step 7); a throwaway after a shed is the move branch, reported", m6, "fold");
   const tiltAgainst = tilts.filter((t) => t.verdict === "FAIL").map((t) => `${t.clause} moves the margin against ${t.direction}`);
   const structural = (id: string, problems: readonly string[], note: string): void => {
@@ -558,8 +611,8 @@ export function gradeStep4(records: Step4Records, file: FiledFile, guard: Step4G
   };
   structural("s4.sackCredit", sackCredit, "every s4 sack in the pocket under the contact block credited to the man at contact (one RUSHER_SACKS contest); a sack on a motion-alone arm, an escape that ends in a sack (caught by the escape roll or run down) and the coverage sack at the horizon keep today's rule until step 6 (plan §2.2 item 8) and are counted apart");
   structural("s4.qbHitFields", [...qbHitFields, ...tiltAgainst], "every QB_HIT carries approach, from and seen; no tilt against its direction");
+  structural("s4.reading", readingProblems(records, guard), "read from the arms played: every D arm but D14 plays the continuous arrival reading and is stamped pocket-1.s4; D14 alone plays the grid, is read by no clause and is in no guard map (never a candidate); the reading inside the engine is the rules tests' proof");
   for (const [id, note] of [
-    ["s4.reading", "a proof outside the run: the arrival reading is fixed by the stamp's bundle and never switched (engine and rules tests)"],
     ["s4.falsifier.ratingProbes", "a unit proof (exact at the contest for every b and tilt; the engine's tests), not read from the arms"],
     ["s4.falsifier.release", "waits for the lift: the release probe (release 40 against 80 on D6's bundle) is not built in this build"],
   ] as const) {
@@ -569,17 +622,28 @@ export function gradeStep4(records: Step4Records, file: FiledFile, guard: Step4G
 
   // The guard under AM-6.
   const guardRows: Step4GuardRow[] = [];
-  for (const [arm, base] of Object.entries(guard.bases) as [ArmId, ArmId][]) {
+  const guardPairs: readonly { readonly arm: ArmId; readonly base: ArmId; readonly role: Step4GuardRole }[] = [
+    ...(Object.entries(guard.bases) as [ArmId, ArmId][]).map(([arm, base]) => ({ arm, base, role: "graded" as const })),
+    ...STEP4_GUARD_BESIDE.map((g) => ({ arm: g.arm, base: g.against, role: g.role })),
+  ];
+  for (const { arm, base, role } of guardPairs) {
     for (const l of LEAGUES) {
       const sideOf = (r: Step4Record): GuardSide => ({ all: r.report.intGuard[l].all, byClass: r.report.intGuard[l].byClass });
       const bySet = (id: ArmId): Partial<Record<SeedSet, GuardSide>> => Object.fromEntries(sets.flatMap((s) => (at(id, s) === undefined ? [] : [[s, sideOf(at(id, s)!)]])));
       const armRecord = sets.map((s) => at(arm, s)).find((r) => r !== undefined);
       if (armRecord === undefined || !sets.some((s) => at(base, s) !== undefined)) {
-        guardRows.push({ arm, against: base, league: l, verdict: "NOT PLAYED", graded: false, Z: null, breaches: [], filedBreaches: [], ownClock: [] });
+        guardRows.push({ arm, against: base, league: l, role, verdict: "NOT PLAYED", graded: false, Z: null, breaches: [], filedBreaches: [], ownClock: [] });
         continue;
       }
       const clock = armRecord.report.clock as GuardClock;
-      const reading = am1ArmReading(bySet(base), bySet(arm), clock, guard.lines);
+      let reading: ReturnType<typeof am1ArmReading>;
+      try {
+        reading = am1ArmReading(bySet(base), bySet(arm), clock, guard.lines);
+      } catch (e) {
+        if (role === "graded") throw e;
+        guardRows.push({ arm, against: base, league: l, role, verdict: `NOT READ (${e instanceof Error ? e.message : String(e)})`, graded: false, Z: null, breaches: [], filedBreaches: [], ownClock: [] });
+        continue;
+      }
       const ownClock = sets.flatMap((s) => {
         const a = at(arm, s);
         const b = at(base, s);
@@ -587,9 +651,10 @@ export function gradeStep4(records: Step4Records, file: FiledFile, guard: Step4G
         const v = intGuardOwnClock(b.report.intGuard[l].all, a.report.intGuard[l].all, b.report.clock as GuardClock, a.report.clock as GuardClock);
         return [`set ${String(s)}: rise ${num(v.rise)} against the own-clock allowance ${num(v.allowed)} (${String(b.report.clock)} base, ${String(a.report.clock)} arm)`];
       });
-      const verdict = reading.graded && oneSet === undefined ? (reading.breaches.length > 0 ? "BREACH" : "PASS") : "REPORTED";
+      const isGraded = role === "graded" && reading.graded;
+      const verdict = isGraded && oneSet === undefined ? (reading.breaches.length > 0 ? "BREACH" : "PASS") : "REPORTED";
       if (verdict === "BREACH") guardBreaches.push(`${arm} against ${base}, ${l}: ${reading.breaches.join(", ")}`);
-      guardRows.push({ arm, against: base, league: l, verdict, graded: reading.graded, Z: reading.league.Z, breaches: reading.breaches, filedBreaches: reading.filedBreaches, ownClock });
+      guardRows.push({ arm, against: base, league: l, role, verdict, graded: isGraded, Z: reading.league.Z, breaches: reading.breaches, filedBreaches: reading.filedBreaches, ownClock });
     }
   }
 
@@ -628,7 +693,7 @@ export function gradeStep4(records: Step4Records, file: FiledFile, guard: Step4G
         lines: [
           `contacts per 100 dropbacks ${num(per100(f.contest.contacts, f))}; sacks per first contact ${num(100 * (sackShareOf(f.first) ?? NaN))}%; second-arrival sack rate ${num(100 * (secondArrivalRateOf(f) ?? NaN))}% over ${String(f.contest2.contacts)} :contest2`,
           `by class (first contests): ${Object.entries(f.byClass).map(([k, t]) => `${k} ${String(t.sacks)}/${String(t.contacts)}`).join(", ")}; unclassed ${String(f.unclassed)}; label-only free run ${String(f.labelFree.sacks)}/${String(f.labelFree.contacts)}`,
-          `QB_HIT by phase: ${phases}; on scrambles ${String(f.hitsOnScramble)} (reported, not counted); hit-or-sack per 100 ${num(per100(f.hitOrSack, f))}`,
+          `QB_HIT by phase: ${phases}; on scrambles ${String(f.hitsOnScramble)} (reported, not counted); hit-or-sack per 100 ${num(per100(f.hitOrSack, f))} [time to throw ${num(meanSeconds(f.tttAll), 3)} s (throwaways in), ${num(meanSeconds(f.tttAimed), 3)} s aimed]`,
           `hit curve slope from 2.0 s: aimed-weighted ${num(slopeOrNull(f, "AIMED"), 4)}, attempt-weighted ${num(slopeOrNull(f, "ATTEMPTS"), 4)}`,
           `M6 at step 4: ${JSON.stringify(m6Step4Summary(r.s4[l].m6))}`,
         ],
@@ -636,10 +701,43 @@ export function gradeStep4(records: Step4Records, file: FiledFile, guard: Step4G
     }
   }
 
+  // AM-6's declared prints (plan §3.1), read at the decision instant's class.
+  const cellText = (m: Readonly<Record<string, { readonly aimed: number; readonly int: number }>>): string => Object.entries(m).map(([k, v]) => `${k} ${String(v.int)}/${String(v.aimed)}`).join(", ");
+  const declared: string[] = [];
+  for (const [ids, what] of [[STEP4_DECLARED_HIT_ARMS, "hit"], [STEP4_DECLARED_SHED_ARMS, "shed"]] as const) {
+    for (const id of ids) for (const s of sets) for (const l of LEAGUES) {
+      const f = s4Of(at(id, s), l);
+      if (f === undefined) continue;
+      declared.push(
+        what === "hit"
+          ? `${id} ${l} set ${String(s)}: interceptions/aimed throws on THROWING-hit throws ${cellText(f.throwingHit)}; on unhit throws ${cellText(f.unhit)}`
+          : `${id} ${l} set ${String(s)}: interceptions/aimed throws after a SHED ${cellText(f.afterShed)}`,
+      );
+    }
+  }
+
+  // The §6 intro's EXT-4 reporting: each base with the D arms on it, once per seed set.
+  const groups: { seedSet: SeedSet; input: StepReportInput }[] = [];
+  const groupBases = [...new Set(Object.values(STEP4_ARM_BASES))];
+  for (const s of sets) for (const baseId of groupBases) {
+    const base = at(baseId, s);
+    if (base === undefined) continue;
+    const dArms = STEP4_ARM_IDS.filter((id) => STEP4_ARM_BASES[id] === baseId && at(id, s) !== undefined);
+    if (dArms.length === 0) continue;
+    const { affectedPlays: _drop, ...baseReport } = base.report;
+    void _drop;
+    const reports: ArmReport[] = [{ ...baseReport, arm: step4LabelOf(baseId), isBase: true }, ...dArms.map((id) => ({ ...at(id, s)!.report, arm: step4LabelOf(id), isBase: false }))];
+    const input: StepReportInput = { step: "4", pr33: PR33_STATE, arms: reports, filedGuardSuperseded: `${guard.am6} (${guard.am6Record})` };
+    const refused = reportProblems(input);
+    if (refused.length > 0) structuralFailures.push(`the EXT-4 report for ${baseId} with ${dArms.join(", ")}, set ${String(s)}, is refused: ${refused[0] ?? ""}`);
+    else groups.push({ seedSet: s, input });
+  }
+
   const waits = [
     "s4.falsifier.release: the release probe waits for the lift (release 40 against 80 on D6's bundle needs the D arms to play)",
     "R-1 (--digests on D1 to D17) and the s4 pins wait for the lift",
     "T_L's clamp and m(0) on D17 (--part1) wait for the lift",
+    "AM-6's declared prints on the own-clock rule: the counts are read at the decision instant's class only; the own-clock reading of them is not built",
     ...(oneSet === undefined ? [] : [`a one-set run (set ${String(oneSet)}): nothing graded`]),
   ];
   const outcome: Step2Outcome = {
@@ -661,9 +759,41 @@ export function gradeStep4(records: Step4Records, file: FiledFile, guard: Step4G
       tilts,
       replay,
       arms,
+      declared,
       waits,
     },
+    groups,
   };
+}
+
+const step4LabelOf = (id: ArmId): string => {
+  const def = STEP4_ARM_DEFS.find((d) => d.id === id);
+  return def === undefined ? `${id} (re-played)` : `${id} (${def.role})`;
+};
+
+/**
+ * `s4.reading` read from the arms played (plan R-7): each D arm's definition and stamp. Every D arm
+ * but D14 plays the continuous reading under the rules name pocket-1.s4; D14 plays the grid, is read
+ * by no clause and is in no guard map, so it is never a candidate.
+ */
+export function readingProblems(records: Step4Records, guard: Pick<Step4Guard, "bases">): string[] {
+  const problems: string[] = [];
+  for (const def of STEP4_ARM_DEFS) {
+    const reading = def.step4?.motion?.reading;
+    if (def.id === "D14") {
+      if (reading !== "GRID") problems.push(`D14 is defined on ${String(reading)}, not the grid`);
+      if (def.graded.length > 0) problems.push(`D14 is read by ${def.graded.join(", ")}`);
+      if (Object.keys(guard.bases).includes("D14") || Object.values(guard.bases).includes("D14")) problems.push("D14 is in the guard's map");
+    } else if (reading !== undefined && reading !== "CONTINUOUS") problems.push(`${def.id} is defined on ${reading}, not the continuous reading`);
+  }
+  for (const [id, bySet] of records) {
+    if (!isStep4ArmId(id)) continue;
+    for (const s of SEED_SETS) {
+      const r = bySet[s];
+      if (r !== undefined && r.stamp.rules !== "pocket-1.s4") problems.push(`${id} set ${String(s)} is stamped ${String(r.stamp.rules)}, not pocket-1.s4`);
+    }
+  }
+  return problems;
 }
 
 export function renderStep4Report(grade: Step4Grade, records: Step4Records): string {
@@ -681,6 +811,16 @@ export function renderStep4Report(grade: Step4Grade, records: Step4Records): str
   lines.push(`- PR #33: ${PR33_STATE}`);
   lines.push("");
   lines.push(...renderStep4Sections(s));
+  lines.push("");
+  lines.push("## The EXT-4 reports, one per base and seed set (every row, the affected plays, the pressured sacks, the interception guard on both leagues)");
+  for (const g of grade.groups) {
+    lines.push("");
+    lines.push(`### ${g.input.arms.find((a) => a.isBase)?.arm ?? "?"} with ${g.input.arms.filter((a) => !a.isBase).map((a) => a.arm.split(" ")[0]).join(", ")}, seed set ${String(g.seedSet)}`);
+    lines.push("");
+    lines.push("```text");
+    lines.push(...renderStepReport(g.input));
+    lines.push("```");
+  }
   return `${lines.join("\n")}\n`;
 }
 
@@ -693,6 +833,7 @@ export function step4MeasuresOf(records: Step4Records, grade: Step4Grade, guard:
     ...(oneSet === undefined ? {} : { oneSet }),
     arms: Object.fromEntries(targets.map((t) => [targetName(t), records.get(t.id)![t.seedSet]!])),
     grade: grade.sections,
+    groups: grade.groups,
   });
 }
 

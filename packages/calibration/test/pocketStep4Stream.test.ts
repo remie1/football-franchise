@@ -152,6 +152,24 @@ describe("the s4 stream on hand-built plays (s4Stream.ts)", () => {
     expect(f.tttAimed).toEqual({ n: 1, sum: 2.7 });
   });
 
+  it("AM-7 item 3: an aimed throw whose raw release leaves the decision tick's bin is counted (rawBinMoved); one in the same bin is not", () => {
+    const at = S.arrivedThrow.slice.events.findIndex((e) => e.event.type === "THROW");
+    const decision = tickAt(S.arrivedThrow.slice.events, at);
+    expect(decision).toBeLessThan(5);
+    const fold = (release: number): number => {
+      const f = emptyS4Fold();
+      foldS4Play(f, readS4Play(sliceOf(built(S.arrivedThrow.slice, S4, { release }).events), KEY)!, C1);
+      return f.rawBinMoved;
+    };
+    expect(fold(decision)).toBe(0);
+    expect(fold(6)).toBe(1);
+    const a = emptyS4Fold();
+    a.rawBinMoved = 2;
+    const b = emptyS4Fold();
+    b.rawBinMoved = 3;
+    expect(mergeS4Folds(a, b).rawBinMoved).toBe(5);
+  });
+
   it("s4.sackCredit: a sack with no RUSHER_SACKS contact fails only in the pocket under the contact block; the motion alone and an escape run down keep today's rule, counted apart", () => {
     const play = readS4Play(sliceOf(built(S.sack.slice, S4, {}).events), KEY)!;
     expect(play.contests).toHaveLength(0);

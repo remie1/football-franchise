@@ -357,6 +357,12 @@ export interface S4Fold {
   /** Time to throw: every pass attempt (throwaways in), and aimed throws only. */
   tttAll: Seconds;
   tttAimed: Seconds;
+  /**
+   * Aimed throws whose raw release (`THROW.releaseSeconds`) falls in another release bin than the
+   * decision tick does. AM-7 item 3 states raw bins equal decision bins on every motion arm (rho
+   * below 0.5); a count above 0 is a fold fault.
+   */
+  rawBinMoved: number;
   /** AM-6's declared prints, by guard class. */
   throwingHit: Record<string, AimedInt>;
   unhit: Record<string, AimedInt>;
@@ -402,6 +408,7 @@ export function emptyS4Fold(): S4Fold {
     uncreditedSacks: 0,
     tttAll: { n: 0, sum: 0 },
     tttAimed: { n: 0, sum: 0 },
+    rawBinMoved: 0,
     throwingHit: byGuardClass(),
     unhit: byGuardClass(),
     afterShed: byGuardClass(),
@@ -514,6 +521,7 @@ export function foldS4Play(fold: S4Fold, play: S4Play, tunables: Tunables): void
   if (aimed) {
     const release = play.releaseSeconds ?? d.throwTick!;
     const bin = fold.curve[releaseBinOf(release)]!;
+    if (play.releaseSeconds !== undefined && releaseBinOf(play.releaseSeconds) !== releaseBinOf(d.throwTick!)) fold.rawBinMoved += 1;
     bin.attempts += 1;
     bin.aimed += 1;
     if (hit) bin.hit += 1;
@@ -584,6 +592,7 @@ export function mergeS4Folds(a: S4Fold, b: S4Fold): S4Fold {
     uncreditedSacks: a.uncreditedSacks + b.uncreditedSacks,
     tttAll: { n: a.tttAll.n + b.tttAll.n, sum: a.tttAll.sum + b.tttAll.sum },
     tttAimed: { n: a.tttAimed.n + b.tttAimed.n, sum: a.tttAimed.sum + b.tttAimed.sum },
+    rawBinMoved: a.rawBinMoved + b.rawBinMoved,
     throwingHit: addMap(a.throwingHit, b.throwingHit, addAimed, () => ({ aimed: 0, int: 0 })),
     unhit: addMap(a.unhit, b.unhit, addAimed, () => ({ aimed: 0, int: 0 })),
     afterShed: addMap(a.afterShed, b.afterShed, addAimed, () => ({ aimed: 0, int: 0 })),
