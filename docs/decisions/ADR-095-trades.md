@@ -126,6 +126,33 @@ objective curves and the team's course.
   for pick 32 are REPORTED from memory, checked at build.
 - **Expected compensatory picks count** (ADR-086 N2, the owner's Mac Jones example).
 
+### 4b. Owner's additions (14:59Z): class grades, time preference, where a pick lands
+
+- **Draft class grades (objective).** Letter grades for each class as a whole and by position
+  group, two drafts ahead (in the 2026 season: 2027 and 2028), read from the TRUE value of the
+  players in the class, never from a GM's scouting. A class's grade scales the objective value of
+  every pick in its draft. Real spread, COUNTED from nflverse `draft_picks.csv` 2000-2016 (career
+  `w_av` summed by class): whole classes sd 6.1% of the mean (best 2006, 26% above the worst, 2009);
+  first rounds sd 12.6% (2001's 63% above 2013's). So A about +12%, F about -12%, first-round picks
+  about twice that (letter cutoffs CHOSEN). Regraded after each season; prospects get a year of
+  college growth between grades, sized so a grade usually holds or moves one step (CHOSEN). Needs
+  classes made two years early (today `makeClass` runs at OFF_DRAFT w1, `draft/steps.ts`): asked of
+  the draft thread, keeping every existing draw unchanged (new forks). Position grades act only
+  through each GM's needs (fit), not as a position rule.
+- **Time preference (objective).** Every GM marks down later drafts' picks the same objective amount,
+  centered on next year's pick as about a round lower (REPORTED rule of thumb; counted from trades at
+  build); the GM's `futurePickDiscount` then moves it a little either way.
+- **Where a pick lands (each GM's prediction).** Until a slot is fixed, a GM holds a spread of where
+  each team's pick will land: this year's from record, schedule left and his read of the team
+  (ADR-094 §3's weekly read extended to every team, same miss sizes); later years drift toward the
+  middle, shaded by his read of the roster, cap and coach. His curve values the whole spread. The
+  spread ends when `draftOrder` fixes the slot.
+- **The window.** Three drafts at a time; the Browns' March 2026 five-year proposal was withdrawn
+  before a vote (REPORTED: [CBS](https://www.cbssports.com/nfl/news/browns-nfl-rule-change-proposal-draft-pick-trades)).
+  COUNTED (nflverse trades 2010-2025): 25 trades moved a pick three years out, every one after that
+  spring's draft (1 in May, 24 August-November), none in March or April. When the new year opens is
+  put to the owner (§12 W).
+
 ## 5. Computer teams trade among themselves (Q3 a, Q4 a)
 
 Each trade day a few GMs shop or call, more in the windows the counts show (new league year, draft
@@ -198,3 +225,9 @@ same talk.
 - **X4** Save: open talks, pending physicals, leaked findings.
 
 Open keys with no edit: `pickCurve`, `futurePickDiscount`, `tradeStyle` on a GM's ratings; ledger moves as free strings.
+
+## 12. Open question
+
+- **W. When the newest draft year opens for trading.** (a) when the draft ends, as the counted trades
+  show; (b) when the draft begins, so four drafts' picks can move on draft weekend (owner's first
+  reading, 14:59Z). Recommended (a).
