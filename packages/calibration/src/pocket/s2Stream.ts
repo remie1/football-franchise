@@ -84,6 +84,7 @@ import { floorFromArrival } from "../knownTruth/geometryTimeRetirement.js";
 import { positionsFromSnapshot } from "../knownTruth/pocketChannelShares.js";
 import { severityOf } from "../knownTruth/pocketLadder.js";
 import { RELEASE_BINS, releaseBinOf } from "../metrics/collect.js";
+import { cleanCountAt, cleanPocketOf, firstReadRouteOf, isCleanPickLabel, restatedFloorSeconds, type FirstReadRoute } from "./cleanPick.js";
 import type { ThrowClass } from "./constructs.js";
 import { registryAttr } from "./freeRun.js";
 import { emptyM2StreamFold, foldM2StreamGame, forcingRuleOf, m2StreamSummary, type M2ForcingRule, type M2StreamFold } from "./m2ForcingSource.js";
@@ -195,8 +196,12 @@ export interface S2Play {
   readonly statuses: readonly StatusTick[];
   /** Every TICK, in order. */
   readonly ticks: readonly { readonly index: number; readonly tick: number }[];
-  /** `pocket_movement` CHECKs. */
-  readonly movements: readonly At[];
+  /** `pocket_movement` CHECKs; `clean` when the roll label ends `:clean` (step 5a's clean pick, `cleanPick.ts`). */
+  readonly movements: readonly (At & { readonly clean: boolean })[];
+  /** `QB_DECISION` STEP_UPs (a forced or a clean climb). */
+  readonly stepUps: readonly At[];
+  /** The first read's route as run (`PLAY_START`), which step 5a's drop floor reads. */
+  readonly firstRead: FirstReadRoute | undefined;
   readonly reads: readonly (At & { readonly kind: ReadKind })[];
   readonly throwaways: readonly (At & { readonly cause: string })[];
   readonly throws: readonly At[];
@@ -232,7 +237,9 @@ export function readS2Play(playId: string, events: readonly MatchEventEnvelope[]
   const live = new Map<string, LiveThreat>();
   const statuses: StatusTick[] = [];
   const ticks: { index: number; tick: number }[] = [];
-  const movements: At[] = [];
+  const movements: (At & { clean: boolean })[] = [];
+  const stepUps: At[] = [];
+  let firstRead: FirstReadRoute | undefined;
   const reads: (At & { kind: ReadKind })[] = [];
   const throwaways: (At & { cause: string })[] = [];
   const throws: At[] = [];
@@ -245,6 +252,9 @@ export function readS2Play(playId: string, events: readonly MatchEventEnvelope[]
     if (gameId === "") gameId = String((event as { readonly gameId?: unknown }).gameId ?? "");
     const at: At = { index, tick, afterPursuit: pursued };
     switch (event.type) {
+      case "PLAY_START":
+        firstRead = firstReadRouteOf(event.payload);
+        return;
       case "TICK":
         tick = event.payload.tick;
         ticks.push({ index, tick });
@@ -276,7 +286,7 @@ export function readS2Play(playId: string, events: readonly MatchEventEnvelope[]
         return;
       }
       case "CHECK":
-        if (event.payload.checkKind === "pocket_movement") movements.push(at);
+        if (event.payload.checkKind === "pocket_movement") movements.push({ ...at, clean: isCleanPickLabel(event.payload.roll.rngLabel) });
         return;
       case "QB_READ":
         reads.push({ ...at, kind: readKindOf(event.payload.varianceRoll.rngLabel) });
@@ -289,6 +299,7 @@ export function readS2Play(playId: string, events: readonly MatchEventEnvelope[]
         return;
       case "QB_DECISION":
         if (event.payload.choice === "HOLD") holds.push(at);
+        else if (event.payload.choice === "STEP_UP") stepUps.push(at);
         return;
       case "QB_PURSUIT":
         pursuit ??= at;
@@ -299,7 +310,7 @@ export function readS2Play(playId: string, events: readonly MatchEventEnvelope[]
         return;
     }
   });
-  return { playId, gameId, start: dropback.start, dropback, statuses, ticks, movements, reads, throwaways, throws, holds, pursuit, afterPursuit, liveFaults, liveChecks };
+  return { playId, gameId, start: dropback.start, dropback, statuses, ticks, movements, stepUps, firstRead, reads, throwaways, throws, holds, pursuit, afterPursuit, liveFaults, liveChecks };
 }
 
 /** Every PASS play of a game, read for the step-2 checks. */
@@ -408,6 +419,14 @@ export interface MustActWitnessFold extends S2CheckFold {
   countHolds: number;
   /** CLOCK_EXPIRED throwaways read: the rule part must not hold on their tick. */
   clockExpired: number;
+  /**
+   * Step 5a only (the play's bundle carries `pocket.cleanPocket`; absent on every other fold, so
+   * steps 1 to 4 re-fold as before): clean picks read (a `pocket_movement` CHECK labelled `:clean`,
+   * `cleanPick.ts`). Each is its own act, never a forced one: it must sit on a clean expiry as the
+   * engine's predicate restates it (a CLEAN status, the rule part not holding, the count part under
+   * the block holding) and before `QB_PURSUIT`. One that does not is a witness exception.
+   */
+  cleanPicks?: number;
 }
 
 export interface MustActFold extends S2CheckFold {
@@ -458,10 +477,15 @@ export function closingHoldsOf(play: S2Play): readonly At[] {
   return play.holds.filter((h) => !h.afterPursuit && !moved(h.tick));
 }
 
-/** A play's forced acts, in stream order, each with the tick it fell on. */
+/**
+ * A play's forced acts, in stream order, each with the tick it fell on. Under the play's
+ * `pocket.cleanPocket` (step 5a) a clean pick (`:clean`) is its own act, not a MOVEMENT: the
+ * movement gate never opens it (plan §4; `mustActCheck` reads it apart).
+ */
 export function forcedActsOf(play: S2Play, tunables: Tunables): readonly (At & { readonly kind: ForcedActKind })[] {
   const acts: (At & { kind: ForcedActKind })[] = [];
-  for (const m of play.movements) acts.push({ ...m, kind: "MOVEMENT" });
+  const block = cleanPocketOf(tunables);
+  for (const m of play.movements) if (block === undefined || !m.clean) acts.push({ index: m.index, tick: m.tick, afterPursuit: m.afterPursuit, kind: "MOVEMENT" });
   for (const t of play.throwaways) {
     if (t.cause === "POCKET_DURESS") acts.push({ ...t, kind: "POCKET_DURESS" });
     else if (t.cause === "CLOCK_EXPIRED") acts.push({ ...t, kind: "CLOCK_EXPIRED" });
@@ -478,15 +502,28 @@ export interface MustActParts {
   readonly threat: boolean;
   /** The published status forces (`pocket.forcesDecision`). */
   readonly status: boolean;
-  /** His progression reads by the end of the tick's reads. */
+  /** His progression reads by the end of the tick's reads (under step 5a's block, since his last clean move). */
   readonly reads: number;
-  /** The tick at or past his restated budget, or his reads at `maxReads`. */
+  /**
+   * The tick at or past his restated budget, or his reads at `maxReads`. Under the play's
+   * `pocket.cleanPocket` (step 5a, `cleanPick.ts`): on the budget and reads a clean move restates,
+   * and at or past the drop floor (`mustDecideNow`'s count part).
+   */
   readonly count: boolean;
   /** The arm's rule part: the threat part under PER_RUSHER, the status part otherwise. */
   readonly rulePart: boolean;
 }
 
-/** One play's must-act reader: the quarterback's restated budget and reads, the first status a tick, and the parts on a tick. */
+/** A play's clean moves (step 5a): the ticks of its `:clean` CHECKs answered by STEP_UP on the same tick, before `QB_PURSUIT`. */
+export function cleanMoveTicksOf(play: S2Play): readonly number[] {
+  return play.movements.filter((m) => m.clean && !m.afterPursuit && play.stepUps.some((u) => u.index > m.index && Math.abs(u.tick - m.tick) < TOLERANCE)).map((m) => m.tick);
+}
+
+/**
+ * One play's must-act reader: the quarterback's restated budget and reads, the first status a tick,
+ * and the parts on a tick. Under the play's `pocket.cleanPocket` (step 5a) the count part is
+ * `cleanPick.ts`'s: the budget and reads a clean move restates, and the drop floor.
+ */
 export function mustActPartsOf(play: S2Play, ctx: S2Context): {
   readonly budget: number;
   readonly maxReads: number;
@@ -500,10 +537,20 @@ export function mustActPartsOf(play: S2Play, ctx: S2Context): {
   const statusAt = new Map<number, StatusTick>();
   for (const s of play.statuses) if (!statusAt.has(s.tick)) statusAt.set(s.tick, s);
   const perRusher = ctx.rule === "PER_RUSHER";
+  const block = cleanPocketOf(ctx.tunables);
+  const progression = play.reads.filter((r) => r.kind === "PROGRESSION");
+  const clean =
+    block === undefined
+      ? undefined
+      : { tunables: ctx.tunables, block, baseBudget: budget, maxReads, floorSeconds: restatedFloorSeconds(block, play.firstRead), moveTicks: cleanMoveTicksOf(play), readTicks: progression.map((r) => r.tick) };
   const at = (s: StatusTick, t: number): MustActParts => {
     const threat = threatPartAt(s, ctx.C);
     const status = ctx.forcing.has(s.status);
-    const reads = play.reads.filter((r) => r.kind === "PROGRESSION" && r.tick <= t + TOLERANCE).length;
+    if (clean !== undefined) {
+      const c = cleanCountAt(clean, t);
+      return { threat, status, reads: c.reads, count: c.count, rulePart: perRusher ? threat : status };
+    }
+    const reads = progression.filter((r) => r.tick <= t + TOLERANCE).length;
     return { threat, status, reads, count: t >= budget || reads >= maxReads, rulePart: perRusher ? threat : status };
   };
   return { budget, maxReads, statusAt, at };
@@ -516,6 +563,8 @@ export function mustActCheck(fold: MustActFold, play: S2Play, ctx: S2Context): v
   w.plays += 1;
   const acts = forcedActsOf(play, ctx.tunables);
   const holds = closingHoldsOf(play);
+  const block = cleanPocketOf(ctx.tunables);
+  if (block !== undefined) w.cleanPicks ??= 0;
   if (acts.length === 0 && holds.length === 0 && play.statuses.length === 0) return;
   const { budget, maxReads, statusAt, at: partsAt } = mustActPartsOf(play, ctx);
   const perRusher = ctx.rule === "PER_RUSHER";
@@ -564,6 +613,21 @@ export function mustActCheck(fold: MustActFold, play: S2Play, ctx: S2Context): v
     if (!status || threat) continue;
     fold.chances += 1;
     if (!count) fold.chancesUncounted += 1;
+  }
+  // Step 5a: each clean pick on a clean expiry, as the engine's predicate restates it (`cleanExpiry`:
+  // the count part under the block, not forced, not escaped, the published status CLEAN).
+  if (block !== undefined) {
+    for (const m of play.movements) {
+      if (!m.clean) continue;
+      w.cleanPicks = (w.cleanPicks ?? 0) + 1;
+      const s = statusAt.get(m.tick);
+      if (m.afterPursuit || s === undefined) {
+        fail(w, atPlay(play, m.tick), `witness: a clean pick ${m.afterPursuit ? "after QB_PURSUIT" : "on a tick with no POCKET_STATUS"}: the clean pick is the pocket's, on a clean expiry`);
+        continue;
+      }
+      const { reads, count, rulePart } = partsAt(s, m.tick);
+      if (s.status !== "CLEAN" || rulePart || !count) fail(w, atPlay(play, m.tick), `witness: a clean pick off a clean expiry (status ${s.status}, ${nearOf(s)}, ${ruleText}${rulePart ? " holds" : " does not hold"}, ${countText(reads)}, the count part under the block ${count ? "holds" : "does not hold"}): the restated count or the clean pick is wrong`);
+    }
   }
   const earliest = ctx.tunables.qb.throwawayEarliestSeconds;
   for (const h of holds) {
@@ -922,6 +986,8 @@ export function s2Cases(folds: S2Folds): { readonly forcedActs: number; readonly
 
 /** The self-check of one arm's must-act fold, as `selfCheckOf` reads it. */
 export interface MustActSelfCheck {
+  /** Step 5a only: the clean picks the witness read (absent on every arm without `pocket.cleanPocket`). */
+  readonly cleanPicks?: number;
   /**
    * The restated count part is not too strict, on a step-1-rule arm (A1 at step 2, plan §1.7 (ii)):
    * every forced act on a tick whose status does not force satisfies it. `null` on a PER_RUSHER
@@ -938,7 +1004,12 @@ export function selfCheckOf(fold: MustActFold): MustActSelfCheck {
   const w = fold.witness;
   const offRule = fold.rule === null || fold.rule === "PER_RUSHER" ? null : { acts: fold.offRule, counted: fold.offRuleCounted, exceptions: fold.problemCount };
   const witness = { holds: w.holds, countHolds: w.countHolds, clockExpired: w.clockExpired, exceptions: w.problemCount };
-  return { offRule, witness, passed: (offRule === null || (offRule.exceptions === 0 && fold.acts > 0)) && witness.exceptions === 0 && witness.countHolds > 0 };
+  return {
+    offRule,
+    witness,
+    passed: (offRule === null || (offRule.exceptions === 0 && fold.acts > 0)) && witness.exceptions === 0 && witness.countHolds > 0,
+    ...(w.cleanPicks === undefined ? {} : { cleanPicks: w.cleanPicks }),
+  };
 }
 
 /** The checkdown looks by trigger (AM-1 §4.5's composition): the CHECKDOWN_LOOK row of the must-act fold. */

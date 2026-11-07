@@ -49,6 +49,18 @@
  * counted only at or before that tick, the last status the replay has; a dropback the arm has not forced by then is CENSORED, and the censored share is printed
  * (K1). Under TODAY an unforced dropback is simply unforced.
  *
+ * **Step 5a's clean pick (taught, plan §4's readers row):** under `pocket.cleanPocket` a clean pick
+ * (`pocket_movement` CHECK on `movement/t<tick>:clean`, `cleanPick.ts`) is answered by today's climb
+ * in full (`QB_DECISION` STEP_UP, EDGE threats DELAYED) or today's escape roll, so the replay reads it
+ * exactly as it reads a forced one: the STEP_UP delays EDGE threats and zeroes EDGE counters, and an
+ * escape that ends the pocket stops the replay. What the clean move adds (his reads restarted, his
+ * count restated, the bump) is the quarterback's and moves no threat, so it needs no reading here and
+ * no line changed. The forced decision M2 counts is the threat or status part, never a clean pick (a
+ * CLEAN tick with no threat inside C). `pocketCleanPickReaders.test.ts` replays a step-5 clean-bench
+ * game under STREAM with every rebuilt status equal to the published one. (M2 is not run on a stream
+ * with step 3's facts: the replay cannot read a late block, so the step-3 and later harnesses leave
+ * it out, `step3.ts`'s `m2 = !s3`.)
+ *
  * **Dice (deviation O14):** S's uniform per rep is drawn on `createRng(<game seed>,
  * "adr-089:m2").fork(<rollRef>)` (U = 1 - next(), in (0, 1]); L's jitter on a tick today's stream
  * never played would be drawn on that fork's `.fork("t<tick>")` (two d100s, `rusher` then

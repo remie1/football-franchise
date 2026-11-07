@@ -40,6 +40,7 @@ import type { MatchEventEnvelope, PlayerId, PlayerState, Position } from "@ff/co
 import type { GameSnapshot, Tunables } from "@ff/engine";
 import { approachesOfPlay, LOOPER_FREE_BAND, PICKUP_FREE_BAND, type ThreatApproach } from "./approach.js";
 import { registryAttr } from "./freeRun.js";
+import { cleanPocketOf, isCleanPickLabel } from "./cleanPick.js";
 import { ARM_TODAY, replayPassPlay, type ArmTick } from "./m2ForcingSource.js";
 import { playsOf, readDropback, type Dropback } from "./throwClass.js";
 import { readsStep4Facts, rulesOnPlayStart } from "./rules.js";
@@ -265,6 +266,12 @@ export interface M6Fold {
   pickMismatches: number;
   unreadChecks: number;
   mismatchExamples: string[];
+  /**
+   * Step 5a only (the play's bundle carries `pocket.cleanPocket`; absent on every other fold, so
+   * steps 0 to 4 re-fold as before): clean picks (`:clean`, `cleanPick.ts`), which the cross-check
+   * skips. Their pool is MOVE and ESCAPE only at urgency 0, not today's pick the restatement prices.
+   */
+  cleanPicks?: number;
 }
 
 export function emptyM6Fold(): M6Fold {
@@ -362,13 +369,22 @@ export function streamResponseAt(d: Dropback, tick: number): PocketResponse | un
   }
 }
 
-/** Cross-check every pocket_movement CHECK of one dropback against the restated pick. */
+/**
+ * Cross-check every pocket_movement CHECK of one dropback against the restated pick. Under the play's
+ * `pocket.cleanPocket` (step 5a) a clean pick is counted apart (`cleanPicks`) and not cross-checked:
+ * it is not today's pick.
+ */
 export function crossCheckMovement(fold: M6Fold, d: Dropback, ticks: readonly ArmTick[], players: ReadonlyMap<string, PlayerState>, tunables: Tunables): void {
   const qb = players.get(d.start.quarterback);
   if (qb === undefined) throw new Error(`m6: ${d.playId}: quarterback ${d.start.quarterback} is not on the snapshot`);
   const ratingOf = ratingReader(qb);
+  const block = cleanPocketOf(tunables);
   for (const check of d.checks) {
     if (check.checkKind !== "pocket_movement") continue;
+    if (block !== undefined && isCleanPickLabel(check.rngLabel)) {
+      fold.cleanPicks = (fold.cleanPicks ?? 0) + 1;
+      continue;
+    }
     fold.movementChecks += 1;
     const at = ticks.find((t) => t.tick === check.tick);
     const shown = streamResponseAt(d, check.tick);
@@ -400,6 +416,7 @@ export function crossCheckMovement(fold: M6Fold, d: Dropback, ticks: readonly Ar
 /** Fold one game: the contacts, and the cross-check over TODAY's replay. */
 export function foldM6Game(fold: M6Fold, events: readonly MatchEventEnvelope[], snapshot: GameSnapshot, positions: ReadonlyMap<PlayerId, Position>, tunables: Tunables, gameSeed: string): void {
   const players = playersOfSnapshot(snapshot);
+  if (cleanPocketOf(tunables) !== undefined) fold.cleanPicks ??= 0;
   for (const play of playsOf(events)) {
     const d = readDropback(play);
     if (d === undefined) continue;
@@ -441,7 +458,14 @@ export function m6Summary(fold: M6Fold): Readonly<Record<string, unknown>> {
     byDown: cells(fold.byDown),
     appealGap: fold.appealGap,
     reading: "FIGHT priced at today's standIn appeal (no approach or situation term until steps 4 and 8); urgency at contact 3; exact expectation over the movement die",
-    crossCheck: { movementChecks: fold.movementChecks, bandMismatches: fold.bandMismatches, pickMismatches: fold.pickMismatches, unreadChecks: fold.unreadChecks, examples: fold.mismatchExamples },
+    crossCheck: {
+      movementChecks: fold.movementChecks,
+      bandMismatches: fold.bandMismatches,
+      pickMismatches: fold.pickMismatches,
+      unreadChecks: fold.unreadChecks,
+      examples: fold.mismatchExamples,
+      ...(fold.cleanPicks === undefined ? {} : { cleanPicksSkipped: fold.cleanPicks }),
+    },
   };
 }
 
