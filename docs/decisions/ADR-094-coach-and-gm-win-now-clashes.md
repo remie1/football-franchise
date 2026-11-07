@@ -444,6 +444,31 @@ jobs only, never names (ADR-082 Q1).
   news5 (72 polite, 57 open, 11 rifts), most of them repeats of a split already going.
 - Tests: `test/staff.test.ts` (4 more).
 
+**Step 7 (2026-11-07, same thread; the many-season check).** In `packages/franchise`; no contracts
+change, nothing in play changes. No real count exists for any of these, so the targets are judgment.
+- `staff-check --win-now` (implies `--gms --views`): every team's GM and head coach read the stand-in
+  season week by week after any midseason firing, pick buy, hold or sell and argue, as the season's
+  walk does (`weeklyStance` now also takes each week's records directly, `recordsAt`, where no season
+  state is kept). Without `--win-now` the report is byte-for-byte the same as before.
+- Three seeds (staff-check, wn-2, wn-3), 50 seasons each:
+  - Arguments 134 to 138 a season, a quarter of team-weeks split; polite 35-43%, open 30-33%, rifts
+    27-32%. A team's stance changes about four times a season.
+  - Split at the trade deadline (the GM overruling the coach after week 9's games): 7.3 to 8.6 teams
+    a season (from 3 to 15). Stances then: sell 13 to 15, buy 10 to 11, hold 7 to 8.
+  - The coach wins the argument on the day 40-46% of the time, but the course is the coach's in
+    under 1% of arguments: Q3 b's meeting halfway needs the GM's view of him at 20 or more, and GM
+    views of their coaches are "good" in 0.1% of pairs.
+  - GM and head coach grudges opened: 7.7 to 8.9 a season. After the first 10 seasons GM and coach
+    views of each other are professional 67-72%, strained 18-20%, broken 10-13% (all other views:
+    strained 0.4%, broken 0.0%).
+  - Knock-on: head coach changes 7.5 to 8.3 a year against 7.2 to 7.9 without (REPORTED about 7);
+    head coaches fired in midseason 2.5 to 3.0 against 2.1 to 2.7 (COUNTED 2.4). GM changes unchanged
+    (4.0 to 4.4, COUNTED about 4).
+- The meeting (§7, `headCoach` switch on), eight test-league seasons (seeds dir-0 to dir-7, 256
+  meetings): the GM and coach read the window alike in 92; of the 164 WINDOW arguments, the course
+  moved toward the coach in none, for the same reason.
+- Tests: `test/staff.check.test.ts` (2 more).
+
 ## Appendix A: new GMs by season, 2018-2026 (counted from Wikipedia season pages)
 
 Background: FO = came up through a front office; Re = former GM; HC = head coach given GM power;
