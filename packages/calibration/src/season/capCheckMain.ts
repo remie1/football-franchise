@@ -55,6 +55,12 @@ function print(y: CapYear): void {
   const played = y.playedYearDead;
   console.log(`  league year ${played.leagueYear} over, dead money a team: mean ${m(mean(played.perTeam))} (${pct(mean(played.perTeam) / played.cap)} of its cap), median ${m(mid(played.perTeam))}, most ${m(played.perTeam[played.perTeam.length - 1]!)}   [real 2026: $49.3M, 16.4%, counted from the league file]`);
   console.log(`  share by group: ${Object.entries(y.groupShare).map(([g, s]) => `${g} ${pct(s)}`).join(", ")}`);
+  if (y.weekOne) {
+    const w = y.weekOne;
+    const part = (label: string, b: keyof typeof w.men) => `${label} ${w.men[b].toFixed(1)} men ${pct(w.share[b])}`;
+    console.log(`  week 1 of ${w.season}, a team: ${part("big deals (4% of the cap and up)", "big")}, ${part("middle class (0.66% to 4%)", "middle")}   [real 2026 53s: 7.7 men 39.5%, 13.7 men 21.4%]`);
+    console.log(`    ${part("above the minimum", "aboveMinimum")}, ${part("minimum", "minimum")}, ${part("rookie", "rookie")}, ${part("tender or tag", "tenderOrTag")}, ${part("practice squad", "practiceSquad")}`);
+  }
   console.log(`  biggest deals: ${y.topDeals.map((d) => `${d.position} ${m(d.apy)}`).join(", ")}`);
   const c = y.counts;
   console.log(`  signed: ${Object.entries(c.signed).map(([k, n]) => `${k} ${n}`).join(", ")}`);
@@ -65,7 +71,7 @@ function print(y: CapYear): void {
 
 const args = parse(process.argv.slice(2));
 const file = readStandInFile(readFileSync(fromCaller(args.league), "utf8"));
-const years = runCapCheck({ seed: args.seed, file, seasons: args.seasons, onYear: print, ...(args.players ? { players: args.players } : {}) });
+const years = runCapCheck({ seed: args.seed, file, seasons: args.seasons, onYear: print, weekOneSplit: true, ...(args.players ? { players: args.players } : {}) });
 if (args.out) {
   const players = args.players ? { players: args.players } : {};
   writeFileSync(fromCaller(args.out), JSON.stringify({ seed: args.seed, league: args.league, ...players, years }, null, 2));

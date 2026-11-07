@@ -226,20 +226,24 @@ Two fixes came with it. Both had set the top of a position's price list too high
 - A price list counts a deal's own pay. An extension's bonus money carried over from the old deal no longer counts as its pay.
 - The check brings the league file's placeholder roster bonuses down to what the year's stored cap hit holds ($50M or $100M on four deals, in years whose stored cap hit leaves them out), and a void year keeps only its bonus proration (one still carried a $50M roster bonus). Main read them too, from the first league year. The importer should do this itself.
 
-Two new rows:
+Three new measures:
 
+- **The cap at week 1**, split by kind of deal and a veteran's deal by its size (0.66% and 4% of the cap in the deal's first real year, its own pay). On the league file's own 2026 season it reads 13.1 middle-class men a team and 20.6% of the cap, and 7.7 big deals and 38.4%, against 13.7 and 21.4%, 7.7 and 39.5% counted on the file's 53s of 23 October: the two counts agree.
 - **Dead money once the season is over.** Each league year's dead money, counted after its season, as the league file counts 2026's: $49.3M a team, 16.4% of the cap (COUNTED). The old row, a year's dead money before its cut-down and season, misses what cut-down day and the season add.
 - **Own-team deals of 2+ years above the minimum** (an average a year over 1.1 times the top minimum): real about 135 a year (OverTheCap 2021-25, COUNTED). The old row counts minimum deals too.
 
-This command as it runs (growth off, 5 seasons). "Main" is main with the same placeholder fix, so the two differ by step 14 alone; main has no counts for the two new rows.
+This command as it runs (growth off, 5 seasons). "Main" is main with the same placeholder fix and the same measures, so the two differ by step 14 alone. Each season's week-1 split and dead money once over stand under that season.
 
 | League year | 2027 | 2028 | 2029 | 2030 | 2031 | Mean | Main, mean | Real |
 |---|---|---|---|---|---|---|---|---|
 | New-team deals, $2M+ | 211 | 244 | 316 | 346 | 278 | 279 | 186 | 180 to 240 |
 | New-team deals, $5M+ | 87 | 118 | 123 | 141 | 121 | 118 | 94 | 80 to 120 |
 | Own-team deals of 2+ years | 116 | 116 | 71 | 114 | 157 | 115 | 122 | 210 to 290 |
-| ... above the minimum | 106 | 115 | 67 | 112 | 150 | 110 |  | about 135 |
-| Dead money once the season is over, mean a team ($M) | 20.8 | 28.9 | 30.4 | 39.3 |  | 29.9 |  | 49.3 (2026) |
+| ... above the minimum | 106 | 115 | 67 | 112 | 150 | 110 | 117 | about 135 |
+| Middle class at week 1, share of the cap | 23.2% | 23.4% | 21.8% | 24.3% |  | 23.2% | 17.1% | 21.4% |
+| Middle-class men a team at week 1 | 13.1 | 12.3 | 12.1 | 13.3 |  | 12.7 | 8.9 | 13.7 |
+| Big deals at week 1, share of the cap | 48.1% | 46.1% | 47.6% | 41.8% |  | 45.9% | 49.7% | 39.5% |
+| Dead money once the season is over, mean a team ($M) | 20.8 | 28.9 | 30.4 | 39.3 |  | 29.9 | 35.3 | 49.3 (2026) |
 | Dead money before its cut-down and season, mean a team ($M) | 14.9 | 20.7 | 21.7 | 29.7 | 30.3 | 23.5 | 30.4 |  |
 | Cap used, median | 96.9% | 97.5% | 98.0% | 97.4% | 96.9% | 97.3% | 97.7% |  |
 | Quarterbacks' share of the cap | 10.0% | 8.8% | 8.2% | 7.0% | 8.3% | 8.5% | 9.4% | 10.7% |
@@ -251,6 +255,7 @@ This command as it runs (growth off, 5 seasons). "Main" is main with the same pl
 | Step 14 | 7.8 | 4.0 | 15.1 | 3.4 | 19.9 | 9.1 | 14.3 | 5.1 | 12.4 | 6.5 | 2.3 |
 | Real (active deals, APY) | 10.7 | 4.8 | 13.0 | 5.2 | 18.7 | 10.6 | 13.0 | 6.4 | 9.6 | 6.0 | 2.0 |
 
+- Growth off, the middle class holds 23.2% of the cap at week 1 (main 17.1%, falling each year to 14.1% in 2030), but big deals still hold 45.9% (main 49.7%): veterans' deals take more of the cap than real teams' (69% against 61%). With growth on, both sit nearer real (below).
 - Before the two fixes, step 14's line took 24% of the cap (25% in 2029-31) and its biggest deals outside quarterback ran to 19% to 23% of the cap. Now the biggest is a receiver at 16.1% (2031); in the other years no deal outside quarterback reaches the top five (all quarterbacks, at 18% to 20%).
 - The $2M and $5M rows count flat dollars while our cap grows about 7% a year ($312M in 2027, $383M in 2030), so later years count smaller deals, as a share of the cap, than the real 2021-25 rows did. By cap share (0.66% and up), new-team deals run at about the real number with growth on: 256 / 276 a year against 250 (ADR-085, step 14).
 - Quarterbacks' money still drifts down, in main too. Most starters who leave on re-signing day go because their team has no room yet: re-signing day comes before March's cap cuts and restructures (the owner's card on re-signing with March's room).
@@ -260,7 +265,7 @@ With growth and injuries on (two seeds, five seasons), the middle class's share 
 ## What does not match yet
 
 1. **Too few re-signings.** Own-team deals of 2+ years run at about 115 a year against 210 to 290. Above the minimum they are nearer, about 110 against about 135 (step 14): most of the gap is minimum deals of two years or more (futures deals and call-ups among them), which we sign for one year. Re-signing day comes before March's cap cuts and restructures, so most of a team's own starters who leave that day go for want of room.
-2. **The middle class is still short.** With growth on, it holds 18.9% of the cap at week 1 against 21.4%, and own-team middle-class deals run at about 65 a year against 155 (item 1).
+2. **Big deals still hold too much of the cap, and a team's own middle class is short.** With growth on, big deals hold 42% to 43% of the cap at week 1 against 39.5% and the middle class 18.9% against 21.4%; growth off, 45.9% and 23.2%. Own-team middle-class deals run at about 65 a year against 155 (item 1).
 3. **Too little dead money with growth off:** about $30M a team once the season is over (step 14), against $49.3M in the real 2026. With growth on it is $44M to $49M, 13% to 14% of a bigger cap (real 16.4%). There are no trades yet.
 4. **The position mix drifts.** Over five years quarterback money falls (8.5% of the cap against 10.7%, main 9.4%), and receiver and corner money rises.
 5. **Offseason rosters reach 105 to 106** at the end of the summer, over the 90-man limit (main too).

@@ -23,7 +23,7 @@ import {
 import { buildLeague, buildStaff, capForecast, type runSeason, type SeasonRun } from "@ff/franchise";
 import { generateDraftClass } from "@ff/attributes";
 import {
-  limboPlayers, OPENING_ROOM, runCapCheck, sweepLimbo, topMinimum, transformStaff, withConditionRule, withDummyYearsVoid, type CapCheckInput,
+  capSplit, limboPlayers, OPENING_ROOM, runCapCheck, sweepLimbo, topMinimum, transformStaff, withConditionRule, withDummyYearsVoid, type CapCheckInput,
 } from "../src/season/capCheck.js";
 import { armInput, COACH_STYLE_LINEUPS } from "../src/season/careerCheckRun.js";
 import { runDraftCheck } from "../src/season/draftCheck.js";
@@ -314,6 +314,54 @@ describe("the cap check's walk, widened (made-up seasons answer runSeason)", () 
     const plain = firstSeasonInput({ players: { injuries: true } });
     expect("daySteps" in plain).toBe(false);
     expect("onEvent" in plain).toBe(false);
+  }, 300_000);
+
+  it("weekOneSplit is one more day step, after onDay's, that only looks; the split of week 1's first day is that year's (ADR-085 step 14)", () => {
+    type Step = NonNullable<SeasonInput["daySteps"]>[number];
+    const days: Omit<CalendarStamp, "season">[] = [
+      { phase: "TRAINING_CAMP", week: 1, day: 1 },
+      { phase: "REGULAR_SEASON", week: 1, day: 1 },
+      { phase: "REGULAR_SEASON", week: 1, day: 2 },
+      { phase: "REGULAR_SEASON", week: 2, day: 1 },
+    ];
+    const watched: string[] = [];
+    const handed: SeasonInput[] = [];
+    const years = withRunSeason((i) => {
+      handed.push(i);
+      const people = i.people!;
+      // Every other day the people have no deals, so only week 1's first day can give the kept split.
+      const bare: SeasonPeople = { ...people, contracts: [] };
+      const before = json(people);
+      for (const day of days) {
+        const atWeekOne = day.phase === "REGULAR_SEASON" && day.week === 1 && day.day === 1;
+        const ctx = { day: { season: i.season, ...day }, season: i.season, seed: "s", games: [] } as unknown as Parameters<Step["run"]>[1];
+        for (const step of i.daySteps!) expect(step.run(atWeekOne ? people : bare, ctx)).toBeUndefined();
+      }
+      expect(json(people)).toBe(before);
+      return {
+        state: { season: i.season } as unknown as SeasonRun["state"],
+        calendar: { season: i.season, phase: "OFF_SUMMER", week: 1, day: 7 } as CalendarStamp,
+        events: [], complete: true, people,
+      } satisfies SeasonRun;
+    }, () => runCapCheck({
+      seed: SEED, file, seasons: 2, weekOneSplit: true,
+      onDay: (season, day) => { watched.push(`${season} ${day.phase} ${day.week}/${day.day}`); },
+    }));
+    expect(handed).toHaveLength(2);
+    for (const [n, input] of handed.entries()) {
+      expect(input.daySteps!.map((s) => s.id)).toEqual(["cap-check:watch", "cap-check:week-one"]);
+      const split = years[n]!.weekOne!;
+      expect(split.season).toBe(input.season);
+      expect(json(split)).toBe(json(capSplit(input.people!, input.season, input.leagueYear!.cap)));
+      expect(split.men.big).toBeGreaterThan(0);
+      expect(json(split)).not.toBe(json(capSplit({ ...input.people!, contracts: [] }, input.season, input.leagueYear!.cap)));
+    }
+    // The watcher saw every day it was handed, as before.
+    expect(watched).toHaveLength(2 * days.length);
+    // Without the switch: no step, no split.
+    const plain = madeUpWalk({ seasons: 1 });
+    expect("daySteps" in plain.handed[0]!).toBe(false);
+    expect(plain.years[0]!.weekOne).toBeUndefined();
   }, 300_000);
 
   it("staffTransform changes the staff the walk starts with, given buildStaff's (with leanings when switched on)", () => {

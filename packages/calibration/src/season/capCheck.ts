@@ -6,7 +6,8 @@
  * draft (ADR-086) in the walk. The league year sets the cap, re-signs and tags, lets deals run out,
  * runs free agency and keeps every team under the cap. The draft makes the picks, signs the
  * rookies and turns the year. After each year it measures the money the way OverTheCap counts it,
- * so the numbers can be set against the real league's.
+ * so the numbers can be set against the real league's, and each season it splits the cap at week 1
+ * by kind and size of deal (ADR-085 step 14: the middle class).
  *
  * Reaches franchise through `runSeason`, `buildLeague`, `buildStaff`, `capForecast` and `teamCapTotal`
  * (ADR-078 R1 amendment 3, ADR-085 Q10), and attributes through `generateDraftClass` (ADR-086 R1).
@@ -86,6 +87,12 @@ export interface CapCheckInput {
   /** Each event as the season adds it, with the season's schedule (`runSeason`'s own `onEvent`). Watches only. */
   readonly onEvent?: NonNullable<SeasonInput["onEvent"]>;
   /**
+   * ADR-085 step 14: count each season's cap at week 1 (`capSplit`, kept as `CapYear.weekOne`): one
+   * more day step, after `onDay`'s, that only looks. The cap-check command turns it on. Absent, the
+   * walk's input is as before and no year carries the split.
+   */
+  readonly weekOneSplit?: boolean;
+  /**
    * The coaches, changed at the start of every season (`transformStaff`): for an arm that sets every
    * head coach's depth-chart leanings (`StaffState.lineup`). Switched on, the carousel can seat a new
    * head coach after any season's playoffs, so the walk hands this the people's whole staff again
@@ -157,6 +164,11 @@ export interface CapYear {
   };
   /** Players on each team's books at the end of the year (the 90 in the offseason), lowest first. */
   readonly rosterSizes: number[];
+  /**
+   * The walk's own season (the league year just played) at week 1: each team's men and cap by kind of
+   * deal, a veteran's deal by its size (`capSplit`, ADR-085 step 14). Absent when the walk did not pass week 1.
+   */
+  readonly weekOne?: CapSplit;
   /** Real seconds the year took. */
   readonly seconds: number;
 }
@@ -195,9 +207,75 @@ export function deadByTeam(people: Pick<SeasonPeople, "teams" | "deadMoney">, ye
   return people.teams.map((t) => by.get(String(t.id)) ?? 0);
 }
 
+/**
+ * A deal's own pay a year, as OverTheCap counts it: an extension made in the walk leaves out the bonus
+ * money it carries over from the old deal (step 14), counting its own signing bonus instead.
+ */
+export function ownPay(c: PlayerContract): number {
+  const real = c.years.filter((y) => !y.voidYear);
+  if (c.kind === "EXTENSION" && c.signingBonus !== undefined) {
+    const pay = real.reduce((s, y) => s + y.capHit - y.signingBonusProration - (y.optionBonusProration ?? 0), 0);
+    return (pay + c.signingBonus) / Math.max(1, real.length);
+  }
+  return real.reduce((s, y) => s + y.capHit, 0) / Math.max(1, real.length);
+}
+
+/** Where a deal sits in the cap (ADR-085 step 14): its kind, or for a veteran's deal its size. */
+export type CapBand = "rookie" | "practiceSquad" | "tenderOrTag" | "minimum" | "aboveMinimum" | "middle" | "big";
+export const CAP_BANDS: readonly CapBand[] = ["rookie", "practiceSquad", "tenderOrTag", "minimum", "aboveMinimum", "middle", "big"];
+
+/**
+ * A veteran's deal by its own pay a year over the cap of its first real year: the middle class from
+ * 0.66% (OverTheCap's $2M line against the 2026 cap of $301.2M), a big deal from 4% (both CHOSEN for
+ * step 14's count). A deal at or under 1.1 times the top of that year's minimum scale is a minimum deal.
+ */
+export const MIDDLE_CLASS_FROM = 2_000_000 / 301_200_000;
+export const BIG_DEAL_FROM = 0.04;
+
+/** A deal's band: a rookie deal, a practice-squad deal, a tender or tag, or a veteran's deal by its size. */
+export function capBand(c: PlayerContract, cap: (season: number) => number): CapBand {
+  if (c.kind === "ROOKIE") return "rookie";
+  if (c.kind === "PRACTICE_SQUAD") return "practiceSquad";
+  if (!VETERAN_DEAL_KINDS.includes(c.kind)) return "tenderOrTag";
+  const first = c.years.find((y) => !y.voidYear)?.season ?? c.signedAt.season;
+  const pay = ownPay(c);
+  if (pay <= 1.1 * topMinimum(first, cap)) return "minimum";
+  const share = pay / cap(first);
+  return share < MIDDLE_CLASS_FROM ? "aboveMinimum" : share < BIG_DEAL_FROM ? "middle" : "big";
+}
+
+/**
+ * The cap at week 1 of a season (ADR-085 step 14): a team's men in each band and its cap numbers there,
+ * over the season's cap, from the deals live that day. Real, the league file's 2026 53s (contracts as
+ * of 23 October) by the same split, COUNTED: big deals 7.7 men and 39.5% of a team's cap, the middle
+ * class 13.7 men and 21.4%.
+ */
+export interface CapSplit {
+  readonly season: number;
+  readonly men: Record<CapBand, number>;
+  readonly share: Record<CapBand, number>;
+}
+
+export function capSplit(people: Pick<SeasonPeople, "teams" | "contracts">, season: number, cap: (season: number) => number): CapSplit {
+  const men = Object.fromEntries(CAP_BANDS.map((b) => [b, 0])) as Record<CapBand, number>;
+  const money = { ...men };
+  for (const c of people.contracts ?? []) {
+    if (!live(c, season)) continue;
+    const band = capBand(c, cap);
+    men[band] += 1;
+    money[band] += capHit(c, season);
+  }
+  const teams = Math.max(1, people.teams.length);
+  return {
+    season,
+    men: Object.fromEntries(CAP_BANDS.map((b) => [b, men[b] / teams])) as Record<CapBand, number>,
+    share: Object.fromEntries(CAP_BANDS.map((b) => [b, money[b] / teams / cap(season)])) as Record<CapBand, number>,
+  };
+}
+
 function measure(
   people: SeasonPeople, events: readonly FranchiseEvent[], year: number, cap: number, seconds: number,
-  lastTeam: ReadonlyMap<string, string>, played: { leagueYear: number; cap: number }, minimumTop: number,
+  lastTeam: ReadonlyMap<string, string>, played: { leagueYear: number; cap: number }, minimumTop: number, weekOne: CapSplit | undefined,
 ): CapYear {
   const contracts = people.contracts ?? [];
   const position = new Map(people.players.map((p) => [String(p.bio.id), p.bio.position]));
@@ -218,18 +296,8 @@ function measure(
   }
   const signed: Record<string, number> = {};
   for (const e of events) if (e.type === "CONTRACT_SIGNED") signed[e.payload.kind ?? "UNKNOWN"] = (signed[e.payload.kind ?? "UNKNOWN"] ?? 0) + 1;
-  // A deal's own pay a year, as OverTheCap counts it: an extension made here leaves out the bonus money
-  // it carries over from the old deal (step 14), counting its own signing bonus instead.
-  const apy = (c: PlayerContract) => {
-    const real = c.years.filter((y) => !y.voidYear);
-    if (c.kind === "EXTENSION" && c.signingBonus !== undefined) {
-      const pay = real.reduce((s, y) => s + y.capHit - y.signingBonusProration - (y.optionBonusProration ?? 0), 0);
-      return (pay + c.signingBonus) / Math.max(1, real.length);
-    }
-    return real.reduce((s, y) => s + y.capHit, 0) / Math.max(1, real.length);
-  };
-  const topDeals = contracts.filter((c) => live(c, year)).sort((a, b) => apy(b) - apy(a)).slice(0, 5)
-    .map((c) => ({ player: String(c.player), position: position.get(String(c.player)) ?? ("QB" as Position), apy: Math.round(apy(c)) }));
+  const topDeals = contracts.filter((c) => live(c, year)).sort((a, b) => ownPay(b) - ownPay(a)).slice(0, 5)
+    .map((c) => ({ player: String(c.player), position: position.get(String(c.player)) ?? ("QB" as Position), apy: Math.round(ownPay(c)) }));
   const vets = events.filter((e): e is Extract<FranchiseEvent, { type: "CONTRACT_SIGNED" }> =>
     e.type === "CONTRACT_SIGNED" && VETERAN_DEAL_KINDS.includes(e.payload.kind));
   const apyOfEvent = (e: (typeof vets)[number]) => (e.payload.value ?? 0) / Math.max(1, e.payload.years ?? 1);
@@ -256,6 +324,7 @@ function measure(
         && apyOfEvent(e) > 1.1 * minimumTop).length,
     },
     rosterSizes: people.teams.map((t) => t.roster.length).sort((a, b) => a - b),
+    ...(weekOne ? { weekOne } : {}),
     seconds,
   };
 }
@@ -367,6 +436,17 @@ function watchStep(season: number, onDay: NonNullable<CapCheckInput["onDay"]>): 
   };
 }
 
+/** A day step that keeps the season's cap split on its first day of week 1 (ADR-085 step 14); it only looks. */
+function weekOneStep(season: number, cap: (season: number) => number, keep: (split: CapSplit) => void): SeasonDayStep {
+  return {
+    id: "cap-check:week-one",
+    run: (people, ctx) => {
+      if (ctx.day.phase === "REGULAR_SEASON" && ctx.day.week === 1 && ctx.day.day === 1) keep(capSplit(people, season, cap));
+      return undefined;
+    },
+  };
+}
+
 export function runCapCheck(input: CapCheckInput): CapYear[] {
   const switched = input.players?.development === true || input.players?.injuries === true;
   const development = input.players?.development === true;
@@ -416,12 +496,18 @@ export function runCapCheck(input: CapCheckInput): CapYear[] {
   // The coaches' steps (ADR-084: views, weekly drift, the carousel) and the end-of-season meeting
   // (ADR-081), as `runRealSeason` runs them with a coaching world; switched off, neither.
   const coachingSteps: Pick<SeasonInput, "coaching" | "meeting"> = switched ? { coaching: {}, meeting: {} } : {};
-  // The day watcher: a day step that only looks, first in the day's order; absent, no step is added.
+  // The day watcher: a day step that only looks, first in the day's order (no `onDay`, no watcher).
+  // Then the week-1 split's step, which only looks too (switched on by `weekOneSplit`). With neither,
+  // the season's input has no day steps at all.
   const { onDay, onEvent } = input;
-  const watchers = (season: number): Pick<SeasonInput, "daySteps" | "onEvent"> => ({
-    ...(onDay ? { daySteps: [watchStep(season, onDay)] } : {}),
-    ...(onEvent ? { onEvent } : {}),
-  });
+  const weekOnes = new Map<number, CapSplit>();
+  const watchers = (season: number): Pick<SeasonInput, "daySteps" | "onEvent"> => {
+    const daySteps = [
+      ...(onDay ? [watchStep(season, onDay)] : []),
+      ...(input.weekOneSplit === true ? [weekOneStep(season, cap, (split) => weekOnes.set(season, split))] : []),
+    ];
+    return { ...(daySteps.length > 0 ? { daySteps } : {}), ...(onEvent ? { onEvent } : {}) };
+  };
   const years: CapYear[] = [];
   let current: League = input.resume !== undefined ? { ...league, teams: people.teams } : league;
   for (let i = input.resume?.seasonsDone ?? 0; i < input.seasons; i++) {
@@ -451,7 +537,7 @@ export function runCapCheck(input: CapCheckInput): CapYear[] {
     input.onRun?.(season, events, people, { run, before });
     if (switched) people = sweepLimbo(people);
     current = { ...current, teams: people.teams };
-    const year = measure(people, events, season + 1, cap(season + 1), (Date.now() - started) / 1000, lastTeam, { leagueYear: season, cap: cap(season) }, topMinimum(season + 1, cap));
+    const year = measure(people, events, season + 1, cap(season + 1), (Date.now() - started) / 1000, lastTeam, { leagueYear: season, cap: cap(season) }, topMinimum(season + 1, cap), weekOnes.get(season));
     years.push(year);
     input.onYear?.(year);
     input.onSeasonEnd?.(season, people);

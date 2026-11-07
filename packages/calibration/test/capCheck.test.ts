@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { playerId, teamId, type PlayerContract } from "@ff/contracts";
-import { DUMMY_SALARY, withConditionRule, withDummyYearsVoid } from "../src/season/capCheck.js";
+import { DUMMY_SALARY, capBand, capSplit, ownPay, withConditionRule, withDummyYearsVoid } from "../src/season/capCheck.js";
 
 // ADR-085 §7: how the cap check reads the stand-in league file.
 const year = (season: number, baseSalary: number, proration: number) => ({
@@ -61,6 +61,40 @@ describe("the cap check's reading of the league file", () => {
     const voidPay: PlayerContract = { ...c, years: [year(2026, 4.65e6, 5.55e6), { ...year(2027, 0, 2.3e6), rosterBonus: 50e6, capHit: 4.72e6, voidYear: true }] };
     const w = withDummyYearsVoid(voidPay, 2026);
     expect(w.years[1]).toMatchObject({ baseSalary: 0, rosterBonus: 0, signingBonusProration: 2.3e6, voidYear: true });
+  });
+
+  it("splits the cap at week 1 by kind of deal and a veteran's deal by its size (step 14)", () => {
+    const cap = (season: number) => (season === 2026 ? 300e6 : 320e6);
+    const team = teamId("T01");
+    const at = { season: 2026, phase: "OFF_RESET_FA" as const, week: 1, day: 1 };
+    const deal = (id: string, kind: PlayerContract["kind"], perYear: number, seasons: number[] = [2026, 2027]): PlayerContract => ({
+      player: playerId(id), team, signedAt: at, ...(kind === undefined ? {} : { kind }),
+      years: seasons.map((s) => year(s, perYear, 0)),
+    });
+    const contracts: PlayerContract[] = [
+      deal("r:1", "ROOKIE", 1e6),
+      deal("r:2", "PRACTICE_SQUAD", 0.9e6, [2026]),
+      deal("r:3", "RFA_TENDER", 3e6, [2026]),
+      deal("r:4", "VETERAN", 1.4e6), // at most 1.1 times the top minimum ($1.3M in 2026): a minimum deal
+      deal("r:5", "VETERAN", 1.8e6), // over it, under 0.66% of the cap ($2M in 2026)
+      deal("r:6", undefined, 6e6), // the middle class (a deal with no kind is a veteran's)
+      deal("r:7", "EXTENSION", 15e6), // 5% of the cap: big
+      { ...deal("r:8", "VETERAN", 20e6), ended: { at, reason: "RELEASED" } }, // ended: not counted
+      deal("r:9", "VETERAN", 20e6, [2027, 2028]), // no year this season: not counted
+    ];
+    expect(contracts.map((c) => capBand(c, cap))).toEqual(["rookie", "practiceSquad", "tenderOrTag", "minimum", "aboveMinimum", "middle", "big", "big", "big"]);
+    const split = capSplit({ teams: [{ id: team }, { id: teamId("T02") }] as never, contracts }, 2026, cap);
+    expect(split.season).toBe(2026);
+    expect(split.men).toEqual({ rookie: 0.5, practiceSquad: 0.5, tenderOrTag: 0.5, minimum: 0.5, aboveMinimum: 0.5, middle: 0.5, big: 0.5 });
+    expect(split.share.middle).toBeCloseTo(6e6 / 2 / 300e6, 12);
+    expect(split.share.big).toBeCloseTo(15e6 / 2 / 300e6, 12);
+    // A deal's size is its own pay in its first real year's cap; an extension's carried-over bonus money is not its pay.
+    const ext: PlayerContract = {
+      ...deal("r:10", "EXTENSION", 0, [2027, 2028]), signingBonus: 4e6,
+      years: [{ ...year(2027, 2e6, 6e6) }, { ...year(2028, 2e6, 6e6) }],
+    };
+    expect(ownPay(ext)).toBe((2e6 + 2e6 + 4e6) / 2);
+    expect(capBand(ext, cap)).toBe("middle");
   });
 
   it("a traded pick's condition kept as words gets the rule the game cannot settle", () => {
