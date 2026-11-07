@@ -22,7 +22,7 @@ import { BOARD_ERROR, POSITION_VALUE, STARTERS, WANTED, needAt, type Rate } from
 import { seasonsIn } from "../draft/cutdown.js";
 import { DRAFT_DAYS } from "../draft/steps.js";
 import { aheadView, gmEvaluation, type AheadView } from "./ahead.js";
-import { capNumber, designatedIn, expireContract, isAfterJune1, liveIn, releasePlayer, restructure, teamCapTotal } from "./money.js";
+import { capNumber, designatedIn, expireContract, isAfterJune1, liveIn, prorate, proration, releasePlayer, restructure, teamCapTotal, withCapHits } from "./money.js";
 import { BASE_CAP, CASH_FLOOR, MAX_PRORATION_YEARS, POST_JUNE_1_DESIGNATIONS, RFA_SEASONS, TAG_GROUP, type TenderLevel } from "./rules.js";
 import { ROOKIE_SCALE_2026 } from "./rookieScale2026.js";
 import { minimumContract, minimumSalary, tagContract, tagPrice, tenderPrice } from "./signings.js";
@@ -454,11 +454,17 @@ function reSign(
     }
     // Early extensions: a player the team rates highly, in his last year next season and still in his
     // prime, is extended now, as real teams do before a good player reaches the market. The new deal
-    // starts after the old one ends.
-    const first = next + 1;
+    // takes over from next season, as a real extension tears up the deal's last year (step 14): his old
+    // deal now runs out at the new league year, and its bonus money still to count from next season on
+    // moves into the new deal's real years.
+    const first = next;
     for (const p of roster) {
-      const old = book.contracts.find((c) => String(c.player) === String(p.bio.id) && c.team === team.id && endsAfter(c, next));
-      if (!old || hasDealIn(book.contracts, String(p.bio.id), first)) continue;
+      const oi = book.contracts.findIndex((c) => String(c.player) === String(p.bio.id) && c.team === team.id && endsAfter(c, next));
+      const old = oi >= 0 ? book.contracts[oi] : undefined;
+      if (!old) continue;
+      // Not a deal that starts next season (nothing of it to keep), nor a man with another deal for it.
+      if (!old.years.some((y) => y.season < first && !y.voidYear)) continue;
+      if (book.contracts.some((c, j) => j !== oi && String(c.player) === String(p.bio.id) && liveIn(c, first))) continue;
       // Not the man it just tendered, tagged or re-signed today: that deal is his answer for now.
       if (old.signedAt && compareStamps(old.signedAt, at) === 0) continue;
       const cs = seasonsIn(p, first);
@@ -469,15 +475,22 @@ function reSign(
       const floor = minimumSalary(first, cs, config.cap);
       const v = valuePlayer(p, g, curves, floor, config.cap(first), config.ahead.value(team.id, p));
       if (v.percentile < MARKET.extendPercentile) continue;
-      const offer = buildOffer(p, team.id, first, at, v.apy, v.years, v.percentile, cs, config.cap, "EXTENSION");
-      if (capNumber(offer.years[0]!) > roomFor(team.id, first, book, config.cap, plan(team.id).cushion, 0, plan(team.id).lookAhead)) continue;
-      if (!secondYearFits(team.id, offer, book, config.cap, plan(team.id))) continue;
+      const fresh = buildOffer(p, team.id, first, at, v.apy, v.years, v.percentile, cs, config.cap, "EXTENSION");
+      const left = old.years.filter((y) => y.season >= first).reduce((a, y) => a + proration(y), 0);
+      const each = prorate(left, fresh.years.filter((y) => !y.voidYear).length);
+      const offer = withCapHits({ ...fresh, years: fresh.years.map((y, i) => (y.voidYear || i >= each.length ? y : { ...y, signingBonusProration: y.signingBonusProration + each[i]! })) });
+      const shortened: PlayerContract = { ...old, years: old.years.filter((y) => y.season < first) };
+      // The old deal's last year leaves the books as the new deal's first comes on.
+      const lastYear = old.years.find((y) => y.season === first);
+      if (capNumber(offer.years[0]!) - (lastYear ? capNumber(lastYear) : 0) > roomFor(team.id, first, book, config.cap, plan(team.id).cushion, 0, plan(team.id).lookAhead)) continue;
+      if (!secondYearFits(team.id, offer, { ...book, contracts: book.contracts.map((c, j) => (j === oi ? shortened : c)) }, config.cap, plan(team.id))) continue;
       const ask = askingPrice(p, askValue(p, config, curves, floor, config.cap(first)), "VALUE", 0, floor, ctx.seed, ctx.season);
       const worth = offerWorth(p, {
         apy: apyOf(offer), guaranteed: guaranteedShare(offer), winShare: winShareOf(team.id, ctx.state),
         starts: wouldStart(g, p.bio.position, gradesAt(p.bio.position)), ownTeam: true,
       }, ask);
       if (worth < 1) continue;
+      book.contracts[oi] = shortened;
       book.contracts.push(offer);
       book.events.push(signedEvent(offer));
     }

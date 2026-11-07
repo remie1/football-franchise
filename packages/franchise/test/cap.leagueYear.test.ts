@@ -129,15 +129,24 @@ describe("the league year (ADR-085 §4)", () => {
     expect(carried.some((c) => c.amount > 0)).toBe(true);
   });
 
-  it("extends players it values a year early: the new deal starts when the old one ends, never a rookie before his third season", () => {
-    const early = people.contracts!.filter((c) => c.kind === "EXTENSION" && c.years[0]!.season === 2028);
-    expect(early.length).toBeGreaterThan(0);
-    for (const c of early) {
-      const old = people.contracts!.find((x) => String(x.player) === String(c.player) && x !== c && x.years.some((y) => y.season === 2027));
-      expect(old, String(c.player)).toBeDefined();
-      expect(old!.team).toBe(c.team);
-      const p = people.players.find((x) => String(x.bio.id) === String(c.player))!;
-      if (old!.kind === "ROOKIE") expect(p.bio.creditedSeasons ?? 0).toBeGreaterThanOrEqual(3);
+  it("extends players it values a year early: the new deal takes over next season from the old one's last year, never a rookie before his third season", () => {
+    // Step 14: deals with a year left after 2026 (2026-27 in the starting book) that were extended now
+    // end after 2026, and the extension runs from 2027 with the old deal's bonus money still to count.
+    const lastIn = (c: PlayerContract) => Math.max(...c.years.filter((y) => !y.voidYear).map((y) => y.season));
+    const extended = people0.contracts!.filter((o) => lastIn(o) === 2027).flatMap((o) => {
+      const now = people.contracts!.find((x) => String(x.player) === String(o.player) && x.team === o.team && JSON.stringify(x.signedAt) === JSON.stringify(o.signedAt) && x.kind === o.kind)!;
+      return lastIn(now) === 2026 && !now.ended?.reason.startsWith("REL") ? [{ o, now }] : [];
+    });
+    expect(extended.length).toBeGreaterThan(0);
+    for (const { o, now } of extended) {
+      const ext = people.contracts!.filter((c) => String(c.player) === String(o.player) && c.kind === "EXTENSION" && c.team === o.team && c.years[0]!.season === 2027);
+      expect(ext, String(o.player)).toHaveLength(1);
+      // Nothing of the old deal is left from 2027 on: its proration moved into the extension.
+      expect(now.years.every((y) => y.season <= 2026)).toBe(true);
+      const moved = o.years.filter((y) => y.season >= 2027).reduce((a, y) => a + y.signingBonusProration, 0);
+      expect(ext[0]!.years.reduce((a, y) => a + y.signingBonusProration, 0)).toBeGreaterThanOrEqual(moved - ext[0]!.years.length);
+      const p = people.players.find((x) => String(x.bio.id) === String(o.player))!;
+      if (o.kind === "ROOKIE") expect(p.bio.creditedSeasons ?? 0).toBeGreaterThanOrEqual(3);
     }
   });
 
