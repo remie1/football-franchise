@@ -6,7 +6,7 @@
   starters lose playing time".
 - **Status:** direction ruled by the owner (2026-11-07 16:27Z): Q1 yes (share the snaps), Q2 built
   from the owner's four reasons (§3), Q3 later (filling a spot from anyone who can play it, §9).
-  The mechanism below is PROPOSED; one question (§10, Q4) is open. Contracts edits S1-S2 (§7) wait
+  Q4 ruled (a), a continuity cost (2026-11-07 16:42Z). The design is fully ruled. Contracts edits S1-S2 (§7) wait
   for a typed yes at build. Nothing is built.
 - **Proposal doc (plain words, the questions as put to the owner):**
   https://claude.ai/artifact/Ms4hgcFWCBJQ6C6p5KJbHC
@@ -120,7 +120,7 @@ has, so the group pattern comes out of play rather than being written in.
 ### 4.5 Continuity, and how close the next man must be
 - Swapping a man in costs something on jobs that work in step with teammates: a line's blocking
   calls passed down the line, a passer's timing with his receivers. The coaches weigh that cost
-  before they rotate, so quarterbacks and linemen rotate rarely (Q4, §10).
+  before they rotate, so quarterbacks and linemen rotate rarely (Q4 ruled a, §10).
 - Every rotation choice reads the coaches' existing read of each man (blurred ratings plus form,
   `depthChart.ts`), so a backup who is close earns snaps and one who is far worse does not. This
   turns a lost rating point into lost snaps smoothly instead of today's all-or-nothing switch.
@@ -171,7 +171,7 @@ alone (snap counts and situations), then both.
 Filling a spot from anyone who can play it (a guard moved out to tackle, a corner to safety), judged
 by how each man would rate there. Its own step after this one is in and measured.
 
-## 10. Open question
+## 10. Q4 (ruled a)
 
 **Q4. What keeps quarterbacks and linemen from rotating?** (a) A continuity cost on jobs that work in
 step with teammates, read from what the job does on the field (recommended: it follows the no-position
@@ -207,3 +207,4 @@ Situational men and matchups ride the plan and are priced with it, then matchups
 
 - 2026-11-07 16:27Z, the owner on the proposal doc's three questions: "1. Yes 2. Base your answer off
   of the following information: [the four reasons, §3] 3. Later".
+- 2026-11-07 16:42Z, the owner on Q4 (decision card): "A cost for breaking continuity" (a).
