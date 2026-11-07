@@ -741,7 +741,6 @@ export function gradeStep4(records: Step4Records, file: FiledFile, guard: Step4G
 
   const waits = [
     ...(probes === undefined ? ["s4.falsifier.release and s4.falsifier.ratingProbes: the probes (--probes) are not all in their cache"] : []),
-    "R-1 (--digests on D1 to D17) and the s4 pins: not run and not pinned yet",
     STEP4_TL_LINE,
     "AM-6's declared prints on the own-clock rule: the counts are read at the decision instant's class only; the own-clock reading of them is not built",
     ...(oneSet === undefined ? [] : [`a one-set run (set ${String(oneSet)}): nothing graded`]),

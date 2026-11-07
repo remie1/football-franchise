@@ -474,6 +474,7 @@ describe("gradeStep4 on hand-built records (pure)", () => {
     for (const l of [...r.lines, ...waits]) expect(l, l).not.toMatch(/\blift\b/);
     expect(r.lines).toContain(STEP4_TL_LINE);
     expect(waits).toContain(STEP4_TL_LINE);
-    expect(waits).toContain("R-1 (--digests on D1 to D17) and the s4 pins: not run and not pinned yet");
+    // R-1 and the s4 pins landed (40137fc, POCKET_1_S4_PINS): the grade no longer says they wait.
+    for (const l of waits) expect(l, l).not.toMatch(/R-1|s4 pins|not pinned/);
   });
 });
