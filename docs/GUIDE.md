@@ -262,6 +262,18 @@ rookie ages, the retired list, signed again and exits by age, the league file re
 (`standin-recount`), and each player's expected games available ahead (`expectedAvailability`, for the
 cap). Next is aging by ability group, with no rule by position.
 
+**Fans and media have a mood (ADR-096 step 2, built 7 November 2026, off by default):** with
+`--mood` (beside `--development` or `--injuries`) every team's fans and local media hold a mood from
+-100 (furious) to +100 (thrilled) about the team, the head coach, the GM, both coordinators and up
+to six players they are watching. It moves after each game by how far the result beat or missed
+what the two rosters said, how it happened (a rout, a blown lead, a late loss, a home loss) and any
+streak; the offense's and defense's shares go to their coordinators, and the GM also answers for a
+thin roster behind a hurt starter, an aging unit and next year's cap. Fans swing hard and fast;
+the media move slower and stay near the record. Firings, hires, big signings and first-round picks
+move it in the offseason, and in weeks without a game it settles back. Nothing in the game reads it
+yet; the weekly podcast will (step 3 on). `mood-check` plays many seasons to see that fans are not
+furious all the time (`reports/mood-check.md`).
+
 **Your coach's personality (ADR-083, ruled 23 October 2026, not built):** your type builds up from
 how you answer people, shown as five meters on your coach page. Only your main trait counts, and it
 changes only when another trait clearly overtakes it. It waits for the first conversation (the

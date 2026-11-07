@@ -58,6 +58,11 @@
  * games and move his lineup (ADR-094 §9: a look at the young men, a desperate shake-up); off by
  * default, and not kept in saves yet, so not with `--load`.
  *
+ * Mood (ADR-096 step 2): `--mood`, with `--development` or `--injuries`, adds the fans' and media's
+ * mood to the walk: a `PUBLIC_MOOD_UPDATED` per team after each game and at the offseason's big
+ * moments, kept on the teams and in the steps' memory, so `--save` keeps it and `--load` carries on
+ * with it. Off by default; off, the season is exactly today's.
+ *
  * Officials (ADR-093 step 1): a new league's 17 crews are made from the world seed, and each week's
  * games are given theirs as the season reaches them. `--save` keeps the crews and each game's crew,
  * and `--load` carries on with them, each saved game keeping its crew (`officiatingFor`); a save from
@@ -91,6 +96,7 @@ function parse(argv: readonly string[]) {
   let leagueFile: string | undefined;
   let development = false;
   let injuries = false;
+  let mood = false;
   let lineupHopes = false;
   let engineRules: string | undefined;
   for (let i = 0; i < argv.length; i++) {
@@ -110,6 +116,7 @@ function parse(argv: readonly string[]) {
     else if (arg === "--switch-caller") switchCaller = true;
     else if (arg === "--development") development = true;
     else if (arg === "--injuries") injuries = true;
+    else if (arg === "--mood") mood = true;
     else if (arg === "--lineup-hopes") lineupHopes = true;
     else if (arg === "--engine-rules") engineRules = next();
     else if (arg === "--rosters") {
@@ -144,8 +151,10 @@ function parse(argv: readonly string[]) {
   if (rosters === "standin" && teamStrengthSd !== undefined) throw new SyntaxError("the stand-in league has no hidden team strength (ADR-088 Q8); drop --team-sd");
   if ((development || injuries) && load !== undefined) throw new SyntaxError("--load carries on with the save's own --development and --injuries; drop them");
   if ((development || injuries) && rosters === "flat") throw new SyntaxError("--development and --injuries need squads; --rosters flat has none");
+  if (mood && load !== undefined) throw new SyntaxError("--load carries on with the save's own mood; drop --mood");
+  if (mood && !development && !injuries) throw new SyntaxError("--mood needs --development or --injuries (mood runs in the players' walk)");
   if (lineupHopes && !(development || injuries)) throw new SyntaxError("--lineup-hopes needs --development or --injuries (the coaches set depth charts only with the players' steps)");
-  return { seed, season, callerVersion, out, stopAfter, save, load, switchCaller, rosters, teamStrengthSd, leagueFile, development, injuries, lineupHopes, engineRules };
+  return { seed, season, callerVersion, out, stopAfter, save, load, switchCaller, rosters, teamStrengthSd, leagueFile, development, injuries, lineupHopes, mood, engineRules };
 }
 
 function stopDay(text: string, season: number): CalendarStamp {
@@ -194,6 +203,8 @@ const savedSwitches = loaded?.development?.people.playerMemory?.switches;
 const players = loaded
   ? (savedSwitches ? { development: savedSwitches.development, injuries: savedSwitches.injuries } : undefined)
   : (args.development || args.injuries ? { development: args.development, injuries: args.injuries, ...(args.lineupHopes ? { lineupHopes: true } : {}) } : undefined);
+// ADR-096 step 2: fan and media mood, from the command line or, carrying on, from the save (its memory says it ran).
+const mood = loaded ? loaded.development?.people.playerMemory?.mood !== undefined : args.mood;
 // The season the run plays, worked out once, as `runRealSeason` does, for the coaches and the stop day too.
 const season = loaded?.save.calendar.season
   ?? seasonToPlay({ rosters, ...(standIn === undefined ? {} : { standIn }), ...(players ? { players } : {}), ...(args.season === undefined ? {} : { season: args.season }) });
@@ -226,7 +237,7 @@ const { league, rated, run } = runRealSeason({
   ...(officiating ? { officiating } : {}),
   ...(args.stopAfter ? { stopAfter: stopDay(args.stopAfter, season) } : {}),
   // ADR-084 step 1: with the players' switches on, the coaches change after the playoffs and their views drift.
-  ...(players ? { players, ...(staff ? { coaching: staff } : {}) } : {}),
+  ...(players ? { players, ...(staff ? { coaching: staff } : {}), ...(mood ? { mood: true } : {}) } : {}),
   ...(players && loaded?.development ? { resume: {
     people: { ...loaded.development.people, ...(staff ? { staff: staff.world.staff, coaching: staff } : {}) },
     events: loaded.development.events, through: loaded.save.calendar,
@@ -263,7 +274,7 @@ if (args.save) {
   const development = people ? {
     league: { ...league, teams: people.teams },
     development: {
-      events: (run.stepEvents ?? []).filter((e) => e.step.startsWith("players:") || e.step.startsWith("staff:") || e.step.startsWith("meeting:")).map((e) => e.envelope),
+      events: (run.stepEvents ?? []).filter((e) => e.step.startsWith("players:") || e.step.startsWith("staff:") || e.step.startsWith("meeting:") || e.step.startsWith("mood:")).map((e) => e.envelope),
       depthMemory: people.playerMemory ?? (() => { throw new Error("the players' steps left no memory to save"); })(),
     },
   } : { league };

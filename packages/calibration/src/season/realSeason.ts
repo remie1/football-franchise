@@ -320,6 +320,8 @@ export interface RealSeasonInput {
    * steps' events up to its day, and that day, so no day's steps run twice.
    */
   readonly resume?: { readonly people: SeasonPeople; readonly events: readonly FranchiseEventEnvelope[]; readonly through: CalendarStamp };
+  /** ADR-096 step 2: with `players`, the fans' and media's mood in the walk. Absent or false: none. */
+  readonly mood?: boolean;
   /** ADR-089 step 0: sees each game with its snapshot. Watches only, like `onEvent`. See `SeasonGameWatcher`. */
   readonly onGame?: SeasonGameWatcher;
   /** ADR-089 step 0: passed through to every game. Measurement arms only. See `SeasonGamePassThrough`. */
@@ -350,6 +352,7 @@ export function runRealSeason(input: RealSeasonInput): { league: League; rated?:
   if (switched && rosters === "flat") throw new Error("runRealSeason: development and injuries need squads; the flat league has none");
   const season = seasonToPlay({ ...input, rosters });
   if (input.resume !== undefined && !switched) throw new Error("runRealSeason: carrying on a season's people needs the players' switches");
+  if (input.mood && !switched) throw new Error("runRealSeason: mood needs the players' switches (--development or --injuries)");
   let league: League = base;
   let rated: GeneratedLeague | StandInLeague | undefined;
   if (rosters === "generated") {
@@ -409,6 +412,7 @@ export function runRealSeason(input: RealSeasonInput): { league: League; rated?:
       unfilled: (team, available, players) => unfilledPosition(squads, team, available, players),
     },
     ...(input.resume ? { resumeEvents: input.resume.events, stepsDoneThrough: input.resume.through } : {}),
+    ...(input.mood ? { mood: {} } : {}),
   });
   return { league, rated, run };
 }
