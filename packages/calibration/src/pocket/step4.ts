@@ -546,8 +546,8 @@ export function gradeStep4(records: Step4Records, file: FiledFile, guard: Step4G
   proof("C-1", "on every s4 arm the stand-in's dropbacks equal those with a QB_HIT ARRIVAL or SHED or a sack (AM-7 hitConstruct)", every((r, _s, l) => (r.s4[l].s4.c1Mismatch > 0 ? `${String(r.s4[l].s4.c1Mismatch)} dropback(s) disagree` : undefined)));
   const sackCredit = every((r, _s, l) => (r.s4[l].s4.uncreditedSacks > 0 ? `${String(r.s4[l].s4.uncreditedSacks)} s4 sack(s) with a man ARRIVED in the pocket under the contact block and no RUSHER_SACKS contest` : undefined));
   const qbHitFields = every((r, _s, l) => (r.s4[l].s4.qbHitsMissingFields > 0 ? `${String(r.s4[l].s4.qbHitsMissingFields)} QB_HIT(s) missing approach, from or seen` : undefined));
-  const m6 = every((r, _s, l) => (r.s4[l].m6.fight !== r.s4[l].m6.contacts ? "a contact not FIGHT" : r.s4[l].m6.throwawayAtContact > 0 ? `${String(r.s4[l].m6.throwawayAtContact)} contact(s) on a THROWAWAY tick` : undefined));
-  proof("m6.step4", "every contact is FIGHT and none shares its tick with a THROWAWAY (reported only at step 4)", m6, "fold");
+  const m6 = every((r, _s, l) => (r.s4[l].m6.fight !== r.s4[l].m6.contacts ? "a contact not FIGHT" : r.s4[l].m6.throwawayWithArrived > 0 ? `${String(r.s4[l].m6.throwawayWithArrived)} THROWAWAY(s) while a man stood ARRIVED (a contact choice, step 7's)` : undefined));
+  proof("m6.step4", "every contact is FIGHT and no THROWAWAY is made while a man stands ARRIVED (no contact choice before step 7); a throwaway after a shed is the move branch, reported", m6, "fold");
   const tiltAgainst = tilts.filter((t) => t.verdict === "FAIL").map((t) => `${t.clause} moves the margin against ${t.direction}`);
   const structural = (id: string, problems: readonly string[], note: string): void => {
     const c = clauseOf(id);

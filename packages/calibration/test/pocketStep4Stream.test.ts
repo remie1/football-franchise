@@ -327,11 +327,33 @@ describe("M3 and M6 at step 4, and the affected count", () => {
     const { events } = built(S.sack.slice, S4, { contest: "RUSHER_SACKS" });
     const f = emptyM6Step4Fold();
     foldM6Step4Game(f, events);
-    expect(f).toMatchObject({ dropbacks: 1, s4Dropbacks: 1, contacts: 1, fight: 1, byBand: { RUSHER_SACKS: 1 }, throwawayAtContact: 0 });
+    expect(f).toMatchObject({ dropbacks: 1, s4Dropbacks: 1, contacts: 1, fight: 1, byBand: { RUSHER_SACKS: 1 }, throwawayAfterShed: 0, throwawayWithArrived: 0 });
     expect(m6Step4Summary(f)["fightPctOfContacts"]).toBe(100);
     const g = emptyM6Step4Fold();
     foldM6Step4Dropback(g, readDropback(sliceOf(built(S.sack.slice, S3, { contest: "RUSHER_SACKS" }).events))!, false);
     expect(g).toMatchObject({ dropbacks: 1, s4Dropbacks: 0, contacts: 0 });
+  });
+
+  it("M6 at step 4: a throwaway after a shed on the contact's tick is the move branch, reported, never a fault; a throwaway with a man still ARRIVED is the contact choice step 7 adds, a fault", () => {
+    const d = readDropback(sliceOf(built(S.arrivedThrow.slice, S4, { contest: "QB_SHEDS" }).events))!;
+    const c = d.checks.find((x) => x.checkKind === "arrival_contest")!;
+    const arrived = d.threats.filter((t) => t.state === "ARRIVED").pop()!;
+    const asThrowaway = (threats: typeof d.threats): typeof d => ({
+      ...d,
+      threats,
+      decisions: [...d.decisions.filter((x) => x.tick < c.tick), { tick: c.tick, choice: "THROWAWAY" }],
+      throwTick: undefined,
+      throwawayTick: c.tick,
+    });
+    // §4.5 item 4: the shed puts his threat back (DELAYED), the move branch runs and throws it away.
+    const afterShed = emptyM6Step4Fold();
+    foldM6Step4Dropback(afterShed, asThrowaway([...d.threats, { ...arrived, tick: c.tick, state: "DELAYED", etaTick: c.tick + 0.5 }]), true);
+    expect(afterShed).toMatchObject({ contacts: 1, throwawayAfterShed: 1, throwawayWithArrived: 0 });
+    expect(m6Step4Summary(afterShed)["throwawayAfterShed"]).toBe(1);
+    // A throwaway while a man stands ARRIVED (no contest took him): a contact choice, none before step 7.
+    const choice = emptyM6Step4Fold();
+    foldM6Step4Dropback(choice, { ...asThrowaway(d.threats), checks: d.checks.filter((x) => x.checkKind !== "arrival_contest") }, true);
+    expect(choice).toMatchObject({ contacts: 0, throwawayWithArrived: 1 });
   });
 
   it("CONTACT and MOTION touch the plays with a contest and a THROWING hit", () => {

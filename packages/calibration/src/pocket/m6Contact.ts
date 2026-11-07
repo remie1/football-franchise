@@ -452,8 +452,10 @@ export function m6Summary(fold: M6Fold): Readonly<Record<string, unknown>> {
  * contact is an `arrival_contest` CHECK (P6) and the quarterback has no contact choice before step 7:
  * every contact is FIGHT. Reported, never graded: the contacts by band, the share with a broken
  * receiver at the contact's tick (the upper bound step 0 priced, which step 7's THROWAWAY could
- * reach), and any contact whose tick also carries a THROWAWAY decision (none may: that would be a
- * contact choice). Plays under an earlier stamp are counted and read no further.
+ * reach), the throwaways the move branch makes after a shed on the contact's tick (§4.5 item 4: the
+ * quarterback fought, won, and then threw it away; reported), and any THROWAWAY while a man still
+ * stands ARRIVED, which is a throwaway in place of a contest, step 7's contact choice: none may
+ * occur at step 4, a fold fault. Plays under an earlier stamp are counted and read no further.
  */
 export interface M6Step4Fold {
   dropbacks: number;
@@ -464,12 +466,14 @@ export interface M6Step4Fold {
   byBand: Record<string, number>;
   /** Contacts with a broken receiver (OPEN, SETTLED or DECAYING) at the contact's tick. */
   brokenReceiver: number;
-  /** Contacts whose tick also carries a QB_DECISION THROWAWAY (must be none before step 7). */
-  throwawayAtContact: number;
+  /** THROWAWAY decisions on the tick of a QB_SHEDS contact: the move branch after a shed (reported). */
+  throwawayAfterShed: number;
+  /** THROWAWAY decisions while some rusher's latest published state is ARRIVED: a contact choice (must be none before step 7). */
+  throwawayWithArrived: number;
 }
 
 export function emptyM6Step4Fold(): M6Step4Fold {
-  return { dropbacks: 0, s4Dropbacks: 0, contacts: 0, fight: 0, byBand: {}, brokenReceiver: 0, throwawayAtContact: 0 };
+  return { dropbacks: 0, s4Dropbacks: 0, contacts: 0, fight: 0, byBand: {}, brokenReceiver: 0, throwawayAfterShed: 0, throwawayWithArrived: 0 };
 }
 
 /** One dropback into the step-4 report; `s4` is whether its play is stamped `pocket-1.s4`. */
@@ -484,7 +488,14 @@ export function foldM6Step4Dropback(fold: M6Step4Fold, d: Dropback, s4: boolean)
     const band = c.band ?? "NONE";
     fold.byBand[band] = (fold.byBand[band] ?? 0) + 1;
     if (brokenReceiverAt(d, c.tick)) fold.brokenReceiver += 1;
-    if (d.decisions.some((x) => x.tick === c.tick && x.choice === "THROWAWAY")) fold.throwawayAtContact += 1;
+  }
+  for (const x of d.decisions) {
+    if (x.choice !== "THROWAWAY") continue;
+    if (d.checks.some((c) => c.checkKind === "arrival_contest" && c.tick === x.tick && c.band === "QB_SHEDS")) fold.throwawayAfterShed += 1;
+    // Every publication on the throwaway's tick precedes it: the decision is the tick's last act.
+    const latest = new Map<string, string>();
+    for (const t of d.threats) if (t.tick <= x.tick) latest.set(t.rusher, t.state);
+    if ([...latest.values()].includes("ARRIVED")) fold.throwawayWithArrived += 1;
   }
 }
 
@@ -507,7 +518,8 @@ export function m6Step4Summary(fold: M6Step4Fold): Readonly<Record<string, unkno
     fightPctOfContacts: pct(fold.fight, fold.contacts),
     byBand: fold.byBand,
     brokenReceiverPctOfContacts: pct(fold.brokenReceiver, fold.contacts),
-    throwawayAtContact: fold.throwawayAtContact,
-    reading: "reported only: every contact is FIGHT until step 7 (no contact choice); the broken-receiver share is the bound step 7's THROWAWAY could reach",
+    throwawayAfterShed: fold.throwawayAfterShed,
+    throwawayWithArrived: fold.throwawayWithArrived,
+    reading: "reported only: every contact is FIGHT until step 7 (no contact choice, so no throwaway while a man stands ARRIVED); a throwaway after a shed is the move branch; the broken-receiver share is the bound step 7's THROWAWAY could reach",
   };
 }
