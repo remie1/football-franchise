@@ -78,6 +78,7 @@ import { readPreSnap, resolvePickups, resolveStunts } from "./preSnap.js";
 import type { RushPlan } from "./preSnap.js";
 import { assertSnapPictureFor, timeFreeRunners } from "./freeRunTiming.js";
 import { pocketRulesOf } from "./pocketRules.js";
+import { ContactBook } from "./contactBook.js";
 import type { PocketRules } from "./pocketRules.js";
 import { effectiveCall } from "./pressureRead.js";
 import type { Pursuer } from "../resolve/ballCarrier.js";
@@ -163,6 +164,7 @@ import {
   startsThreat,
   threatFromWonRep,
   threatGeometryOf,
+  winMinMargin,
 } from "../resolve/rushThreat.js";
 import {
   pursuitDeadline,
@@ -272,6 +274,12 @@ interface RushMatchup {
    * branch. He has no threat at the snap. Never set under `legacy`, s1 or s2.
    */
   late?: LateMatchup;
+  /**
+   * ADR-089 step 4 (plan §2.1, critique 2 F3; `pocket-1` with a step-4 block only): the margin this
+   * matchup's tick reported last, which is m(t - 0.5) when the next tick is read. Shape L's crossing
+   * time `T_L` reads it at a win (`sim/contactBook.ts`). Never set under `legacy`, s1, s2 or s3.
+   */
+  previousMargin?: number;
 }
 
 /** ADR-089 step 3 (E4): what a late block reads, set once when the matchup is built. */
@@ -291,6 +299,11 @@ interface LateMatchup {
   readonly engageTick: number | undefined;
   /** Shape S: the late beat, drawn once at the snap. */
   beat?: { readonly T: number; readonly tick: number | undefined; readonly label: string };
+  /**
+   * ADR-089 step 4 (plan §2.1; a step-4 block only): the late tick's last margin, m(t - 0.5) when
+   * the next tick is read (shape L's crossing time). Never set under `legacy`, s1, s2 or s3.
+   */
+  previousMargin?: number;
 }
 
 /** What `buildMatchups` needs to build a late block (`undefined` when the bundle has none). */
@@ -449,6 +462,14 @@ export function simulatePassPlay(
   // `PER_RUSHER` (must act per rusher, §4.3) or `COUNTER_LESS_SEEN` (the narrower counter, §4.3,
   // information only) from that block.
   const forcing = rules.kind === "LEGACY" ? "STEP_1" : rules.forcing;
+  // ADR-089 step 4 (plan §2.2 item 9): each rusher's contact time (D21), kept in a side map beside the
+  // play, only when the rules carry a step-4 block (`pocket.contact` or `throwExec.motion`); `undefined`
+  // under `legacy`, s1, s2 and s3, where none of the book's lines below run. Kind T and the motion's
+  // half-second reading (D14) read every man's published `etaTick`.
+  const book =
+    rules.kind === "LEGACY" || (rules.contact === undefined && rules.motion === undefined)
+      ? undefined
+      : new ContactBook(rules.kind === "T" || rules.motion?.reading === "GRID" ? "GRID" : "CONTINUOUS");
 
   // ADR-006 — internal coherence only, before a single die is thrown. A card the
   // engine cannot resolve is rejected loudly; a card that is merely unrealistic
@@ -830,6 +851,8 @@ export function simulatePassPlay(
   for (const m of matchups) {
     if (m.threat === undefined) continue;
     publishThreat(m.threat, "TRAVELLING");
+    // ADR-089 step 4: a free runner's contact time is his free-run time (D21).
+    if (book !== undefined) book.startFreeRunner(m.threat);
     retireIfBeyondClock(m);
   }
 
@@ -1017,6 +1040,20 @@ export function simulatePassPlay(
       if (m.threat !== before) {
         publishThreat(m.threat, "TRAVELLING");
         m.announcedArrival = false;
+        // ADR-089 step 4: the beaten late block's contact time, from the late beat (S) or the
+        // crossing of the late margin (L; the late clock's margin is 0 at its first engaged tick).
+        if (book !== undefined) {
+          if (rules.kind === "S") {
+            book.startWonRepS(m.threat, late.beat !== undefined && late.beat.tick === tick ? late.beat.T : tick);
+          } else {
+            book.startWonRepL(m.threat, {
+              tickStepSeconds: tunables.clock.tickStepSeconds,
+              threshold: winMinMargin(tunables),
+              margin: rush.margin,
+              previousMargin: late.previousMargin ?? 0,
+            });
+          }
+        }
         retireIfBeyondClock(m);
       }
     } else if (clearsThreat(tunables, rush.band)) {
@@ -1037,10 +1074,13 @@ export function simulatePassPlay(
           m.threat = delayed;
           publishThreat(delayed, "DELAYED");
           m.announcedArrival = false;
+          if (book !== undefined) book.delayed(before, delayed);
           retireIfBeyondClock(m);
         }
       }
     }
+    // ADR-089 step 4: m(t - 0.5) for the next tick's crossing time, under a step-4 block only.
+    if (book !== undefined) late.previousMargin = rush.margin;
   };
 
   while (outcome === undefined && tick <= tunables.clock.maxTick) {
@@ -1230,6 +1270,22 @@ export function simulatePassPlay(
           if (m.threat !== before) {
             publishThreat(m.threat, "TRAVELLING");
             m.announcedArrival = false;
+            // ADR-089 step 4: the won rep's contact time (D21): the beat's breaking time plus his
+            // travel (S), the crossing time plus his travel (L), his `etaTick` on today's clock (T).
+            if (book !== undefined) {
+              if (rules.kind === "S") {
+                book.startWonRepS(m.threat, m.beat !== undefined && m.beat.tick === tick ? m.beat.T : tick);
+              } else if (rules.kind === "L") {
+                book.startWonRepL(m.threat, {
+                  tickStepSeconds: tunables.clock.tickStepSeconds,
+                  threshold: winMinMargin(tunables),
+                  margin: rush.margin,
+                  previousMargin: m.previousMargin,
+                });
+              } else {
+                book.startGrid(m.threat);
+              }
+            }
             // §7.2 TIME RETIREMENT — a whole-life ETA beyond `clock.maxTick`
             // never becomes a live threat, however decisively the rep was won.
             retireIfBeyondClock(m);
@@ -1258,6 +1314,7 @@ export function simulatePassPlay(
               m.threat = delayed;
               publishThreat(delayed, "DELAYED");
               m.announcedArrival = false;
+              if (book !== undefined) book.delayed(before, delayed);
               // §7.2 TIME RETIREMENT — a recovering blocker can push an
               // already-live threat's ETA past the play's own clock; that
               // threat is retired the moment the push does it, not merely
@@ -1266,6 +1323,8 @@ export function simulatePassPlay(
             }
           }
         }
+        // ADR-089 step 4: m(t - 0.5) for the next tick's crossing time, under a step-4 block only.
+        if (book !== undefined) m.previousMargin = rush.margin;
       }
     }
 
@@ -1604,8 +1663,11 @@ export function simulatePassPlay(
         log.qbDecision("STEP_UP");
         for (const m of matchups) {
           if (m.threat === undefined || m.threat.alignment !== "EDGE") continue;
+          const beforeStepUp = m.threat;
           m.threat = delayThreat(m.threat, tunables.pocketMovement.stepUp.edgeThreatDelaySeconds);
           m.announcedArrival = false;
+          // ADR-089 step 4: the step-up's wait joins his contact time (D21).
+          if (book !== undefined) book.delayed(beforeStepUp, m.threat);
           // ADR-007 — the climb is exactly the adjustment the printout used to
           // have to disclaim. The arrival it publishes here is the real one.
           publishThreat(m.threat, "DELAYED");

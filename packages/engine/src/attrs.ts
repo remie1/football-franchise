@@ -69,6 +69,11 @@ export const ATTR = {
   touch: resolveAttr("touch"),
   pocketPatience: resolveAttr("pocketPatience"),
   poise: resolveAttr("poise"),
+  /**
+   * ADR-089 step 4: the quarterback's release (registry `release`, QB), read only by the throwing
+   * motion (`resolve/motion.ts`, `throwExec.motion`, `pocket-1` from `pocket-1.s4`); nothing else reads it.
+   */
+  release: resolveAttr("release"),
   mobility: resolveAttr("mobility"),
   improvisation: resolveAttr("improvisation"),
   // OL
