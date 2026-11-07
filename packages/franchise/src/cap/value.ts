@@ -9,7 +9,7 @@
  * Constants are CHOSEN (provenance NONE) unless a comment says otherwise.
  */
 import type { CalendarStamp, ContractKind, ContractYear, PlayerContract, PlayerId, PlayerState, Position, TeamId } from "@ff/contracts";
-import { capNumber, liveIn, prorate, withCapHits } from "./money.js";
+import { capNumber, liveIn, proration, prorate, withCapHits } from "./money.js";
 import { TAG_GROUP, type TagGroup } from "./rules.js";
 
 /** Deals the open market sets. Rookie, practice-squad, tag and tender deals are priced by rule instead. */
@@ -19,6 +19,20 @@ const MARKET_KINDS: ReadonlySet<ContractKind | undefined> = new Set([undefined, 
 export function apyOf(c: PlayerContract): number {
   const real = c.years.filter((y) => !y.voidYear).length;
   return real === 0 ? 0 : c.years.reduce((s, y) => s + capNumber(y), 0) / real;
+}
+
+/**
+ * A deal's own pay a year: its pay over its real years and its own signing bonus, without bonus money
+ * carried over from an older deal (step 14: an early extension takes over the old deal's later years
+ * and their bonus proration). What OverTheCap counts as a deal's APY. Only an extension made here can
+ * carry bonus money over, so any other deal is its `apyOf` (the league file's deals keep their bonus as
+ * proration alone, with no bonus total to count from).
+ */
+export function newPayOf(c: PlayerContract): number {
+  if (c.kind !== "EXTENSION" || c.signingBonus === undefined) return apyOf(c);
+  const real = c.years.filter((y) => !y.voidYear);
+  if (real.length === 0) return 0;
+  return (real.reduce((s, y) => s + capNumber(y) - proration(y), 0) + c.signingBonus) / real.length;
 }
 
 export interface MarketCurve {
@@ -31,7 +45,7 @@ export interface MarketCurve {
 export type MarketCurves = ReadonlyMap<TagGroup, MarketCurve>;
 
 /**
- * The league's market at each tag group in a season. With `cap`, each deal counts at its share of the
+ * The league's market at each tag group in a season, each deal at its own pay a year (`newPayOf`). With `cap`, each deal counts at its share of the
  * cap in its first season, in this season's dollars (as OverTheCap compares deals across years), so
  * prices keep pace with the cap. Each player counts once, on his latest market deal live this season
  * or last: last season's one-year deals (most of them cheap veterans' deals) stay on the list, so the
@@ -55,7 +69,8 @@ export function marketCurves(
     const g = TAG_GROUP[p.bio.position];
     const curve = out.get(g) ?? { apys: [], grades: [] };
     const first = firstSeason(c, season);
-    curve.apys.push(cap ? apyOf(c) * cap(season) / cap(first) : apyOf(c));
+    const apy = newPayOf(c);
+    curve.apys.push(cap ? apy * cap(season) / cap(first) : apy);
     curve.grades.push(rate(p));
     out.set(g, curve);
   }

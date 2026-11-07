@@ -486,7 +486,8 @@ function reSign(
       if (!secondYearFits(team.id, offer, { ...book, contracts: book.contracts.map((c, j) => (j === oi ? shortened : c)) }, config.cap, plan(team.id))) continue;
       const ask = askingPrice(p, askValue(p, config, curves, floor, config.cap(first)), "VALUE", 0, floor, ctx.seed, ctx.season);
       const worth = offerWorth(p, {
-        apy: apyOf(offer), guaranteed: guaranteedShare(offer), winShare: winShareOf(team.id, ctx.state),
+        // He weighs the new deal's own pay, not the bonus money it carries over from his old one.
+        apy: apyOf(fresh), guaranteed: guaranteedShare(offer), winShare: winShareOf(team.id, ctx.state),
         starts: wouldStart(g, p.bio.position, gradesAt(p.bio.position)), ownTeam: true,
       }, ask);
       if (worth < 1) continue;

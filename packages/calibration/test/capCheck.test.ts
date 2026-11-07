@@ -39,6 +39,30 @@ describe("the cap check's reading of the league file", () => {
     expect(withDummyYearsVoid(middle, 2026)).toBe(middle);
   });
 
+  it("a placeholder roster bonus comes down to what the stored cap hit holds, and a void year keeps only its proration (step 14)", () => {
+    const c: PlayerContract = {
+      player: playerId("r:544"), team: teamId("T23"), signedAt: { season: 2024, phase: "OFF_RESET_FA", week: 1, day: 1 },
+      years: [
+        { ...year(2026, 1.2e6, 8.4e6), rosterBonus: 0 },
+        // The file's $100M roster bonus: the stored cap hit holds $8.85M of the year.
+        { ...year(2029, 1.4e6, 7.0e6), rosterBonus: 100e6, capHit: 8.85e6 },
+      ],
+    };
+    const v = withDummyYearsVoid(c, 2026);
+    expect(v.years[0]).toBe(c.years[0]);
+    expect(v.years[1]!.rosterBonus).toBe(450_000);
+    expect(v.years[1]!.voidYear).toBeUndefined();
+    // A real roster bonus the stored cap hit holds stays, and so does one in the file's own season.
+    const held = { ...c, years: [{ ...year(2027, 27e6, 4e6), rosterBonus: 30e6, capHit: 61e6 }] };
+    expect(withDummyYearsVoid(held, 2026)).toBe(held);
+    const own = { ...c, years: [{ ...year(2026, 1e6, 0), rosterBonus: 35.7e6, capHit: 34e6 }] };
+    expect(withDummyYearsVoid(own, 2026)).toBe(own);
+    // The file's void year with a $50M roster bonus: no pay, the proration stays.
+    const voidPay: PlayerContract = { ...c, years: [year(2026, 4.65e6, 5.55e6), { ...year(2027, 0, 2.3e6), rosterBonus: 50e6, capHit: 4.72e6, voidYear: true }] };
+    const w = withDummyYearsVoid(voidPay, 2026);
+    expect(w.years[1]).toMatchObject({ baseSalary: 0, rosterBonus: 0, signingBonusProration: 2.3e6, voidYear: true });
+  });
+
   it("a traded pick's condition kept as words gets the rule the game cannot settle", () => {
     const pick = { draft: 2027, round: 1, originalTeam: teamId("T19"), owner: teamId("T25"), kind: "REGULAR" as const };
     const words = withConditionRule({ ...pick, condition: "Less favorable of own and GB" as never });

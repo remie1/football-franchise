@@ -218,8 +218,14 @@ function measure(
   }
   const signed: Record<string, number> = {};
   for (const e of events) if (e.type === "CONTRACT_SIGNED") signed[e.payload.kind ?? "UNKNOWN"] = (signed[e.payload.kind ?? "UNKNOWN"] ?? 0) + 1;
+  // A deal's own pay a year, as OverTheCap counts it: an extension made here leaves out the bonus money
+  // it carries over from the old deal (step 14), counting its own signing bonus instead.
   const apy = (c: PlayerContract) => {
     const real = c.years.filter((y) => !y.voidYear);
+    if (c.kind === "EXTENSION" && c.signingBonus !== undefined) {
+      const pay = real.reduce((s, y) => s + y.capHit - y.signingBonusProration - (y.optionBonusProration ?? 0), 0);
+      return (pay + c.signingBonus) / Math.max(1, real.length);
+    }
     return real.reduce((s, y) => s + y.capHit, 0) / Math.max(1, real.length);
   };
   const topDeals = contracts.filter((c) => live(c, year)).sort((a, b) => apy(b) - apy(a)).slice(0, 5)
@@ -273,15 +279,38 @@ export const DUMMY_SALARY = 95_000_000;
  * stored cap hit leaves the base out (the real cap hit is the bonus share alone). Here they are what
  * they are: void years, no cap number of their own; their bonus proration lands as dead money when
  * the deal ends.
+ *
+ * Some placeholders sit in a roster bonus instead ($50M or $100M, ADR-085 step 14): in a year after
+ * the file's season whose stored cap hit leaves more than `PLACEHOLDER_SLACK` out, the roster bonus
+ * comes down by what is left out (not below nothing). And a void year carries no pay of its own, only
+ * its bonus proration: the file has one that still carries a $50M roster bonus. Left in, these set
+ * the top of a position's price list (a guard at $63M a year).
  */
 export function withDummyYearsVoid(c: PlayerContract, fileSeason = -Infinity): PlayerContract {
-  const leavesBaseOut = (y: PlayerContract["years"][number]) => y.season > fileSeason && y.baseSalary > y.capHit + 1000;
+  type Year = PlayerContract["years"][number];
+  const leavesBaseOut = (y: Year) => y.season > fileSeason && y.baseSalary > y.capHit + 1000;
   let from = c.years.length;
   while (from > 0 && leavesBaseOut(c.years[from - 1]!)) from--;
-  const dummy = (y: PlayerContract["years"][number], i: number) => y.baseSalary >= DUMMY_SALARY || i >= from;
-  if (!c.years.some(dummy)) return c;
-  return { ...c, years: c.years.map((y, i) => (dummy(y, i) ? { ...y, baseSalary: 0, capHit: 0, voidYear: true } : y)) };
+  const dummy = (y: Year, i: number) => y.baseSalary >= DUMMY_SALARY || i >= from;
+  const pay = (y: Year) => y.baseSalary + (y.rosterBonus ?? 0) + (y.workoutBonus ?? 0) + (y.perGameRosterBonus ?? 0) + (y.incentives?.likely ?? 0);
+  const capNumber = (y: Year) => pay(y) + y.signingBonusProration + (y.optionBonusProration ?? 0);
+  const voided = (y: Year): Year => ({
+    ...y, baseSalary: 0, capHit: 0, voidYear: true,
+    ...(y.rosterBonus ? { rosterBonus: 0 } : {}), ...(y.workoutBonus ? { workoutBonus: 0 } : {}),
+    ...(y.perGameRosterBonus ? { perGameRosterBonus: 0 } : {}), ...(y.incentives?.likely ? { incentives: { ...y.incentives, likely: 0 } } : {}),
+  });
+  const leftOut = (y: Year) => (y.season > fileSeason && (y.rosterBonus ?? 0) > 0 ? capNumber(y) - y.capHit : 0);
+  const fix = (y: Year, i: number): Year => {
+    if (dummy(y, i) || (y.voidYear && pay(y) > 0)) return voided(y);
+    const out = leftOut(y);
+    return out > PLACEHOLDER_SLACK ? { ...y, rosterBonus: Math.max(0, y.rosterBonus! - out) } : y;
+  };
+  if (!c.years.some((y, i) => fix(y, i) !== y)) return c;
+  return { ...c, years: c.years.map(fix) };
 }
+
+/** What a stored cap hit may leave out of a year's pay before its roster bonus counts as a placeholder (CHOSEN). */
+export const PLACEHOLDER_SLACK = 1_000_000;
 
 /** Room each team is given beyond its opening deals in the first season (CHOSEN; real teams carry some). */
 export const OPENING_ROOM = 5_000_000;

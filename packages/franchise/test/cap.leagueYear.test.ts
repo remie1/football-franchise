@@ -5,7 +5,7 @@ import {
 } from "@ff/contracts";
 import {
   buildLeague, runSeason, leagueYearSteps, marketWindow, teamCapTotal, veteranContract, minimumSalary, capForecast,
-  liveIn, countsForComp, adjustedCap, designatedIn, needWeights, offerWorth, valuePlayer, marketCurves, termFor, apyOf, percentileOf, quantile,
+  liveIn, countsForComp, adjustedCap, designatedIn, needWeights, offerWorth, valuePlayer, marketCurves, termFor, apyOf, newPayOf, percentileOf, quantile,
   type GameResolver, type LeaguePeople,
 } from "../src/index.js";
 import { MARKET } from "../src/cap/leagueYear.js";
@@ -145,6 +145,10 @@ describe("the league year (ADR-085 §4)", () => {
       expect(now.years.every((y) => y.season <= 2026)).toBe(true);
       const moved = o.years.filter((y) => y.season >= 2027).reduce((a, y) => a + y.signingBonusProration, 0);
       expect(ext[0]!.years.reduce((a, y) => a + y.signingBonusProration, 0)).toBeGreaterThanOrEqual(moved - ext[0]!.years.length);
+      // His pay, and what the price list counts, is the new deal's own: not the bonus money it carries over.
+      const signed = of("CONTRACT_SIGNED").find((e) => String(e.payload.player) === String(o.player) && e.payload.kind === "EXTENSION")!;
+      expect(newPayOf(ext[0]!)).toBeCloseTo(signed.payload.value! / signed.payload.years!, -3);
+      if (moved > 10_000) expect(apyOf(ext[0]!)).toBeGreaterThan(newPayOf(ext[0]!));
       const p = people.players.find((x) => String(x.bio.id) === String(o.player))!;
       if (o.kind === "ROOKIE") expect(p.bio.creditedSeasons ?? 0).toBeGreaterThanOrEqual(3);
     }
