@@ -606,8 +606,9 @@ export type MatchEvent =
          * ADR-089 P8: seconds from the snap that the ball left his hand, in whole milliseconds: his
          * decision's tick plus his throwing motion (ADR-089 §4.4.6, §4.5),
          * `rho = rho0 - (release - 70) / rho_d`, with the dials of the rules `PLAY_START` names. On
-         * every THROW of a play whose rules carry the throwing motion (`pocket-1` from
-         * `pocket-1.s4`); absent under `legacy` and `pocket-1.s1` to `.s3`. A THROWAWAY has no such
+         * every aimed THROW from the pocket of a play whose rules carry the throwing motion
+         * (`pocket-1` from `pocket-1.s4`); absent on a throw after an escape (no motion on the run,
+         * ADR-089 AM-7 item 6), under `legacy` and `pocket-1.s1` to `.s3`. A THROWAWAY has no such
          * field: its release stays its tick.
          */
         releaseSeconds?: number;

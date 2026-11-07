@@ -405,7 +405,7 @@ Derived directly from `match-engine.md`; every roll and resolution the debug pri
 | `QB_READ` | target read, perceivedOpenness, effectiveOpenness, varianceRoll |
 | `QB_DECISION` | target selected / hold / scramble / throwaway, decisionQualityTier |
 | `QB_HIT` | a rusher reached the quarterback while the ball was in his hand or leaving it (ADR-089 P7, under `pocket-1` from `pocket-1.s4` only): `qb`, `rusher`, `phase` (`QbHitPhase`: ARRIVAL, THROWING, SHED or SACK), `contactSeconds`, and optionally `rollRef` (the `arrival_contest` CHECK behind a SHED or a SACK), `approach` (`RushApproach`), `from` (`ContactFrom`: FRONT, SIDE or BEHIND) and `seen`; an ARRIVAL or THROWING hit comes before its THROW, a SHED or SACK right after its CHECK |
-| `THROW` | throwType, velocity, laneChecks[], accuracyTier; ADR-089 P8 adds `releaseSeconds`, the seconds from the snap the ball left his hand in whole milliseconds, on every THROW of a play whose rules carry the throwing motion (`pocket-1` from `pocket-1.s4`), absent otherwise |
+| `THROW` | throwType, velocity, laneChecks[], accuracyTier; ADR-089 P8 adds `releaseSeconds`, the seconds from the snap the ball left his hand in whole milliseconds, on every aimed THROW from the pocket of a play whose rules carry the throwing motion (`pocket-1` from `pocket-1.s4`); absent on a throw after an escape (no motion on the run, ADR-089 AM-7 item 6), under `legacy` and `pocket-1.s1` to `.s3` (P8a) |
 | `CATCH_RESOLUTION` | catchType, roll detail, outcome |
 | `TIPPED_BALL` | roll1 (deflection quality, finalTN), eligiblePlayers, roll2 attempts[], recoveredBy? |
 | `YAC_ZONE` | zone, encounters (blocks, tackle attempts), yardsInZone |
