@@ -24,7 +24,7 @@ import {
 } from "../src/sim/pocketRules.js";
 import type { ContractPetitions } from "../src/sim/pocketRules.js";
 import { DEFAULT_TUNABLES } from "../src/tunables.js";
-import type { ContactTunables, MotionTunables, Tunables } from "../src/tunables.js";
+import type { Tunables } from "../src/tunables.js";
 import { buildScenario } from "./fixtures.js";
 import {
   APPROACH_CARD,
@@ -38,42 +38,7 @@ import {
   withForcing,
   withStep3,
 } from "./pocketTunables.js";
-
-const CONTACT_FILED: ContactTunables = Object.freeze({
-  boundary: 5,
-  tilts: Object.freeze({
-    pushBlocked: Object.freeze({ on: true, quarterbackBonus: 20 }),
-    freeRun: Object.freeze({ on: true, rusherBonus: 10 }),
-    behindNever: Object.freeze({ on: true, rusherBonus: 10 }),
-  }),
-  shedDelaySeconds: 0.5,
-  pushShedDelaySeconds: 1.0,
-  secondArrival: Object.freeze({ target: 15 }),
-  order: "CONTEST_AFTER_THROW",
-});
-
-const MOTION_FILED: MotionTunables = Object.freeze({ rho0: 0.3, rhoD: 400, reading: "CONTINUOUS" });
-
-const GRANTED: ContractPetitions = Object.freeze({ P5: true, P17: true, P6: true, P7: true, P8: true });
-
-/** `base` with the step-4 blocks given, each key added only when given (never as `undefined`). */
-function withStep4(base: Tunables, blocks: { readonly contact?: unknown; readonly motion?: unknown }): Tunables {
-  return {
-    ...base,
-    pocket: { ...base.pocket, ...(blocks.contact === undefined ? {} : { contact: blocks.contact as ContactTunables }) },
-    throwExec: { ...base.throwExec, ...(blocks.motion === undefined ? {} : { motion: blocks.motion as MotionTunables }) },
-  };
-}
-
-/** Today's line plus contact: the stamp, the approach card and the contact block on DEFAULT_TUNABLES. */
-function todaysLine(contact: unknown = CONTACT_FILED, digest = "fnv1a:7e000004"): Tunables {
-  const base: Tunables = {
-    ...DEFAULT_TUNABLES,
-    engineRules: stamp(digest, "pocket-1.s4"),
-    passRush: { ...DEFAULT_TUNABLES.passRush, approach: APPROACH_CARD },
-  };
-  return withStep4(base, { contact });
-}
+import { CONTACT_FILED, GRANTED, MOTION_FILED, todaysLine, withStep4 } from "./step4Fixtures.js";
 
 const S4_TUNABLES = withStep4(S3_TUNABLES, { contact: CONTACT_FILED, motion: MOTION_FILED });
 

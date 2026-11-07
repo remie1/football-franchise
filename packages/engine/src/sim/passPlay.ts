@@ -48,9 +48,9 @@ import { createRng, getAttr, playId as makePlayId } from "@ff/contracts";
 import type { PlayerId, PlayerState, Rng, RollModifier, RushThreatState } from "@ff/contracts";
 import { ATTR } from "../attrs.js";
 import { chemistryLevel } from "../chemistry.js";
-import { PlayEventLog } from "../events.js";
-import type { ThreatApproach } from "../events.js";
-import { clamp, flatModifier } from "../rolls.js";
+import { ARRIVAL_CONTEST_KIND, PlayEventLog } from "../events.js";
+import type { ArrivalContestEmission, QbHitRecord, Step4Recorder, ThreatApproach } from "../events.js";
+import { clamp, flatModifier, tierFor } from "../rolls.js";
 import { TUNABLES } from "../tunables.js";
 import type { LateBlockTunables, Tunables } from "../tunables.js";
 import type {
@@ -77,9 +77,14 @@ import type { PlayOutcome } from "./outcome.js";
 import { readPreSnap, resolvePickups, resolveStunts } from "./preSnap.js";
 import type { RushPlan } from "./preSnap.js";
 import { assertSnapPictureFor, timeFreeRunners } from "./freeRunTiming.js";
-import { pocketRulesOf } from "./pocketRules.js";
+import { pocketRulesOf, pocketRulesUnder } from "./pocketRules.js";
 import { ContactBook } from "./contactBook.js";
-import type { PocketRules } from "./pocketRules.js";
+import { arrivedInGridOrder, onFreeRunClockAtSnap, rebuiltTick, shedDelaySecondsOf } from "./contactTick.js";
+import type { TickStatusInputs } from "./contactTick.js";
+import { arrivalContest, contactFrom, secondArrival, tiltOf } from "../resolve/contact.js";
+import type { ContactFromClass } from "../resolve/contact.js";
+import { rho, throwingHit, toMilliseconds } from "../resolve/motion.js";
+import type { ContractPetitions, PocketRules } from "./pocketRules.js";
 import { effectiveCall } from "./pressureRead.js";
 import type { Pursuer } from "../resolve/ballCarrier.js";
 import {
@@ -446,10 +451,36 @@ export function simulatePassPlay(
    */
   tunables: Tunables = TUNABLES,
 ): SimulationResult {
+  return simulatePassPlayWith(state, calls, seed, tunables, undefined);
+}
+
+/**
+ * ADR-089 step 4 (plan §6's "test-only recorder"): what a test hands `simulatePassPlayWith` to reach
+ * the step-4 rules before petitions P6, P7 and P8 are in contracts: its own granted petitions
+ * (`pocketRulesUnder`) and the recorder that receives the records the stream cannot carry yet.
+ */
+export interface PassPlayUnder {
+  readonly petitions: ContractPetitions;
+  readonly step4Recorder?: Step4Recorder;
+}
+
+/**
+ * `simulatePassPlay` with an optional test seam. ENGINE-INTERNAL: not in the barrel, and every game
+ * and every caller of the barrel plays `simulatePassPlay`, which passes `undefined` and so reads the
+ * petitions in contracts (`pocketRulesOf`) and writes through a log with no recorder. Only a test in
+ * `engine/test` passes `under`.
+ */
+export function simulatePassPlayWith(
+  state: MatchGameState,
+  calls: PlayCalls,
+  seed: string,
+  tunables: Tunables,
+  under: PassPlayUnder | undefined,
+): SimulationResult {
   // ADR-089 step 1 — the switch, read once a play, before a single die is thrown (plan §4):
   // `LEGACY` for tunables with no `pocket-1` block (today's game, every new branch below skipped),
   // shape S or shape L for a stamped overlay; anything else throws a `PocketRulesError` here.
-  const rules = pocketRulesOf(tunables);
+  const rules = under === undefined ? pocketRulesOf(tunables) : pocketRulesUnder(tunables, under.petitions);
   // ADR-089 step 3 (E6b; plan §2.6, critique 3 S1; contracts petition P5): P5'S PUBLICATION GATE.
   // Under `pocket-1.s3` a free runner the free-run clock timed carries that clock's distance and
   // closing speed on his threat, and every won rep (and a beaten late block, built as one) carries
@@ -484,7 +515,7 @@ export function simulatePassPlay(
   }
 
   const playId = makePlayId(`${String(state.gameId)}:play:${state.playNumber}`);
-  const log = new PlayEventLog(state.gameId, playId, state.at, state.nextEventSeq);
+  const log = new PlayEventLog(state.gameId, playId, state.at, state.nextEventSeq, under?.step4Recorder);
   const qb = requirePlayer(state, state.quarterback);
 
   const playRng = createRng(seed, `game:${String(state.gameId)}`).fork(`play:${state.playNumber}`);
@@ -856,6 +887,114 @@ export function simulatePassPlay(
     retireIfBeyondClock(m);
   }
 
+  // ---- ADR-089 step 4: contact by approach and the throwing motion (plan §2.2) ---------------
+  // Every line below that does anything is reached only when the rules carry a step-4 block
+  // (`book !== undefined`, `contact !== undefined` or `motion !== undefined`), so `legacy`, s1, s2
+  // and s3 run none of it; and today the gates (`sim/pocketRules.ts`) refuse every such bundle.
+  const contact = rules.kind === "LEGACY" ? undefined : rules.contact;
+  const motion = rules.kind === "LEGACY" ? undefined : rules.motion;
+  /** The play's first shed has happened: every later contact is a second arrival (§4.5 item 6). */
+  let shedInPlay = false;
+  /** Rushers live (not ARRIVED) when the quarterback stepped up on this play: an ARC man is BEHIND. */
+  const liveAtStepUp = new Set<string>();
+  /** The free runners on the free-run clock at the snap under the arm's own reading (AM-2's key). */
+  const freeRunClockMen = new Set<string>();
+  if (book !== undefined && rules.kind !== "LEGACY") {
+    for (const plan of plansAtSnap) {
+      if (plan.free === undefined) continue;
+      const m = matchups.find((x) => x.rusher.bio.id === plan.rusher.bio.id);
+      if (m === undefined || m.blocker !== undefined || m.late !== undefined) continue;
+      if (onFreeRunClockAtSnap(plan.free, rules.freeRun !== undefined)) freeRunClockMen.add(String(plan.rusher.bio.id));
+    }
+  }
+  /** How a hit came: his approach on the card and where from (§4.0); every threat under pocket-1 is labelled. */
+  const contactFactsOf = (t: RushThreat): { readonly approach: ThreatApproach; readonly from: ContactFromClass } => {
+    if (t.approach === undefined) throw new Error(`@ff/engine: a contact by ${String(t.rusher)} whose threat carries no approach`);
+    return {
+      approach: t.approach,
+      from: contactFrom({ approach: t.approach, alignment: t.alignment, liveAtStepUp: liveAtStepUp.has(String(t.rusher)) }),
+    };
+  };
+  /** A `QB_HIT` (P7) for this threat: approach, from and seen on every hit; `rollRef` on a SHED. */
+  const qbHitOf = (t: RushThreat, phase: QbHitRecord["phase"], rollRef?: string): QbHitRecord => {
+    if (book === undefined) throw new Error("@ff/engine: a QB_HIT outside a step-4 block");
+    const { approach, from } = contactFactsOf(t);
+    return {
+      qb: qb.bio.id,
+      rusher: t.rusher,
+      phase,
+      contactSeconds: book.contactSeconds(t.rusher),
+      ...(rollRef === undefined ? {} : { rollRef }),
+      approach,
+      from,
+      seen: true,
+    };
+  };
+  /**
+   * §4.5 items 4 to 6: the arrived threats resolve in the grid's order. The play's first contact is
+   * the rated contest on `rush/t<tick>/<rusherId>:contest`; any contact after the play's first shed
+   * is the second arrival on `:contest2` (every one rated on `:contest` when the second arrival is
+   * off, D12). RUSHER_SACKS ends the play (the caller's sack); QB_SHEDS writes `QB_HIT` SHED and
+   * puts his existing threat back by approach (no new rep, beat or tick die), published DELAYED.
+   */
+  const contestArrivals = (arrived: readonly RushThreat[]): "SACK" | "SHED" => {
+    if (contact === undefined || book === undefined) throw new Error("@ff/engine: a contest outside the contact block");
+    const tickRng = rushRng.fork(`t${tick.toFixed(1)}`);
+    for (const t of arrived) {
+      const id = String(t.rusher);
+      const m = matchups.find((x) => String(x.rusher.bio.id) === id);
+      if (m === undefined) throw new Error(`@ff/engine: an arrived threat of ${id} has no matchup`);
+      const { approach, from } = contactFactsOf(t);
+      let check: ArrivalContestEmission;
+      if (!shedInPlay || contact.secondArrival === "RATED") {
+        const dice = tickRng.fork(`${id}:contest`);
+        const rusherFace = dice.d100();
+        const quarterbackFace = dice.d100();
+        const tilt = tiltOf({ approach, from, seen: true, onFreeRunClock: freeRunClockMen.has(id) && t.origin !== "WON_REP" }, contact.tilts);
+        const r = arrivalContest(m.rusher, qb, tilt, { rusher: rusherFace, quarterback: quarterbackFace, rngLabel: dice.label }, contact.boundary);
+        check = {
+          checkKind: ARRIVAL_CONTEST_KIND,
+          actors: [t.rusher, qb.bio.id],
+          roll: r.rusherRoll,
+          opposedRoll: r.quarterbackRoll,
+          target: r.boundary,
+          tier: tierFor(tunables, r.margin),
+          band: r.band,
+          margin: r.margin,
+          testsAttrs: r.testsAttrs,
+        };
+      } else {
+        const dice = tickRng.fork(`${id}:contest2`);
+        const r = secondArrival(dice.d100(), contact.secondArrival.target, dice.label);
+        const margin = r.roll.total - r.target;
+        check = {
+          checkKind: ARRIVAL_CONTEST_KIND,
+          actors: [t.rusher, qb.bio.id],
+          roll: r.roll,
+          target: r.target,
+          tier: tierFor(tunables, margin),
+          band: r.band,
+          margin,
+          testsAttrs: r.testsAttrs,
+        };
+      }
+      log.arrivalContest(check);
+      if (check.band === "RUSHER_SACKS") return "SACK";
+      shedInPlay = true;
+      log.qbHit(qbHitOf(t, "SHED", check.roll.rngLabel));
+      const before = m.threat;
+      if (before !== undefined) {
+        const delayed = delayThreat(before, shedDelaySecondsOf(approach, contact));
+        m.threat = delayed;
+        m.announcedArrival = false;
+        publishThreat(delayed, "DELAYED");
+        book.delayed(before, delayed);
+        retireIfBeyondClock(m);
+      }
+    }
+    return "SHED";
+  };
+
   /**
    * §9.3 / §9.4 — resolve the break point. Called from the route loop when the
    * route's time comes, and from the read loop when the quarterback ANTICIPATES
@@ -1091,7 +1230,11 @@ export function simulatePassPlay(
     // and the pressure each has accumulated. `previousBand` is exactly tick−0.5.
     // ADR-055 §6 — `activeThreats` no longer synthesises a threat out of the
     // pursuit clock once the pocket is vacated; see its own comment.
-    const threats = activeThreats(matchups, scramble);
+    // ADR-089 step 4: a `let` only so that a shed in the tick can rebuild it (§4.5 item 6, under the
+    // contact block only); every other rule set never writes it after this line.
+    let threats = activeThreats(matchups, scramble);
+    /** ADR-089 step 4: the arrival contest ran on this tick (CONTEST_BEFORE_THROW's site). */
+    let contestedThisTick = false;
 
     // ADR-007 — he is here. Published before the status it produces, because the
     // arrival is the CAUSE of the IMMEDIATE the next line reports.
@@ -1122,6 +1265,7 @@ export function simulatePassPlay(
      * ambiguous (backlog entry 84's re-opening of ADR-055 §6).
      */
     let pocket: PocketStatusRung | undefined;
+    let statusInputs: TickStatusInputs | undefined;
     if (scramble === undefined) {
       // ADR-089 step 2 — under `pocket.forcing` COUNTER_LESS_SEEN (the narrower counter rule,
       // information only) a matchup whose won rep has a live threat in `threats` is left out of
@@ -1152,6 +1296,9 @@ export function simulatePassPlay(
       });
       pocket = pocketStatusFor(tunables, highest, previousBands, minTimeToArrival(threats, tick));
       log.pocketStatus(pocket);
+      // ADR-089 step 4: what a rebuild after a shed re-reads the status from (the counter and the
+      // band floor stay the tick's own; the shed moved threats, not pressure).
+      statusInputs = { highest, previousBands };
     }
 
     // ---- §7.1 line battle (feeds the NEXT tick's pocket status) -------------
@@ -1461,13 +1608,13 @@ export function simulatePassPlay(
     // status's arrival floor read above, so the threat part and the published `POCKET_STATUS`
     // agree by construction). Pure: `threats` is never written after it is built, so computing it
     // here rather than at the sack below moves nothing.
-    const minTta = minTimeToArrival(threats, tick);
+    let minTta = minTimeToArrival(threats, tick);
     // ADR-089 step 2 — WHAT FORCES HIM, the pocket's part of `mustDecide` and the movement gate's
     // condition. `STEP_1` and `COUNTER_LESS_SEEN`: the status (`pocket.forcesDecision`), today's
     // expression on today's `pocket`. `PER_RUSHER`: must act's threat part (§4.3), a threat within
     // `arrival.collapsingWithinSeconds` or one arrived; every threat counts as registered until
     // step 7, so both minima are `minTta`. The counter and the band floor alone no longer force.
-    const forced =
+    let forced =
       pocket !== undefined &&
       (forcing === "PER_RUSHER" ? mustActThreat(tunables, minTta, minTta) : forcesDecision(tunables, pocket));
     // ADR-055 §6 point 4 — pursuit's own condition, not `pocket.forcesDecision`'s
@@ -1475,15 +1622,34 @@ export function simulatePassPlay(
     // `resolve/scramble.ts`'s `pursuitForcesDecision` for the derivation.
     // ADR-089 step 2: the pocket branch's count part (`tick >= budgetSeconds || readsUsed >=
     // maxReads`) is unchanged under every rule.
-    const mustDecide =
+    let mustDecide =
       pocket === undefined
         ? scramble !== undefined && pursuitForcesDecision(tunables, tick, scramble.pursuitAtTick)
         : forced || tick >= budgetSeconds || readsUsed >= maxReads;
     // ADR-055 §6 point 3 — pursuit's own accuracy constant for any throw released
     // this tick, not `pocket.accuracyModifier` borrowed through a rung it no
     // longer has (`resolveAccuracy`'s consumer, `throwTo`, below).
-    const accuracyPenalty: AccuracyPenalty =
+    let accuracyPenalty: AccuracyPenalty =
       pocket === undefined ? accuracyPenaltyForPursuit(tunables) : accuracyPenaltyForPocket(tunables, pocket);
+
+    /**
+     * ADR-089 step 4 (§4.5 item 6; plan §2.2 item 6) — THE REBUILD, after a shed in this tick and
+     * under the contact block only: the threat list as it now stands (`activeThreats`), its minimum
+     * time to arrival, the status on it and what forces him, then `mustDecide` and the accuracy row,
+     * so the move branch reads the threats as they now are. No second `POCKET_STATUS` is published.
+     */
+    const rebuildAfterShed = (): void => {
+      if (contact === undefined || pocket === undefined || statusInputs === undefined) {
+        throw new Error("@ff/engine: a rebuild outside the contact block or the pocket");
+      }
+      const r = rebuiltTick({ tunables, live: activeThreats(matchups, scramble), tick, status: statusInputs, forcing });
+      threats = r.threats;
+      minTta = r.minTta;
+      pocket = r.pocket;
+      forced = r.forced;
+      mustDecide = forced || tick >= budgetSeconds || readsUsed >= maxReads;
+      accuracyPenalty = accuracyPenaltyForPocket(tunables, pocket);
+    };
 
     const throwTo = (selection: ReturnType<typeof selectTarget>, outletId: PlayerId | undefined): PlayOutcome => {
       const track = tracks.find((t) => t.receiver.bio.id === selection.selected.receiver);
@@ -1498,13 +1664,45 @@ export function simulatePassPlay(
         target: selection.selected.receiver,
         tier: selection.check.tier,
       });
+      // ADR-089 step 4 (§4.5 item 1; plan §2.2 items 1 and 7) — THROW FIRST, then what reached him.
+      // A throw on a tick where a threat is ARRIVED is a hit: `QB_HIT` ARRIVAL for the first in the
+      // grid's order, no contest (either step-4 block). Under the motion block the release is the
+      // decision tick plus rho(release), and the earliest rusher not ARRIVED whose D21 contact time
+      // is at or before it (whole milliseconds) is `QB_HIT` THROWING; the ball still goes, on the
+      // IMMEDIATE accuracy row with today's poise refund. One of each at most per throw.
+      let throwPenalty = accuracyPenalty;
+      let releaseAt: number | undefined;
+      if (book !== undefined) {
+        const arrivedNow = arrivedInGridOrder(threats, tick, tunables);
+        const first = arrivedNow[0];
+        if (first !== undefined) log.qbHit(qbHitOf(first, "ARRIVAL"));
+        if (motion !== undefined) {
+          const r = rho(getAttr(qb.attributes.values, ATTR.release), motion);
+          releaseAt = toMilliseconds(tick + r) / 1000;
+          const arrivedIds = new Set(arrivedNow.map((t) => String(t.rusher)));
+          const entrants = activeThreats(matchups, scramble).map((t) => ({
+            threat: t,
+            rusher: t.rusher,
+            alignment: t.alignment,
+            etaTick: t.etaTick,
+            contactSeconds: book.contactSeconds(t.rusher),
+            arrived: t.etaTick <= tick || arrivedIds.has(String(t.rusher)),
+          }));
+          const hit = throwingHit(entrants, tick, r, tunables.arrival.simultaneousArrivalPriority);
+          if (hit !== undefined) {
+            log.qbHit(qbHitOf(hit.threat, "THROWING"));
+            throwPenalty = accuracyPenaltyForPocket(tunables, "IMMEDIATE");
+          }
+        }
+      }
       return resolveThrow({
         tunables,
         log,
         qb,
         track,
         tick,
-        accuracyPenalty,
+        accuracyPenalty: throwPenalty,
+        releaseSeconds: releaseAt,
         effectiveOpenness: selection.selected.effectiveOpenness,
         chemistry: chemistryLevel(tunables, state.chemistry, state.quarterback, track.assignment.receiver),
         coverageRng,
@@ -1518,6 +1716,25 @@ export function simulatePassPlay(
         airYardsOf: (id) => airYardsFor(tracks, id),
       });
     };
+
+    // ADR-089 step 4, `contact.order` CONTEST_BEFORE_THROW (D13, information only): the contest runs
+    // before the throw checks, under the sack branch's own condition. The design order
+    // (CONTEST_AFTER_THROW) leaves this to the sack site below.
+    if (
+      contact !== undefined &&
+      contact.order === "CONTEST_BEFORE_THROW" &&
+      pocket !== undefined &&
+      minTta !== undefined &&
+      minTta <= 0 &&
+      sacksWithoutTarget(tunables, pocket)
+    ) {
+      contestedThisTick = true;
+      if (contestArrivals(arrivedInGridOrder(threats, tick, tunables)) === "SACK") {
+        outcome = sack(tick);
+        break;
+      }
+      rebuildAfterShed();
+    }
 
     if (candidates.length > 0 && bestOf(candidates) >= throwThreshold) {
       outcome = throwTo(
@@ -1629,8 +1846,21 @@ export function simulatePassPlay(
     //
     // `minTta` is the tick's, computed above beside `mustDecide` (ADR-089 step 2).
     if (pocket !== undefined && minTta !== undefined && minTta <= 0 && sacksWithoutTarget(tunables, pocket)) {
-      outcome = sack(tick);
-      break;
+      if (contact === undefined) {
+        outcome = sack(tick);
+        break;
+      }
+      // ADR-089 step 4 (§4.5 item 2; plan §2.2 items 2 to 6) — the contest replaces the automatic
+      // sack: the arrived threats in the grid's order, FIGHT only. RUSHER_SACKS is the sack; every
+      // shed is followed by the rebuild before the move branch.
+      if (!contestedThisTick) {
+        contestedThisTick = true;
+        if (contestArrivals(arrivedInGridOrder(threats, tick, tunables)) === "SACK") {
+          outcome = sack(tick);
+          break;
+        }
+        rebuildAfterShed();
+      }
     }
 
     // §7.2's "move" branch. Reached only when he is not throwing and nobody has
@@ -1661,6 +1891,13 @@ export function simulatePassPlay(
         // The decision is published BEFORE its consequences, so the stream reads
         // as cause then effect: he climbed, and these arrivals moved because of it.
         log.qbDecision("STEP_UP");
+        // ADR-089 step 4 (plan §2.1 `contactFrom`): every rusher live (not ARRIVED) at this STEP_UP
+        // comes from BEHIND if his approach is ARC, from this STEP_UP on.
+        if (book !== undefined) {
+          for (const m of matchups) {
+            if (m.threat !== undefined && m.threat.etaTick > tick) liveAtStepUp.add(String(m.rusher.bio.id));
+          }
+        }
         for (const m of matchups) {
           if (m.threat === undefined || m.threat.alignment !== "EDGE") continue;
           const beforeStepUp = m.threat;
@@ -1881,6 +2118,8 @@ interface ThrowArgs {
   readonly carrierRng: Rng;
   /** Yards from the offence's own goal line; caps every advance at the field. */
   readonly ballOn: number;
+  /** ADR-089 step 4 (P8): the release time under the motion block; `undefined` under every other rule. */
+  readonly releaseSeconds: number | undefined;
 }
 
 function resolveThrow(args: ThrowArgs): PlayOutcome {
@@ -1919,7 +2158,7 @@ function resolveThrow(args: ThrowArgs): PlayOutcome {
   log.check(accuracy.check);
   // ADR-011 — the placement band is on the accuracy CHECK; THROW names the roll
   // rather than repeating the band (ADR-004's rule, applied to a derived fact).
-  log.throwBall(track.receiver.bio.id, throwType, accuracy.check.tier, accuracy.roll.rngLabel);
+  log.throwBall(track.receiver.bio.id, throwType, accuracy.check.tier, accuracy.roll.rngLabel, args.releaseSeconds);
 
   const incomplete = (): PlayOutcome => ({
     yards: 0,

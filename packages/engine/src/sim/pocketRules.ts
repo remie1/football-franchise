@@ -637,6 +637,34 @@ export function playsLegacyRules(tunables: Tunables): boolean {
 }
 
 /**
+ * ADR-089 step 4 (plan §1.2, critique 3 B1): whether the game loop plays the stem and the count read
+ * before this snap, which today's line does: true under `legacy` and for kind T ("today's line plus
+ * contact", arms D3 and D4: A0's settings plus contact, and nothing else), false otherwise. Like
+ * `playsLegacyRules` it validates nothing and never throws; a T-shaped tree the rules refuse is still
+ * refused at the top of the pass play that runs it (and today every step-4 tree is, by the gates).
+ */
+export function playsTodaysLine(tunables: Tunables): boolean {
+  // The T branch is reached only by a tree carrying the contact block, which no rule set of steps 1
+  // to 3 (nor DEFAULT_TUNABLES) does: under them this is `playsLegacyRules`, call for call (P-18).
+  return playsLegacyRules(tunables) || (tunables.pocket.contact !== undefined && isTodaysLinePlusContactTree(tunables));
+}
+
+/** Kind T's shape: a stamp, the approach card, the contact block, and no clock, forcing, step-3 block or motion. */
+function isTodaysLinePlusContactTree(tunables: Tunables): boolean {
+  const { beatClock, repClock, approach } = tunables.passRush;
+  return (
+    tunables.engineRules !== undefined &&
+    beatClock === undefined &&
+    repClock === undefined &&
+    approach !== undefined &&
+    tunables.pocket.forcing === undefined &&
+    step3BlocksOf(tunables).length === 0 &&
+    tunables.pocket.contact !== undefined &&
+    tunables.throwExec.motion === undefined
+  );
+}
+
+/**
  * The rules this play runs under, from the tunables it was handed. Pure, and called once a play
  * at the top of `simulatePassPlay`, before any die: a refusal throws before the stream begins.
  */
