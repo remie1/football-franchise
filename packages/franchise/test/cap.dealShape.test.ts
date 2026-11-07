@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { playerId, teamId } from "@ff/contracts";
-import { REAL_FIRST_YEAR, apyOf, firstYearShareFor, veteranContract } from "../src/index.js";
+import { REAL_FIRST_YEAR, REAL_STRUCTURE, apyOf, firstYearShareFor, guaranteedShare, realStructure, veteranContract } from "../src/index.js";
 
 // ADR-085 step 11: deals charge the real share of their yearly value in their first year.
 const at = { season: 2026, phase: "OFF_RESET_FA" as const, week: 1, day: 2 };
@@ -37,6 +37,45 @@ describe("deal shape (step 11)", () => {
   it("without a share, base salaries rise evenly as before", () => {
     const c = deal(10e6, 3);
     expect(c.years[1]!.baseSalary / c.years[0]!.baseSalary).toBeCloseTo(1.05, 2);
+  });
+});
+
+describe("deals are built as real deals at their pay and length (step 14)", () => {
+  const MID = REAL_STRUCTURE.middleFrom;
+  it("guarantees nothing at about the minimum, and more as the pay grows", () => {
+    expect(realStructure(0.004, 1, true)).toEqual({ bonusShare: 0, guaranteedShare: 0 });
+    const under = realStructure(MID * 0.9, 1, false);
+    const middle = realStructure(MID * 2, 1, false);
+    const big = realStructure(0.08, 1, false);
+    expect(under.guaranteedShare).toBeLessThan(middle.guaranteedShare);
+    expect(middle.guaranteedShare).toBeLessThan(big.guaranteedShare);
+    // However long, a deal under the middle class reads the one-year row; longer middle and big deals guarantee about half.
+    expect(realStructure(MID * 0.9, 3, false)).toEqual(under);
+    expect(realStructure(MID * 2, 3, false).guaranteedShare).toBeCloseTo(0.48, 6);
+    expect(realStructure(0.08, 5, false).guaranteedShare).toBeCloseTo(0.52, 6);
+  });
+
+  it("guarantees base salary from the first year until the deal reaches its share, the last year in part", () => {
+    const s = realStructure(0.03, 3, false);
+    const c = veteranContract({
+      player: playerId("p"), team: teamId("T1"), season: 2026, signedAt: at, apy: 9e6, years: 3,
+      bonusShare: s.bonusShare, guaranteedYears: 0, guaranteedShare: s.guaranteedShare, minimum: () => 1_000_000,
+    });
+    expect(guaranteedShare(c)).toBeCloseTo(s.guaranteedShare, 2);
+    expect(c.years[0]!.guarantees.fullyGuaranteed).toBe(true);
+    expect(c.years[1]!.guarantees.fullyGuaranteed).toBe(false);
+    expect(c.years[1]!.guaranteedSalary).toBeGreaterThan(0);
+    expect(c.years[2]!.guaranteedSalary ?? 0).toBe(0);
+  });
+
+  it("a cheap one-year deal leaves most of its pay owed only if he makes the team", () => {
+    const s = realStructure(MID * 0.9, 1, false);
+    const c = veteranContract({
+      player: playerId("p"), team: teamId("T1"), season: 2026, signedAt: at, apy: 1.8e6, years: 1,
+      bonusShare: s.bonusShare, guaranteedYears: 0, guaranteedShare: s.guaranteedShare, minimum: () => 1_000_000,
+    });
+    expect(c.years[0]!.guarantees.fullyGuaranteed).toBe(false);
+    expect(guaranteedShare(c)).toBeCloseTo(0.23, 2);
   });
 });
 

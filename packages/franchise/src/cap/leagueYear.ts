@@ -35,7 +35,7 @@ import { capNumber, designatedIn, expireContract, isAfterJune1, liveIn, prorate,
 import { BASE_CAP, CASH_FLOOR, MAX_PRORATION_YEARS, POST_JUNE_1_DESIGNATIONS, RFA_SEASONS, TAG_GROUP, type TenderLevel } from "./rules.js";
 import { ROOKIE_SCALE_2026 } from "./rookieScale2026.js";
 import { minimumContract, minimumSalary, tagContract, tagPrice, tenderPrice } from "./signings.js";
-import { ageFactorAt, apyOf, firstYearShareFor, guaranteedShare, marketCurves, structureFor, valuePlayer, veteranContract, type MarketCurves } from "./value.js";
+import { REAL_STRUCTURE, ageFactorAt, apyOf, firstYearShareFor, guaranteedShare, marketCurves, realStructure, valuePlayer, veteranContract, type MarketCurves } from "./value.js";
 import { pushedOut, valueForMoney } from "./valueForMoney.js";
 import { askingPrice, offerWorth, type MarketWindow } from "./negotiation.js";
 import { floorShortfall, planWithFloor, teamCapPlan, type CapPlan } from "./leaning.js";
@@ -526,7 +526,7 @@ function reSign(
       }
       if (!signed && cs >= RFA_SEASONS) {
         const v = valuePlayer(p, g, curves, minimumSalary(next, cs, config.cap), config.cap(next), config.ahead.value(team.id, p));
-        const offer = buildOffer(p, team.id, next, at, v.apy, v.years, v.percentile, cs, config.cap, "EXTENSION");
+        const offer = buildOffer(p, team.id, next, at, v.apy, v.years, cs, config.cap, "EXTENSION");
         // A team does not keep a man worth less to it than his price (step 14, §3.1), unless he is its last
         // man at a starting seat: he goes to the market.
         if (!lastMan && valueForMoney({ position: pos, here: gradesAt(pos), grade: g, apy: apyOf(offer), floor: dealFloor(offer, cs, config.cap), curve: curves.get(TAG_GROUP[pos]) }) < 0) continue;
@@ -617,7 +617,7 @@ function campExtensions(
     for (const { p, g, cs, floor, v } of candidates) {
       const oi = oldDeal(p);
       const old = book.contracts[oi]!;
-      const fresh = buildOffer(p, team.id, season, at, v.apy, v.years, v.percentile, cs, config.cap, "EXTENSION");
+      const fresh = buildOffer(p, team.id, season, at, v.apy, v.years, cs, config.cap, "EXTENSION");
       const left = old.years.filter((y) => y.season >= season).reduce((a, y) => a + proration(y), 0);
       const each = prorate(left, fresh.years.filter((y) => !y.voidYear).length);
       const lastYear = old.years.find((y) => y.season === season);
@@ -671,13 +671,14 @@ function oneYear(p: PlayerState, team: TeamId, season: number, at: CalendarStamp
   };
 }
 
+/** A deal built as real deals at its pay and length are (step 14, `realStructure`), whoever he is. */
 function buildOffer(
-  p: PlayerState, team: TeamId, season: number, at: CalendarStamp, apy: number, years: number, percentile: number,
+  p: PlayerState, team: TeamId, season: number, at: CalendarStamp, apy: number, years: number,
   cs: number, cap: CapForSeason, kind: "VETERAN" | "EXTENSION",
 ): PlayerContract {
-  const s = structureFor(percentile);
+  const s = realStructure(apy / cap(season), years, apy <= REAL_STRUCTURE.minimumUpTo * minimumSalary(season, cs, cap));
   return veteranContract({
-    player: p.bio.id, team, season, signedAt: at, apy, years, bonusShare: s.bonusShare, guaranteedYears: s.guaranteedYears,
+    player: p.bio.id, team, season, signedAt: at, apy, years, bonusShare: s.bonusShare, guaranteedYears: 0, guaranteedShare: s.guaranteedShare,
     minimum: (i) => minimumSalary(season + i, cs + i, cap), kind, firstYearShare: firstYearShareFor(apy / cap(season)),
   });
 }
@@ -1091,10 +1092,10 @@ function freeAgency(
         const v = valuePlayer(p, g, curves, floor, config.cap(season), config.ahead.value(t.id, p));
         // Step 12: a team pays what it thinks he is worth, but never more than he asks.
         const apy = Math.max(floor, Math.min(asks.get(String(p.bio.id))!, Math.round(v.apy * (MARKET.offerBase + MARKET.offerNeed * need) / 1000) * 1000));
-        let contract = buildOffer(p, t.id, season, ctx.day, apy, v.years, v.percentile, cs, config.cap, "VETERAN");
+        let contract = buildOffer(p, t.id, season, ctx.day, apy, v.years, cs, config.cap, "VETERAN");
         // Step 12: when next year has no room for a longer deal, the team offers one year ("prove it").
         if (v.years > 1 && !secondYearFits(t.id, contract, book, config.cap, plan(t.id), totals)) {
-          contract = buildOffer(p, t.id, season, ctx.day, apy, 1, v.percentile, cs, config.cap, "VETERAN");
+          contract = buildOffer(p, t.id, season, ctx.day, apy, 1, cs, config.cap, "VETERAN");
         }
         let cut: { i: number; p: PlayerState } | undefined;
         if (capNumber(contract.years[0]!) > room) {

@@ -9,7 +9,7 @@
  * Constants are CHOSEN (provenance NONE) unless a comment says otherwise.
  */
 import type { CalendarStamp, ContractKind, ContractYear, PlayerContract, PlayerId, PlayerState, Position, TeamId } from "@ff/contracts";
-import { capNumber, liveIn, proration, prorate, withCapHits } from "./money.js";
+import { capNumber, guaranteedOf, liveIn, proration, prorate, withCapHits } from "./money.js";
 import { TAG_GROUP, type TagGroup } from "./rules.js";
 
 /** Deals the open market sets. Rookie, practice-squad, tag and tender deals are priced by rule instead. */
@@ -170,12 +170,32 @@ export function termAt(a: number, percentile: number, capShare?: number): number
   return years;
 }
 
-/** How a deal is built at a place in the market: signing-bonus share and fully guaranteed years. */
-export function structureFor(percentile: number): { bonusShare: number; guaranteedYears: number } {
-  if (percentile >= 0.9) return { bonusShare: 0.35, guaranteedYears: 2 };
-  if (percentile >= 0.6) return { bonusShare: 0.2, guaranteedYears: 1 };
-  if (percentile >= 0.3) return { bonusShare: 0.1, guaranteedYears: 0 };
-  return { bonusShare: 0, guaranteedYears: 0 };
+/**
+ * How real deals are built, by what they pay and how long they run (ADR-085 step 14): the signing
+ * bonus's share of the deal and the share guaranteed at signing, bonus included. COUNTED: OverTheCap's
+ * new-team veteran deals signed 2021-25 (the man's previous season with another team), medians, the bonus
+ * read from the deal's first season's proration (s14 `real_bonus.py`). Pay is a share of the cap: about
+ * the minimum (up to 1.1 times his minimum salary: 95% of real ones guarantee nothing), under the middle
+ * class (to $2M of 2026's cap), the middle class (to 4%), big deals. Deals under the middle class run a
+ * year (276 real ones against 7 longer), so every length reads the one-year row.
+ */
+export const REAL_STRUCTURE = {
+  minimumUpTo: 1.1,
+  middleFrom: 2_000_000 / 301_200_000,
+  bigFrom: 0.04,
+  /** [bonus share, guaranteed share] for deals of 1, 2 and 3+ years. */
+  underMiddle: [[0.10, 0.23], [0.10, 0.23], [0.10, 0.23]],
+  middle: [[0.23, 0.74], [0.25, 0.50], [0.23, 0.48]],
+  big: [[0.24, 0.90], [0.22, 0.60], [0.25, 0.52]],
+} as const;
+
+/** How a real deal at this pay (a share of the cap) and length is built; `atMinimum` when it pays about his minimum. */
+export function realStructure(capShare: number, years: number, atMinimum: boolean): { bonusShare: number; guaranteedShare: number } {
+  if (atMinimum) return { bonusShare: 0, guaranteedShare: 0 };
+  const rows = capShare >= REAL_STRUCTURE.bigFrom ? REAL_STRUCTURE.big
+    : capShare >= REAL_STRUCTURE.middleFrom ? REAL_STRUCTURE.middle : REAL_STRUCTURE.underMiddle;
+  const [bonusShare, guaranteedShare] = rows[Math.min(3, Math.max(1, Math.round(years))) - 1]!;
+  return { bonusShare, guaranteedShare };
 }
 
 export interface Valuation {
@@ -228,7 +248,13 @@ export interface VeteranDeal {
   apy: number;
   years: number;
   bonusShare: number;
+  /** Whole years fully guaranteed from the first. `guaranteedShare`, when given, takes its place. */
   guaranteedYears: number;
+  /**
+   * The share of the deal guaranteed at signing, bonus included (`realStructure`): base salary is
+   * guaranteed from the first year on until the deal reaches it, the last year it reaches in part.
+   */
+  guaranteedShare?: number;
   /** Each year's minimum salary (index 0 = the first season). */
   minimum: (yearIndex: number) => number;
   kind?: Extract<ContractKind, "VETERAN" | "EXTENSION" | "MINIMUM">;
@@ -264,7 +290,7 @@ const BASE_RAISE = 0.05;
 /**
  * A veteran deal worth `apy × years`: part paid as a signing bonus spread over the years, the rest
  * as base salary rising 5% a year, never below the minimum. The first `guaranteedYears` are fully
- * guaranteed.
+ * guaranteed, or, with `guaranteedShare`, base salary from the first year on up to that share of the deal.
  */
 export function veteranContract(d: VeteranDeal): PlayerContract {
   const total = Math.round(d.apy * d.years / 1000) * 1000;
@@ -285,8 +311,16 @@ export function veteranContract(d: VeteranDeal): PlayerContract {
     guarantees: { fullyGuaranteed: i < d.guaranteedYears },
     capHit: 0,
   }));
-  // A shaped deal guarantees as much base as the even deal would: its small first year is not all of it.
-  if (first !== undefined && d.guaranteedYears > 0) {
+  if (d.guaranteedShare !== undefined) {
+    let owed = Math.max(0, Math.round((d.guaranteedShare * total - bonus) / 1000) * 1000);
+    for (const y of years) {
+      const whole = owed > 0 && owed >= y.baseSalary;
+      y.guarantees = { fullyGuaranteed: whole };
+      if (!whole && owed > 0) y.guaranteedSalary = owed;
+      owed = whole ? owed - y.baseSalary : 0;
+    }
+  } else if (first !== undefined && d.guaranteedYears > 0) {
+    // A shaped deal guarantees as much base as the even deal would: its small first year is not all of it.
     const target = d.guaranteedYears * (total - bonus) / d.years;
     let held = 0;
     for (const y of years) {
@@ -300,10 +334,10 @@ export function veteranContract(d: VeteranDeal): PlayerContract {
   });
 }
 
-/** Share of a deal's money that is guaranteed at signing (bonus plus fully guaranteed base). */
+/** Share of a deal's money that is guaranteed at signing (bonus plus guaranteed base, whole years and part ones). */
 export function guaranteedShare(c: PlayerContract): number {
   const total = (c.signingBonus ?? 0) + c.years.reduce((s, y) => s + y.baseSalary, 0);
-  const g = (c.signingBonus ?? 0) + c.years.reduce((s, y) => s + (y.guarantees.fullyGuaranteed ? y.baseSalary : 0), 0);
+  const g = (c.signingBonus ?? 0) + c.years.reduce((s, y) => s + guaranteedOf(y), 0);
   return total === 0 ? 0 : g / total;
 }
 
