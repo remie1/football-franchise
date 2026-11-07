@@ -91,29 +91,39 @@ Built on ADR-085's value and look-ahead so a GM judges a man the same way signin
 4. the week's stance (ADR-094): BUY pays more for help now, SELL wants picks and young men;
 5. the GM's `marketSense` and scouting set the size of his error (Q8 a).
 
-## 4. What a pick is worth (Q2: a and b combined, with templates)
+## 4. What a pick is worth (Q2: a and b combined; owner's corrections 14:20Z and 14:37Z)
 
-- **The shared blend:** our league's measured value of each slot (what the players taken there turn
-  into, from the draft's many-draft runs) and the real market chart.
-- **Templates:** every GM is assigned one named curve when made and keeps it. His curve = 80% blend
-  + 20% template (CHOSEN; owner: the template gets "a small percentage of the blend"). Shape
-  templates (owner's two first, 14:20Z): **Top-heavy** (early picks worth a lot, late ones little;
-  the early-1990s chart's shape), **Middle rounds** (early and late worth less, the middle most:
-  value per rookie dollar), **Production** (what the players taken there turned into, before cost),
-  **Market** (what teams pay each other for picks, counted from real pick-for-pick trades at build).
-  Counted from nflverse `draft_picks.csv`, drafts 2000-2016 (4,372 picks), value to the drafting
-  team (`dr_av`) by pick, with our real 2026 rookie scale for cost: production indexed to pick 1 =
-  100 runs 91 (2-5), 62 (21-32), 38 (49-64), 23 (97-128), 7 (225-262); per rookie dollar it peaks at
-  picks 33-128, about 2 to 2.5 times a top-5 pick, and falls again in rounds 6-7. COMPUTED. The
-  Top-heavy numbers (3,000 for pick 1, 590 for pick 32) are REPORTED from memory, checked at build.
-  The draw leans on his background (ADR-094 §10) but is never fixed by it. Held as an open key on
-  his ratings, `pickCurve`, so no contracts edit; drawn on its own fork (`franchise:pickCurve`, by
-  his id).
-- **The future-pick dial:** separate from the shape, each GM's own markdown of next year's pick
-  against this year's (open key `futurePickDiscount`, its own fork), centered on about a round
-  lower (REPORTED rule of thumb). Patient and Now were first proposed as shapes and are this dial.
-- **The team's course tilts it:** rebuilding about +10%, contending about -10% on pick value
-  (owner's ruling; the 10% is CHOSEN).
+Owner (14:37Z): the production and market curves are *"objective curves that all GMs should
+consider as part of the blend"*; curves like his two are *"the subjective curves ... every GM gets
+assigned one curve as part of their GM profile"*, permanently, added to the blend with the
+objective curves and the team's course.
+
+- **Objective (every GM, the same numbers):** the **Production curve**, what the players taken in
+  each slot turn into in our league (measured from our own drafts), and the **Market curve**, what
+  teams pay each other for picks (counted from real pick-for-pick trades at build). Weighed half and
+  half to start (CHOSEN).
+- **Subjective (his own):**
+  1. **His GM curve**, one of the variations below, assigned when he is made and kept for his career
+     (open key `pickCurve`, its own fork `franchise:pickCurve`, by his id). The draw leans on his
+     background (ADR-094 §10) but is never fixed by it.
+  2. **The team's course**: rebuilding about +10%, contending about -10% on pick value (owner's
+     ruling; the 10% is CHOSEN).
+  3. **His future-pick dial**: his markdown of next year's pick against this year's (open key
+     `futurePickDiscount`, own fork), centered on about a round lower (REPORTED rule of thumb).
+  4. **His error**, from market sense and scouting (Q8 a).
+- **Combined:** value = 80% objective + 20% GM curve (CHOSEN, tuned), then the course tilt and the
+  future-pick dial, then his error. Every GM curve is scaled to the same whole-draft total, so it
+  moves value between rounds and never inflates the draft.
+- **GM curve variations** (how common each is: CHOSEN): **Top-heavy** (owner's curve 1; common),
+  **Middle rounds** (owner's curve 2; rounds 2-4 best), **Top-ten or bust** (rare), **Day two**
+  (rounds 2-3), **Late-round finder** (rounds 5-7; rare), **Volume** (every pick near equal; rare),
+  **Even-handed** (close to the objective; common).
+- **Real numbers behind the shapes:** nflverse `draft_picks.csv`, drafts 2000-2016 (4,372 picks),
+  value to the drafting team (`dr_av`) by pick, with our real 2026 rookie scale for cost. Production
+  indexed to pick 1 = 100 runs 91 (picks 2-5), 62 (21-32), 38 (49-64), 23 (97-128), 7 (225-262).
+  Per rookie dollar it peaks at picks 33-128, about 2 to 2.5 times a top-5 pick, and falls in rounds
+  6-7: the real ground of the Middle rounds view. COMPUTED. The old chart's 3,000 for pick 1 and 590
+  for pick 32 are REPORTED from memory, checked at build.
 - **Expected compensatory picks count** (ADR-086 N2, the owner's Mac Jones example).
 
 ## 5. Computer teams trade among themselves (Q3 a, Q4 a)
