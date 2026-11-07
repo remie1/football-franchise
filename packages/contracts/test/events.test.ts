@@ -1,15 +1,19 @@
 /**
- * ADR-089 P2 to P5 and P17: what the edits allow and what they still refuse.
+ * ADR-089 P2 to P8 and P17: what the edits allow and what they still refuse.
  *
  * The cases are type-level: the `@ts-expect-error` lines fail `pnpm --filter @ff/contracts
  * typecheck` (part of `pnpm verify`) if the edit is loosened or lost. The runtime asserts only
  * show the file ran. Contracts gain types and comments only, so nothing here can change a stream.
  */
 import { describe, expect, it } from "vitest";
-import type { MatchEvent, PlayerId, ResultTier, RollDetail, RushApproach } from "../src/index.js";
+import { attrId } from "../src/ids.js";
+import type { ContactFrom, MatchEvent, PlayerId, QbHitPhase, ResultTier, RollDetail, RushApproach } from "../src/index.js";
 
 type CheckPayload = Extract<MatchEvent, { type: "CHECK" }>["payload"];
 type ThreatPayload = Extract<MatchEvent, { type: "RUSH_THREAT" }>["payload"];
+type PresnapPayload = Extract<MatchEvent, { type: "PRESNAP_READ" }>["payload"];
+type QbHitPayload = Extract<MatchEvent, { type: "QB_HIT" }>["payload"];
+type ThrowPayload = Extract<MatchEvent, { type: "THROW" }>["payload"];
 
 const p = "p1" as PlayerId;
 const tier: ResultTier = "TIE";
@@ -98,5 +102,83 @@ describe("ADR-089 P17: a late block's rolled tick on shape L", () => {
       rollRef: "g/presnap/pickup/p1",
     };
     expect(late.rollRef).toBe("g/presnap/pickup/p1");
+  });
+});
+
+describe("ADR-089 P6: the arrival_contest CHECK", () => {
+  const qb = "qb1" as PlayerId;
+  it("a rated :contest carries both faces on their own labels; a :contest2 carries one die and no opposedRoll", () => {
+    const contest: CheckPayload = {
+      checkKind: "arrival_contest", actors: [p, qb], tier, margin: 6, target: 5, band: "RUSHER_SACKS",
+      roll: { ...d100, raw: 60, total: 82, rngLabel: "g/pass/t2.4/p1:contest" },
+      opposedRoll: { ...d100, raw: 40, total: 76, rngLabel: "g/pass/t2.4/qb1:contest:p1" },
+      testsAttrs: ["tackling", "speed", "strength", "agility"].map(attrId),
+    };
+    const contest2: CheckPayload = {
+      checkKind: "arrival_contest", actors: [p, qb], tier, margin: -3, target: 15, band: "QB_SHEDS",
+      roll: { ...d100, raw: 12, total: 12, rngLabel: "g/pass/t3.1/p1:contest2" },
+      testsAttrs: [],
+    };
+    expect(contest.roll?.rngLabel).not.toBe(contest.opposedRoll?.rngLabel);
+    expect("opposedRoll" in contest2).toBe(false);
+  });
+
+  it("a PRESNAP_READ is never an arrival_contest", () => {
+    const read: PresnapPayload = { actor: p, kind: "qb_read", roll: d100, target: 50, tier };
+    // @ts-expect-error arrival_contest happens only after the snap
+    const contest: PresnapPayload = { actor: p, kind: "arrival_contest", roll: d100, target: 50, tier };
+    expect([read, contest].length).toBe(2);
+  });
+});
+
+describe("ADR-089 P7: QB_HIT, QbHitPhase and ContactFrom", () => {
+  const qb = "qb1" as PlayerId;
+  const base: QbHitPayload = { qb, rusher: p, phase: "THROWING", contactSeconds: 2.731 };
+  it("each of the four phases type-checks", () => {
+    const phases: QbHitPhase[] = ["ARRIVAL", "THROWING", "SHED", "SACK"];
+    const from: ContactFrom = "BEHIND";
+    const hits: QbHitPayload[] = phases.map((phase) => ({
+      ...base, phase, approach: "ARC", from, seen: true,
+      ...(phase === "SHED" || phase === "SACK" ? { rollRef: "g/pass/t2.4/p1:contest" } : {}),
+    }));
+    expect(hits.map((h) => h.phase)).toEqual(phases);
+  });
+
+  it("a phase outside the union is refused", () => {
+    // @ts-expect-error STRIP is not a QB_HIT phase
+    const strip: QbHitPayload = { ...base, phase: "STRIP" };
+    // @ts-expect-error nor is TOP a ContactFrom
+    const top: ContactFrom = "TOP";
+    expect([strip, top].length).toBe(2);
+  });
+
+  it("contactSeconds is required; the rest may be absent and refuse undefined", () => {
+    // @ts-expect-error contactSeconds is required
+    const noTime: QbHitPayload = { qb, rusher: p, phase: "ARRIVAL" };
+    expect(Object.keys(base)).toEqual(["qb", "rusher", "phase", "contactSeconds"]);
+    // @ts-expect-error exactOptionalPropertyTypes: rollRef: undefined is refused
+    const r: QbHitPayload = { ...base, rollRef: undefined };
+    // @ts-expect-error nor approach: undefined
+    const a: QbHitPayload = { ...base, approach: undefined };
+    // @ts-expect-error nor from: undefined
+    const f: QbHitPayload = { ...base, from: undefined };
+    // @ts-expect-error nor seen: undefined
+    const sn: QbHitPayload = { ...base, seen: undefined };
+    const blocked: QbHitPayload = { ...base, phase: "SHED", approach: "BLOCKED", rollRef: "g/pass/t2.4/p1:contest" };
+    expect([noTime, r, a, f, sn, blocked].length).toBe(6);
+  });
+});
+
+describe("ADR-089 P8: THROW.releaseSeconds", () => {
+  it("a THROW may carry its release time; a THROW without it writes no key", () => {
+    const plain: ThrowPayload = { target: p, throwType: "BULLET", accuracyTier: tier, rollRef: "g/pass/t2.4/qb1:accuracy" };
+    const timed: ThrowPayload = { ...plain, releaseSeconds: 2.731 };
+    // @ts-expect-error exactOptionalPropertyTypes: releaseSeconds: undefined is refused
+    const undef: ThrowPayload = { ...plain, releaseSeconds: undefined };
+    // @ts-expect-error seconds are a number
+    const text: ThrowPayload = { ...plain, releaseSeconds: "2.731" };
+    expect(Object.keys(plain)).not.toContain("releaseSeconds");
+    expect(Object.keys(timed).at(-1)).toBe("releaseSeconds");
+    expect([undef, text].length).toBe(2);
   });
 });

@@ -27,6 +27,9 @@ import { defaultPlayCaller, simulateGame, simulatePassPlay, simulateRunPlay } fr
 import { resolveLateTickL } from "../src/resolve/lateBlock.js";
 import { timeFreeRunners } from "../src/sim/freeRunTiming.js";
 import { buildGameFixture } from "./gameFixtures.js";
+import { DEFAULT_TUNABLES } from "../src/tunables.js";
+import type { Tunables } from "../src/tunables.js";
+import { CONTACT_FILED, MOTION_FILED, todaysLine, withStep4 } from "./step4Fixtures.js";
 import {
   LATE_BLOCK_FILED,
   PASS_FIXTURES,
@@ -36,6 +39,7 @@ import {
   S3L8_TUNABLES,
   S3_TUNABLES,
   STEP1_RULE_SET_NAMES,
+  stamp,
   isShapeS,
   pocketTicks,
   tickOf,
@@ -678,6 +682,158 @@ describe("ADR-004 roll accounting", () => {
     for (const { roll, seq } of rolls) {
       expect(seen.get(roll.rngLabel), `${roll.rngLabel} at ${seq}`).toBeUndefined();
       seen.set(roll.rngLabel, seq);
+    }
+  });
+
+  /**
+   * ADR-089 step 4, R-4: ROLL ACCOUNTING AS A PAIRING TEST (plan §7.2; critique 3 B3; contracts-guardian
+   * G-1). Each step-4 shape is played against the step-3 or legacy base it is built on, on every pass
+   * fixture and seed, the same picture on both: D7 (contact alone, tilted), D5 (the motion alone) and
+   * D1 (both blocks) against C1's shape (`S3_TUNABLES`); D17 (both blocks on shape L) against C14's
+   * (`S3L8_TUNABLES`); D3 (kind T: today's line with the untilted contact block) against A0 (legacy).
+   *  18. up to the play's first `arrival_contest` CHECK or `QB_HIT`, the two plays draw the same rolls,
+   *      label and value, in order;
+   *  19. a play with neither is the base's play in full, event for event, apart from `PLAY_START.rules`,
+   *      `RUSH_THREAT.approach` (kind T) and `THROW.releaseSeconds` (P8's field, a record and no roll);
+   *  20. the label families a step-4 shape adds over its base in the rush bucket and the pre-snap reads,
+   *      across every fixture and seed, are the contest's three alone: the rusher's `rush/t<tick>/<rusherId>:contest`, the quarterback's face
+   *      `rush/t<tick>/<quarterbackId>:contest:<rusherId>` (G-1), and `rush/t<tick>/<rusherId>:contest2`;
+   *      each rated contest draws its two faces once and each second arrival its one die;
+   *  21. no RollDetail twice in a play, and `:contact` and `:dodge` are never drawn.
+   */
+  it("step 4: each shape draws its base's rolls up to the first contest or hit, and adds only the contest's labels (R-4, G-1)", () => {
+    const restamped = (t: Tunables, digest: string): Tunables => ({ ...t, engineRules: stamp(digest, "pocket-1.s4") });
+    const untilted = {
+      ...CONTACT_FILED,
+      tilts: {
+        pushBlocked: { ...CONTACT_FILED.tilts.pushBlocked, on: false },
+        freeRun: { ...CONTACT_FILED.tilts.freeRun, on: false },
+        behindNever: { ...CONTACT_FILED.tilts.behindNever, on: false },
+      },
+    };
+    const pairs: readonly { readonly name: string; readonly base: Tunables; readonly arm: Tunables; readonly picture: boolean }[] = [
+      { name: "D7 / C1", base: S3_TUNABLES, arm: withStep4(restamped(S3_TUNABLES, "fnv1a:7e0000d7"), { contact: CONTACT_FILED }), picture: true },
+      { name: "D5 / C1", base: S3_TUNABLES, arm: withStep4(restamped(S3_TUNABLES, "fnv1a:7e0000d5"), { motion: MOTION_FILED }), picture: true },
+      { name: "D1 / C1", base: S3_TUNABLES, arm: withStep4(restamped(S3_TUNABLES, "fnv1a:7e0000d1"), { contact: CONTACT_FILED, motion: MOTION_FILED }), picture: true },
+      { name: "D17 / C14", base: S3L8_TUNABLES, arm: withStep4(restamped(S3L8_TUNABLES, "fnv1a:7e000017"), { contact: CONTACT_FILED, motion: MOTION_FILED }), picture: true },
+      { name: "D3 / A0", base: DEFAULT_TUNABLES, arm: todaysLine(untilted, "fnv1a:7e0000d3"), picture: false },
+    ];
+    const isStep4Record = ({ event }: MatchEventEnvelope): boolean =>
+      event.type === "QB_HIT" || (event.type === "CHECK" && event.payload.checkKind === "arrival_contest");
+    const normalized = (events: readonly MatchEventEnvelope[]): string[] =>
+      events.map(({ seq, event }) => {
+        const copy = JSON.parse(JSON.stringify(event)) as { type: string; payload: Record<string, unknown> };
+        if (copy.type === "PLAY_START") delete copy.payload["rules"];
+        if (copy.type === "RUSH_THREAT") delete copy.payload["approach"];
+        if (copy.type === "THROW") delete copy.payload["releaseSeconds"];
+        return JSON.stringify({ seq, ...copy });
+      });
+    const family = (label: string): string =>
+      label.replace(/(^|[/:])t\d+(\.\d+)?(?=[:/]|$)/g, "$1t#").replace(/:([ra])\d+:/g, ":$1#:").replace(/\/play:\d+\//g, "/play:#/");
+    // As in (11): a carrier's or a tackle's labels name the zone and the man a play happened to reach,
+    // so a play that goes on differently after a hit draws families the base did not; the families are
+    // read in the rush bucket and the pre-snap reads, where every step-4 die is drawn.
+    const inLineBuckets = (label: string): boolean => label.includes("/rush/") || label.includes("/presnap");
+    const CONTEST_FAMILY = /\/rush\/t#\/[^/:]+:(contest|contest:[^/:]+|contest2)$/;
+    const s4Fixtures = (picture: boolean): readonly Step3Fixture[] =>
+      picture
+        ? step3Fixtures()
+        : PASS_FIXTURES.map(([name, build]) => [name, () => {
+          const { state, calls } = build();
+          return { state, calls };
+        }] as const);
+    for (const { name, base, arm, picture } of pairs) {
+      const baseFamilies = new Set<string>();
+      const armFamilies = new Set<string>();
+      let plays = 0;
+      let recorded = 0;
+      let rated = 0;
+      let second = 0;
+      for (const [fixture, build] of s4Fixtures(picture)) {
+        for (let i = 0; i < 100; i++) {
+          const seed = `paired-s4-${fixture}-${i}`;
+          const { state, calls } = build();
+          const b = simulatePassPlay(state, picture ? calls : callsUnder(base, state, calls), seed, base).events;
+          const x = simulatePassPlay(state, picture ? calls : callsUnder(arm, state, calls), seed, arm).events;
+          plays += 1;
+          const bRolls = allRolls(b);
+          const xRolls = allRolls(x);
+          for (const r of bRolls) if (inLineBuckets(r.roll.rngLabel)) baseFamilies.add(family(r.roll.rngLabel));
+          for (const r of xRolls) if (inLineBuckets(r.roll.rngLabel)) armFamilies.add(family(r.roll.rngLabel));
+          // (21) no label twice in the play; `:contact` and `:dodge` never drawn.
+          const labels = xRolls.map((r) => r.roll.rngLabel);
+          expect(new Set(labels).size, `${name} ${seed}`).toBe(labels.length);
+          expect(labels.filter((l) => /:(contact|dodge)(:|$)/.test(l)), `${name} ${seed}`).toEqual([]);
+          const first = x.find(isStep4Record);
+          if (first === undefined) {
+            // (19) neither: the base's play in full.
+            expect(normalized(x), `${name} ${seed}`).toEqual(normalized(b));
+            continue;
+          }
+          recorded += 1;
+          // (18) the same rolls, label and value, up to the first contest or hit.
+          const before = xRolls.filter((r) => r.seq < first.seq).map((r) => ({ rngLabel: r.roll.rngLabel, raw: r.roll.raw }));
+          expect(bRolls.slice(0, before.length).map((r) => ({ rngLabel: r.roll.rngLabel, raw: r.roll.raw })), `${name} ${seed}`).toEqual(before);
+          // (20) each rated contest draws its two faces once, each second arrival its one die.
+          const contests = x.flatMap(({ event }) => (event.type === "CHECK" && event.payload.checkKind === "arrival_contest" ? [event.payload] : []));
+          for (const c of contests) {
+            const own = c.roll?.rngLabel ?? "";
+            if (own.endsWith(":contest2")) {
+              second += 1;
+              expect(c.opposedRoll, `${name} ${seed}`).toBeUndefined();
+            } else {
+              rated += 1;
+              expect(own, `${name} ${seed}`).toMatch(/\/rush\/t[\d.]+\/[^/:]+:contest$/);
+              const rusher = own.slice(own.lastIndexOf("/") + 1, -":contest".length);
+              expect(c.opposedRoll?.rngLabel, `${name} ${seed}`).toMatch(new RegExp(`/rush/t[\\d.]+/[^/:]+:contest:${rusher}$`));
+            }
+          }
+          const drawn = labels.filter((l) => /\/rush\/t[\d.]+\/[^/:]+:contest(2|:[^/:]+)?$/.test(l));
+          const rusherFaces = drawn.filter((l) => l.endsWith(":contest")).length;
+          const quarterbackFaces = drawn.filter((l) => /:contest:[^/:]+$/.test(l)).length;
+          const secondDice = drawn.filter((l) => l.endsWith(":contest2")).length;
+          expect({ rusherFaces, quarterbackFaces, secondDice }, `${name} ${seed}`).toEqual({
+            rusherFaces: contests.filter((c) => !(c.roll?.rngLabel ?? "").endsWith(":contest2")).length,
+            quarterbackFaces: contests.filter((c) => !(c.roll?.rngLabel ?? "").endsWith(":contest2")).length,
+            secondDice: contests.filter((c) => (c.roll?.rngLabel ?? "").endsWith(":contest2")).length,
+          });
+        }
+      }
+      // (20) the families added over the base, across every fixture and seed: the contest's alone.
+      const added = [...armFamilies].filter((f) => !baseFamilies.has(f));
+      expect(added.filter((f) => !CONTEST_FAMILY.test(f)), name).toEqual([]);
+      expect(plays, name).toBe(s4Fixtures(picture).length * 100);
+      expect(recorded, name).toBeGreaterThan(40);
+      if (name !== "D5 / C1") {
+        expect(rated, name).toBeGreaterThan(10);
+        expect(second, name).toBeGreaterThan(0);
+        expect(added.some((f) => f.endsWith(":contest2")), name).toBe(true);
+      } else {
+        // The motion alone draws no contest die at all.
+        expect(rated + second, name).toBe(0);
+        expect(added, name).toEqual([]);
+      }
+    }
+  });
+
+  it("step 4: no RollDetail twice in a whole game under D1's shape or kind T, and no :contact or :dodge (R-4, G-1)", () => {
+    const fixture = buildGameFixture({ seed: "s4-game-accounting" });
+    const d1 = withStep4({ ...S3_TUNABLES, engineRules: stamp("fnv1a:7e0000d1", "pocket-1.s4") }, { contact: CONTACT_FILED, motion: MOTION_FILED });
+    const runs: readonly [string, Tunables, boolean][] = [["D1", d1, true], ["T", todaysLine(), false]];
+    for (const [name, tunables, picture] of runs) {
+      const inputs = picture
+        ? { ...fixture.inputs, callers: { home: withLineUp(defaultPlayCaller("baseline-home")), away: withLineUp(defaultPlayCaller("baseline-away")) } }
+        : fixture.inputs;
+      const { events } = simulateGame(fixture.state, inputs, fixture.seed, tunables);
+      const rolls = allRolls(events);
+      expect(rolls.length, name).toBeGreaterThan(500);
+      expect(rolls.some(({ roll }) => roll.rngLabel.endsWith(":contest")), name).toBe(true);
+      const seen = new Map<string, number>();
+      for (const { roll, seq } of rolls) {
+        expect(seen.get(roll.rngLabel), `${name}: ${roll.rngLabel} at ${seq}`).toBeUndefined();
+        expect(/:(contact|dodge)(:|$)/.test(roll.rngLabel), `${name}: ${roll.rngLabel}`).toBe(false);
+        seen.set(roll.rngLabel, seq);
+      }
     }
   });
 

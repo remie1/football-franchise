@@ -121,19 +121,21 @@ function nodes(value: unknown, path = "$"): [string, object][] {
 }
 
 describe("the rules this build has (ADR-089 §9)", () => {
-  it("is legacy, pocket-1.s1, pocket-1.s2 and pocket-1.s3, and legacy is the default", () => {
+  it("is legacy, pocket-1.s1, pocket-1.s2, pocket-1.s3 and pocket-1.s4, and legacy is the default", () => {
     expect(LEGACY_RULES).toBe("legacy");
     expect(POCKET_1_S1_RULES).toBe("pocket-1.s1");
     expect(POCKET_1_S2_RULES).toBe("pocket-1.s2");
     expect(POCKET_1_S3_RULES).toBe("pocket-1.s3");
-    expect([...ENGINE_RULES]).toEqual(["legacy", "pocket-1.s1", "pocket-1.s2", "pocket-1.s3"]);
+    expect([...ENGINE_RULES]).toEqual(["legacy", "pocket-1.s1", "pocket-1.s2", "pocket-1.s3", "pocket-1.s4"]);
     expect(DEFAULT_ENGINE_RULES).toBe("legacy");
     expect(isEngineRules("legacy")).toBe(true);
     expect(isEngineRules("pocket-1")).toBe(false);
     expect(isEngineRules("pocket-1.s1")).toBe(true);
     expect(isEngineRules("pocket-1.s2")).toBe(true);
     expect(isEngineRules("pocket-1.s3")).toBe(true);
-    expect(isEngineRules("pocket-1.s4")).toBe(false);
+    // ADR-089 step 4 names pocket-1.s4 (refused before any game until P6, P7 and P8 are in contracts).
+    expect(isEngineRules("pocket-1.s4")).toBe(true);
+    expect(isEngineRules("pocket-1.s5")).toBe(false);
   });
 
   it("checks a named bundle: absent is the default, an unknown name or the word default is refused", () => {
@@ -142,11 +144,11 @@ describe("the rules this build has (ADR-089 §9)", () => {
     expect(engineRulesNamed("pocket-1.s1", "here")).toBe("pocket-1.s1");
     expect(engineRulesNamed("pocket-1.s2", "here")).toBe("pocket-1.s2");
     expect(engineRulesNamed("pocket-1.s3", "here")).toBe("pocket-1.s3");
-    for (const bad of ["pocket-1", "pocket-1.s9", "pocket-1.s4", "default", "", "Legacy", `pocket-1.s1@${POCKET_1_S1_DIGEST}`, `pocket-1.s2@${POCKET_1_S2_DIGEST}`, `pocket-1.s3@${POCKET_1_S3_DIGEST}`]) {
+    for (const bad of ["pocket-1", "pocket-1.s9", "pocket-1.s5", "default", "", "Legacy", `pocket-1.s1@${POCKET_1_S1_DIGEST}`, `pocket-1.s2@${POCKET_1_S2_DIGEST}`, `pocket-1.s3@${POCKET_1_S3_DIGEST}`]) {
       expect(() => engineRulesNamed(bad, "here")).toThrow(EngineRulesError);
     }
     expect(() => engineRulesNamed("pocket-1.s9", "runBatch")).toThrow(
-      'runBatch: engine rules "pocket-1.s9" are not in this build, which has legacy, pocket-1.s1, pocket-1.s2, pocket-1.s3 (ADR-089 §9)',
+      'runBatch: engine rules "pocket-1.s9" are not in this build, which has legacy, pocket-1.s1, pocket-1.s2, pocket-1.s3, pocket-1.s4 (ADR-089 §9)',
     );
   });
 
@@ -687,7 +689,8 @@ describe("pocket-1.s3, step 3's bundle (plan §2.1, §4.4)", () => {
     expect([...FREE_RUN_ORIGINS]).toEqual(["UNBLOCKED", "BLOWN_UP", "LOOPER_FREE"]);
     expect([...FREE_RUN_PICTURES]).toEqual(["AS_RULED", "MUG_HEAD_ONLY"]);
     expect([...CLIMB_LANES]).toEqual(["FRONT"]);
-    expect([...POCKET_BLOCKS]).toEqual(["passRush.beatClock", "passRush.repClock", "passRush.approach", "pocket.forcing", "blitzPickup.freeRun", "blitzPickup.lateBlock", "pocket.climbLane"]);
+    // Step 4's two blocks follow step 3's (plan §1.1).
+    expect([...POCKET_BLOCKS]).toEqual(["passRush.beatClock", "passRush.repClock", "passRush.approach", "pocket.forcing", "blitzPickup.freeRun", "blitzPickup.lateBlock", "pocket.climbLane", "pocket.contact", "throwExec.motion"]);
     expect([...STEP3_BLOCKS]).toEqual(["blitzPickup.freeRun", "blitzPickup.lateBlock", "pocket.climbLane"]);
   });
 
@@ -804,9 +807,9 @@ describe("pocket-1.s3, step 3's bundle (plan §2.1, §4.4)", () => {
         () => withOverlay({ ...horizons(), pocket: { ...DEFAULT_TUNABLES.pocket, climbLane: "FRONT" } }, "pocket-1.s3", POCKET_1_S1_OVERLAY),
         "withOverlay(pocket-1.s3): the base already carries pocket.climbLane; a bundle's blocks come from its overlay",
       ],
-      ["the forcing block in the overlay", () => withOverlay(horizons(), "pocket-1.s3", { ...POCKET_1_S1_OVERLAY, forcing: POCKET_1_S2_FORCING } as never), "withOverlay(pocket-1.s3): the overlay names forcing, which is not a pocket-1 block (beatClock, repClock, approach, blitzPickup, pocket)"],
+      ["the forcing block in the overlay", () => withOverlay(horizons(), "pocket-1.s3", { ...POCKET_1_S1_OVERLAY, forcing: POCKET_1_S2_FORCING } as never), "withOverlay(pocket-1.s3): the overlay names forcing, which is not a pocket-1 block (beatClock, repClock, approach, blitzPickup, pocket, throwExec)"],
       ["an existing leaf under blitzPickup", () => s3With({ blitzPickup: { freeRunnerArrivalSeconds: 2.0 } } as never), "withOverlay(pocket-1.s3): the overlay names blitzPickup.freeRunnerArrivalSeconds, which is not a pocket-1 block (freeRun, lateBlock)"],
-      ["the forcing block under pocket", () => s3With({ pocket: { forcing: POCKET_1_S2_FORCING } } as never), "withOverlay(pocket-1.s3): the overlay names pocket.forcing, which is not a pocket-1 block (climbLane)"],
+      ["the forcing block under pocket", () => s3With({ pocket: { forcing: POCKET_1_S2_FORCING } } as never), "withOverlay(pocket-1.s3): the overlay names pocket.forcing, which is not a pocket-1 block (climbLane, contact)"],
       ["a blitzPickup that is not an object", () => s3With({ blitzPickup: "freeRun" } as never), "withOverlay(pocket-1.s3): the overlay's blitzPickup must be an object of freeRun, lateBlock, got freeRun"],
     ];
     for (const [label, run, message] of cases) {
@@ -945,7 +948,7 @@ describe("pocket-1.s3, step 3's bundle (plan §2.1, §4.4)", () => {
       [`pocket-1.s2@${RECORDED_POCKET_1_S3_DIGEST}`, `This save was played with engine rules pocket-1.s2 at overlay ${RECORDED_POCKET_1_S3_DIGEST}; this build's pocket-1.s2 is ${RECORDED_POCKET_1_S2_DIGEST}`],
       ["pocket-1.s3@fnv1a:00000000", `This save was played with engine rules pocket-1.s3 at overlay fnv1a:00000000; this build's pocket-1.s3 is ${RECORDED_POCKET_1_S3_DIGEST}`],
       ["pocket-1.s3", "This save was played with engine rules pocket-1.s3 and carries no overlay digest; a save of non-legacy rules is stamped <name>@<digest>"],
-      ["pocket-1.s4@fnv1a:1a2b3c4d", "This save was played with engine rules pocket-1.s4, which this version does not have"],
+      ["pocket-1.s5@fnv1a:1a2b3c4d", "This save was played with engine rules pocket-1.s5, which this version does not have"],
     ];
     for (const [value, message] of refusals) {
       expect(() => rulesOfSave({ engineRules: value }), value).toThrow(EngineRulesError);

@@ -36,7 +36,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { AMENDMENTS_PATH, amendedRuleText, amendmentsAtStep, amendmentsDigest, amendmentsDigestAtStep, loadAmendments, STEP2_AMENDMENTS_DIGEST, STEP3_AMENDMENTS_DIGEST } from "../src/pocket/amendments.js";
+import { AMENDMENTS_PATH, amendedRuleText, amendmentsAtStep, amendmentsDigest, amendmentsDigestAtStep, loadAmendments, STEP2_AMENDMENTS_DIGEST, STEP3_AMENDMENTS_DIGEST, type AmendmentsFile } from "../src/pocket/amendments.js";
 import { armById, armRefusal, STEP2_ARM_IDS, STEP3_ARM_IDS, STEP3_RUN_IDS, type ArmId } from "../src/pocket/arms.js";
 import { FILED_PATH, GUARD_CLASSES } from "../src/pocket/bands.js";
 import { SEED_SETS, type SeedSet } from "../src/pocket/corpus.js";
@@ -59,6 +59,7 @@ import {
   checkFilingForStep3,
   classifyStep3Miss,
   closedStep3Writes,
+  STEP3_RECORDS_FINAL,
   firstClockRunnerTenthsByPlay,
   firstFreeRunnerTenths,
   gradeStep3,
@@ -256,7 +257,7 @@ describe("the refusals before anything plays (plan §2.10, §4.2)", () => {
 
   it("reads nothing of the entries filed after AM-3 but the view's digest: AM-4 (sight, G.10) is read from step 7 and AM-5 (G.11) changes only AM-2's shape-L text, so the guard, the refusals and the choices are those of the file cut to AM-3", () => {
     const later = committedAmendments().entries.map((e) => String(e["id"])).slice(3);
-    expect(later).toEqual(["AM-4", "AM-5"]);
+    expect(later).toEqual(["AM-4", "AM-5", "AM-6", "AM-7"]);
     const json = committedAmendments();
     json.entries = json.entries.slice(0, 3);
     expect(json.entries.map((e) => e["id"])).toEqual(["AM-1", "AM-2", "AM-3"]);
@@ -407,11 +408,11 @@ describe("AM-3 on a temporary copy (its stand-in): the guard step 3 grades with"
 
   it("filing review M-3: step 3 opens the file at its step-3 view, as step 2's harness opens its own: an entry filed before step 4 leaves step 3's pin and records alone; a changed step-3 view is refused", () => {
     const dir = tempDir("m3");
-    /** The committed file with a test entry AM-6 appended, filed before `step`. */
-    const withAm6 = (step: string): { path: string; json: AmendmentsJson } => {
+    /** The committed file with a test entry AM-8 appended, filed before `step`. */
+    const withAm8 = (step: string): { path: string; json: AmendmentsJson } => {
       const json = committedAmendments();
       json.entries.push({
-        id: "AM-6",
+        id: "AM-8",
         name: "a test entry filed after step 3's arms ran",
         filedBeforeStep: step,
         steps: [step],
@@ -425,11 +426,11 @@ describe("AM-3 on a temporary copy (its stand-in): the guard step 3 grades with"
         ownersWord: null,
         rule: { note: "nothing step 3 reads" },
       });
-      const path = join(dir, `amendments-am6-before-${step}.json`);
+      const path = join(dir, `amendments-am8-before-${step}.json`);
       writeFileSync(path, jsonText(json));
       return { path, json };
     };
-    const later = withAm6("4");
+    const later = withAm8("4");
     const whole = loadAmendments(later.path, committedFiling());
     // The copy validates whole; the whole file's digest moves, step 3's view does not.
     expect(amendmentsDigest(whole)).not.toBe(STEP3_AMENDMENTS_DIGEST);
@@ -441,7 +442,7 @@ describe("AM-3 on a temporary copy (its stand-in): the guard step 3 grades with"
     expect(v.guard).toEqual(preflightStep3(FILED, AMENDMENTS).guard);
     expect(preflightStep3Previews(FILED, later.path).digest).toBe(STEP3_AMENDMENTS_DIGEST);
     // The same entry filed before step 3 is in the view, so the view moves and is refused.
-    const early = withAm6("3");
+    const early = withAm8("3");
     expect(() => preflightStep3(FILED, early.path)).toThrow(
       /^ADR-089 step 3: refused before anything plays: ADR-089: the amendments file .*, read at step 3 \(its entries filed before step 3 or an earlier step\), digests to fnv1a:[0-9a-f]{8}, not the pin fnv1a:517bb9fe/,
     );
@@ -473,7 +474,7 @@ describe("AM-3 on a temporary copy (its stand-in): the guard step 3 grades with"
     filedAm3["reason"] = String(filedAm3["reason"]).replace("the picture as ruled, the Mug worn", "<the picture as ruled, the Mug worn | the Mug's Head-only picture>");
     const back = join(dir, "filed-with-choice.json");
     writeFileSync(back, jsonText(filed));
-    expect(() => preflightStep3(FILED, back, amendmentsDigest(filed))).toThrow(
+    expect(() => preflightStep3(FILED, back, amendmentsDigestAtStep(filed as unknown as AmendmentsFile, "3"))).toThrow(
       "ADR-089 step 3: refused before anything plays: the amendments file's step-3 view holds a choice not yet made: AM-3.reason holds the choice <the picture as ruled, the Mug worn | the Mug's Head-only picture>. An entry is filed with its choice made",
     );
   });
@@ -1360,6 +1361,11 @@ describe("the closed records no step-3 command writes over", () => {
     expect(closedStep3Writes({ report: "reports/adr-089-step3.md", out: "reports/adr-089-step3.json" }, PKG, PKG, true)).toEqual(["--report reports/adr-089-step3.md", "--out reports/adr-089-step3.json"]);
     expect(closedStep3Writes({ report: "/tmp/s3.md", out: "/tmp/s3.json" }, PKG, PKG)).toEqual([]);
     expect(closedStep3Writes({}, PKG, PKG)).toEqual([]);
+  });
+
+  it("step 3's records are final (d8247c9, closed with step 4's record, step-4 plan R17): refused by default", () => {
+    expect(STEP3_RECORDS_FINAL).toBe(true);
+    expect(closedStep3Writes({ report: "reports/adr-089-step3.md", out: "reports/adr-089-step3.json" }, PKG, PKG)).toEqual(["--report reports/adr-089-step3.md", "--out reports/adr-089-step3.json"]);
   });
 });
 

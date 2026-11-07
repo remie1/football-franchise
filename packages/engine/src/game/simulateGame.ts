@@ -66,7 +66,7 @@ import { ATTR } from "../attrs.js";
 import { crewOnRecord } from "../officials/officials.js";
 import { rollD100 } from "../rolls.js";
 import { simulatePlay } from "../sim/play.js";
-import { playsLegacyRules } from "../sim/pocketRules.js";
+import { playsTodaysLine } from "../sim/pocketRules.js";
 import { reduceStatlines } from "../stats/statline.js";
 import type { StatLine } from "../stats/statline.js";
 import { TUNABLES } from "../tunables.js";
@@ -670,8 +670,9 @@ export function simulateGame(
     );
 
     // ADR-090 step 3: the count read and the stem at the line, under today's rules only. The
-    // offense's count goes on its call (ADR-091 M1), as the play runs it.
-    const beforeTheSnap = playsLegacyRules(tunables)
+    // offense's count goes on its call (ADR-091 M1), as the play runs it. ADR-089 step 4 (plan §1.2):
+    // today's line plus contact (kind T) plays them too, so arm D3 is A0 plus contact and nothing else.
+    const beforeTheSnap = playsTodaysLine(tunables)
       ? atTheLine(situation, offenseSnapshot, defenseSnapshot, calledOffense, defenseCall, callRng)
       : undefined;
     const offenseCall: OffensiveCall =

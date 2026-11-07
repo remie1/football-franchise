@@ -13469,3 +13469,138 @@ Derived by grep at the step-3 record head (`d8247c9`), not recalled. Each line i
 - **The `clean_with_live_won_rep` gap** (C1 flat 0.432% of ticks and 1.225% of dropbacks, B3 0.454% and 1.189%): ⚠
   RULED ("Past him" was not chosen, ADR-089 §4.3); a reported falsifier, not a failure. A beaten late-block man keeps
   his origin (PICKUP_LOST or STUNT_LOOPER) and is not counted as a live won rep (`metrics/pocketRows.ts:402-404`).
+
+## 179. ADR-089 step 4: the arrival contest and the throwing motion are built behind the switch; default play has not moved
+
+- **Form.** A ruling entry (`BACKLOG-ENTRY-TEMPLATE.md`): it records step 4's build behind the `pocket-1` switch, the
+  amendments AM-6 and AM-7 (ADR-089 Appendix H.8 and H.9), and the contracts edits P6, P7 (with the phase SACK), P8
+  and P8a granted by the owner's typed yeses (H.7 items 3 and 4), so the four ruling sections follow. ADR-089 Appendix
+  I is the human-read record. Entry 178 is step 3's. The `CLAUDE.md` command lines for step 4 landed in `a5d6906`; this
+  record corrects them to say the records are final.
+- **What landed (no play change).** The rated arrival contest (`engine/src/resolve/contact.ts`, wired in
+  `sim/passPlay.ts`: one approach tilt, b = 5, the shed and its delays, the second arrival and the threat-list rebuild;
+  FIGHT only); the throwing motion (`resolve/motion.ts`, rho0 0.3 s and rho_d 400, AM-7's CHOSEN values, a continuous
+  race on `contactSeconds`); `QB_HIT` in four phases (ARRIVAL, THROWING, SHED, SACK), the `arrival_contest` CHECK and
+  `THROW.releaseSeconds` on an aimed throw from the pocket; sack credit to the man at contact
+  (`engine/src/stats/statline.ts`); the rules bundle `pocket-1.s4` (design digest `POCKET_1_S4_DIGEST`
+  `fnv1a:8edb4bad`), with a save stamped `pocket-1.s4@<overlay digest>`; kind T ("today's line plus contact",
+  harness-only); arms D1 to D17 with the re-played bases A0, A14, A1, A11, C1, C2 and C14; `pocket -- --step 4` with
+  `--part1`, `--digests` and `--probes`; the stream pins `POCKET_1_S4_PINS` (`40137fc`); the viewer's `QB_HIT`, contest
+  and release lines (`e0aa2b5`); and the arms' numbers, `packages/calibration/reports/adr-089-step4.md` and `.json`
+  (`d7fe0f5`). All of it is behind the switch, which is OFF: `DEFAULT_TUNABLES` is unchanged (census
+  `fnv1a:365da48d`, digest `fnv1a:395a9ae2`), and the golden pins v1 to v7, the season path, the step-0 filing
+  (`FILED_DIGEST` `fnv1a:9a1c90e9`), `pocket-1.s1` to `pocket-1.s3` (their pins replay byte for byte) and every
+  legacy, A, B and C snap picture and event stream did not move. The contracts edits (`3e385e4`, P8a `0818f84`) touch
+  `contracts/src/events.ts` and its test; the gates opened in `09a269f`. Main `9ecb133` was merged in at `b1df6a3`.
+  This record's code commits: `d267efc` and `228cc19` drop two stale "waits" lines from the grade's printed text, and
+  `67208db` and `daca864` set `STEP4_RECORDS_FINAL` and `STEP3_RECORDS_FINAL`; the committed report keeps the two
+  stale lines as written (ADR-089 Appendix I.2).
+- **What the arms showed** (graded as filed; nothing re-filed, tuned or re-run; ADR-089 Appendix I.3). The tool's
+  outcome: 0 structural failures, 0 fold faults, 5 graded failures, 0 guard breaches, `mergeCard` true. Passing: the
+  motion adds hits (D6 against C2, flat +9.30, gen +10.14, against at least +3), contact leaves pressure alone (D3
+  against A0, flat -0.30, gen -0.08), the motion's interception reading under AM-6, the three tilts in their stated
+  directions (pushBlocked -21.71 points, freeRun +10.14, behindNever +16.54), and the guard's six readings (largest Z
+  +0.12). Missing, the same way on both seed sets: `s4.contact.gen.sack` (13.29, set 2 13.00, against 9 to 13),
+  `s4.contact.hitOrSack` on flat (-1.39 and -1.36 against -1 to +1), `s4.contact.gen.share` (56.79 and 55.11 against
+  40 to 55), `s4.contact.flat.share` (73.85 and 73.58 against 50 to 65), and `s4.motion.curveRises` (aimed-weighted
+  slope flat -0.0441, gen -0.0587, against above 0). `s4.contact.flat.sack` splits (13.78 in band on set 1, 14.03 out
+  on set 2) and is graded PASS on set 1. No s4 clause is a miss-rule row, so each miss is a failed prediction for the
+  owner; the falling curve records default D1's fallback for step 5b (the block clock chosen on the
+  pressured-by-release curve). Both filed falsifier rows hold (release -4.18 THROWING hits per 100 aimed throws, SE
+  0.18; the play-level rating probes move the margin the stated way on every compared contest); of §6.4's other
+  falsifying conditions, the falling curve fires, as above. The cumulative line prints BREACH on flat (D1 against A0,
+  Z +6.40), reported and never graded before step 10. What goes back to the owner is ADR-089 Appendix I.7: accept the
+  misses as named or try a fix first, and the merge with the switch off.
+
+### Implied scope
+
+Derived by grep at this record's head (`228cc19`), not recalled. Each line is `unruled` by this entry.
+
+- **The readers of step 4's records outside `calibration/src/pocket`** (pattern
+  `QB_HIT|releaseSeconds|arrival_contest` over `packages/*/src` and `apps/game/src`): `metrics/collect.ts`,
+  `metrics/pocketRows.ts`, `metrics/pocketReal.ts`, `metrics/tier1.ts`, `knownTruth/scaleSurface.ts`,
+  `engine/src/stats/statline.ts`, `engine/src/debug/renderPlay.ts`, and the viewer's `playLog.ts` and `playDetail.ts`;
+  `narrative` and `franchise` read none. `time_to_throw` (`metrics/tier1.ts`) reads `THROW.releaseSeconds` on a
+  `pocket-1.s4` play while its printed definition still names the 0.5 s tick; the comment leaves the text until the
+  step-4 record, and this record leaves it as it stands because the string is printed in every baseline report. A step
+  that makes `pocket-1` the default decides the text. `unruled`.
+- **The sacks step 4 does not touch**: a sack after an escape and the coverage sack at the horizon keep today's rule
+  until step 6 and are counted apart from `s4.sackCredit`. On D3 flat set 1 the escape sacks alone are 2,989 of
+  6,076 sacks, and the contact clauses read every sack. `unruled`.
+- **The stem and the count read play only under `legacy` and kind T** (`playsTodaysLine`,
+  `engine/src/sim/pocketRules.ts:646`, read at `engine/src/game/simulateGame.ts:675`): a `pocket-1.s4` game has
+  neither, as at step 3. `unruled`.
+- **The `foldGame` calls that pass no tunables, and so read `DEFAULT_TUNABLES`** (pattern `foldGame(` over
+  `packages/calibration/src`): `harness/worker.ts:41`, `harness/batch.ts:323` (the `legacy` branch),
+  `metrics/collect.ts:2320` (`collectGames`) and `pocket/step0.ts:712`. Entry 178 named the same four (then at
+  `:2297` and `:658`). `unruled`.
+- **Every reader that counts a `pass_rush_tick` as a block rep**: entry 178's list, unchanged by step 4. `unruled`.
+- **`contactSeconds` is published unrounded** (G-7 declined; the contract asks only the millisecond comparison), and
+  the pins were measured on Node v22.22.0 only. `unruled`.
+
+### Provenance of factual claims
+
+- **Default play unchanged:** MEASURED four times. The OFF proofs at `d516e9a` against the merge base `87681e2`
+  (`proofs.md`, 2026-11-07 05:04:40Z to 06:29:09Z, exit 0); after the first review's fixes (`7eac020`, `50f0ed9`) and
+  the second round (`ca3f618`); after the lift at `e0aa2b5` (74 runs, 1,540 games, every event stream byte for byte,
+  241,586 snap pictures and every payload key list equal; `QB_HIT`, `arrival_contest` and `releaseSeconds` 0 on every
+  run; `lift/lift.md`); and after the post-lift fixes at `67e8215` (`lift/fix.md`). ADR-089 Appendix I.2 gives each
+  proof's time.
+- **P-15** (the gated ladder census) exits 1 at the head and at the base with the same 131 `pass_rush_tick` cells,
+  MEASURED: entry 175's Finding 1, unchanged.
+- **The ON proofs** (R-3 to R-7, R-3c on D17's tunables, G-1): MEASURED at `e0aa2b5` (`lift/on-proofs.md`), each exit 0.
+- **The arms:** `reports/adr-089-step4.md` (sha256 `d7d0676f…e91c`) and `.json` (sha256 `ebd7c81e…d270`), stamped
+  commit `40137fc`, fingerprint `50ac610534081425`, `dirty: false`, amendments `fnv1a:e0c05cf0`, Node v22.22.0,
+  caller v7; flat 496 games and gen 272 games an arm-set on each seed set; MEASURED in three shards (about 65 minutes
+  wall) and the probes on a fourth core (about 22 minutes); a re-grade from the cache byte-identical to both
+  (`measure/measure.md`). The seven bases equal step 3's records on both sets (14 of 14), MEASURED.
+- **The pins:** `POCKET_1_S4_PINS` MEASURED by `pocket -- --step 4 --digests` in two processes at `0f078a1`,
+  byte-identical (sha256 `1f3b248b…3e2e`), and a third per-game process (172 checks, 0 mismatches); `pocketS4Pins` 37
+  of 37, and 37 of 37 under `FF_POCKET_ON=1` (`lift/pins.md`).
+- **The escape-sack counts** (I.8 reading 1): MEASURED, `creditedSacks` in the measures file.
+- **pkA's 11.66 sacks on today's line** (12.97 flat): INFERRED in the design (ADR-089 §6.4), the band's basis, not
+  re-measured here.
+- **The miss kinds** (a to e): DERIVED from the MEASURED rows by the plan's §3.2 items 15 and 16 and §11 R16 and R18.
+- **The readings in ADR-089 Appendix I.8**: DERIVED from the MEASURED arms, drafted for the Orchestrator to confirm or
+  strike.
+- **The reviews:** four lenses on `d516e9a`, a second round on the engine and the probes, and contracts-guardian
+  after the lift; each code fix with a test that failed before it (`review/fix.md`, `review/fix2.md`, `lift/fix.md`),
+  MEASURED by their fail-before runs. This record's four code commits each carry a test that failed before it,
+  MEASURED.
+
+### Premise ledger
+
+- **The owner's typed yeses** ("Yes, make contracts edits P6, P7 and P8." at 2026-11-07 12:16:46Z; "Yes, make
+  contracts edit P8a." at 16:01:03Z; H.7 items 3 and 4): CARRIED AS TESTIMONY. CONFIRMED in the build: the edits are
+  optional fields or doc text only `pocket-1.s4` writes, and the OFF proofs after the lift find every stream, picture
+  and key list unchanged.
+- **P7's phase SACK** (added at contracts-guardian's pre-review, G-6; the owner told at 2026-11-07T07:56:28Z, before
+  the yes): CARRIED AS TESTIMONY.
+- **AM-6 and AM-7** (H.8 and H.9; `1e8bc2e`; shown to the owner at 2026-11-07T01:41:19Z, not asked): the
+  Orchestrator's, CARRIED AS TESTIMONY until the owner reads them. Their pin CONFIRMED (`AMENDMENTS_DIGEST` and
+  `STEP4_AMENDMENTS_PIN` `fnv1a:e0c05cf0`). Filed after the lift and before any graded arm ran, CONFIRMED by commit
+  order.
+- **AM-7's CHOSEN values** (rho0 0.3 s, rho_d 400, the tilt precedence, the PUSH shed delay): CARRIED AS TESTIMONY.
+- **b = 5, the shed delay and the second arrival's target 15**: the design's PROVISIONAL dials (ADR-061), CARRIED AS
+  TESTIMONY; none a candidate.
+- **Default D1's fallback on a falling curve** (§6.4, AM-7 item 9, plan R16): CARRIED AS TESTIMONY; recorded, applied
+  at step 5b.
+- **The plan's expectations** (§10: `s4.contact.flat.share` "may land just above 65"; `s4.tilt.behindNever`
+  unreadable): REFUTED in part. The flat share lands about 9 points above 65, and behindNever is readable with 70 and
+  69 contacts.
+
+### What remains unjustified
+
+- **The five missed predictions** (`s4.contact.gen.sack`, `s4.contact.hitOrSack` on flat, both contact shares,
+  `s4.motion.curveRises`): ⛔ NEITHER. They go to the owner as failed predictions with both seed sets; no band moved
+  and no option was priced (ADR-089 Appendix I.7).
+- **Step 4's provisional dials** (b = 5, the shed delay, the second arrival's target): ⛔ NEITHER. Never fitted; D15 and
+  D16 report b's range only.
+- **AM-7's rho0 and rho_d:** ⚠ RULED (H.9, CHOSEN, shown, not asked); never fitted.
+- **AM-1's widths under AM-6's map:** ⚠ RULED (F.11, H.8). The filed reading, with no noise term, would breach on
+  every reading in at least one class.
+- **The cumulative line's BREACH on flat** (D1 against A0, Z +6.40): ⚠ RULED to be reported, never graded, before step
+  10 (F.9 item 8); it comes back to the owner at step 10's acceptance.
+- **Strength against agility at game level:** ⛔ NEITHER. On the flat league the two probes are equal by construction,
+  so this probe cannot tell them apart (ADR-089 Appendix I.6).
+- **The escape and coverage sacks inside the contact clauses:** ⛔ NEITHER until step 6 rules them.

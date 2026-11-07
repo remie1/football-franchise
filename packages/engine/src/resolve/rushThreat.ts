@@ -187,8 +187,12 @@ export interface RushThreat extends ArrivalClock {
  */
 const WINNING_BAND = "RUSHER_WINS_REP" satisfies PassRushBandLabel;
 
-/** §7.1's own threshold, read from the table rather than restated. */
-function winMinMargin(tunables: Tunables): number {
+/**
+ * §7.1's own threshold, read from the table rather than restated: `RUSHER_WINS_REP`'s minimum margin
+ * (15 at the committed tunables). Exported for ADR-089 step 4, which reads it for shape L's crossing
+ * time (`sim/contactBook.ts`).
+ */
+export function winMinMargin(tunables: Tunables): number {
   return tunables.passRush.bands.find((b) => b.label === WINNING_BAND)?.minMargin ?? 15;
 }
 

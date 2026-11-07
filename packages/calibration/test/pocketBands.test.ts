@@ -130,17 +130,19 @@ const APPENDICES_AFTER_E = [
   "## Appendix F: the step-1 record",
   "## Appendix G: the step-2 record",
   "## Appendix H: the step-3 record",
+  "## Appendix I: the step-4 record",
 ] as const;
 
 /**
  * The `## ` headings after Appendix E that are not allowed: none, or "## Appendix F: the step-1
  * record" alone, or F and then "## Appendix G: the step-2 record", or F, G and then "## Appendix H:
- * the step-3 record", each once and in that order. Anything else (G without F, H without G, G
- * before F, H before G, a second F, G or H, another title, a heading after H) is returned.
+ * the step-3 record", or F, G, H and then "## Appendix I: the step-4 record", each once and in that
+ * order. Anything else (G without F, H without G, I without H, one before the one it follows, a
+ * second F, G, H or I, another title, a heading after I) is returned.
  */
 function appendicesAfterE(lines: readonly string[]): string[] {
   const headings = lines.filter((l) => /^## /.test(l));
-  // Past the list's end `APPENDICES_AFTER_E[i]` is undefined, so any heading after H is refused.
+  // Past the list's end `APPENDICES_AFTER_E[i]` is undefined, so any heading after I is refused.
   if (headings.every((h, i) => h === APPENDICES_AFTER_E[i])) return [];
   return headings;
 }
@@ -148,9 +150,10 @@ function appendicesAfterE(lines: readonly string[]): string[] {
 describe("the completeness list (the C0 bytes)", () => {
   // C3 (plan §7.3 item 6) appends Appendix E after the C0 bytes, step 1's record (plan §11) appends
   // Appendix F after E, step 2's record (step-2 plan §7) appends Appendix G after F, and step 3's
-  // record (step-3 plan §9) appends Appendix H after G, so the file is the C0 lines, pinned by digest,
-  // then nothing but those appendices, in that order: every filed adrLine still points at the C0 text.
-  it("reads the C0 bytes at their filed length, with only Appendix E, then F, then G, then H after them", () => {
+  // record (step-3 plan §9) appends Appendix H after G, and step 4's record (step-4 plan §9) appends
+  // Appendix I after H, so the file is the C0 lines, pinned by digest, then nothing but those
+  // appendices, in that order: every filed adrLine still points at the C0 text.
+  it("reads the C0 bytes at their filed length, with only Appendix E, then F, then G, then H, then I after them", () => {
     const c0 = ADR_LINES.slice(0, ADR_089_LINES);
     expect(c0).toHaveLength(ADR_089_LINES);
     expect(stableDigest(c0.join("\n")), "ADR-089's C0 lines changed: every filed adrLine reads them").toBe(C0_DIGEST);
@@ -182,7 +185,7 @@ describe("the completeness list (the C0 bytes)", () => {
     expect(appendicesAfterE(["## Appendix F: step 1"])).toEqual(["## Appendix F: step 1"]);
   });
 
-  it("lets only Appendix H follow Appendix G, once, with nothing after it", () => {
+  it("lets only Appendix H follow Appendix G, once", () => {
     const F = "## Appendix F: the step-1 record";
     const G = "## Appendix G: the step-2 record";
     const H = "## Appendix H: the step-3 record";
@@ -197,8 +200,28 @@ describe("the completeness list (the C0 bytes)", () => {
     expect(appendicesAfterE([F, G, H, H])).toEqual([F, G, H, H]);
     // An H with another title: refused.
     expect(appendicesAfterE([F, G, "## Appendix H: later"])).toEqual([F, G, "## Appendix H: later"]);
-    // A heading after H: refused.
-    expect(appendicesAfterE([F, G, H, "## Appendix I: the step-4 record"])).toHaveLength(4);
+    // A heading after H other than I: refused.
+    expect(appendicesAfterE([F, G, H, "## Appendix J: the step-5 record"])).toHaveLength(4);
+  });
+
+  it("lets only Appendix I follow Appendix H, once, with nothing after it", () => {
+    const F = "## Appendix F: the step-1 record";
+    const G = "## Appendix G: the step-2 record";
+    const H = "## Appendix H: the step-3 record";
+    const I = "## Appendix I: the step-4 record";
+    // F, G, H and then I, each once, with their own sections inside: allowed.
+    const whole = ["", F, "### F.11", "", G, "### G.11", "", H, "### H.9", "text", "", I, "### I.1", "text", "### I.7"];
+    expect(appendicesAfterE(whole)).toEqual([]);
+    // I with no H, or I before H: refused.
+    expect(appendicesAfterE([F, G, I])).toEqual([F, G, I]);
+    expect(appendicesAfterE([F, G, I, H])).toEqual([F, G, I, H]);
+    expect(appendicesAfterE([I])).toEqual([I]);
+    // Two Is: refused.
+    expect(appendicesAfterE([F, G, H, I, I])).toEqual([F, G, H, I, I]);
+    // An I with another title: refused.
+    expect(appendicesAfterE([F, G, H, "## Appendix I: later"])).toEqual([F, G, H, "## Appendix I: later"]);
+    // A heading after I: refused.
+    expect(appendicesAfterE([F, G, H, I, "## Appendix J: the step-5 record"])).toHaveLength(5);
   });
 
   it("is exactly the plan's ranges less the lines that state no clause, the two disjoint", () => {

@@ -17,6 +17,14 @@
  * regular season). Players with no defensive depth-chart row are "unknown" and counted apart.
  *
  * Reported against D34's band (edge 45-70, interior 12-32), never pass or fail.
+ *
+ * **Step 4** (ADR-089 step 4, plan §5; `s4.sackCredit`, `s4.sackerMix.*`): on a play stamped
+ * `pocket-1.s4` the sack is credited to the man at contact, the actor (the rusher, first) of the
+ * play's `arrival_contest` CHECK whose band is RUSHER_SACKS (the engine's credit, plan commit 7). No
+ * split: a contest has one rusher. On every earlier stamp the rule above stands, so step 0's to step
+ * 3's figures do not move. An s4 sack with no RUSHER_SACKS contest (the motion alone keeps today's
+ * automatic sack; an escape run down is today's sack until step 6) falls back to the rule above, as
+ * the engine's statline does (`stats/statline.ts`); `s4Stream.ts` counts those apart for `s4.sackCredit`.
  */
 import type { MatchEventEnvelope, PlayerId, Position } from "@ff/contracts";
 import { fsCacheStore } from "../ingest/cache.js";
@@ -24,7 +32,8 @@ import { openForTuning } from "../ingest/load.js";
 import type { Season } from "../ingest/seasons.js";
 import { depthChartsSource, type DepthChartRow } from "../ingest/sources/depthCharts.js";
 import { pbpSource, type PbpRow } from "../ingest/sources/pbp.js";
-import { dropbacksOf, type Dropback } from "./throwClass.js";
+import { rulesOnPlayStart, POCKET_1_S4_RULES } from "./rules.js";
+import { playsOf, readDropback, type Dropback } from "./throwClass.js";
 
 export type SackerClass = "edge" | "interior" | "offball" | "db" | "other";
 
@@ -65,6 +74,24 @@ export function sackCreditsOf(d: Dropback): { readonly last: string; readonly sp
   return { last: last.rusher, split: same.map((a) => ({ rusher: a.rusher, share: 1 / same.length })), first: first.rusher, lastOrigin: last.origin };
 }
 
+/** The play's arrival_contest CHECKs (P6) whose band is RUSHER_SACKS, in order: under `pocket-1.s4` a sack's credit is the last one's rusher (a sack ends the play, so there is one). */
+export function contestSackersOf(d: Dropback): readonly string[] {
+  return d.checks.filter((c) => c.checkKind === "arrival_contest" && c.band === "RUSHER_SACKS").map((c) => c.actors[0] ?? "");
+}
+
+/**
+ * Step 4's credit (plan §5): the man at contact on a sack, as `sackCreditsOf`'s shape (one credit, no
+ * split; the first ARRIVED rusher beside it, and the origin of the credited man's last threat).
+ */
+export function s4SackCreditOf(d: Dropback): { readonly last: string; readonly split: readonly SackCredit[]; readonly first: string; readonly lastOrigin: string } | undefined {
+  const sackers = contestSackersOf(d);
+  const credited = sackers[sackers.length - 1];
+  if (credited === undefined) return undefined;
+  const arrivals = d.threats.filter((t) => t.state === "ARRIVED");
+  const own = d.threats.filter((t) => t.rusher === credited);
+  return { last: credited, split: [{ rusher: credited, share: 1 }], first: arrivals[0]?.rusher ?? credited, lastOrigin: own[own.length - 1]?.origin ?? "UNKNOWN" };
+}
+
 export interface M3Fold {
   dropbacks: number;
   sacks: number;
@@ -86,11 +113,12 @@ const add = (m: Record<string, number>, k: string, v: number): void => {
   m[k] = (m[k] ?? 0) + v;
 };
 
-export function foldM3Dropback(fold: M3Fold, d: Dropback, positionOf: (id: string) => string | undefined): void {
+/** One dropback into the fold; `s4` (the play is stamped `pocket-1.s4`) credits the man at contact, else the last arrival. */
+export function foldM3Dropback(fold: M3Fold, d: Dropback, positionOf: (id: string) => string | undefined, s4 = false): void {
   fold.dropbacks += 1;
   if (!d.sacked) return;
   fold.sacks += 1;
-  const c = sackCreditsOf(d);
+  const c = (s4 ? s4SackCreditOf(d) : undefined) ?? sackCreditsOf(d);
   if (c === undefined) {
     fold.noArrival += 1;
     return;
@@ -108,8 +136,15 @@ export function foldM3Dropback(fold: M3Fold, d: Dropback, positionOf: (id: strin
   }
 }
 
+/** Every PASS play of a game, each credited by its own stamp (step 4's rule on `pocket-1.s4`, the last arrival otherwise). */
 export function foldM3Game(fold: M3Fold, events: readonly MatchEventEnvelope[], positions: ReadonlyMap<PlayerId, Position>): void {
-  for (const d of dropbacksOf(events)) foldM3Dropback(fold, d, (id) => positions.get(id as PlayerId));
+  for (const play of playsOf(events)) {
+    const d = readDropback(play);
+    if (d === undefined) continue;
+    const start = play.events.find((e) => e.event.type === "PLAY_START");
+    const s4 = rulesOnPlayStart((start?.event as { readonly payload?: unknown } | undefined)?.payload)?.name === POCKET_1_S4_RULES;
+    foldM3Dropback(fold, d, (id) => positions.get(id as PlayerId), s4);
+  }
 }
 
 /** Percent shares of a class map (over its own total). */

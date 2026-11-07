@@ -29,6 +29,7 @@ import type { GameSummary, StatLine, Tunables } from "@ff/engine";
 import { COVERAGE_MASKS, FRONT_LOOKS, shownRushDiffers } from "@ff/playbook";
 import { approachesOfPlay, LOOPER_FREE_BAND, PICKUP_FREE_BAND } from "../pocket/approach.js";
 import { centerOfPlayStart, clockKeyOf, onClockUnder, touchOfCheck, type ClockKey, type Touch } from "../pocket/freeRunKey.js";
+import { POCKET_1_S4_RULES, rulesOnPlayStart } from "../pocket/rules.js";
 
 /** One simulated game, as it comes back from a worker. */
 export interface SimGameObservation {
@@ -1018,8 +1019,16 @@ interface PocketPlayState {
   released: boolean;
   /** `THROW.releaseSeconds` when the stream carries it (P8; absent under legacy). */
   releaseSeconds: number | null;
-  /** A threat published ARRIVED with the ball in his hand. */
+  /** A threat published ARRIVED with the ball in his hand: the legacy stand-in for `QB_HIT`. */
   hit: boolean;
+  /**
+   * ADR-089 step 4 (V1-42, plan §2.4): the play's `PLAY_START.rules` names `pocket-1.s4`. The hit
+   * construct is keyed on it, never on a `QB_HIT` being present: under it a hit is a `QB_HIT` of any
+   * phase (`qbHit`), under every earlier stamp the stand-in (`hit`), so earlier records do not move.
+   */
+  s4: boolean;
+  /** A `QB_HIT` (P7) was written on the play. */
+  qbHit: boolean;
   lastArrivedRusher: string | null;
   firstPressure: number | null;
   firstForcing: number | null;
@@ -1068,6 +1077,8 @@ function blankPocketPlay(period: number, clockSeconds: number): PocketPlayState 
     released: false,
     releaseSeconds: null,
     hit: false,
+    s4: false,
+    qbHit: false,
     lastArrivedRusher: null,
     firstPressure: null,
     firstForcing: null,
@@ -1294,12 +1305,14 @@ function foldPocketPlay(pf: PocketFold, play: PlayState): void {
     sit.releaseSquares += release * release;
   }
 
-  // Hit-or-sack (§4.5): the hit stands in for QB_HIT under legacy.
-  const hitOnAttempt = k.hit && attempt;
+  // Hit-or-sack (§4.5): the hit stands in for QB_HIT under legacy to pocket-1.s3; under pocket-1.s4
+  // it is a QB_HIT of any phase, each dropback once (V1-42, keyed on the stamp; plan §2.4).
+  const hit = k.s4 ? k.qbHit : k.hit;
+  const hitOnAttempt = hit && attempt;
   const hitOrSack = sacked || hitOnAttempt;
   if (hitOrSack) pf.hitOrSackDropbacks++;
   if (hitOnAttempt) pf.hitOnAttemptDropbacks++;
-  if (k.hit && play.scramble) pf.hitOnScrambleDropbacks++;
+  if (hit && play.scramble) pf.hitOnScrambleDropbacks++;
 
   if (release !== null) {
     pf.releaseSeconds.push(release);
@@ -1308,7 +1321,7 @@ function foldPocketPlay(pf: PocketFold, play: PlayState): void {
     if (pressured) bin.pressuredAttempts++;
     if (play.threw) {
       bin.aimed++;
-      if (k.hit) bin.aimedHits++;
+      if (hit) bin.aimedHits++;
     }
     if (!k.freeRunner) {
       bin.attemptsNoFreeRunner++;
@@ -1614,7 +1627,12 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation, tunables
         // "excluded from both sides" claim, and the fix is to make the sim side true of it rather
         // than leave the doc string true of neither side.
         const releaseTick = play.threw ? play.throwTick : play.throwawayTick;
-        if (releaseTick !== null) p.throwTicks.push(releaseTick);
+        // ADR-089 step 4 (plan §5): on a pocket-1.s4 play a THROW's release is its raw
+        // `releaseSeconds` (P8) when it carries one; every earlier stamp keeps the tick, so
+        // `knownTruth/pocketLadder.ts` (legacy only) and every earlier record read as before.
+        // Throwaways keep their tick (P8 widens THROW only).
+        const s4Release = play.threw && play.pk.s4 ? play.pk.releaseSeconds : null;
+        if (releaseTick !== null) p.throwTicks.push(s4Release ?? releaseTick);
         p.airYards += play.air;
         if (play.caught) {
           p.completions++;
@@ -1680,12 +1698,17 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation, tunables
       currentPlayId = playId;
     }
 
+    // ADR-089 step 4 (P7): a `QB_HIT`, which the contracts union does not name until P7 is in
+    // contracts, so it is read by its type string; the V1-42 construct reads it on s4 plays only.
+    if ((event.type as string) === "QB_HIT" && current !== null) current.pk.qbHit = true;
+
     switch (event.type) {
       case "PLAY_START": {
         const start = asPlayStart(event.payload);
         current = blankPlay();
         current.pk = blankPocketPlay(period, rebuiltClock);
         current.pk.center = centerOfPlayStart(event.payload);
+        current.pk.s4 = rulesOnPlayStart(event.payload)?.name === POCKET_1_S4_RULES;
         tick = 0;
         pocket.clockCheck.snaps++;
         if (start !== null) {

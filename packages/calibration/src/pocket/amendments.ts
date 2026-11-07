@@ -66,11 +66,12 @@ export const AMENDMENTS_PATH = "reports/adr-089-amendments.filed.json";
  * The committed amendments file's digest (`amendmentsDigest`, a `stableDigest` of the parsed file):
  * AM-1 as filed by the Orchestrator (commit `b65ab25`, shown to the owner at `200b18b`), then AM-2,
  * filed before step 3 (ADR-089 Appendix G, G.8), then AM-3, step 3's guard base map (G.9), then AM-4,
- * sight by looks (G.10), then AM-5, shape L's toucher die (G.11). A reader of the whole file refuses
- * any other file. Step 2's harness reads the file as it stood at step 2 instead
+ * sight by looks (G.10), then AM-5, shape L's toucher die (G.11), then AM-6, the guard at step 4
+ * (Appendix H, H.8), and AM-7, step 4's readings (H.9). A reader of the whole file refuses any other
+ * file. Step 2's harness reads the file as it stood at step 2 instead
  * (`STEP2_AMENDMENTS_DIGEST`).
  */
-export const AMENDMENTS_DIGEST = "fnv1a:517bb9fe";
+export const AMENDMENTS_DIGEST = "fnv1a:e0c05cf0";
 
 /**
  * The file's step-2 view (`amendmentsDigestAtStep(file, "2")`): its entries cut to those filed before
