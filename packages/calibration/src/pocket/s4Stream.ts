@@ -36,8 +36,10 @@
  *    play holds a RUSHER_SACKS contact (the man the statline credits, `m3SackerMix.ts`); sacks that
  *    hold none and that the engine still makes by today's rule, counted apart and never a failure: a
  *    sack on an arm with no contact block (the motion alone, D5 and D6, keeps today's automatic sack)
- *    and an escape run down (`CAUGHT_FROM_BEHIND`, today's sack until step 6); and, the clause's
- *    failure, a sack in the pocket under the contact block with no RUSHER_SACKS contact.
+ *    an escape that ended in a sack (caught by the escape roll in a `CAUGHT_FROM_BEHIND` band, or run
+ *    down after a `QB_PURSUIT`; today's sack until step 6), and the coverage sack at the horizon (no
+ *    man standing ARRIVED); and, the clause's failure, a sack with a man ARRIVED in the pocket under
+ *    the contact block and no RUSHER_SACKS contact.
  *  - **Time to throw** beside every hit and sack figure (plan §4), with throwaways in and out: the
  *    THROW's `releaseSeconds` (or tick) and the THROWAWAY's tick.
  *  - **AM-6's declared prints:** aimed throws and interceptions on throws hit inside the motion against
@@ -340,12 +342,17 @@ export interface S4Fold {
   qbHitsMissingFields: number;
   /**
    * `s4.sackCredit`: sacks with a RUSHER_SACKS contact on the play; sacks with none that today's rule
-   * makes (no contact block on the arm, or an escape run down after a `QB_PURSUIT`); and sacks with
-   * none in the pocket under the contact block, which the clause reads as failures.
+   * makes and the design keeps until step 6 (plan §2.2 item 8): no contact block on the arm
+   * (`legacySacks`); an escape that ended in a sack, caught in the pocket by the escape roll (a
+   * `scramble` CHECK in a sacked band, no `QB_PURSUIT`) or run down after a `QB_PURSUIT`
+   * (`escapeSacks`); the coverage sack at the horizon, with no man standing ARRIVED at the end
+   * (`coverageSacks`); and sacks with none and a man ARRIVED in the pocket under the contact block,
+   * which the clause reads as failures (`uncreditedSacks`).
    */
   creditedSacks: number;
   legacySacks: number;
   escapeSacks: number;
+  coverageSacks: number;
   uncreditedSacks: number;
   /** Time to throw: every pass attempt (throwaways in), and aimed throws only. */
   tttAll: Seconds;
@@ -391,6 +398,7 @@ export function emptyS4Fold(): S4Fold {
     creditedSacks: 0,
     legacySacks: 0,
     escapeSacks: 0,
+    coverageSacks: 0,
     uncreditedSacks: 0,
     tttAll: { n: 0, sum: 0 },
     tttAimed: { n: 0, sum: 0 },
@@ -413,6 +421,23 @@ const count = (t: Tally, sack: boolean): void => {
 };
 
 const isSack = (c: ContestAt): boolean => c.band === "RUSHER_SACKS";
+
+/**
+ * The escape roll caught him in the pocket: a `scramble` CHECK whose band the arm's own §8.8 table
+ * marks a sack (`CAUGHT_FROM_BEHIND`). The engine writes no `QB_PURSUIT` there (that comes only with
+ * a won escape), so the pursuit tick cannot name it.
+ */
+function caughtEscape(d: Dropback, tunables: Tunables): boolean {
+  const sacked = new Set<string>(tunables.scramble.bands.filter((b) => b.sacked).map((b) => b.label));
+  return d.checks.some((c) => c.checkKind === "scramble" && c.band !== undefined && sacked.has(c.band));
+}
+
+/** Some rusher's latest published state is ARRIVED (he reached the quarterback and was not shed or reset since). */
+function standsArrived(d: Dropback): boolean {
+  const latest = new Map<string, string>();
+  for (const t of d.threats) latest.set(t.rusher, t.state);
+  return [...latest.values()].includes("ARRIVED");
+}
 
 /** One play into the fold (`tunables` is the arm's own: the class of a throw reads its bar). */
 export function foldS4Play(fold: S4Fold, play: S4Play, tunables: Tunables): void {
@@ -468,7 +493,8 @@ export function foldS4Play(fold: S4Fold, play: S4Play, tunables: Tunables): void
     fold.sacks += 1;
     if (play.contests.some(isSack)) fold.creditedSacks += 1;
     else if (tunables.pocket.contact === undefined) fold.legacySacks += 1;
-    else if (d.pursuitTick !== undefined) fold.escapeSacks += 1;
+    else if (d.pursuitTick !== undefined || caughtEscape(d, tunables)) fold.escapeSacks += 1;
+    else if (!standsArrived(d)) fold.coverageSacks += 1;
     else fold.uncreditedSacks += 1;
   }
   if (sack || (attempt && hit)) fold.hitOrSack += 1;
@@ -554,6 +580,7 @@ export function mergeS4Folds(a: S4Fold, b: S4Fold): S4Fold {
     creditedSacks: a.creditedSacks + b.creditedSacks,
     legacySacks: a.legacySacks + b.legacySacks,
     escapeSacks: a.escapeSacks + b.escapeSacks,
+    coverageSacks: a.coverageSacks + b.coverageSacks,
     uncreditedSacks: a.uncreditedSacks + b.uncreditedSacks,
     tttAll: { n: a.tttAll.n + b.tttAll.n, sum: a.tttAll.sum + b.tttAll.sum },
     tttAimed: { n: a.tttAimed.n + b.tttAimed.n, sum: a.tttAimed.sum + b.tttAimed.sum },

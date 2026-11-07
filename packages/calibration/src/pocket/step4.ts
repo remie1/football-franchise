@@ -544,7 +544,7 @@ export function gradeStep4(records: Step4Records, file: FiledFile, guard: Step4G
   };
   proof("s4.stream", "every s4 stream check: bands, one tilt, a first contest's tilt equal to its class, :contest2 only after a shed, known phases, SHED roll references, C-1", every((r, _s, l) => (r.s4[l].s4.problemCount > 0 ? `${String(r.s4[l].s4.problemCount)} problem(s), first: ${s4Problems(r.s4[l].s4)[0] ?? ""}` : undefined)));
   proof("C-1", "on every s4 arm the stand-in's dropbacks equal those with a QB_HIT ARRIVAL or SHED or a sack (AM-7 hitConstruct)", every((r, _s, l) => (r.s4[l].s4.c1Mismatch > 0 ? `${String(r.s4[l].s4.c1Mismatch)} dropback(s) disagree` : undefined)));
-  const sackCredit = every((r, _s, l) => (r.s4[l].s4.uncreditedSacks > 0 ? `${String(r.s4[l].s4.uncreditedSacks)} s4 sack(s) in the pocket under the contact block with no RUSHER_SACKS contest` : undefined));
+  const sackCredit = every((r, _s, l) => (r.s4[l].s4.uncreditedSacks > 0 ? `${String(r.s4[l].s4.uncreditedSacks)} s4 sack(s) with a man ARRIVED in the pocket under the contact block and no RUSHER_SACKS contest` : undefined));
   const qbHitFields = every((r, _s, l) => (r.s4[l].s4.qbHitsMissingFields > 0 ? `${String(r.s4[l].s4.qbHitsMissingFields)} QB_HIT(s) missing approach, from or seen` : undefined));
   const m6 = every((r, _s, l) => (r.s4[l].m6.fight !== r.s4[l].m6.contacts ? "a contact not FIGHT" : r.s4[l].m6.throwawayAtContact > 0 ? `${String(r.s4[l].m6.throwawayAtContact)} contact(s) on a THROWAWAY tick` : undefined));
   proof("m6.step4", "every contact is FIGHT and none shares its tick with a THROWAWAY (reported only at step 4)", m6, "fold");
@@ -556,7 +556,7 @@ export function gradeStep4(records: Step4Records, file: FiledFile, guard: Step4G
     if (verdict === "FAIL") structuralFailures.push(`${id}: ${problems[0] ?? ""}`);
     clauses.push({ id, kind: c.kind, arms: s4Arms, filed: "structural", values: problems.slice(0, 3), verdict, note });
   };
-  structural("s4.sackCredit", sackCredit, "every s4 sack in the pocket under the contact block credited to the man at contact (one RUSHER_SACKS contest); a sack on a motion-alone arm and an escape run down keep today's rule and are counted apart");
+  structural("s4.sackCredit", sackCredit, "every s4 sack in the pocket under the contact block credited to the man at contact (one RUSHER_SACKS contest); a sack on a motion-alone arm, an escape that ends in a sack (caught by the escape roll or run down) and the coverage sack at the horizon keep today's rule until step 6 (plan §2.2 item 8) and are counted apart");
   structural("s4.qbHitFields", [...qbHitFields, ...tiltAgainst], "every QB_HIT carries approach, from and seen; no tilt against its direction");
   for (const [id, note] of [
     ["s4.reading", "a proof outside the run: the arrival reading is fixed by the stamp's bundle and never switched (engine and rules tests)"],

@@ -170,6 +170,50 @@ describe("the s4 stream on hand-built plays (s4Stream.ts)", () => {
     expect(mergeS4Folds(motionAlone, escape)).toMatchObject({ sacks: 2, legacySacks: 1, escapeSacks: 1, uncreditedSacks: 0 });
   });
 
+  it("s4.sackCredit on engine-shaped plays: a caught escape (a scramble CHECK sacked, no QB_PURSUIT) and the coverage sack at the horizon (nobody ARRIVED) keep today's rule; an ARRIVED man with no contest fails", () => {
+    const withContact = { ...C1, pocket: { ...C1.pocket, contact: POCKET_1_S4_CONTACT } } as typeof C1;
+    const restamped = restamp(S.sack.slice.events, S4);
+    const qb = qbOf(S.sack.slice);
+    const arrivedAt = restamped.findIndex((e) => e.event.type === "RUSH_THREAT" && payloadOf(e)["state"] === "ARRIVED");
+    expect(arrivedAt).toBeGreaterThan(0);
+    // The engine's caught escape (passPlay.ts, ESCAPE then escape.sacked): the scramble CHECK, then the catcher ARRIVED, then the sack; no QB_PURSUIT.
+    const caughtBand = C1.scramble.bands.find((b) => b.sacked)!.label;
+    const escapeCheck = like(restamped[arrivedAt]!, "CHECK", {
+      checkKind: "scramble",
+      actors: [qb, String(payloadOf(restamped[arrivedAt]!)["rusher"])],
+      roll: roll("pocket/t2.0:scramble", 10),
+      target: 50,
+      tier: "FAILURE",
+      band: caughtBand,
+      margin: -40,
+      testsAttrs: [],
+    });
+    const caught = [...restamped.slice(0, arrivedAt), escapeCheck, ...restamped.slice(arrivedAt)];
+    const escapePlay = readS4Play(sliceOf(caught), KEY)!;
+    expect(escapePlay.dropback.pursuitTick).toBeUndefined();
+    expect(escapePlay.dropback.sacked).toBe(true);
+    const escape = emptyS4Fold();
+    foldS4Play(escape, escapePlay, withContact);
+    expect(escape).toMatchObject({ sacks: 1, escapeSacks: 1, coverageSacks: 0, uncreditedSacks: 0 });
+    expect(s4Problems(escape)).toEqual([]);
+    // A scramble CHECK that was not a catch (CONTAINED) earlier on the play does not excuse a sack.
+    const contained = [...restamped.slice(0, arrivedAt), like(escapeCheck, "CHECK", { ...payloadOf(escapeCheck), band: "CONTAINED", margin: -10 }), ...restamped.slice(arrivedAt)];
+    const notEscape = emptyS4Fold();
+    foldS4Play(notEscape, readS4Play(sliceOf(contained), KEY)!, withContact);
+    expect(notEscape).toMatchObject({ sacks: 1, escapeSacks: 0, uncreditedSacks: 1 });
+    // The coverage sack at the horizon: no contest and no man standing ARRIVED at the end.
+    const play = readS4Play(sliceOf(restamped), KEY)!;
+    const horizon = emptyS4Fold();
+    foldS4Play(horizon, { ...play, dropback: { ...play.dropback, threats: play.dropback.threats.filter((t) => t.state !== "ARRIVED") } }, withContact);
+    expect(horizon).toMatchObject({ sacks: 1, coverageSacks: 1, uncreditedSacks: 0 });
+    // A man shed (DELAYED after his ARRIVED) and the horizon reached is a coverage sack too.
+    const shed = emptyS4Fold();
+    const last = play.dropback.threats.filter((t) => t.state === "ARRIVED").pop()!;
+    foldS4Play(shed, { ...play, dropback: { ...play.dropback, threats: [...play.dropback.threats, { ...last, state: "DELAYED", etaTick: last.etaTick + 0.5 }] } }, withContact);
+    expect(shed).toMatchObject({ sacks: 1, coverageSacks: 1, uncreditedSacks: 0 });
+    expect(mergeS4Folds(escape, horizon)).toMatchObject({ sacks: 2, escapeSacks: 1, coverageSacks: 1 });
+  });
+
   it("a THROWING hit on a play with no arrival: V1-42 counts it, the stand-in does not, and C-1 still agrees (it compares ARRIVAL or SHED)", () => {
     const { events } = built(S.cleanThrow.slice, S4, { throwing: true });
     const f = emptyS4Fold();
