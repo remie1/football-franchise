@@ -10,7 +10,8 @@ import { runStaffOffseason, type GmMove, type HireSource, type StaffMove } from 
 import { makeGm } from "../meeting/gm.js";
 import { currentJob, isInterimContract } from "./world.js";
 import { runMidseasonWeek } from "./midseason.js";
-import { createRng, type WinLossTie } from "@ff/contracts";
+import { createRng, DEFAULT_LEAGUE_RULES, type Team, type TeamStance, type WinLossTie } from "@ff/contracts";
+import { weeklyStance } from "../winNow/stance.js";
 import type { GmSource } from "./frontOffice.js";
 import { standInSeason } from "./standIn.js";
 import { isRetired, seatOf, offseasonStamp, type StaffWorld } from "./world.js";
@@ -42,6 +43,29 @@ export interface SeasonTally {
   former?: FormerTally;
   /** With GMs (ADR-094 §8): GM changes, why the old ones left, where the new ones came from, and the sitting GMs' seasons in the job. */
   gm?: { changes: number; reasons: Record<string, number>; sources: Partial<Record<GmSource, number>>; medianTenure: number; cleanSweeps: number };
+  /** ADR-094 step 7: the weekly read, stance and argument (§3-§6) over the season. */
+  winNow?: WinNowTally;
+}
+
+/** ADR-094 step 7: one season of GMs and head coaches reading their chances each week. */
+export interface WinNowTally {
+  /** Team-weeks read, and those where the two men's stances differed (an argument). */
+  teamWeeks: number;
+  argued: number;
+  heat: Record<"POLITE" | "OPEN_ARGUMENT" | "RIFT", number>;
+  /** Arguments the coach won on the day, and arguments whose course was not the coach's (he was overruled). */
+  coachWon: number;
+  overruled: number;
+  /** Teams whose GM had overruled the coach after the last games before the trade deadline. */
+  deadlineSplits: number;
+  /** The teams' stances after the last games before the deadline. */
+  deadlineStances: Record<TeamStance, number>;
+  /** Times a team's stance changed. */
+  stanceChanges: number;
+  /** Grudges opened between a GM and his head coach by the season's arguments. */
+  rifts: number;
+  /** After the offseason: each seated GM's view of his head coach and the coach's of him, by word. */
+  pairWords: Record<string, number>;
 }
 
 export interface Band { mean: number; min: number; max: number }
@@ -73,6 +97,15 @@ export interface TurnoverReport {
     exHeadCoaches: { atStart: { OC: number; DC: number }; OC: Band; DC: Band };
     /** ADR-094 Q13 a: midseason firings a year. */
     midseason?: { HEAD_COACH: Band; GM: Band };
+    /** ADR-094 step 7, over every season: the seasons' tallies summed, and per-season bands. */
+    winNow?: {
+      total: WinNowTally;
+      deadlineSplitsPerYear: Band;
+      riftsPerYear: Band;
+      argumentsPerYear: Band;
+      /** GM and head coach views of each other after each offseason, from the GM warm-up on. */
+      pairWords: Record<string, number>;
+    };
     /** With GMs (ADR-094 §8), after a ten-season warm-up (every GM starts the check new in the job). */
     gm?: {
       changesPerYear: Band;
@@ -187,6 +220,77 @@ function weeklyRecords(finals: readonly { team: unknown; record: WinLossTie }[],
 }
 
 const CHECK_WEEKS = 18;
+/** The last week whose games come before the trade deadline (Tuesday of week 10 under the default rules). */
+const DEADLINE_READ_WEEK = DEFAULT_LEAGUE_RULES.tradeDeadline.week - 1;
+
+function emptyWinNow(): WinNowTally {
+  return {
+    teamWeeks: 0, argued: 0, heat: { POLITE: 0, OPEN_ARGUMENT: 0, RIFT: 0 }, coachWon: 0, overruled: 0,
+    deadlineSplits: 0, deadlineStances: { BUY: 0, HOLD: 0, SELL: 0 }, stanceChanges: 0, rifts: 0, pairWords: {},
+  };
+}
+
+function tallyWeek(t: WinNowTally, r: ReturnType<typeof weeklyStance>, week: number, world: StaffWorld) {
+  const role = new Map(world.staff.map((s) => [String(s.id), seatOf(s) ?? s.role]));
+  for (const read of r.reads.values()) {
+    t.teamWeeks++;
+    if (week === DEADLINE_READ_WEEK) t.deadlineStances[read.outcome]++;
+    if (!read.argument) continue;
+    t.argued++;
+    t.heat[read.argument.heat]++;
+    if (read.argument.winner === "COACH") t.coachWon++;
+    if (read.outcome !== read.coachStance) {
+      t.overruled++;
+      if (week === DEADLINE_READ_WEEK) t.deadlineSplits++;
+    }
+  }
+  for (const e of r.events) {
+    if (e.type === "TEAM_STANCE_SET") t.stanceChanges++;
+    else if (e.type === "RELATIONSHIP_CHANGED" && e.payload.rift === "OPENED" && "staff" in e.payload.of) {
+      const pair = [role.get(String(e.payload.from)), role.get(String(e.payload.of.staff))].sort().join("/");
+      if (pair === "GM/HEAD_COACH") t.rifts++;
+    }
+  }
+}
+
+function winNowSummary(rows: readonly WinNowTally[], warmup: number): NonNullable<TurnoverReport["summary"]["winNow"]> {
+  const total = emptyWinNow();
+  for (const r of rows) {
+    for (const k of ["teamWeeks", "argued", "coachWon", "overruled", "deadlineSplits", "stanceChanges", "rifts"] as const) total[k] += r[k];
+    for (const k of Object.keys(total.heat) as (keyof WinNowTally["heat"])[]) total.heat[k] += r.heat[k];
+    for (const k of Object.keys(total.deadlineStances) as TeamStance[]) total.deadlineStances[k] += r.deadlineStances[k];
+  }
+  const pair: Record<string, number> = {};
+  for (const r of rows.slice(Math.min(warmup, Math.max(0, rows.length - 1)))) for (const [w, n] of Object.entries(r.pairWords)) pair[w] = (pair[w] ?? 0) + n;
+  return {
+    total,
+    deadlineSplitsPerYear: band(rows.map((r) => r.deadlineSplits)),
+    riftsPerYear: band(rows.map((r) => r.rifts)),
+    argumentsPerYear: band(rows.map((r) => r.argued)),
+    pairWords: pair,
+  };
+}
+
+/** Each seated GM's view of his head coach, and the coach's of him, by word. */
+function pairWords(world: StaffWorld, views: readonly { from: unknown; of: unknown; score: number }[]): Record<string, number> {
+  const byId = new Map(world.staff.map((s) => [String(s.id), s]));
+  const pairs = new Set<string>();
+  for (const t of world.teams) {
+    const men = t.staff.map((id) => byId.get(String(id))).filter((s): s is StaffState => s !== undefined && !isRetired(s));
+    const gm = men.find((s) => s.role === "GM"), hc = men.find((s) => seatOf(s) === "HEAD_COACH");
+    if (!gm || !hc) continue;
+    pairs.add(`${String(gm.id)}>${String(hc.id)}`);
+    pairs.add(`${String(hc.id)}>${String(gm.id)}`);
+  }
+  const out: Record<string, number> = {};
+  for (const v of views) {
+    const of = v.of as { staff?: unknown };
+    if (of.staff === undefined || !pairs.has(`${String(v.from)}>${String(of.staff)}`)) continue;
+    const w = wordFor(v.score);
+    out[w] = (out[w] ?? 0) + 1;
+  }
+  return out;
+}
 
 export function staffTurnoverCheck(opts: {
   seed: string; seasons?: number; firstSeason?: number; views?: boolean; gms?: boolean;
@@ -194,6 +298,8 @@ export function staffTurnoverCheck(opts: {
   midseason?: boolean;
   /** ADR-094 §10: made-up players retire each year and a few come back as coaches and scouts (default on). */
   formerPlayers?: boolean;
+  /** ADR-094 step 7: each team's GM and head coach read the season week by week and argue (§3-§6). Needs `gms`; reads `views` to sour. */
+  winNow?: boolean;
 }): TurnoverReport {
   const seasons = opts.seasons ?? 50;
   const firstSeason = opts.firstSeason ?? 2026;
@@ -227,22 +333,37 @@ export function staffTurnoverCheck(opts: {
   /** Each made-up retiree's credited seasons, by player id. */
   const careers = new Map<string, number>();
   let views = opts.views ? seatRelationships(world) : undefined;
+  const winNow = opts.winNow === true && opts.gms === true;
+  let teams: Team[] = league.teams.map((t) => ({ ...t }));
   for (let y = 0; y < seasons; y++) {
     const season = world.season;
     const played = standInSeason(league, world, standIn, opts.seed);
     standIn = played.state;
     const midseason = { HEAD_COACH: 0, GM: 0 };
-    if (opts.midseason !== false) {
+    const wn: WinNowTally | undefined = winNow ? emptyWinNow() : undefined;
+    if (opts.midseason !== false || wn) {
       const byWeek = weeklyRecords(played.summaries, season, opts.seed, CHECK_WEEKS);
+      const games = new Map(played.summaries.map((f) => [String(f.team), f.record.wins + f.record.losses + f.record.ties]));
+      const recordsAt = (w: number) => new Map([...byWeek[w - 1]!].map(([t, r]) => [t, { record: r, left: games.get(t)! - (r.wins + r.losses + r.ties) }]));
       for (let week = 1; week <= CHECK_WEEKS; week++) {
-        const m = runMidseasonWeek({
-          world, season, week, weeks: CHECK_WEEKS, at: { season, phase: "REGULAR_SEASON", week, day: 7 }, records: byWeek[week - 1]!,
-          seed: opts.seed, ...(views ? { relationships: { views } } : {}),
-        });
-        world = m.world;
-        if (m.relationships) views = m.relationships;
-        midseason.HEAD_COACH += m.moves.filter((x) => x.kind === "DEPARTED").length;
-        midseason.GM += m.gmMoves.filter((x) => x.kind === "DEPARTED").length;
+        const at = { season, phase: "REGULAR_SEASON" as const, week, day: 7 };
+        if (opts.midseason !== false) {
+          const m = runMidseasonWeek({
+            world, season, week, weeks: CHECK_WEEKS, at, records: byWeek[week - 1]!,
+            seed: opts.seed, ...(views ? { relationships: { views } } : {}),
+          });
+          world = m.world;
+          if (m.relationships) views = m.relationships;
+          midseason.HEAD_COACH += m.moves.filter((x) => x.kind === "DEPARTED").length;
+          midseason.GM += m.gmMoves.filter((x) => x.kind === "DEPARTED").length;
+        }
+        if (wn) {
+          // As the season's walk has it: after the week's games and any firing (ADR-094 step 3's day step).
+          const r = weeklyStance({ world, teams, recordsAt, season, week, weeks: CHECK_WEEKS, at, seed: opts.seed, ...(views ? { views } : {}) });
+          teams = r.teams;
+          if (r.views) views = r.views;
+          tallyWeek(wn, r, week, world);
+        }
       }
     }
     if (views) for (let w = 0; w < 52; w++) views = driftWeek(views, world, offseasonStamp(season, 1)).views;
@@ -258,6 +379,10 @@ export function staffTurnoverCheck(opts: {
     }
     if (opts.midseason !== false) row.midseason = midseason;
     if (opts.gms) row.gm = gmTally(world, r.moves, r.gmMoves);
+    if (wn) {
+      if (views) wn.pairWords = pairWords(world, views);
+      row.winNow = wn;
+    }
     if (r.relationships) {
       views = r.relationships;
       row.walked = r.moves.filter((m) => m.walked).length;
@@ -344,6 +469,7 @@ export function staffTurnoverCheck(opts: {
         DC: band(perSeason.map((p) => p.exHeadCoaches.DC)),
       },
       ...(gm ? { gm } : {}),
+      ...(winNow ? { winNow: winNowSummary(perSeason.map((p) => p.winNow!), GM_WARMUP) } : {}),
       ...(opts.formerPlayers !== false ? { former: sumFormer(perSeason.slice(Math.min(FORMER_WARMUP, perSeason.length - 1)).map((p) => p.former!)) } : {}),
       ...(opts.midseason !== false ? {
         midseason: {

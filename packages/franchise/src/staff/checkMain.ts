@@ -7,6 +7,8 @@
  * whole report as JSON. With `--gms`, every team has a GM, hired and fired by the carousel (ADR-094
  * §8), and the GM rows print next to the COUNTED NFL figures (ADR-094 Appendix A). Made-up players retire
  * each year and a few come back as coaches and scouts (ADR-094 §10); `--no-former-players` leaves them out.
+ * With `--win-now` (implies `--gms --views`), every team's GM and head coach read the season week by
+ * week, pick buy, hold or sell and argue (ADR-094 §3-§6), and the splits, arguments and grudges print.
  */
 import { writeFileSync } from "node:fs";
 import { FORMER_WARMUP, staffTurnoverCheck, type Band } from "./check.js";
@@ -25,6 +27,7 @@ function parse(argv: readonly string[]) {
   let gms = false;
   let midseason = true;
   let formerPlayers = true;
+  let winNow = false;
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]!;
     const next = (): string => {
@@ -40,15 +43,18 @@ function parse(argv: readonly string[]) {
     else if (arg === "--gms") gms = true;
     else if (arg === "--no-midseason") midseason = false;
     else if (arg === "--no-former-players") formerPlayers = false;
+    else if (arg === "--win-now") winNow = true;
     else throw new SyntaxError(`unknown argument ${arg}`);
   }
   if (!Number.isInteger(seasons) || seasons < 1) throw new SyntaxError("--seasons must be a whole number above 0");
-  return { seed, seasons, out, views, gms, midseason, formerPlayers };
+  // ADR-094 step 7: the weekly read needs GMs, and its arguments sour the views.
+  if (winNow) { gms = true; views = true; }
+  return { seed, seasons, out, views, gms, midseason, formerPlayers, winNow };
 }
 
 const args = parse(process.argv.slice(2));
 const started = Date.now();
-const r = staffTurnoverCheck({ seed: args.seed, seasons: args.seasons, views: args.views, gms: args.gms, midseason: args.midseason, formerPlayers: args.formerPlayers });
+const r = staffTurnoverCheck({ seed: args.seed, seasons: args.seasons, views: args.views, gms: args.gms, midseason: args.midseason, formerPlayers: args.formerPlayers, winNow: args.winNow });
 const s = r.summary;
 const b = (x: Band) => `${x.mean.toFixed(1)} a year (from ${x.min} to ${x.max})`;
 const pct = (x: number | undefined) => `${Math.round((x ?? 0) * 100)}%`;
@@ -97,6 +103,19 @@ if (s.former) {
   console.log(`Former players (after ${FORMER_WARMUP} seasons), seated: head coaches ${row(f.seated.HEAD_COACH)} (NFL ${FORMER_NFL.HEAD_COACH}); ` +
     `coordinators ${row(f.seated.COORDINATOR)} (NFL ${FORMER_NFL.COORDINATOR}); position coaches ${row(f.seated.POSITION_COACH)} (NFL ${FORMER_NFL.POSITION_COACH})`);
   if (s.gm) console.log(`                            new GMs ${row(f.hired.GM)} (NFL ${FORMER_NFL.NEW_GM}); seated GMs ${row(f.seated.GM)}`);
+}
+if (s.winNow) {
+  const w = s.winNow, t = w.total;
+  const per = (n: number) => (n / r.seasons).toFixed(1);
+  const words = ["close", "good", "professional", "strained", "broken"];
+  const all = words.reduce((n, k) => n + (w.pairWords[k] ?? 0), 0);
+  console.log(`Win-now (ADR-094 §3-§6; no real count exists, targets are judgment):`);
+  console.log(`  arguments                 ${b(w.argumentsPerYear)}; ${pct(t.argued / Math.max(1, t.teamWeeks))} of team-weeks split; ` +
+    `polite ${pct(t.heat.POLITE / Math.max(1, t.argued))}, open ${pct(t.heat.OPEN_ARGUMENT / Math.max(1, t.argued))}, rifts ${pct(t.heat.RIFT / Math.max(1, t.argued))}`);
+  console.log(`  coach won on the day      ${pct(t.coachWon / Math.max(1, t.argued))}; the GM's course not the coach's ${pct(t.overruled / Math.max(1, t.argued))}`);
+  console.log(`  split at the deadline     ${b(w.deadlineSplitsPerYear)}; stances then buy ${per(t.deadlineStances.BUY)}, hold ${per(t.deadlineStances.HOLD)}, sell ${per(t.deadlineStances.SELL)} a year`);
+  console.log(`  stance changes            ${per(t.stanceChanges)} a year; GM and head coach grudges opened ${b(w.riftsPerYear)}`);
+  console.log(`  GM and coach views (after 10 seasons): ` + words.map((k) => `${k} ${pct1((w.pairWords[k] ?? 0) / Math.max(1, all))}`).join(", "));
 }
 if (args.out) {
   writeFileSync(args.out, JSON.stringify(r, null, 2));
