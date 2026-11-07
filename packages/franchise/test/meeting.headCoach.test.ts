@@ -89,12 +89,13 @@ describe("the meeting in the season's walk, with and without the switch", () => 
     const order = ["REBUILD", "RETOOL", "CONTEND"];
     for (const e of set) {
       if (e.event.type !== "TEAM_DIRECTION_SET") continue;
-      const m = ms.find((x) => x.team === e.event.payload.team)!;
+      const payload = e.event.payload;
+      const m = ms.find((x) => x.team === payload.team)!;
       const bySpeaker = new Map<string, MeetingTake[]>();
       for (const t of m.takes) bySpeaker.set(String(t.speaker), [...(bySpeaker.get(String(t.speaker)) ?? []), t]);
       const gmWindow = [...bySpeaker.values()].find((ts) => ts.length === 9)!.find((t) => t.claim.point === "WINDOW")!.claim.direction!;
       const hcWindow = [...bySpeaker.values()].find((ts) => ts.length === 2)!.find((t) => t.claim.point === "WINDOW")!.claim.direction!;
-      const d = e.event.payload.direction;
+      const d = payload.direction;
       if (d === gmWindow) continue;
       expect(m.clashes.some((c) => c.point === "WINDOW")).toBe(true);
       const g = order.indexOf(gmWindow), h = order.indexOf(hcWindow);
