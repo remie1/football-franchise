@@ -424,38 +424,38 @@ veteran salary benefit, in-season street signings and injured reserve, compensat
   - *Training camp* (`campExtensions`, TRAINING_CAMP week 1 day 1). Teams extend the men in the last year of their deals, stars first; the early extensions of the old re-signing day move here, with step 7's rules. The new deal takes over this season (above), so its bonus spreads from this season, and a star whose last year was dear counts less this season. A team short of room restructures other deals (never the man's own), as in late winter. The cap check's walk starts at the league file's camp, and the file's deals (as of 23 October) already hold that camp's extensions, so the walk extends from the next camp on (`campExtensionsFrom`).
   - *A team's own men and next March's money.* Step 11's second-year check keeps next March's free-agency room free, so a team does not spend next year's free-agency money now. For a team's own men it stopped most extensions: at camp 2027 and 2028 (growth on, one seed) it turned down 98 of 136 and 62 of 117 men who passed every other check, against 32 and 34 for want of room this season. That money is what a team would spend to replace men like him, and real teams keep their own before they shop, so a re-signing or an extension keeps only the cushion in its second year (`secondYearFits`, `own`). Free-agency signings keep both.
   - *Cut-down day* (cut a vested veteran, put a younger injured man on injured reserve, sign the veteran back a day later) waits for the real reserve rules: a man put on injured reserve before cut-down is out for the season, which we do not model yet (ADR-088 Q2 leaves reserve and practice-squad moves to this thread).
-  - *Measured* (growth and injuries on, the panel above, seeds d5b-t2 / d5b-t4, both builds with PR #73's class talent put in by hand; step 14 before the windows against the windows with the fixes above):
+  - *Measured* (growth and injuries on, the panel above, seeds d5b-t2 / d5b-t4, both builds with PR #73's class talent put in by hand; step 14 before the windows against the windows with the fixes above, re-signing opening a week after the season):
 
     | | Step 14 before | With the windows | Real |
     |---|---|---|---|
-    | Good free agents (top 40% at their position) unsigned at week 1, a year | 47 / 71 | 9 / 16 |  |
-    | New-team deals of $2M+ a year | 333 / 334 | 289 / 280 | 180 to 240 |
-    | New-team deals of $5M+ a year | 124 / 118 | 104 / 104 | 80 to 120 |
-    | Middle class's share of the cap, week 1 (2029-30) | 18.9% / 18.9% | 15.4% / 16.8% | 21.4% |
-    | Middle-class men a team | 12.0 / 12.4 | 10.0 / 10.4 | 13.7 |
-    | Big deals' share of the cap | 42.9% / 42.0% | 40.4% / 34.5% | 39.5% |
-    | Big deals a team | 6.9 / 6.5 | 6.7 / 5.5 | 7.7 |
-    | Middle-class deals a year, own team | 66 / 64 | 52 / 60 | 155 |
-    | Middle-class deals a year, new team | 221 / 240 | 171 / 185 | 199 |
-    | Big deals a year, own team | 52 / 51 | 43 / 41 | 60 |
-    | Big deals a year, new team | 35 / 36 | 31 / 30 | 51 |
-    | Own-team deals of 2+ years | 116 / 111 | 92 / 91 | 210 to 290 |
-    | ... above the minimum | 112 / 107 | 87 / 84 | about 135 |
-    | Camp extensions a year (2027-30) |  | 30 / 35 | about 60 extended in a deal's last year, at any time |
-    | Restricted free agents tendered a year | 13 to 44 | 34 to 70 | at least 6 to 22 |
-    | Dead money a team once the season is over (2027-30) | $49.3M / $44.4M | $58.1M / $58.5M | $49.3M (2026) |
-    | ... as a share of the cap | 13.8% / 13.2% | 16.0% / 17.4% | 16.4% |
-    | Quarterbacks' share of the cap (2029-31) | 8.0% / 9.7% | 8.8% / 8.7% | 10.7% |
-    | Offensive line's share (2029-31) | 18.9% / 19.7% | 18.8% / 19.7% | 18.7% |
-    | Position shares off real, summed (2029-31) | 11.9 points / 12.2 points | 9.5 points / 14.5 points |  |
-    | Biggest deal outside quarterback, share of the cap (2027-31, most) | 15.6% / none in the top five | 15.1% / 13.1% | 13.7% to 16.7% |
-    | 31 and over (week-8 53s, 2027-30) | 14.5% / 13.8% | 16.1% / 14.9% | 10.1% |
-    | 34 and over | 3.9% / 3.6% | 4.3% / 3.9% | 3.1% |
-    | Undrafted | 19.1% / 20.2% | 17.5% / 18.9% | 27.4% (2022-24: 25.7%) |
-    | Mean rating | 68.08 / 68.14 | 68.62 / 68.64 |  |
+    | Good free agents (top 40% at their position) unsigned at week 1, a year | 47 / 71 | 24 / 36 |  |
+    | New-team deals of $2M+ a year | 333 / 334 | 278 / 282 | 180 to 240 |
+    | New-team deals of $5M+ a year | 124 / 118 | 106 / 111 | 80 to 120 |
+    | Middle class's share of the cap, week 1 (2029-30) | 18.9% / 18.9% | 15.5% / 14.3% | 21.4% |
+    | Middle-class men a team | 12.0 / 12.4 | 9.7 / 9.6 | 13.7 |
+    | Big deals' share of the cap | 42.9% / 42.0% | 39.1% / 38.5% | 39.5% |
+    | Big deals a team | 6.9 / 6.5 | 6.7 / 6.7 | 7.7 |
+    | Middle-class deals a year, own team | 66 / 64 | 52 / 56 | 155 |
+    | Middle-class deals a year, new team | 221 / 240 | 166 / 179 | 199 |
+    | Big deals a year, own team | 52 / 51 | 44 / 44 | 60 |
+    | Big deals a year, new team | 35 / 36 | 34 / 36 | 51 |
+    | Own-team deals of 2+ years | 116 / 111 | 98 / 89 | 210 to 290 |
+    | ... above the minimum | 112 / 107 | 92 / 83 | about 135 |
+    | Camp extensions a year (2027-30) |  | 26 / 26 | about 60 extended in a deal's last year, at any time |
+    | Restricted free agents tendered a year | 13 to 44 | 3 to 18; 82 / 54 in 2029 | at least 6 to 22 |
+    | Dead money a team once the season is over (2027-30) | $49.3M / $44.4M | $60.3M / $58.5M | $49.3M (2026) |
+    | ... as a share of the cap | 13.8% / 13.2% | 16.7% / 17.5% | 16.4% |
+    | Quarterbacks' share of the cap (2029-31) | 8.0% / 9.7% | 9.3% / 8.1% | 10.7% |
+    | Offensive line's share (2029-31) | 18.9% / 19.7% | 18.7% / 18.3% | 18.7% |
+    | Position shares off real, summed (2029-31) | 11.9 points / 12.2 points | 9.4 points / 15.1 points |  |
+    | Biggest deal outside quarterback, share of the cap (2027-31, most) | 15.6% / none in the top five | 15.1% / 15.4% | 13.7% to 16.7% |
+    | 31 and over (week-8 53s, 2027-30) | 14.5% / 13.8% | 15.2% / 14.1% | 10.1% |
+    | 34 and over | 3.9% / 3.6% | 4.0% / 3.6% | 3.1% |
+    | Undrafted | 19.1% / 20.2% | 18.3% / 19.2% | 27.4% (2022-24: 25.7%) |
+    | Mean rating | 68.08 / 68.14 | 68.36 / 68.45 |  |
 
-    Real extensions in a deal's last year: OverTheCap's 2021-25 rows (26 big, 31 middle-class and 3 smaller a year, COUNTED; the rows do not say when in the year). Free agency moved to the real numbers: good free agents find teams, new-team deals come down toward the real range, dead money is real-sized as a share of the cap, and the line and the biggest deals stay real. A team's own middle class did not: its share of the cap fell, and own-team deals stayed under half of real. With growth off (the cap check as it runs by default, against step 14 before the windows): new-team deals of $2M+ 218 a year (279; real 180 to 240), of $5M+ 97 (118); own-team deals of 2+ years 87 (115), 81 above the minimum (110); the middle class at week 1 22.6% of the cap (23.2%), big deals 43.2% (45.9%); dead money once a season is over $34.9M a team (29.9); the quarterbacks' share 9.7% (8.5%), the line's 18.8% (20.2%).
-  - *Why a team's own middle class still leaves* (late winter's first round, a diagnostic build, three late winters, both seeds; COUNTED in our walk). Teams judge about 140 of their own middle-class free agents a year and keep about 30. Value for money turns down about 90; want of room stops only 1 to 6. About 45 to 60 of the 90 would be backups among the men the team keeps, and a backup counts a tenth of a starter (`backupWeight`), so a backup is never worth middle-class money; on the real 2026 53s, 4.7 of a team's 11.5 middle-class veterans are not first on its ESPN depth chart (the league file, COUNTED; backup quarterbacks, second tight ends, extra receivers and rotation pass rushers most). About 24 a year are starters whose seat goes to one of the team's coming picks: a pick is seated at the position the team needs most counting none of its own free agents (`pickSeats`), so it lands where they play, and it is rated what that round's picks have become after one to three seasons (`typicalPicks`: round 1 about 71 to 74, round 3 about 66, round 7 about 60, against about 66.5 for the average man on a 53). Real own-team middle-class deals a year: 117 re-signings after a deal ran out, 31 extensions in its last year and 8 earlier (OverTheCap's rows, 2021-25, COUNTED). Two fixes went to the owner on 2026-11-07: count a backup by the share of snaps backups really play, and have a pick fill one hole (seated as if the man judged stays) at a first-season rating.
+    Real extensions in a deal's last year: OverTheCap's 2021-25 rows (26 big, 31 middle-class and 3 smaller a year, COUNTED; the rows do not say when in the year). Free agency moved toward the real numbers: more good free agents find teams, new-team deals come down toward the real range, dead money is real-sized as a share of the cap, and the line and the biggest deals stay real. A team's own middle class did not: its share of the cap fell, and own-team deals stayed under half of real. With growth off (the cap check as it runs by default, against step 14 before the windows): new-team deals of $2M+ 232 a year (279; real 180 to 240), of $5M+ 104 (118); own-team deals of 2+ years 88 (115), 83 above the minimum (110); the middle class at week 1 22.1% of the cap (23.2%), big deals 44.3% (45.9%); dead money once a season is over $37.6M a team (29.9); the quarterbacks' share 9.6% (8.5%), the line's 18.8% (20.2%). Growth off, the middle class stays near real each year (19.7% to 24.4% of the cap at week 1). With growth on it is near real in 2027 and 2028 (about 22% and 20%) and falls to 13% to 17% in 2029 and 2030, while dead money at week 1 climbs from about 11% of the cap to about 21%; by the cap check's own tally, cut-down day's cuts leave the most of it, then void years, then late winter's cap cuts. Re-signing first opened on the season's last day, before the draft order's day credits the season (the walk runs the league year's steps before the draft's on any one day), so a man who had just played out his fourth season was handled as a restricted free agent: restricted tenders ran at 34 to 70 a year, and own-team deals of 2+ years at 92 / 91.
+  - *Why a team's own middle class still leaves* (late winter's first round, a diagnostic build, four late winters, seed d5b-t2, re-signing a week after the season; COUNTED in our walk). Teams judge about 160 of their own middle-class free agents a year and keep about 47. Value for money turns down about 83, about 60 of them men who would be backups; the man himself turns down about 27; want of room stops 1 to 14. A backup counts a tenth of a starter (`backupWeight`), so a backup is rarely worth middle-class money; on the real 2026 53s, 4.7 of a team's 11.5 middle-class veterans are not first on its ESPN depth chart (the league file, COUNTED; backup quarterbacks, second tight ends, extra receivers and rotation pass rushers most). Some starters lose their seat to one of the team's coming picks (about 24 a year in an earlier count, before re-signing waited for the season's credit): a pick is seated at the position the team needs most counting none of its own free agents (`pickSeats`), so it lands where they play, and it is rated what that round's picks have become after one to three seasons (`typicalPicks`: round 1 about 71 to 74, round 3 about 66, round 7 about 60, against about 66.5 for the average man on a 53). Real own-team middle-class deals a year: 117 re-signings after a deal ran out (71 of them for one year), 31 extensions in its last year and 8 earlier (OverTheCap's rows, 2021-25, COUNTED). We re-sign about 18 of a team's own middle-class men a year for one year, in late winter and in the market together. Two fixes were tried and not kept (below).
 - **Price lists count a deal's own pay.** Two things set the top of a position's price list too high, so the best man there was asked for 18% to 21% of the cap (a guard at $60M, a center at $71M; the year's biggest real deal outside quarterback was 13.7% to 16.7% of the cap, 2021-25, OverTheCap, COUNTED):
   - An extension's bonus money carried over from the old deal counted as its pay. The price list, the player's view of an extension offer and the cap check's biggest deals now count a deal's own pay (`newPayOf`: its pay over its real years and its own signing bonus), as OverTheCap counts APY.
   - The league file writes some placeholder years into a roster bonus ($50M or $100M on four deals, in years whose stored cap hit leaves them out) instead of a base salary, and one void year still carries a $50M roster bonus. They inflated the guard, tackle, defensive tackle and linebacker price lists from the first league year, in main too. The cap check now brings such a roster bonus down to what the year's stored cap hit holds (`PLACEHOLDER_SLACK`, $1M, CHOSEN) and a void year keeps only its bonus proration (`withDummyYearsVoid`). The importer should do this itself (the stand-in data fix still pending).
@@ -500,14 +500,15 @@ veteran salary benefit, in-season street signings and injured reserve, compensat
 - **Tried and not kept.**
   - Re-signing a team's own free agents with the room it makes in March (the owner said yes on 2026-11-07, before this test): stars stayed home, but new-team middle-class deals fell from about 210 a year to 123 and the middle class's share from 16% to 12%, as the room went to the team's own big deals first. Not kept: the owner asked instead for the real re-signing windows (above), where a team makes its room in late winter, before free agency, as real teams do.
   - For the quarterbacks (short runs, growth off, 3 seasons): re-signing day giving its room first to the men who lift the team most instead of those worth most over their price; never letting a starter go over value for money; seating the draft picks as if the team's own free agents stayed. None moved the quarterbacks' share by more than half a point: most starters who leave on re-signing day go because the team has no room for them yet (449 of 780 starters over the three re-signing days), which is the March question.
+  - Two fixes for a team's own middle class (2026-11-07): counting a backup by the share of a starter's snaps such backups really play (nflverse snap counts, regular seasons 2021-25, COUNTED: a team's fourth receiver 0.49, its backup quarterback 0.27, its second tight end 0.63), and a draft pick filling one hole (seated as if the man judged stays) at what that round's picks are after one season. Together, growth on (the panel above): own-team deals of 2+ years rose (98 / 89 to 113 / 102; in the first season 137 / 133 against 97 / 83), but the middle class's share fell (15.5% / 14.3% to 12.1% / 10.0%), new-team middle-class deals fell (166 / 179 to 118 / 125), big deals rose (39.1% / 38.5% to 42.8% / 41.0%) and more good free agents went unsigned (24 / 36 to 44 / 43). Not kept.
   - A second year on futures and call-up deals: we sign a futures deal for every practice-squad man, so real second-year shares would overshoot. Deferred.
   - Four tries at the ages (two seeds each, none moved them): March free agency also holding seats for a team's coming picks (§3.4's seats before the draft); cut-down weighing a cut's saving up to 6 points; weighing pay over the cheapest man's minimum (a rookie's) instead of the man's own; counting an empty seat as a 56 or 60 man instead of 50.
 - **Still open.**
   - The ages, above: tuned with the aging thread's redesign before step 14 goes to the owner.
-  - Own-team middle-class deals run at about 55 a year against 155. With the windows, room no longer stops them; value for money does (the windows, above). Two fixes are with the owner.
-  - The quarterbacks' share stays under real (growth on 8.8% / 8.7%, growth off 9.7%, against 10.7%; main 9.4% growth off).
-  - Restricted free agents are tendered 34 to 70 times a year against a counted floor of 6 to 22.
-  - Camp extends 30 to 35 men a year; real teams extend about 60 in a deal's last year, at camp and at other times of the year.
+  - Own-team middle-class deals run at about 55 a year against 155. With the windows, room no longer stops them; value for money does (the windows, above). With growth on the middle class fades from the third season while dead money climbs (above): being traced.
+  - The quarterbacks' share stays under real (growth on 9.3% / 8.1%, growth off 9.6%, against 10.7%; main 9.4% growth off).
+  - Restricted free agents are tendered 3 to 18 times a year (a counted floor of 6 to 22), but 82 / 54 times in 2029, which may be the league file's 2026 undrafted class reaching its third season (not yet checked).
+  - Camp extends about 26 men a year; real teams extend about 60 in a deal's last year, at camp and at other times of the year.
   - Cut-down day's re-signing (the third window) waits for the real injured-reserve rule.
   - Two-year minimum deals (futures and call-ups): deferred, above.
   - The importer should strip the league file's placeholder roster bonuses itself (the stand-in data fix).
