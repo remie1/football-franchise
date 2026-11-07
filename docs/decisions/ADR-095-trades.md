@@ -147,11 +147,18 @@ objective curves and the team's course.
   (ADR-094 §3's weekly read extended to every team, same miss sizes); later years drift toward the
   middle, shaded by his read of the roster, cap and coach. His curve values the whole spread. The
   spread ends when `draftOrder` fixes the slot.
-- **The window.** Three drafts at a time; the Browns' March 2026 five-year proposal was withdrawn
-  before a vote (REPORTED: [CBS](https://www.cbssports.com/nfl/news/browns-nfl-rule-change-proposal-draft-pick-trades)).
-  COUNTED (nflverse trades 2010-2025): 25 trades moved a pick three years out, every one after that
-  spring's draft (1 in May, 24 August-November), none in March or April. When the new year opens is
-  put to the owner (§12 W).
+- **The window (owner's ruling, 15:14Z).** Until a draft starts, picks in that draft and the two
+  after it trade; once it starts it is "current" and the third draft after it opens, so four drafts
+  trade over draft weekend; when it ends, three remain. The Browns' March 2026 five-year proposal was
+  withdrawn before a vote (REPORTED: [CBS](https://www.cbssports.com/nfl/news/browns-nfl-rule-change-proposal-draft-pick-trades)).
+  COUNTED (nflverse trades 2010-2025): 25 trades moved a pick three drafts out, all after that
+  spring's draft (1 in May, 24 August-November): allowed on draft weekend, rarely used then.
+- **In-year regrades (owner, 15:14Z).** Both graded classes are regraded at college kickoff (our
+  week 1), mid college season (our deadline week), end of the college regular season (about week
+  14), the underclassmen's entry deadline (mid-January, our playoffs: juniors enter or return, moving
+  between classes), the combine (the new league year), and the season's end. College growth is
+  spread over these points; the number of early entrants is to be counted at build. Each regrade is
+  a news item and moves every pick's objective value in its draft.
 
 ## 5. Computer teams trade among themselves (Q3 a, Q4 a)
 
@@ -226,8 +233,6 @@ same talk.
 
 Open keys with no edit: `pickCurve`, `futurePickDiscount`, `tradeStyle` on a GM's ratings; ledger moves as free strings.
 
-## 12. Open question
+## 12. Open questions
 
-- **W. When the newest draft year opens for trading.** (a) when the draft ends, as the counted trades
-  show; (b) when the draft begins, so four drafts' picks can move on draft weekend (owner's first
-  reading, 14:59Z). Recommended (a).
+None. W was ruled by the owner 2026-11-07 15:14Z: the newest draft opens when the draft starts (§4b).
