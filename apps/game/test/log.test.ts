@@ -98,8 +98,9 @@ describe("readBoxScore", () => {
 // ADR-089 §9: the pocket fix adds kinds this viewer has never seen: a CHECK kind (`pass_rush_beat`,
 // P2), an event (`QB_HIT`, P7) and two decision choices (`SLIDE_POCKET`, `SIDESTEP`; P14, P15). The
 // design says they render as skipped unknown kinds rather than crash (INFERRED from this file's
-// header); `ui-layout` confirms it here, at step 0. They are built loosely, as a newer engine's file
-// would carry them, because the contracts do not have them yet.
+// header); `ui-layout` confirmed it here at step 0. They are built loosely, as a newer engine's file
+// would carry them, because the contracts did not have them then. Since ADR-089 step 4 (P7 in
+// contracts) the log words a `QB_HIT`; the step-4 describe below builds them as contracts have them.
 type Loose = { type: string; payload: unknown; playId: string };
 const POCKET_FIX_KINDS: Readonly<Record<string, readonly Loose[]>> = {
   p1: [
@@ -144,9 +145,95 @@ describe("the pocket fix's new kinds (ADR-089 §9)", () => {
     expect(changed.events.length).toBe(FIXTURE.events.length + 5);
   });
 
-  it("render without throwing, and the play log skips them: it words exactly what it worded before", () => {
+  it("render without throwing; the play log words the QB_HIT (ADR-089 P7) and nothing else moves", () => {
     expect(() => buildPlayLog(changed)).not.toThrow();
-    expect(buildPlayLog(changed)).toEqual(buildPlayLog(FIXTURE));
+    const before = buildPlayLog(FIXTURE);
+    const after = buildPlayLog(changed);
+    // Play 1's THROWING hit is worded; play 2's ARRIVAL is the sacker's own, so its line stands.
+    expect(after.drives[0]!.lines[1]!.text).toBe("Ada Quinn complete to Wes Reed for 25 yards, hit as he threw by Dez Edge, pocket collapsing.");
+    expect(after.drives[0]!.lines[2]!.text).toBe(before.drives[0]!.lines[2]!.text);
+    const withoutP1 = (log: typeof before) => log.drives.map((d) => d.lines.filter((l) => l.playId !== "p1"));
+    expect(withoutP1(after)).toEqual(withoutP1(before));
+    expect(readDriveChart(changed)).toEqual(readDriveChart(FIXTURE));
+    expect(readBoxScore(changed)).toEqual(readBoxScore(FIXTURE));
+  });
+});
+
+// ADR-089 step 4 (P6, P7, P8 in contracts): a quarterback hit, the arrival contest and the release
+// in the play log. Typed as contracts have them; put into the fixture's plays 1 and 2.
+const STEP4_KINDS: Readonly<Record<string, readonly Loose[]>> = {
+  p1: [
+    { type: "QB_HIT", playId: "p1", payload: { qb: "qb", rusher: "fs", phase: "ARRIVAL", contactSeconds: 2.1, approach: "FREE", from: "SIDE", seen: true } },
+    {
+      type: "CHECK",
+      playId: "p1",
+      payload: {
+        checkKind: "arrival_contest", actors: ["lt", "qb"], testsAttrs: [], tier: "FAIL", margin: -12, band: "QB_SHEDS", target: 0,
+        roll: { die: "d100", raw: 30, modifiers: [], total: 30, rngLabel: "p1/t2/lt:contest" },
+      },
+    },
+    { type: "QB_HIT", playId: "p1", payload: { qb: "qb", rusher: "lt", phase: "SHED", contactSeconds: 2.25, rollRef: "p1/t2/lt:contest", from: "FRONT", seen: true } },
+    { type: "QB_HIT", playId: "p1", payload: { qb: "qb", rusher: "de", phase: "THROWING", contactSeconds: 2.4, approach: "ARC", from: "BEHIND", seen: true } },
+  ],
+  p2: [
+    {
+      type: "CHECK",
+      playId: "p2",
+      payload: {
+        checkKind: "arrival_contest", actors: ["fs", "qb"], testsAttrs: [], tier: "SUCCESS", margin: 20, band: "RUSHER_SACKS", target: 15,
+        roll: { die: "d100", raw: 35, modifiers: [], total: 35, rngLabel: "p2/t3/fs:contest2" },
+      },
+    },
+    { type: "QB_HIT", playId: "p2", payload: { qb: "qb", rusher: "fs", phase: "SACK", contactSeconds: 3.05, rollRef: "p2/t3/fs:contest2", from: "BEHIND", seen: true } },
+  ],
+};
+
+/** The fixture with step 4's kinds before plays 1 and 2's THROW (p1) and result (p2), and p1's THROW released at 2.413s. */
+function withStep4Kinds(file: GameFile): GameFile {
+  const events = file.events.flatMap((e) => {
+    const playId = "playId" in e.event ? String(e.event.playId) : undefined;
+    const anchor = (playId === "p1" && e.event.type === "THROW") || (playId === "p2" && e.event.type === "PLAY_RESULT");
+    const added = anchor && playId !== undefined ? (STEP4_KINDS[playId] ?? []) : [];
+    const event = playId === "p1" && e.event.type === "THROW" ? ({ ...e.event, payload: { ...e.event.payload, releaseSeconds: 2.413 } } as MatchEvent) : e.event;
+    return [...added.map((n) => ({ ...e, event: { ...n, gameId: e.event.gameId } as unknown as MatchEvent })), { ...e, event }];
+  });
+  return { ...file, events: events.map((e, seq) => ({ ...e, seq })) };
+}
+
+describe("ADR-089 step 4 in the play log: QB_HIT, arrival_contest and THROW.releaseSeconds", () => {
+  const changed = withStep4Kinds(FIXTURE);
+
+  it("words the release, then each hit in stream order: a free man who got to him, a man shed, a hit as he threw", () => {
+    expect(buildPlayLog(changed).drives[0]!.lines[1]!.text).toBe(
+      "Ada Quinn complete to Wes Reed for 25 yards, ball out at 2.41s, Finn Shaw got to him, shed Lou Tate, hit as he threw by Dez Edge, pocket collapsing.",
+    );
+  });
+
+  it("credits the sack to the SACK hit's rusher (the man the arrival contest credits), not the last ARRIVED threat", () => {
+    expect(buildPlayLog(changed).drives[0]!.lines[2]!.text).toBe("Ada Quinn sacked by Finn Shaw for a loss of 7.");
+    expect(buildPlayLog(FIXTURE).drives[0]!.lines[2]!.text).toBe("Ada Quinn sacked by Dez Edge for a loss of 7.");
+  });
+
+  it("an ARRIVAL by a rusher who also has another hit, or who is the sacker, adds nothing", () => {
+    const twice = withStep4Kinds(FIXTURE);
+    const p1Hits = twice.events.filter((e) => e.event.type === "QB_HIT" && "playId" in e.event && String(e.event.playId) === "p1");
+    expect(p1Hits).toHaveLength(3);
+    // Dez Edge's ARRIVAL beside his THROWING hit, and Finn Shaw's ARRIVAL on the play he sacks.
+    const extra = (playId: string, rusher: string): Loose => ({ type: "QB_HIT", playId, payload: { qb: "qb", rusher, phase: "ARRIVAL", contactSeconds: 1 } });
+    const more = {
+      ...twice,
+      events: twice.events
+        .flatMap((e) => {
+          const playId = "playId" in e.event ? String(e.event.playId) : undefined;
+          const add = e.event.type === "PLAY_RESULT" && (playId === "p1" || playId === "p2") ? [extra(playId, playId === "p1" ? "de" : "fs")] : [];
+          return [...add.map((n) => ({ ...e, event: { ...n, gameId: e.event.gameId } as unknown as MatchEvent })), e];
+        })
+        .map((e, seq) => ({ ...e, seq })),
+    };
+    expect(buildPlayLog(more)).toEqual(buildPlayLog(twice));
+  });
+
+  it("leaves the drive chart and the box score as they were", () => {
     expect(readDriveChart(changed)).toEqual(readDriveChart(FIXTURE));
     expect(readBoxScore(changed)).toEqual(readBoxScore(FIXTURE));
   });
