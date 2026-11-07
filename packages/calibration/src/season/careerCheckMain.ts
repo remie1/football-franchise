@@ -163,7 +163,7 @@ if (!args.grade) {
     const any = [...rows.values()][0];
     const first = any?.firstSeason ?? 2026;
     const lastSeason = first + args.seasons - 1;
-    windows = { early: [first, lastSeason], late: [first, lastSeason] };
+    windows = { early: [first, lastSeason], late: [first, lastSeason], later: [first, lastSeason] };
   }
   const grade = gradeCareerCheck({
     pass: args.pass!, seeds, rows,

@@ -786,6 +786,101 @@ against the Spread line's 6.55), because fast and slow developers now drift apar
 the draft classes' spread of talent (Rookies card, with a draft re-check), is what widens it. Nothing
 changes with both switches off.
 
+### Measurements for the owner's aging rulings (2026-11-06; rows version 5)
+
+The owner ruled on 2026-11-06:
+- nothing in aging may be based on listed position;
+- count the 53 like the NFL (men out 4+ weeks off it);
+- compare our signed-again rate by age with the real one;
+- report a later window (2033-45) beside the graded one;
+- measure injuries by age;
+- match the made-up rookies' ages later.
+
+This step only measures. Nothing the sim does changes. The reader (`careerCheck.ts`) now writes rows version 5 (`CAREER_ROWS_VERSION` 5, `CAREER_CHECK_VERSION` 5, so every cached seed is played again). The grader (`careerGrade.ts`) adds eight rows, every one REPORT. The real side is the nfl-careers additions committed just before this step (REAL, totals only).
+
+**What the reader adds.**
+- **The 53 counted like the NFL (`week8Nfl`).** Week 8's 53s without the men whose unhealed injury was drawn LONG or MAJOR (4+ weeks), as the real count leaves out injured reserve.
+  - Beside it, `week8NflWeeksLeft` leaves out the men with 4+ weeks still to go.
+  - `nflCount` gives how many men were left out each way, and every team's size before and after.
+  - CHOSEN: the band at the draw stands in for the 4-week IR line. The weeks-left variant is shown so the choice can be judged.
+- **Group shares and rookie ages.** Each group's 22-or-under, 31+ and 34+ shares, and the rookies' ages (first season in the league) on the week-8 53s.
+- **Signed again within two years (`market.expiries`).** For each deal that ran out at the league year after season Y (`CONTRACT_EXPIRED`) worth at least 1.5% of the cap, the reader records:
+  - his age in Y;
+  - whether he signed any deal but a practice-squad one, with any team, between Y's OFF_EVAL (re-signings and tags come before the expiry) and two league years on;
+  - whether he signed within one league year.
+
+  Readings (all CHOSEN, matching OverTheCap's line):
+  - APY is the deal's cap hits over its real years. It is divided by `capForecast(seed)` for the league year the deal was signed in.
+  - A man who retires first counts as not signed.
+  - An early extension (a deal signed before the window that runs past Y) counts as signed.
+
+  The open deals live in the reader's state, so they carry across checkpoints.
+- **The roster way (`exits`).** Of the men on a final-week 53 in Y:
+  - `backOnA53`: those on a 53 on day 1 of some regular-season week of Y+1 or Y+2;
+  - `startersGone`: the starters (50%+ of the snaps, the real side's line) on no team's list in either season;
+  - `retiredNextYear`: those who retired within a year, each way.
+- **Retirements (`retirements`).** Each season's retirements by age, credited seasons and group, split three ways:
+  - the unsigned rule;
+  - his own choice while signed;
+  - his own choice while unsigned.
+
+  The unsigned-wait report and the careers' retired exits now count the unsigned rule only (reason UNSIGNED).
+- **Availability by age (`availability`).** On day 1 of each regular-season week, the men on a 53, and of them those out with an injury they cannot play on.
+
+**What the grader adds.** All eight rows are REPORT, and none of them moves the flip:
+
+| Row | Compared with | Notes |
+|---|---|---|
+| share-31-group, share-34-group | By group: 2022-24's season mean and 2018-24 pooled | REAL |
+| signed-again | OverTheCap's REPORTED rates by age (`OTC_SIGNED_AGAIN`): deals ending 2016-22, n 1,799, no SE | No age convention is stated, so the sim's age in Y and in Y+1 are both shown |
+| back-on-53, starters-gone | `exitsByAge` | REAL, Y 2016-22 |
+| retired-signed | `retiredList` | REAL, a lower bound |
+| rookie-age | `weekEight.rookieAge` | REAL, 2018-24 |
+| availability | Nothing | The sim's alone: no real availability by age is merged yet |
+
+The grade windows gain `later: [2033, 2045]`. Each early check now has a reported later-window check beside it:
+- the league and group week-8 rows;
+- peak usage;
+- the win spread and win r;
+- the other reports;
+- every new row.
+
+A smoke grade uses the run's own seasons for all three windows.
+
+**What this changes in the GATE rows.** The NFL comparison rows now read `week8Nfl`, not the whole 53s. These are:
+- mean age, league and by group;
+- 22 or under, 31+ and 34+;
+- rookies (and the earlier no-credit reading beside it);
+- undrafted.
+
+So the existing GATE rows now read different men than before. With injuries on, the men out 4+ weeks are left out. Rows written before version 5 have no `week8Nfl`, so they grade as no data on those rows instead of falling back to the whole 53s. The drift rows (overall each year and late, pooled sd, gap, the 95s and 99s) and the coach-style rows still read the whole 53s (`week8`). With injuries off nobody is hurt, so the two pictures are the same.
+
+**Smoke proof (2026-11-07).** The run was seed d5b-t1 (tune set, index 1), both switches on, 3 seasons (2026-28), with the documented `career-check` command and `--seasons 3`.
+- Timing: 206 s of play (seasons 60, 75 and 69 s; 3 min 28 s wall), with one test process sharing the cores. Grading with `--smoke` took 2 s.
+- All 43 grader rows came out. The 8 new rows are all REPORTED, and 88 checks are later-window checks.
+
+The sim's totals (ours, measured):
+
+| Measure | 2026 | 2027 | 2028 |
+|---|---|---|---|
+| Men on the week-8 53s | 1,702 | 1,715 | 1,719 |
+| Left out by the NFL count (band LONG or MAJOR) | 169 | 207 | 184 |
+| Left out, weeks-left variant | 134 | 160 | 143 |
+| Deals of 1.5%+ that ran out | 157 | 158 | 191 |
+| Retirements by the unsigned rule | 0 | 303 | 988 |
+
+- Team sizes: 50-58 before the NFL count, 42-53 after.
+- Expiries: 3,813 more were under the line, and none was unmatched. Of 2026's deals (followed two league years), 132 were signed again (84%), 124 of them within one league year; 25 men retired first.
+- Signed again, by age in Y, against OverTheCap (REPORTED): 26 and under 0.82 (0.94), 27-28 0.83 (0.89), 29-30 0.96 (0.86), 31-32 0.86 (0.71), 33 and over 0.77 (0.58).
+- 2026's final-week 53s (1,763 men): 72% were back on a 53 within two seasons (real 85%). Starters gone was 88 of 683, 13% (real 4%).
+- Retirements: none came by choice, since no build retires a man by choice yet.
+- Availability: 85.5% of man-weeks on a 53 were available.
+- Rookies' mean age (whole years): 22.99, against the real 22.67.
+
+A smoke grade is never a graded report, so these numbers judge nothing.
+
+With both switches off nothing in the game changes. The reader and grader only watch, `capForecast` is pure, and no file outside `packages/calibration/src/season/` (and its tests) changes.
+
 ## Conjoined mechanisms
 
 Development and injuries are separate mechanisms that both change who plays and how well. Each has

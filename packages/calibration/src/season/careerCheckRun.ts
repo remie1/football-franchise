@@ -54,7 +54,7 @@ import type { DraftReaderState } from "./draftCheck.js";
 import type { SeasonPeople } from "./realSeason.js";
 
 /** This check's own version: a change to what a record holds starts a fresh cache. */
-export const CAREER_CHECK_VERSION = 4;
+export const CAREER_CHECK_VERSION = 5;
 
 /** The engine rules the walk plays (`runCapCheck` plays the default, `legacy`). */
 export const CAREER_ENGINE_RULES = "legacy";

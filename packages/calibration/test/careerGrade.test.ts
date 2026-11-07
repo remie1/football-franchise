@@ -9,14 +9,15 @@
  * without touching this file.
  */
 import { describe, expect, it } from "vitest";
-import { CAREER_FAMILIES, CAREER_FAMILY_KEYS, NFL_CAREERS, type NflCareers } from "../src/careers/nflCareers.js";
+import { CAREER_FAMILIES, CAREER_FAMILY_KEYS, EXIT_AGE_BANDS, NFL_CAREERS, OTC_SIGNED_AGAIN, SIGNING_AGE_BANDS, type NflCareers } from "../src/careers/nflCareers.js";
 import {
   CAREER_GROUPS, kaplanMeier, lifeTable, type CareerCheckRows, type CareerEntrant, type CareerGroup, type GroupPicture, type RosterPicture, type SeasonRow,
   type UsageCell,
 } from "../src/season/careerCheck.js";
 import {
-  CAREER_BANDS, WEEK_EIGHT_LEAGUE_YEARS, expectedCareer, familyLabel, gradeCareerCheck, gradeCheck, notResolvable, outsideBand, poolSeeds, renderGradeJson,
-  renderGradeMarkdown, rowStatus, slopeOf, trendShare, weekEightLeagueReference, type BandRule, type CareerGrade, type GradeInput,
+  bandCounts, CAREER_BANDS, groupSeasonReference, PLAN_WINDOWS, signedAgainCounts, WEEK_EIGHT_LEAGUE_YEARS, expectedCareer, familyLabel, gradeCareerCheck, gradeCheck,
+  notResolvable, outsideBand, poolSeeds, renderGradeJson, renderGradeMarkdown, rowStatus, slopeOf, trendShare, weekEightLeagueReference, type BandRule, type CareerGrade,
+  type GradeInput,
 } from "../src/season/careerGrade.js";
 import { NFL_DRAFT } from "../src/season/draftCheck.js";
 
@@ -30,7 +31,7 @@ interface Knobs {
 const groupAge = (g: CareerGroup) => NFL_CAREERS.weekEight.byGroup[g].meanAge.value;
 
 function picture(k: Knobs): RosterPicture {
-  const g: GroupPicture = { n: 10, mean: k.overall ?? 66, sd: 7, top5: 80, age: 26.2 };
+  const g: GroupPicture = { n: 10, mean: k.overall ?? 66, sd: 7, top5: 80, age: 26.2, upTo22: 0.08, from31: 0.1, from34: 0.03 };
   return {
     players: 1700,
     overall: { mean: k.overall ?? 66, sd: 7.5, pooledSd: k.sd ?? 7.3, p10: 57, p50: 66, p90: 76, max: 90 },
@@ -43,12 +44,15 @@ function picture(k: Knobs): RosterPicture {
     rookieShare: 0.157,
     noCreditShare: 0.17,
     undraftedShare: 0.274,
+    rookieAge: { n: 270, mean: 22.67, histogram: { "21": 35, "22": 85, "23": 96, "24": 45, "25": 9 } },
   };
 }
 
 function season(y: number, k: Knobs): SeasonRow {
+  // The 53s counted like the NFL are the same picture here (no man out 4+ weeks), so a change to one is a change to both.
+  const pic = picture(k);
   const row: Partial<SeasonRow> = {
-    season: y, week8: picture(k), slots: k.slots ?? ["a", "b", "c", "d"], fileOn53: 0, draftWeek8: {},
+    season: y, week8: pic, week8Nfl: pic, slots: k.slots ?? ["a", "b", "c", "d"], fileOn53: 0, draftWeek8: {},
     wins: [], winSpread: k.spread ?? 3.05, winR: k.winR ?? 0.4,
     freeAgents: { camp: 900, week8: 900, end: 1000, afterSweep: 1000 }, limbo: 0, reserveLoss: [],
     unsigned: { pool: { camp: { under1: 0, "1to2": 0, "2plus": 0, unknown: 0 }, seasonEnd: { under1: 0, "1to2": 0, "2plus": 0, unknown: 0 } }, retired: { LATE: { under1: 4, "1to2": 1, "2plus": 0, unknown: 0 } } },
@@ -72,7 +76,7 @@ function seedRows(seed: string, y0: Knobs, later: Knobs | ((y: number) => Knobs)
     seed, firstSeason: 2026, seasons: 20, switches: { development: true, injuries: true }, file: picture(y0), perSeason,
     careers: {
       lastSeason: 2045, entrants: more.entrants ?? [], byGroup: {} as CareerCheckRows["careers"]["byGroup"], routes: { FILE: 0, DRAFT: 0, UDFA: 0 },
-      relabeled: 0, fileRookies: 0, exitsRetired: 0, exitsOther: 0, comebacks: [{ season: 2030, out: 40, back: 1 }],
+      relabeled: 0, fileRookies: 0, exitsRetired: 0, exitsOther: 0, exitsRetiredOwn: 0, comebacks: [{ season: 2030, out: 40, back: 1 }],
     },
     usage: { cells: {}, bySeason: more.usage ?? {}, peaks: {} },
     draftWeek8: { starterSeasons: {}, everStarter: {} },
@@ -87,7 +91,7 @@ function seedRows(seed: string, y0: Knobs, later: Knobs | ((y: number) => Knobs)
   return rows as CareerCheckRows;
 }
 
-const entrant = (g: CareerGroup, n: number, e = 2030): CareerEntrant => ({ e, g, o: g, r: "DRAFT", n, c: 0, x: 0, t: "LATE" });
+const entrant = (g: CareerGroup, n: number, e = 2030): CareerEntrant => ({ e, g, o: g, r: "DRAFT", n, c: 0, x: 0, t: "LATE", w: "UNSIGNED" });
 
 /**
  * A group's entrants, as many as the NFL's, whose careers land on the NFL's row: the NFL's share
@@ -210,6 +214,8 @@ describe("the bands", () => {
     ]);
     expect(CAREER_BANDS.filter((b) => b.mark === "REPORT").map((b) => b.id)).toEqual([
       "overall-mean-late", "groups-report", "d7-ever", "d7-round1", "win-spread-nfl", "win-spread-season-one", "win-r", "other-report",
+      // The owner's aging rulings of 2026-11-06: every added row is reported, none gates.
+      "share-31-group", "share-34-group", "signed-again", "back-on-53", "starters-gone", "retired-signed", "rookie-age", "availability",
     ]);
     // A card names the rows its answer set, and only those.
     expect(CAREER_BANDS.filter((b) => b.card !== undefined).map((b) => `${b.id}:${b.card}`)).toEqual([
@@ -420,14 +426,16 @@ describe("the week-8 league reference: the latest three real seasons", () => {
   it("shows the NFL's season-by-season values and trend, year 0, and the earlier rookie reading beside", () => {
     const g = gradeCareerCheck(input(steady()));
     const und = byId(g, "undrafted");
-    expect(und.checks.map((c) => c.label)).toEqual(["league", "year 0 (2026), against the same band"]);
+    // The later window (2033-45, the owner's ruling of 2026-11-06) is reported after the judged years.
+    expect(und.checks.map((c) => c.label)).toEqual(["league", "year 0 (2026), against the same band", "later window 2033-2045"]);
+    expect(und.checks[2]!.status).toBe("REPORTED");
     expect(und.checks[1]!.sim).toBeCloseTo(0.274, 12);
     expect(und.note).toContain("NFL by season, 2018-2024: 29.8, 28.9, 29.0, 27.1, 26.9, 25.4, 24.8 (%)");
     expect(und.note).toContain("trend -0.9 points a season");
     expect(und.note).toContain("their mean 25.7");
     expect(byId(g, "age-league").note).toContain("26.13, 26.12");
     const rookie = byId(g, "rookie");
-    expect(rookie.checks.map((c) => c.status)).toEqual(["PASS", "REPORTED", "REPORTED"]);
+    expect(rookie.checks.map((c) => c.status)).toEqual(["PASS", "REPORTED", "REPORTED", "REPORTED"]);
     expect(rookie.checks[2]!.sim).toBeCloseTo(0.17, 12);
     expect(rookie.checks[2]!.ref).toBeCloseTo(weekEightLeagueReference(NFL_CAREERS, "rookie")!.value, 12);
   });
@@ -752,5 +760,140 @@ describe("the grade on made-up seeds", () => {
     const json = JSON.parse(renderGradeJson(a)) as { bands: unknown[]; rows: unknown[] };
     expect(json.bands).toHaveLength(CAREER_BANDS.length);
     expect(json.rows).toHaveLength(CAREER_BANDS.length);
+  });
+});
+
+// --- the owner's aging rulings of 2026-11-06 (rows version 5) ------------------------------------
+
+/** Every seed's rows with its week-8 NFL count replaced (`undefined`: a row written before version 5). */
+function withNfl(rows: Map<string, CareerCheckRows>, f: (p: RosterPicture) => RosterPicture | undefined): Map<string, CareerCheckRows> {
+  return new Map([...rows].map(([s, r]) => [s, { ...r, perSeason: r.perSeason.map((x) => ({ ...x, week8Nfl: x.week8 === null ? undefined : f(x.week8) })) } as CareerCheckRows]));
+}
+
+/** An expiry record: age in Y, signed within two league years, within one, followed `c` seasons, its cap share. */
+const deal = (y: number, a: number | null, w2: 0 | 1, w1: 0 | 1 = 0, c = 2, s = 0.03) => ({ y, a, s, k: "VETERAN", w1, w2, o: w2 === 1 ? 1 as const : null, r: 0 as const, e: 0 as const, c });
+const many = <T>(n: number, f: () => T): T[] => Array.from({ length: n }, f);
+
+/**
+ * The made-up market, roster way, retirements and availability of one seed, the same in every seed:
+ * 2030's deals (8 at 25, 6 signed again, 3 of them within one league year; 2 at 26, both signed, one
+ * within a year), a deal at 25 followed one season only and one under the line (neither judged),
+ * and 2040's 4 deals at 34, one signed.
+ */
+function aging(rows: Map<string, CareerCheckRows>): Map<string, CareerCheckRows> {
+  const expiries = [
+    ...many(3, () => deal(2030, 25, 1, 1)), ...many(3, () => deal(2030, 25, 1)), ...many(2, () => deal(2030, 25, 0)),
+    deal(2030, 26, 1, 1), deal(2030, 26, 1),
+    deal(2030, 25, 0, 0, 1), deal(2030, 25, 0, 0, 2, 0.01), deal(2030, null, 0),
+    deal(2040, 34, 1), ...many(3, () => deal(2040, 34, 0)),
+  ];
+  const exits: CareerCheckRows["exits"] = {
+    backOnA53: [{ y: 2030, byAge: { "25": [10, 9], "30": [10, 7], "?": [3, 0] } }, { y: 2027, byAge: { "25": [100, 0] } }],
+    startersGone: [{ y: 2030, byAge: { "25": [20, 1], "33": [10, 3] } }, { y: 2040, byAge: { "25": [20, 3] } }],
+    retiredNextYear: [{ y: 2030, byAge: {
+      "25": { n: 20, unsigned: 2, ownSigned: 0, ownUnsigned: 0 }, "34": { n: 10, unsigned: 1, ownSigned: 2, ownUnsigned: 1 },
+    } }],
+  };
+  const tally = (n: number) => ({ n, byAge: {}, byCredited: {}, byGroup: {} });
+  return new Map([...rows].map(([s, r]) => [s, {
+    ...r,
+    market: { minCapShare: OTC_SIGNED_AGAIN.minCapShare, expiries, unmatched: 0, below: 0 },
+    exits,
+    perSeason: r.perSeason.map((x) => ({
+      ...x, retirements: { unsigned: tally(3), ownSigned: tally(0), ownUnsigned: tally(1) }, availability: { "25": [100, 10], "34": [50, 10] },
+    })),
+  } as CareerCheckRows]));
+}
+
+describe("the rows added for the owner's aging rulings (rows version 5)", () => {
+  const ADDED = ["share-31-group", "share-34-group", "signed-again", "back-on-53", "starters-gone", "retired-signed", "rookie-age", "availability"];
+
+  it("are all REPORT and never move the flip, with or without their data", () => {
+    for (const id of ADDED) expect(CAREER_BANDS.find((b) => b.id === id)?.mark).toBe("REPORT");
+    expect(PLAN_WINDOWS.later).toEqual([2033, 2045]);
+    for (const rows of [passing(), aging(passing())]) {
+      const g = gradeCareerCheck(passingInput(rows));
+      for (const id of ADDED) expect(byId(g, id).status).toBe("REPORTED");
+      expect(g.flip.recommended).toBe(true);
+    }
+  });
+
+  it("the NFL rows read the 53s counted like the NFL; the drift rows still read the whole 53s; a row from before version 5 has no NFL count", () => {
+    const older = withNfl(passing(), (p) => ({ ...p, age: { ...p.age, mean: 29 } }));
+    const g = gradeCareerCheck(passingInput(older));
+    expect(check(g, "age-league", "league").sim).toBeCloseTo(29, 12);
+    expect(byId(g, "age-league").status).toBe("FAIL");
+    expect(byId(g, "overall-mean-each").status).toBe(gradeCareerCheck(passingInput()).rows.find((r) => r.id === "overall-mean-each")!.status);
+    const none = gradeCareerCheck(passingInput(withNfl(passing(), () => undefined)));
+    expect(check(none, "age-league", "league").status).toBe("NO_DATA");
+    expect(none.flip.recommended).toBe(false);
+    expect(none.flip.reasons).toEqual(expect.arrayContaining(["GATE row age-league: NO_DATA", "GATE row age-group: NO_DATA", "GATE row share-34: NO_DATA", "GATE row undrafted: NO_DATA"]));
+    expect(none.flip.reasons.some((r) => r.includes("overall-mean"))).toBe(false);
+    // The later window is beside each NFL row, reported.
+    expect(check(g, "share-31", "later window 2033-2045").status).toBe("REPORTED");
+    expect(check(g, "age-group", "QB, later window 2033-2045").status).toBe("REPORTED");
+  });
+
+  it("shares 31+ and 34+ by group: against 2022-24's season mean and 2018-24 pooled, the later window after every group", () => {
+    const g = gradeCareerCheck(passingInput());
+    const ref = groupSeasonReference(NFL_CAREERS, "QB", "age31Plus")!;
+    const seasons = NFL_CAREERS.weekEight.byGroupBySeason!.filter((x) => x.season >= 2022 && x.season <= 2024).map((x) => x.byGroup.QB.age31Plus);
+    expect(seasons).toHaveLength(3);
+    expect(ref.value).toBeCloseTo(seasons.reduce((a, x) => a + x, 0) / 3, 12);
+    // In a REPORT row each check is still marked against its band (the made-up 10% of quarterbacks at 31+ is out of it);
+    // the row is REPORTED and never counts for the flip.
+    expect(check(g, "share-31-group", "QB vs 2022-2024")).toMatchObject({ sim: expect.closeTo(0.1, 12), status: "FAIL" });
+    expect(byId(g, "share-31-group").status).toBe("REPORTED");
+    expect(check(g, "share-31-group", "QB vs 2022-2024").ref).toBeCloseTo(ref.value, 12);
+    expect(check(g, "share-31-group", "QB vs 2018-2024").ref).toBe(NFL_CAREERS.weekEight.byGroup.QB.age31Plus.value);
+    expect(check(g, "share-34-group", "K vs 2022-2024").halfWidth).toBe(0.06);
+    expect(check(g, "share-34-group", "OL vs 2022-2024, later window 2033-2045")).toMatchObject({ sim: expect.closeTo(0.03, 12), status: "REPORTED" });
+    // A season missing from the real side: no reference.
+    expect(groupSeasonReference(NFL_CAREERS, "QB", "age31Plus", [2022, 2025])).toBeNull();
+  });
+
+  it("signed again within two years: by age in Y and in Y + 1, within one league year, deals followed two years at 1.5%+ only", () => {
+    const g = gradeCareerCheck(passingInput(aging(passing())));
+    expect(check(g, "signed-again", "upTo26, age in Y")).toMatchObject({ sim: expect.closeTo(0.8, 12), ref: OTC_SIGNED_AGAIN.byAge.upTo26, seRef: null, status: "FAIL" });
+    expect(check(g, "signed-again", "upTo26, age in Y + 1").sim).toBeCloseTo(0.75, 12);
+    expect(check(g, "signed-again", "age27To28, age in Y + 1").sim).toBe(1);
+    expect(check(g, "signed-again", "upTo26, within one league year, age in Y").sim).toBeCloseTo(0.4, 12);
+    expect(check(g, "signed-again", "from33, age in Y").sim).toBeCloseTo(0.25, 12);
+    expect(check(g, "signed-again", "every age, within two league years").sim).toBeCloseTo(9 / 14, 12);
+    expect(check(g, "signed-again", "from33, age in Y, later window 2033-2045")).toMatchObject({ sim: expect.closeTo(0.25, 12), status: "REPORTED" });
+    expect(check(g, "signed-again", "upTo26, age in Y, later window 2033-2045").sim).toBeNull();
+    expect(byId(g, "signed-again").note).toContain("Deals judged, seeds pooled: 56.");
+    const one = aging(passing()).get("s1")!;
+    expect([...signedAgainCounts(one, [2029, 2045], SIGNING_AGE_BANDS, { minCapShare: 0.015, within: 2, shift: 0 })]).toEqual([["upTo26", [10, 8]], ["from33", [4, 1]]]);
+    expect(bandCounts(EXIT_AGE_BANDS, { "25": [2, 1], "26": [3, 0], "?": [9, 9] }, 1)).toEqual(new Map([["age26To28", [5, 1]]]));
+  });
+
+  it("the roster way and retirements: back on a 53, starters gone, retired within a year each way, against the real side", () => {
+    const g = gradeCareerCheck(passingInput(aging(passing())));
+    expect(check(g, "back-on-53", "upTo26")).toMatchObject({ sim: expect.closeTo(0.9, 12), ref: NFL_CAREERS.exitsByAge.backOnA53.byAge.upTo26.share.value, status: "PASS" });
+    expect(check(g, "back-on-53", "age29To30").sim).toBeCloseTo(0.7, 12);
+    expect(check(g, "back-on-53", "every age").sim).toBeCloseTo(0.8, 12);
+    expect(check(g, "starters-gone", "upTo25").sim).toBeCloseTo(0.1, 12);
+    expect(check(g, "starters-gone", "from33").sim).toBeCloseTo(0.3, 12);
+    expect(check(g, "starters-gone", "upTo25, later window 2033-2045").sim).toBeCloseTo(0.15, 12);
+    expect(check(g, "retired-signed", "from33, own choice while signed")).toMatchObject({ sim: expect.closeTo(0.2, 12), ref: NFL_CAREERS.retiredList.byAge.from33.share.value, status: "REPORTED" });
+    expect(check(g, "retired-signed", "from33, any way").sim).toBeCloseTo(0.4, 12);
+    expect(check(g, "retired-signed", "upTo25, own choice while signed").sim).toBe(0);
+    expect(check(g, "retired-signed", "every age, own choice while signed").sim).toBeCloseTo(2 / 30, 12);
+    expect(check(g, "retired-signed", "retirements a season, unsigned").sim).toBe(3);
+    expect(check(g, "retired-signed", "retirements a season, ownUnsigned").sim).toBe(1);
+  });
+
+  it("rookies' ages on the 53s counted like the NFL, and availability by age (the sim's alone)", () => {
+    const g = gradeCareerCheck(passingInput(aging(passing())));
+    expect(check(g, "rookie-age", "mean age (whole years)")).toMatchObject({ sim: expect.closeTo(22.67, 12), ref: NFL_CAREERS.weekEight.rookieAge.meanWhole, status: "PASS" });
+    expect(check(g, "rookie-age", "share age22").sim).toBeCloseTo(85 / 270, 12);
+    const nfl = gradeCareerCheck(passingInput(withNfl(passing(), (p) => ({ ...p, rookieAge: { n: 10, mean: 24, histogram: { "24": 10 } } }))));
+    expect(check(nfl, "rookie-age", "mean age (whole years)").sim).toBe(24);
+    expect(check(nfl, "rookie-age", "share age24").sim).toBe(1);
+    expect(check(g, "availability", "upTo25")).toMatchObject({ sim: expect.closeTo(0.9, 12), ref: null, status: "REPORTED" });
+    expect(check(g, "availability", "from33").sim).toBeCloseTo(0.8, 12);
+    expect(check(g, "availability", "every age").sim).toBeCloseTo(1 - 20 / 150, 12);
+    expect(check(g, "availability", "from33, later window 2033-2045").status).toBe("REPORTED");
   });
 });
