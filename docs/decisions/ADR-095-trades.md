@@ -96,12 +96,22 @@ Built on ADR-085's value and look-ahead so a GM judges a man the same way signin
 - **The shared blend:** our league's measured value of each slot (what the players taken there turn
   into, from the draft's many-draft runs) and the real market chart.
 - **Templates:** every GM is assigned one named curve when made and keeps it. His curve = 80% blend
-  + 20% template (CHOSEN; owner: the template gets "a small percentage of the blend"). Templates:
-  **Steep** (the early-1990s chart), **Market** (charts fitted to real trades), **Flat** (charts from
-  what picks produced, e.g. second-contract pay), **Patient** (Market shape, small future discount),
-  **Now** (Market shape, large future discount). The draw leans on his background (ADR-094 §10) but is
-  never fixed by it. Held as an open key on his ratings, `pickCurve`, so no contracts edit; drawn on
-  its own fork (`franchise:pickCurve`, by his id).
+  + 20% template (CHOSEN; owner: the template gets "a small percentage of the blend"). Shape
+  templates (owner's two first, 14:20Z): **Top-heavy** (early picks worth a lot, late ones little;
+  the early-1990s chart's shape), **Middle rounds** (early and late worth less, the middle most:
+  value per rookie dollar), **Production** (what the players taken there turned into, before cost),
+  **Market** (what teams pay each other for picks, counted from real pick-for-pick trades at build).
+  Counted from nflverse `draft_picks.csv`, drafts 2000-2016 (4,372 picks), value to the drafting
+  team (`dr_av`) by pick, with our real 2026 rookie scale for cost: production indexed to pick 1 =
+  100 runs 91 (2-5), 62 (21-32), 38 (49-64), 23 (97-128), 7 (225-262); per rookie dollar it peaks at
+  picks 33-128, about 2 to 2.5 times a top-5 pick, and falls again in rounds 6-7. COMPUTED. The
+  Top-heavy numbers (3,000 for pick 1, 590 for pick 32) are REPORTED from memory, checked at build.
+  The draw leans on his background (ADR-094 §10) but is never fixed by it. Held as an open key on
+  his ratings, `pickCurve`, so no contracts edit; drawn on its own fork (`franchise:pickCurve`, by
+  his id).
+- **The future-pick dial:** separate from the shape, each GM's own markdown of next year's pick
+  against this year's (open key `futurePickDiscount`, its own fork), centered on about a round
+  lower (REPORTED rule of thumb). Patient and Now were first proposed as shapes and are this dial.
 - **The team's course tilts it:** rebuilding about +10%, contending about -10% on pick value
   (owner's ruling; the 10% is CHOSEN).
 - **Expected compensatory picks count** (ADR-086 N2, the owner's Mac Jones example).
@@ -177,4 +187,4 @@ same talk.
 - **X3** `PlayerContract.noTradeClause?: boolean`.
 - **X4** Save: open talks, pending physicals, leaked findings.
 
-Open keys with no edit: `pickCurve`, `tradeStyle` on a GM's ratings; ledger moves as free strings.
+Open keys with no edit: `pickCurve`, `futurePickDiscount`, `tradeStyle` on a GM's ratings; ledger moves as free strings.
