@@ -35,6 +35,9 @@
  * so their rows keep a folder of their own and a default run's folder is what it was; a seed's
  * record and checkpoint name them, and a resumed seed plays under its checkpoint's. `--grade` with
  * them grades that folder, and writes `career-check-pass<N>-<name>` unless `--report` says where.
+ * The grade reads each record's own options and refuses rows played under others (or a mix); a
+ * `--build <fingerprint>` grade with no aging flags takes the rows' own options. The report's name
+ * and header, and its JSON's `meta.aging`, name the options the rows were played under.
  *
  * Paths given on the command line are read from the folder the command was typed in.
  */
@@ -46,7 +49,7 @@ import { DEFAULT_CALLER_VERSION } from "../caller/anticipate.js";
 import type { CapCheckInput } from "./capCheck.js";
 import type { CareerCheckRows } from "./careerCheck.js";
 import {
-  CAREER_ENGINE_RULES, CAREER_SEED_SETS, careerFingerprint, isCareerArm, listCareerBuilds, readCareerRecords, runCareerSeed, seedOf,
+  CAREER_ENGINE_RULES, CAREER_SEED_SETS, careerFingerprint, gradedAging, isCareerArm, listCareerBuilds, readCareerRecords, runCareerSeed, seedOf,
   type CareerArm, type CareerSeedRecord,
 } from "./careerCheckRun.js";
 import { gradeCareerCheck, gradedLeague, renderGradeJson, renderGradeMarkdown, type GradeWindows } from "./careerGrade.js";
@@ -68,6 +71,8 @@ interface Args {
   readonly build?: string;
   /** The aging options, settled (AB3); `{}` at the defaults. */
   readonly aging: AgingSwitches;
+  /** Some aging flag was typed (a `--build` grade with none takes the rows' own options). */
+  readonly agingTyped: boolean;
 }
 
 function parse(argv: readonly string[]): Args {
@@ -104,13 +109,14 @@ function parse(argv: readonly string[]): Args {
   if (!Number.isInteger(seasons) || seasons < 1) throw new SyntaxError("--seasons must be a whole number, 1 or more");
   if (!isCareerArm(arm)) throw new SyntaxError(`unknown arm ${arm}: both, development, incumbent or form`);
   const aging = settleAging(agingFlags);
+  const agingTyped = Object.keys(agingFlags).length > 0;
   if (grade) {
     if (pass !== 1 && pass !== 2) throw new SyntaxError("--grade needs --pass 1 or --pass 2");
     if (seed !== undefined || set !== undefined) throw new SyntaxError("--grade reads the grade seeds' rows; name others with --seeds a,b");
     if (build !== undefined && !/^[0-9a-f]{16}$/.test(build)) throw new SyntaxError("--build names a build's fingerprint: 16 hex digits");
     return {
       league, seasons, grade, pass, arm, smoke, ...(seeds ? { seeds } : {}), ...(coachSeeds ? { coachSeeds } : {}), ...(report ? { report } : {}),
-      ...(build ? { build } : {}), aging,
+      ...(build ? { build } : {}), aging, agingTyped,
     };
   }
   if (build !== undefined) throw new SyntaxError("--build is for --grade");
@@ -121,7 +127,7 @@ function parse(argv: readonly string[]): Args {
     seed = seedOf(set, index);
   }
   if (seed === undefined) throw new SyntaxError("give --seed <seed>, or --seed-set tune|grade --index <n>");
-  return { league, seasons, grade, arm, seed, smoke, ...(out ? { out } : {}), aging };
+  return { league, seasons, grade, arm, seed, smoke, ...(out ? { out } : {}), aging, agingTyped };
 }
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
@@ -184,6 +190,12 @@ if (!args.grade) {
   const rows = rowsOf("both", seeds);
   const incumbent = rowsOf("incumbent", coachSeeds);
   const form = rowsOf("form", coachSeeds);
+  // AB3 review: the rules the rows were played under, from their records (one set, or refused). The
+  // tree's build was fingerprinted with the flags' options, so its rows must be those; a --build grade
+  // with no aging flags takes the rows' own, and names and heads the report by them.
+  const graded = gradedAging(read, args.build !== undefined && !args.agingTyped ? undefined : args.aging);
+  const gradedName = agingLabel(graded);
+  if (gradedName !== undefined) console.log(`career-check: the rows were played with the players aging by ability (${gradedName}; ADR-087 §12)`);
   // The league the rows were played on, from their records, not the file on disk now (a --build grade of older rows).
   const played = gradedLeague(read, league);
   if (played.treeLeague !== undefined) {
@@ -203,11 +215,11 @@ if (!args.grade) {
     ...(windows ? { windows } : {}),
     meta: {
       seasons: args.seasons, league: played.league, ...(played.treeLeague ? { treeLeague: played.treeLeague } : {}), fingerprints,
-      engineRules: CAREER_ENGINE_RULES, callerVersion, ...(args.smoke ? { smoke: true } : {}),
+      engineRules: CAREER_ENGINE_RULES, callerVersion, ...(gradedName === undefined ? {} : { aging: gradedName }), ...(args.smoke ? { smoke: true } : {}),
     },
   });
   const base = args.report !== undefined ? fromCaller(args.report)
-    : join(root, "reports", `career-check-pass${args.pass}${agingName === undefined ? "" : `-${agingName}`}`);
+    : join(root, "reports", `career-check-pass${args.pass}${gradedName === undefined ? "" : `-${gradedName}`}`);
   mkdirSync(dirname(base), { recursive: true });
   writeFileSync(`${base}.md`, renderGradeMarkdown(grade));
   writeFileSync(`${base}.json`, renderGradeJson(grade));
@@ -219,7 +231,8 @@ if (!args.grade) {
     for (const b of builds) {
       const other = b.version !== null && !b.gradable
         ? ` (check version ${String(b.version.check)}, rows ${String(b.version.rows)}: not gradable on this build; play again on it)` : "";
-      console.log(`  ${b.fingerprint}${b.fingerprint === treeFingerprint ? " (the tree's)" : ""}: ${Object.entries(b.rows).map(([a, n]) => `${a} ${n}`).join(", ") || "none"}${other}`);
+      const named = b.aging === undefined ? "" : ` [aging ${b.aging}]`;
+      console.log(`  ${b.fingerprint}${b.fingerprint === treeFingerprint ? " (the tree's)" : ""}${named}: ${Object.entries(b.rows).map(([a, n]) => `${a} ${n}`).join(", ") || "none"}${other}`);
     }
   }
   console.log(`Wrote ${base}.md and ${base}.json`);

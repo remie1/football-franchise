@@ -8,16 +8,18 @@ import {
 } from "@ff/contracts";
 import { phaseWeeks } from "../src/calendar/clock.js";
 import {
-  ABILITY_CURVES, ABILITY_FOLLOWS, ABILITY_GROUP_MEMBERS, ABILITY_GROUP_OF, TECHNIQUE_KNEE, abilityBodyWeek, abilityLearningRate,
-  abilityRatingDeltas, abilityRules, abilityWorkoutsYear, abilityYear, agingSwitches, chartSpots, fadeLoss, legLossYear, shiftOf,
-  slowSmartsWeek, weekSide, yearsPast, type AbilityWeekInputs, type AgingOptions,
+  ABILITY_CURVES, ABILITY_FOLLOWS, ABILITY_GROUP_MEMBERS, ABILITY_GROUP_OF, SMARTS_SNAPS_HALVED, SPOT_ORDER, TECHNIQUE_KNEE, abilityBodyWeek,
+  abilityLearningRate, abilityRatingDeltas, abilityRules, abilityWorkoutsYear, abilityYear, agingSwitches, chartSpots, fadeLoss, legLossYear,
+  shiftOf, slowSmartsWeek, weekSide, yearsPast, type AbilityWeekInputs, type AgingOptions,
 } from "../src/players/aging.js";
-import { bodyScale } from "../src/players/body.js";
+import { FOLLOWS, bodyScale } from "../src/players/body.js";
 import {
-  EXPECTED_STARTER_SNAPS_PER_GAME, developmentWeek, expectedOverallChange, expectedOverallPath, learningRate, overallWithCarry, yearWeeks,
+  EXPECTED_STARTER_SNAPS_PER_GAME, developmentWeek, expectedOverallChange, expectedOverallPath, learningRate, overallWithCarry, slowSmartsShare,
+  yearWeeks,
 } from "../src/players/development.js";
-import { AGING_SHARES, GROUP_MEMBERS, LEARNING_RATE } from "../src/players/developmentTables.js";
-import { weeklyShare } from "../src/players/curves.js";
+import { AGING_SHARES, GROUP_MEMBERS, LEARNING_RATE, OWN_CURVES } from "../src/players/developmentTables.js";
+import { curveAt, weeklyShare } from "../src/players/curves.js";
+import { healWeek, lastingMark } from "../src/players/injuries.js";
 import { playerSteps, playerWeeks } from "../src/players/steps.js";
 import type { PlayerWeek } from "../src/players/types.js";
 import type { DayStepContext, LeaguePeople } from "../src/season/people.js";
@@ -72,7 +74,7 @@ function makePlayer(id: string, position: Position, age: number, o: MakeOptions 
 type WeekOf = (phase: CalendarPhase, week: number) => PlayerWeek | undefined;
 const away: PlayerWeek = { withTeam: false, practiced: 0, playShare: 0, snaps: 0, contests: [] };
 
-/** A team that misses the playoffs: spring programme, camp, preseason, the season with a bye; off otherwise. */
+/** A team that misses the playoffs: spring program, camp, preseason, the season with a bye; off otherwise. */
 function teamWeek(role: "STARTER" | "BACKUP"): WeekOf {
   return (phase, week) => {
     if (phase === "PLAYOFFS" || (OFFSEASON.has(phase) && phase !== "OFF_ROOKIES_OTAS")) return away;
@@ -135,17 +137,17 @@ describe("the ability groups (§12.2.1)", () => {
 });
 
 describe("test 1: no position (§12.2.7)", () => {
-  it("gives two men alike in every rating, record and shift, listed at different positions, the same deltas for 20 years", () => {
+  it("gives men alike in every rating, record and shift, listed at each of the 22 positions, the same deltas for 20 years", () => {
     const shift = { SPEED: 1.5, QUICKNESS: -0.5, TECHNIQUE: 1, SMARTS: -1, DURABILITY: 0.7 };
-    for (const [a, b] of [["RB", "LT"], ["QB", "K"], ["CB", "DT"]] as [Position, Position][]) {
-      let x = makePlayer("twin", a, 22, { fadeShift: shift, growth: 1.1 });
-      let y = makePlayer("twin", b, 22, { fadeShift: shift, growth: 1.1 });
-      for (let year = 0; year < 20; year++) {
-        x = runYear(x, teamWeek("STARTER"), ABILITY);
-        y = runYear(y, teamWeek("STARTER"), ABILITY);
-        expect(grown(y), `${a}/${b} at ${x.bio.age}`).toEqual(grown(x));
-        x = older(x); y = older(y);
-      }
+    expect(SPOT_ORDER.length).toBe(22);
+    // One reference man, listed QB, and a twin at every position (QB too), year by year.
+    let reference = makePlayer("twin", "QB", 22, { fadeShift: shift, growth: 1.1 });
+    let twins = SPOT_ORDER.map((pos) => makePlayer("twin", pos, 22, { fadeShift: shift, growth: 1.1 }));
+    for (let year = 0; year < 20; year++) {
+      reference = runYear(reference, teamWeek("STARTER"), ABILITY);
+      twins = twins.map((t) => runYear(t, teamWeek("STARTER"), ABILITY));
+      twins.forEach((t) => expect(grown(t), `${t.bio.position} at ${reference.bio.age}`).toEqual(grown(reference)));
+      reference = older(reference); twins = twins.map(older);
     }
     // The position path does tell them apart (so the test has teeth).
     const rb = runYear(makePlayer("twin", "RB", 31, { seasons: 9 }), teamWeek("STARTER"));
@@ -176,6 +178,12 @@ describe("test 1: no position (§12.2.7)", () => {
     const wb = playerWeeks(listedCb, b.ctx, b.reports, "ability").get(id)!;
     expect(wa.playShare).toBeGreaterThan(0);
     expect(wb).toEqual(wa);
+    // Listed at a specialist's spot or anywhere else, the WR key still decides his week.
+    for (const pos of ["K", "P", "LS", "QB", "SS"] as Position[]) {
+      const other = relist(listedWr, id, pos);
+      const c = weekOf(other);
+      expect(playerWeeks(other, c.ctx, c.reports, "ability").get(id), pos).toEqual(wa);
+    }
     // On the position path his listed side decides: listed CB, he gets no offensive share.
     expect(playerWeeks(listedCb, b.ctx, b.reports).get(id)!.playShare).toBe(0);
     // The whole week through the players' steps (coordinator and share included).
@@ -229,12 +237,32 @@ describe("test 1: no position (§12.2.7)", () => {
     expect(weekSide(undefined, [])).toBeUndefined();
   });
 
-  it("never reads a listed position in players/aging.ts (the owner's rule): no bio.position, no POSITION_GROUP", () => {
-    const source = readFileSync(new URL("../src/players/aging.ts", import.meta.url), "utf8");
-    expect(source).not.toMatch(/bio\.position/);
-    expect(source).not.toMatch(/POSITION_GROUP/);
-    expect(source).not.toMatch(/sideOf\(/);
-    expect(source).not.toMatch(/AGING_PROFILES/);
+  it("never reads a listed position in players/aging.ts or the ability path's inputs (the owner's rule): no bio.position, no POSITION_GROUP", () => {
+    // The code without its comments and string literals: no identifier `position` at all (bio.position,
+    // bio["position"], a destructured { position }), no position-group table, no listed side.
+    const code = (text: string) => text
+      .replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "")
+      .replace(/"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(?:[^`\\]|\\.)*`/g, '""');
+    const check = (what: string, text: string) => {
+      expect(text, what).not.toMatch(/bio\s*\??\.\s*position/);
+      expect(text, what).not.toMatch(/\[\s*["'`]position["'`]\s*\]/);
+      expect(code(text), what).not.toMatch(/\bposition\b/);
+      expect(text, what).not.toMatch(/POSITION_GROUP/);
+      expect(text, what).not.toMatch(/sideOf\(/);
+      expect(text, what).not.toMatch(/AGING_PROFILES/);
+    };
+    check("aging.ts", readFileSync(new URL("../src/players/aging.ts", import.meta.url), "utf8"));
+    // development.ts reads bio.position on the position path, so only the ability path's own functions
+    // are read there: its week inputs (and `weekInputs`, which they call) and slow smarts' share.
+    const development = readFileSync(new URL("../src/players/development.ts", import.meta.url), "utf8");
+    for (const fn of ["function weekInputs(", "function abilityWeekInputs(", "export function slowSmartsShare("]) {
+      const from = development.indexOf(fn);
+      expect(from, fn).toBeGreaterThan(0);
+      check(fn, development.slice(from, development.indexOf("\n}\n", from)));
+    }
+    // The test itself bites: a planted read is caught.
+    expect(() => check("planted", "const { position } = p.bio;")).toThrow();
+    expect(() => check("planted", "p.bio[\"position\"]")).toThrow();
   });
 });
 
@@ -265,19 +293,46 @@ describe("test 2: the curves' shape (§12.2.1)", () => {
     const typical = runYear(makePlayer("g", "WR", 22), teamWeek("STARTER"), ABILITY);
     const late = runYear(makePlayer("g", "WR", 22, { fadeShift: allShifted(2) }), teamWeek("STARTER"), ABILITY);
     expect(grown(late)).toEqual(grown(typical));
-    // At 30 the gains are a 30-year-old's (learning, workouts, own curves' gains), only the losses move:
-    // the week's body change less its aging is the same for a +2 shift.
+    // The body's gain side (workouts) at 23 to 26, where workouts are above 0: the week's body change
+    // less its aging is the same for a +2 shift, at the man's own age, not his shifted age.
     const dev = { fadeShift: allShifted(2) };
     const ability = abilityRules(ABILITY)!;
-    for (const phase of ["OFF_ROOKIES_OTAS", "TRAINING_CAMP", "REGULAR_SEASON"] as CalendarPhase[]) {
-      const share = weeklyShare(AGING_SHARES, phase, RULES);
-      const gain = (d: Pick<PlayerDevelopment, "fadeShift">) => {
-        const week = abilityBodyWeek(30, d, 1, true, phase, RULES, ability);
-        const aging = abilityYear(30, d.fadeShift);
-        return { forty: (week.forty ?? 0) - (aging.forty ?? 0) * share, bench: (week.bench ?? 0) - (aging.bench ?? 0) * share };
-      };
-      expect(gain(dev).forty).toBeCloseTo(gain({}).forty, 12);
-      expect(gain(dev).bench).toBeCloseTo(gain({}).bench, 12);
+    for (const age of [23, 24, 25, 26]) {
+      for (const phase of ["OFF_ROOKIES_OTAS", "TRAINING_CAMP", "REGULAR_SEASON", "OFF_SUMMER"] as CalendarPhase[]) {
+        const share = weeklyShare(AGING_SHARES, phase, RULES);
+        const gain = (d: Pick<PlayerDevelopment, "fadeShift">, withTeam: boolean) => {
+          const week = abilityBodyWeek(age, d, 1.2, withTeam, phase, RULES, ability);
+          const aging = abilityYear(age, d.fadeShift);
+          return { forty: (week.forty ?? 0) - (aging.forty ?? 0) * share, bench: (week.bench ?? 0) - (aging.bench ?? 0) * share };
+        };
+        for (const withTeam of [true, false]) {
+          expect(gain(dev, withTeam).forty, `${age} ${phase}`).toBeCloseTo(gain({}, withTeam).forty, 12);
+          expect(gain(dev, withTeam).bench, `${age} ${phase}`).toBeCloseTo(gain({}, withTeam).bench, 12);
+        }
+      }
+      // There is a gain to compare: a year of workouts at this age moves the 40 and the bench.
+      expect(abilityWorkoutsYear(age, 1.2).forty).not.toBe(0);
+      expect(abilityWorkoutsYear(age, 1.2).bench).not.toBe(0);
+      expect(abilityWorkoutsYear(age, 1.2)).not.toEqual(abilityWorkoutsYear(age - 2, 1.2));
+    }
+    // The ratings' gain side at 23 to 26: learning (the same inputs) and the own curves' gains (armStrength,
+    // stamina and the rest still gain here) are the same for a +2 shift; only the fades' losses move.
+    const inputs: AbilityWeekInputs = {
+      common: 0.02, disguise: 0.01, practising: true, performance: new Map(), smartsSnaps: 0.004, passingSnaps: 0.002, slowSmarts: 0, ageShare: 1 / 20,
+    };
+    const own = Object.keys(OWN_CURVES);
+    const movedIds = [...GROUP_MEMBERS.BODY_PRACTICE, ...GROUP_MEMBERS.SKILL, ...GROUP_MEMBERS.SMARTS, ...own];
+    for (const age of [23, 24, 25, 26]) {
+      const late = abilityRatingDeltas(age, dev, inputs, () => 0, 1.2, ability);
+      const typical = abilityRatingDeltas(age, {}, inputs, () => 0, 1.2, ability);
+      movedIds.forEach((attr, k) => {
+        const g = ABILITY_GROUP_OF[attr]!;
+        const loss = (s: number) => (["TECHNIQUE", "PASSING", "KICKING", "SMARTS"].includes(g)
+          ? fadeLoss(D[g as "TECHNIQUE"], age, s) * inputs.ageShare : 0);
+        // Gain = delta + the fade's loss; the own curves gain at these ages for every shift.
+        expect(late[k]! + loss(2), `${attr} at ${age}`).toBeCloseTo(typical[k]! + loss(0), 12);
+      });
+      for (const attr of own) if (curveAt(OWN_CURVES[attr as keyof typeof OWN_CURVES], age) > 0) expect(typical[movedIds.indexOf(attr)]).toBeGreaterThan(0);
     }
     expect(abilityWorkoutsYear(30, 1)).toEqual(abilityWorkoutsYear(30, 1, D));
   });
@@ -395,7 +450,8 @@ describe("test 7: slow smarts (§12.2.4)", () => {
     const before = bodyScale(dev.body, 220);
     const after = bodyScale({ ...dev.body, forty: dev.body.forty + year.forty!, cone: dev.body.cone + year.cone! }, 220);
     expect(at(30)).toBeCloseTo(before.speed - after.speed + before.agility - after.agility, 9);
-    // A season as a starter at 31 against the same season with no snaps: the starter's smarts gain the slow-smarts part too.
+    // At 31 a typical man's legs lose more than half a point a year (slow smarts' input; the week's own
+    // use of it is pinned in "slow smarts through the development week" below).
     const p = makePlayer("ss", "MLB", 31, { seasons: 9 });
     const loss = legLossYear(31, p.attributes.development!, 220, 1, ability);
     expect(loss).toBeGreaterThan(0.5);
@@ -519,6 +575,10 @@ describe("the options (§12.1)", () => {
     expect(agingSwitches({ ...ABILITY, abilityCurves: "D" }, true)).toEqual({ aging: "ability" });
     expect(agingSwitches({ ...ABILITY, abilityCurves: "B", techniqueKnee: true, smartsSnaps: 0.225 }, true))
       .toEqual({ aging: "ability", abilityCurves: "B", techniqueKnee: true, smartsSnaps: 0.225 });
+    // A smarts-snaps value equal to the set's own is the set's rules, so it is not recorded (D and B: 0.45).
+    expect(agingSwitches({ ...ABILITY, smartsSnaps: D.smartsSnaps }, true)).toStrictEqual({ aging: "ability" });
+    expect(agingSwitches({ ...ABILITY, abilityCurves: "B", smartsSnaps: ABILITY_CURVES.B.smartsSnaps }, true)).toStrictEqual({ aging: "ability", abilityCurves: "B" });
+    expect(agingSwitches({ ...ABILITY, smartsSnaps: 0 }, true)).toStrictEqual({ aging: "ability", smartsSnaps: 0 });
     const people = startingPeople();
     const day: CalendarStamp = { season: 2027, phase: "TRAINING_CAMP", week: 1, day: 7 };
     const ctx: DayStepContext = { day, season: 2027, seed: "memory", rules: RULES, state: { season: 2027, schedule: { season: 2027, games: [], byes: [] }, results: [], standings: [] }, games: [] };
@@ -646,5 +706,290 @@ describe("a season on the ability path, straight and carried on through a save (
       resumeFrom: loaded.save.world.season!, stepsDoneThrough: loaded.save.calendar, resumeEvents: loaded.development!.events,
     });
     expect(JSON.stringify(second.events)).toBe(JSON.stringify(straight.events));
+  });
+});
+
+// --- AB3 review: the fitted numbers, the toy, and the rules as the week reads them ----------------
+
+describe("the fitted sets' numbers (§12.2.1, §12.2.5, §12.6)", () => {
+  it("are §12.2.1's variant D and variant B, every number, the knee §12.2.5's, and O2 half of D's smarts snaps", () => {
+    // Copied from ADR-087 §12.2.1 (CHOSEN, fitted in the toy; equal to the toy's fit-D.json and fit-B.json).
+    expect(ABILITY_CURVES.D).toEqual({
+      SPEED: { start: 25, per: 0.00731, cap: 8 },
+      QUICKNESS: { start: 23, per: 0.012, cap: 8 },
+      SPRING: { start: 28, per: 0.1582, cap: 8 },
+      STRENGTH: { start: 28, per: 0.206, cap: 8 },
+      TECHNIQUE: { start: 29, per: 0.19775, cap: 8 },
+      PASSING: { start: 33, per: 0.625, cap: 8 },
+      KICKING: { start: 30, per: 0.58594, cap: 8 },
+      SMARTS: { start: 26, per: 0.35156, cap: 10 },
+      learningFloor: 0.08,
+      workoutAge: [[22, 1], [25, 0.1], [28, 0]],
+      smartsSnaps: 0.45,
+      passingSnaps: 0.15,
+      slowSmarts: 0.2,
+    });
+    expect(ABILITY_CURVES.B).toEqual({
+      SPEED: { start: 27, per: 0.00731, cap: 8 },
+      QUICKNESS: { start: 22, per: 0.009, cap: 8 },
+      SPRING: { start: 31, per: 0.09492, cap: 8 },
+      STRENGTH: { start: 31, per: 0.17578, cap: 8 },
+      TECHNIQUE: { start: 29, per: 0.35156, cap: 8 },
+      PASSING: { start: 29, per: 0.5, cap: 8 },
+      KICKING: { start: 30, per: 0.58594, cap: 8 },
+      SMARTS: { start: 31, per: 0.3, cap: 10 },
+      learningFloor: 0.06,
+      workoutAge: [[22, 1], [25, 0.3], [28, 0]],
+      smartsSnaps: 0.45,
+      passingSnaps: 0.3,
+      slowSmarts: 0,
+    });
+    // §12.2.5: knee at 31 (CHOSEN, the owner's), 0.6 after it (GUESS).
+    expect(TECHNIQUE_KNEE).toEqual({ age: 31, perAfterKnee: 0.6 });
+    // §12.6, D+O2: smarts snaps halved, 0.45 to 0.225 (AB9-T4).
+    expect(SMARTS_SNAPS_HALVED).toBe(0.225);
+    expect(SMARTS_SNAPS_HALVED).toBe(D.smartsSnaps / 2);
+  });
+});
+
+describe("the toy's typical starter (the AB3 toy check, pinned)", () => {
+  // The toy's typical starter at QB, RB, LT and K (talent 0.6, entering at 21, growth 1, every snap,
+  // camp to camp) and the toy's own variant D yearly overall changes at shift 0 (MEASURED, toy,
+  // fixtures/typical-starters-D.json). Franchise's path gives them to 0.002 a year; a curve change fails here.
+  const fixture = JSON.parse(readFileSync(new URL("./fixtures/typical-starters-D.json", import.meta.url), "utf8")) as {
+    entry: number; season: number;
+    men: Record<string, { heightIn: number; weightLb: number; body: PlayerDevelopment["body"]; values: AttributeMap; toyD: number[] }>;
+  };
+  it("gives the toy's variant D a year at a time from 21 to 38 at QB, RB, LT and K, within 0.005 points", () => {
+    for (const [pos, man] of Object.entries(fixture.men)) {
+      const p: PlayerState = {
+        bio: {
+          id: playerId(`toy-${pos}`), displayName: "toy", position: pos as Position, age: fixture.entry, heightIn: man.heightIn, weightLb: man.weightLb,
+          draft: { year: fixture.season, round: 3, pick: 70 }, creditedSeasons: 0,
+        },
+        attributes: { kind: "true", values: man.values, traits: new Set(), development: { growth: 1, snaps: 0, carry: {}, body: man.body } },
+        condition: { stamina: 100, morale: 0 }, personality: { needs: {}, type: "quiet" }, teamId: teamId("T1"),
+      };
+      const camp: CalendarStamp = { season: fixture.season, phase: "TRAINING_CAMP", week: 1, day: 1 };
+      const path = expectedOverallPath(p, { at: camp, starter: true, years: man.toyD.length, ...ABILITY });
+      const years = path.map((x, i) => x - (i === 0 ? 0 : path[i - 1]!));
+      years.forEach((y, i) => expect(Math.abs(y - man.toyD[i]!), `${pos} at ${fixture.entry + i}: franchise ${y.toFixed(4)}, toy ${man.toyD[i]}`).toBeLessThan(0.005));
+    }
+  });
+});
+
+describe("slow smarts through the development week (§12.2.4)", () => {
+  const ability = abilityRules(ABILITY)!;
+  const GAME_WEEK: CalendarStamp = { season: SEASON, phase: "REGULAR_SEASON", week: 3, day: 7 };
+  /** One game week: these snaps and this play share; practice and everything else the same. */
+  const weekWith = (p: PlayerState, snaps: number, playShare = 1, options: AgingOptions = ABILITY) => developmentWeek({
+    players: [p], at: GAME_WEEK, rules: RULES, seed: SEED, ...options,
+    weeks: new Map([[String(p.bio.id), { withTeam: true, practiced: 1, playShare, snaps, contests: [] }]]),
+  }).players[0]!;
+
+  it("takes his snaps over a starter's 65 a game as the share, not his play share: a starter 1, a kicker's 10 snaps 10/65", () => {
+    const p = makePlayer("slow", "MLB", 31, { seasons: 9 });
+    const loss = legLossYear(31, p.attributes.development!, p.bio.weightLb, 1, ability);
+    expect(loss).toBeGreaterThan(0.5);
+    expect(EXPECTED_STARTER_SNAPS_PER_GAME).toBe(65);
+    for (const playShare of [1, 0.5, 0.2]) {
+      const none = weekWith(p, 0, playShare);
+      for (const snaps of [65, 80, 32.5, 10]) {
+        const w = weekWith(p, snaps, playShare);
+        const share = Math.min(1, snaps / 65);
+        expect(slowSmartsShare(snaps)).toBeCloseTo(share, 12);
+        // Each SMARTS rating: the smarts snaps plus slow smarts at that share, whatever his play share.
+        const slow = slowSmartsWeek(D.slowSmarts, loss, share, RULES);
+        expect(slow).toBeGreaterThan(0);
+        for (const a of GROUP_MEMBERS.SMARTS) expect(eff(w, a) - eff(none, a), `${a}: ${snaps} snaps, play share ${playShare}`).toBeCloseTo(D.smartsSnaps * snaps / 1000 + slow, 9);
+        // TECHNIQUE takes neither, KICKING neither.
+        expect(eff(w, "tackling") - eff(none, "tackling")).toBeCloseTo(0, 12);
+        expect(eff(w, "kickAccuracy") - eff(none, "kickAccuracy")).toBeCloseTo(0, 12);
+      }
+    }
+    // A kicker's week (10 snaps, his side's busiest man's share 1): about 0.15 of a starter's slow smarts.
+    expect(slowSmartsShare(10)).toBeCloseTo(10 / 65, 12);
+    expect(slowSmartsShare(0)).toBe(0);
+    expect(slowSmartsShare(200)).toBe(1);
+  });
+
+  it("is none in set B (c = 0): a game week's SMARTS gain from snaps is the smarts snaps alone", () => {
+    const p = makePlayer("slow-b", "MLB", 31, { seasons: 9 });
+    const B = { ...ABILITY, abilityCurves: "B" as const };
+    const w = weekWith(p, 65, 1, B), none = weekWith(p, 0, 1, B);
+    for (const a of GROUP_MEMBERS.SMARTS) expect(eff(w, a) - eff(none, a)).toBeCloseTo(ABILITY_CURVES.B.smartsSnaps * 65 / 1000, 9);
+  });
+
+  it("nets a full year's workouts at the set's own workout ages against the year's aging (24 to 27, where workouts are above 0)", () => {
+    const dev = makePlayer("l", "MLB", 24).attributes.development!;
+    let netted = 0;
+    for (let age = 24; age <= 27; age++) {
+      for (const growth of [0.6, 1, 1.3]) {
+        for (const fadeShift of [undefined, { QUICKNESS: -2, SPEED: -2 }]) {
+          const d = { ...dev, ...(fadeShift ? { fadeShift } : {}) };
+          const aging = abilityYear(age, fadeShift), work = abilityWorkoutsYear(age, growth);
+          const before = bodyScale(dev.body, 220);
+          const points = (forty: number, cone: number) => {
+            const after = bodyScale({ ...dev.body, forty: dev.body.forty + forty, cone: dev.body.cone + cone }, 220);
+            return Math.max(0, before.speed - after.speed + before.agility - after.agility);
+          };
+          const want = points(aging.forty! + work.forty!, aging.cone! + work.cone!);
+          expect(legLossYear(age, d, 220, growth, ability), `${age} growth ${growth}`).toBeCloseTo(want, 12);
+          if (Math.abs(want - points(aging.forty!, aging.cone!)) > 1e-6) netted++;
+        }
+      }
+    }
+    // The workouts do move it in some of these cells.
+    expect(netted).toBeGreaterThan(0);
+  });
+});
+
+describe("the ability path's rules as the week reads them (§12.2.1)", () => {
+  const ability = abilityRules(ABILITY)!;
+
+  it("takes the smarts-snaps override in place of the set's own: O2's halved value, (0.45 − 0.225) × snaps / 1,000 × growth less a year", () => {
+    const p = makePlayer("o2", "MLB", 27, { seasons: 5, growth: 1.2 });
+    const full = runYear(p, teamWeek("STARTER"), ABILITY);
+    const half = runYear(p, teamWeek("STARTER"), { ...ABILITY, smartsSnaps: SMARTS_SNAPS_HALVED });
+    const snaps = full.attributes.development!.snaps - p.attributes.development!.snaps;
+    expect(snaps).toBe(STARTER_SNAPS * (phaseWeeks("REGULAR_SEASON", RULES) - 1));
+    for (const a of GROUP_MEMBERS.SMARTS) expect(eff(full, a) - eff(half, a), a).toBeCloseTo((D.smartsSnaps - SMARTS_SNAPS_HALVED) * snaps / 1000 * 1.2, 9);
+    for (const a of ["tackling", "accuracy", "speed", "armStrength"]) expect(eff(half, a), a).toBeCloseTo(eff(full, a), 12);
+    // The set's own value, typed, is the set's rules.
+    expect(JSON.stringify(runYear(p, teamWeek("STARTER"), { ...ABILITY, smartsSnaps: D.smartsSnaps }))).toBe(JSON.stringify(full));
+  });
+
+  it("learns at the set's floor: a veteran's practice gain is the ability learning rate's share of the position path's, about 0.08 / 0.15", () => {
+    const p = makePlayer("vet", "MLB", 34, { seasons: 12 });
+    const at: CalendarStamp = { season: SEASON, phase: "TRAINING_CAMP", week: 2, day: 7 };
+    const one = (practiced: number, options: AgingOptions) => developmentWeek({
+      players: [p], at, rules: RULES, seed: SEED, ...options,
+      weeks: new Map([[String(p.bio.id), { withTeam: true, practiced, playShare: 0, snaps: 0, contests: [] }]]),
+    }).players[0]!;
+    const practice = (options: AgingOptions) => eff(one(1, options), "tackling") - eff(one(0, options), "tackling");
+    const ability = practice(ABILITY), position = practice({});
+    expect(position).toBeGreaterThan(0);
+    const ratio = abilityLearningRate(34, 12, D.learningFloor) / learningRate(34, 12);
+    expect(ability / position).toBeCloseTo(ratio, 9);
+    expect(ratio).toBeLessThan(0.6);
+    expect(ratio).toBeGreaterThan(0.08 / 0.15 - 0.01);
+  });
+
+  it("reads every rating group's loss at his shifted age: +2 is the same man two years younger on the loss side", () => {
+    const zero: AbilityWeekInputs = { common: 0, disguise: 0, practising: false, performance: new Map(), smartsSnaps: 0, passingSnaps: 0, slowSmarts: 0, ageShare: 1 };
+    const own = Object.keys(OWN_CURVES) as (keyof typeof OWN_CURVES)[];
+    const movedIds = [...GROUP_MEMBERS.BODY_PRACTICE, ...GROUP_MEMBERS.SKILL, ...GROUP_MEMBERS.SMARTS, ...own];
+    const bitten = new Set<string>();
+    for (let age = 24; age <= 46; age++) {
+      const late = abilityRatingDeltas(age, { fadeShift: allShifted(2) }, zero, () => 0, 1, ability);
+      const younger = abilityRatingDeltas(age - 2, {}, zero, () => 0, 1, ability);
+      const typical = abilityRatingDeltas(age, {}, zero, () => 0, 1, ability);
+      movedIds.forEach((attr, k) => {
+        const g = ABILITY_GROUP_OF[attr]!;
+        if (["TECHNIQUE", "PASSING", "KICKING", "SMARTS"].includes(g)) {
+          expect(late[k], `${attr} at ${age}`).toBeCloseTo(younger[k]!, 12);
+          if (late[k] !== typical[k]) bitten.add(g);
+        } else if (own.includes(attr as keyof typeof OWN_CURVES)) {
+          const curve = OWN_CURVES[attr as keyof typeof OWN_CURVES];
+          if (curveAt(curve, age) <= 0) {
+            // A loss at his age: read at his shifted age, 0 while the shifted age still gains.
+            expect(late[k], `${attr} at ${age}`).toBeCloseTo(Math.min(0, curveAt(curve, age - 2)), 12);
+            if (curveAt(curve, age - 2) <= 0) expect(late[k], `${attr} at ${age}`).toBeCloseTo(younger[k]!, 12);
+            if (late[k] !== typical[k]) bitten.add(g);
+          }
+        }
+      });
+    }
+    // Each group's loss moved with the shift somewhere in these years.
+    expect([...bitten].sort()).toEqual(["ARM", "DURABILITY", "KICKING", "LEG", "PASSING", "SMARTS", "STAMINA", "TECHNIQUE"]);
+  });
+
+  it("takes each rating group's per in a year one past its start, through a whole year (TECHNIQUE, PASSING, KICKING, SMARTS)", () => {
+    // Two men alike but for that group's shift, at an age where one is at the start and one a year past it:
+    // their year differs by the group's per, exactly (the aging shares make one year).
+    expect(Object.values(AGING_SHARES).reduce((s, x) => s + x, 0)).toBeCloseTo(1, 12);
+    const age = 36;
+    for (const [g, attr] of [["TECHNIQUE", "tackling"], ["PASSING", "accuracy"], ["KICKING", "kickAccuracy"], ["SMARTS", "awareness"]] as const) {
+      const at0 = makePlayer("per", "MLB", age, { seasons: 14, fadeShift: { [g]: age - D[g].start } });
+      const at1 = makePlayer("per", "MLB", age, { seasons: 14, fadeShift: { [g]: age - D[g].start - 1 } });
+      const y0 = runYear(at0, teamWeek("BACKUP"), ABILITY), y1 = runYear(at1, teamWeek("BACKUP"), ABILITY);
+      expect(eff(y0, attr) - eff(y1, attr), g).toBeCloseTo(D[g].per, 9);
+    }
+    // And by age, as the PASSING check above: a kicker at 31 loses about KICKING's per more than at 30.
+    const at30 = makePlayer("k", "K", 30, { seasons: 8 }), at31 = makePlayer("k", "K", 31, { seasons: 9 });
+    const drop = change(at30, runYear(at30, teamWeek("STARTER"), ABILITY), ["kickAccuracy"]) - change(at31, runYear(at31, teamWeek("STARTER"), ABILITY), ["kickAccuracy"]);
+    expect(drop).toBeGreaterThan(D.KICKING.per - 0.1);
+    expect(drop).toBeLessThan(D.KICKING.per + 0.1);
+  });
+
+  it("wears durability: from 30 more wear takes strictly more of it", () => {
+    const inputs: AbilityWeekInputs = { common: 0, disguise: 0, practising: false, performance: new Map(), smartsSnaps: 0, passingSnaps: 0, slowSmarts: 0, ageShare: 1 };
+    const k = GROUP_MEMBERS.BODY_PRACTICE.length + GROUP_MEMBERS.SKILL.length + GROUP_MEMBERS.SMARTS.length + Object.keys(OWN_CURVES).indexOf("durability");
+    for (let age = 30; age <= 34; age++) {
+      const fresh = abilityRatingDeltas(age, {}, inputs, () => 0, 1, ability, 0)[k]!;
+      const worn = abilityRatingDeltas(age, {}, inputs, () => 0, 1, ability, 1)[k]!;
+      expect(worn, String(age)).toBeLessThan(fresh);
+      expect(worn).toBeCloseTo(curveAt(OWN_CURVES.durability, age + 1), 12);
+    }
+  });
+
+  it("lists a man on two chart keys at the first of them in SPOT_ORDER", () => {
+    const [a, b] = [playerId("two-a"), playerId("two-b")];
+    const spots = chartSpots({ depthChart: { K: [a], WR: [b, a], CB: [b], LS: [a] } });
+    expect(spots.get(String(a))).toBe("WR");
+    expect(spots.get(String(b))).toBe("WR");
+    expect(chartSpots({ depthChart: { LS: [a], K: [a] } }).get(String(a))).toBe("K");
+  });
+});
+
+describe("a lasting mark on the ability path (§12.2.1, 'Leaving SKILL')", () => {
+  const torn = (p: PlayerState, kind: string, since: CalendarStamp): PlayerState =>
+    ({ ...p, condition: { ...p.condition, injury: { kind, weeksRemaining: 1, playable: false, setting: "GAME", band: "MAJOR", since } } });
+
+  it("moves elusiveness and yac with the body when it slows his 40 and 3-cone, as aging does there; FOLLOWS leaves them", () => {
+    const p = makePlayer("acl", "RB", 26, { seasons: 4 });
+    const position = lastingMark(p, { kind: "acl", band: "MAJOR" }, 0);
+    const ability = lastingMark(p, { kind: "acl", band: "MAJOR" }, 0, ABILITY_FOLLOWS);
+    expect(eff(position.player, "elusiveness")).toBe(eff(p, "elusiveness"));
+    const before = bodyScale(p.attributes.development!.body, p.bio.weightLb);
+    const after = bodyScale(ability.player.attributes.development!.body, ability.player.bio.weightLb);
+    const moved = { speed: after.speed - before.speed, agility: after.agility - before.agility };
+    expect(moved.speed).toBeLessThan(0);
+    expect(eff(ability.player, "elusiveness") - eff(p, "elusiveness")).toBeCloseTo(0.3 * moved.speed + 0.6 * moved.agility, 9);
+    expect(eff(ability.player, "yac") - eff(p, "yac")).toBeCloseTo(0.4 * moved.speed + 0.4 * moved.agility, 9);
+    // Everything FOLLOWS moves, it moves the same.
+    for (const attr of Object.keys(FOLLOWS)) expect(eff(ability.player, attr), attr).toBeCloseTo(eff(position.player, attr), 12);
+    expect(ability.player.attributes.development!.body).toEqual(position.player.attributes.development!.body);
+    // healWeek hands its followers on.
+    const at: CalendarStamp = { season: SEASON, phase: "REGULAR_SEASON", week: 5, day: 7 };
+    const since: CalendarStamp = { season: SEASON, phase: "REGULAR_SEASON", week: 2, day: 7 };
+    const healed = healWeek({ at, players: [torn(p, "acl", since)], history: {}, follows: ABILITY_FOLLOWS }).players[0]!;
+    expect(eff(healed, "elusiveness")).toBeCloseTo(eff(ability.player, "elusiveness"), 12);
+    expect(eff(healWeek({ at, players: [torn(p, "acl", since)], history: {} }).players[0]!, "elusiveness")).toBe(eff(p, "elusiveness"));
+  });
+
+  it("is what the players' steps apply on the ability path, and not on the position path", () => {
+    const start = startingPeople();
+    const id = String(start.teams[0]!.depthChart.RB![0]);
+    const day: CalendarStamp = { season: WORLD_SEASON, phase: "REGULAR_SEASON", week: 3, day: 7 };
+    const since: CalendarStamp = { season: WORLD_SEASON, phase: "REGULAR_SEASON", week: 1, day: 7 };
+    const ctx: DayStepContext = {
+      day, season: WORLD_SEASON, seed: "mark-week", rules: RULES, games: [],
+      state: { season: WORLD_SEASON, schedule: { season: WORLD_SEASON, games: [], byes: [] }, results: [], standings: [] },
+    };
+    const hurt = (kind: string): LeaguePeople => ({ ...start, players: start.players.map((p) => (String(p.bio.id) === id ? torn(p, kind, since) : p)) });
+    const after = (config: Parameters<typeof playerSteps>[0], kind: string) =>
+      playerSteps(config)[0]!.run(hurt(kind), ctx)!.people.players.find((p) => String(p.bio.id) === id)!;
+    // Against a concussion of the same length (no lasting mark): the same week but for the mark.
+    for (const [config, follows] of [[{ development: true, injuries: true, ...ABILITY }, ABILITY_FOLLOWS], [{ development: true, injuries: true }, FOLLOWS]] as const) {
+      const marked = after(config, "acl"), plain = after(config, "concussion");
+      const was = start.players.find((p) => String(p.bio.id) === id)!;
+      const mark = lastingMark(was, { kind: "acl", band: "MAJOR" }, 0, follows);
+      for (const attr of ["elusiveness", "yac", "speed", "agility"]) {
+        expect(eff(marked, attr) - eff(plain, attr), `${attr} (${config.aging ?? "position"})`).toBeCloseTo(eff(mark.player, attr) - eff(was, attr), 9);
+      }
+      if (follows === FOLLOWS) expect(eff(marked, "elusiveness")).toBeCloseTo(eff(plain, "elusiveness"), 12);
+      else expect(eff(marked, "elusiveness")).toBeLessThan(eff(plain, "elusiveness"));
+    }
   });
 });

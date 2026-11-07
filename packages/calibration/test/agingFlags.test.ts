@@ -11,10 +11,13 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ABILITY_GROUPS, type CalendarStamp, type PlayerState } from "@ff/contracts";
-import { agingFromRecord, agingLabel, readAgingFlag, sameAging, settleAging, type AgingFlags } from "../src/season/agingFlags.js";
-import { runCapCheck, type CapCheckInput } from "../src/season/capCheck.js";
+import { generateDraftClass } from "@ff/attributes";
+import {
+  SET_SMARTS_SNAPS, agingFromRecord, agingLabel, readAgingFlag, sameAging, seasonAging, seasonPlayers, settleAging, type AgingFlags,
+} from "../src/season/agingFlags.js";
+import { draftClassOptions, runCapCheck, type CapCheckInput } from "../src/season/capCheck.js";
 import { ABILITY_GROUP_COPY, ABILITY_GROUP_DIGEST } from "../src/season/careerAging.js";
-import { agingActsOn } from "../src/season/playerChecksRun.js";
+import { ARMS, agingActsOn, agingForArms, armSwitches } from "../src/season/playerChecksRun.js";
 import { agingOf, runRealSeason } from "../src/season/realSeason.js";
 import { readStandInFile } from "../src/season/standInLeague.js";
 import type { SeasonPeople } from "../src/season/realSeason.js";
@@ -46,6 +49,43 @@ describe("the aging flags (§12.1)", () => {
     expect(flags("--aging", "ability", "--ability-curves", "B", "--technique-knee", "--smarts-snaps", "0.225"))
       .toEqual({ aging: "ability", abilityCurves: "B", techniqueKnee: true, smartsSnaps: 0.225 });
     expect(flags("--ability-rules", "--smarts-snaps", "0")).toEqual({ aging: "ability", smartsSnaps: 0 });
+    // A smarts-snaps value equal to the chosen set's own is that set's rules: dropped, one name for one set of rules.
+    expect(flags("--aging", "ability", "--smarts-snaps", "0.45")).toStrictEqual({ aging: "ability" });
+    expect(flags("--aging", "ability", "--ability-curves", "B", "--smarts-snaps", "0.45")).toStrictEqual({ aging: "ability", abilityCurves: "B" });
+    expect(agingLabel({ aging: "ability", smartsSnaps: 0.45 })).toBe("ability");
+    expect(agingFromRecord({ development: true, injuries: true, aging: "ability", smartsSnaps: 0.45 })).toStrictEqual({ aging: "ability" });
+  });
+
+  it("holds each set's own smarts snaps as franchise's table does (ABILITY_CURVES, read from its source)", () => {
+    const source = readFileSync(join(__dirname, "..", "..", "franchise", "src", "players", "aging.ts"), "utf8");
+    const own = (set: "D" | "B") => Number(new RegExp(`\\n  ${set}: \\{[\\s\\S]*?\\n    smartsSnaps: ([0-9.]+),`).exec(source)?.[1]);
+    expect(own("D")).toBe(SET_SMARTS_SNAPS.D);
+    expect(own("B")).toBe(SET_SMARTS_SNAPS.B);
+    expect(SET_SMARTS_SNAPS).toEqual({ D: 0.45, B: 0.45 });
+  });
+
+  it("refuses the season command's aging flags with --load and --aging ability without --development, and carries a save's own on", () => {
+    const typed = (...argv: string[]) => { const into: AgingFlags = {}; for (let i = 0; i < argv.length; i++) readAgingFlag(argv[i]!, () => argv[++i]!, into); return into; };
+    expect(seasonAging({}, { load: true, development: false })).toEqual({});
+    expect(seasonAging(typed("--aging", "ability"), { load: false, development: true })).toEqual({ aging: "ability" });
+    expect(() => seasonAging(typed("--aging", "ability"), { load: true, development: false })).toThrow(/--load carries on with the save's own aging options/);
+    expect(() => seasonAging(typed("--aging", "position"), { load: true, development: false })).toThrow(/--load carries on/);
+    expect(() => seasonAging(typed("--aging", "ability"), { load: false, development: false })).toThrow(/add --development/);
+    expect(() => seasonAging(typed("--ability-rules"), { load: false, development: false })).toThrow(/add --development/);
+    expect(seasonAging(typed("--aging", "position"), { load: false, development: false })).toEqual({});
+    // A new league: the flags' switches, only with a switch on; the aging options only when not the default.
+    expect(seasonPlayers({ loaded: false, development: false, injuries: false, aging: {} })).toBeUndefined();
+    expect(seasonPlayers({ loaded: false, development: true, injuries: false, aging: {} })).toStrictEqual({ development: true, injuries: false });
+    expect(seasonPlayers({ loaded: false, development: true, injuries: true, aging: { aging: "ability", techniqueKnee: true } }))
+      .toStrictEqual({ development: true, injuries: true, aging: "ability", techniqueKnee: true });
+    // Carrying on: the save's own, aging options restored, whatever the command line held.
+    expect(seasonPlayers({ loaded: true, development: false, injuries: false, aging: {} })).toBeUndefined();
+    expect(seasonPlayers({ loaded: true, saved: { development: true, injuries: false }, development: false, injuries: false, aging: {} }))
+      .toStrictEqual({ development: true, injuries: false });
+    expect(seasonPlayers({ loaded: true, saved: { development: true, injuries: true, aging: "ability", abilityCurves: "B" }, development: false, injuries: false, aging: {} }))
+      .toStrictEqual({ development: true, injuries: true, aging: "ability", abilityCurves: "B" });
+    expect(() => seasonPlayers({ loaded: true, saved: { development: true, injuries: true, aging: "abilty" }, development: false, injuries: false, aging: {} }))
+      .toThrow(/does not know/);
   });
 
   it("refuses a value it does not take, a tuning flag off the ability path, and --ability-rules beside --aging position", () => {
@@ -97,6 +137,42 @@ describe("player-checks with the aging flags", () => {
     expect(agingActsOn("both")).toBe(true);
     expect(agingActsOn("off")).toBe(false);
     expect(agingActsOn("injuries")).toBe(false);
+    const ability = { aging: "ability", abilityCurves: "B", smartsSnaps: 0.225 } as const;
+    expect(armSwitches("development", ability)).toStrictEqual({ development: true, injuries: false, ...ability });
+    expect(armSwitches("both", ability)).toStrictEqual({ development: true, injuries: true, ...ability });
+    expect(armSwitches("injuries", ability)).toBe(ARMS.injuries);
+    expect(armSwitches("off", ability)).toBeUndefined();
+    // At the defaults every arm is its own switches, the same objects as before.
+    for (const arm of ["off", "development", "injuries", "both"] as const) {
+      expect(armSwitches(arm, {})).toBe(ARMS[arm]);
+      expect(armSwitches(arm)).toBe(ARMS[arm]);
+    }
+  });
+
+  it("refuses them when no chosen arm has development on", () => {
+    const ability = { aging: "ability" } as const;
+    expect(() => agingForArms(["off", "injuries"], ability)).toThrow(/act only on the arms with development on/);
+    expect(agingForArms(["off", "both"], ability)).toBe(ability);
+    expect(agingForArms(["off", "injuries"], {})).toEqual({});
+  });
+});
+
+describe("the walk's draft classes with aging \"ability\" (runCapCheck's makeClass)", () => {
+  it("asks the generator for every prospect's fade shifts with development on and aging ability, and for none at the default", () => {
+    const used = new Set<string>();
+    const ability = draftClassOptions({ seed: "aging-class", players: { development: true, injuries: true, aging: "ability", techniqueKnee: true } }, 2027, used);
+    expect(ability).toStrictEqual({ seed: "aging-class", draft: 2027, usedNames: used, development: true, aging: "ability" });
+    expect(draftClassOptions({ seed: "aging-class", players: { development: true, injuries: true } }, 2027, used))
+      .toStrictEqual({ seed: "aging-class", draft: 2027, usedNames: used, development: true });
+    expect(draftClassOptions({ seed: "aging-class", players: { development: false, injuries: true, aging: "ability" } }, 2027, used))
+      .toStrictEqual({ seed: "aging-class", draft: 2027, usedNames: used });
+    expect(draftClassOptions({ seed: "aging-class" }, 2027, used)).toStrictEqual({ seed: "aging-class", draft: 2027, usedNames: used });
+    // And the class those options make: every prospect with all 12 shifts, and none at the default.
+    const made = generateDraftClass(ability);
+    expect(made.players.length).toBeGreaterThan(200);
+    expect(made.players.filter((p) => !allShifts(p)).length).toBe(0);
+    const plain = generateDraftClass(draftClassOptions({ seed: "aging-class", players: { development: true, injuries: true } }, 2027, used));
+    expect(plain.players.filter(anyShift).length).toBe(0);
   });
 });
 
@@ -114,11 +190,11 @@ describe("the calibration copy of the ability groups (§12.2.7, test 11)", () =>
 
 // --- the trap (AB2's note): the options must reach the steps with the shifts ----------------------
 
-const allShifts = (p: PlayerState) => {
+function allShifts(p: PlayerState): boolean {
   const s = p.attributes.development?.fadeShift;
   return s !== undefined && ABILITY_GROUPS.every((g) => typeof s[g] === "number" && Number.isFinite(s[g]));
-};
-const anyShift = (p: PlayerState) => p.attributes.development?.fadeShift !== undefined;
+}
+function anyShift(p: PlayerState): boolean { return p.attributes.development?.fadeShift !== undefined; }
 /** The first week of camp: the players' steps have run once (their memory is written at the week's end). */
 const campWeek1 = (season: number): CalendarStamp => ({ season, phase: "TRAINING_CAMP", week: 1, day: 7 });
 /** The file at `standin-development/1`: the same records with no fade shifts. */

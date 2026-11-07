@@ -29,14 +29,15 @@
  * with development on (`development`, `both`) with the players aging by ability group. Their seasons
  * are cached under the options' name (`<arm>-<name>-<seed>.json`; the other arms' are shared with a
  * default run) and the report is written to `player-checks-<name>` (`player-checks-standin-<name>`),
- * so a default run's files are never written over. At the defaults nothing changes.
+ * so a default run's files are never written over; the report's JSON names them (`aging`). The flags
+ * are refused when no chosen arm has development on. At the defaults nothing changes.
  */
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { NFL_SPREAD, ROSTER_GROUPS, summariseArm, type ArmSummary, type SeasonCheck } from "./playerChecks.js";
-import { agingActsOn, checkSeason, isArm } from "./playerChecksRun.js";
+import { agingActsOn, agingForArms, checkSeason, isArm } from "./playerChecksRun.js";
 import { readStandInFile } from "./standInLeague.js";
 import { agingLabel, readAgingFlag, settleAging, type AgingFlags } from "./agingFlags.js";
 
@@ -58,7 +59,8 @@ for (let i = 0; i < argv.length; i++) {
     return v;
   }, agingFlags);
 }
-const aging = settleAging(agingFlags);
+// Refused when no chosen arm has development on: none would play them (AB3 review).
+const aging = agingForArms(arms, settleAging(agingFlags));
 const agingName = agingLabel(aging);
 if (agingName !== undefined) console.log(`Players age by ability in the arms with development on (${agingName}; ADR-087 §12)`);
 const root = fileURLToPath(new URL("../..", import.meta.url));
@@ -301,7 +303,9 @@ if (grown.length > 0) {
 }
 const report = `${standIn === undefined ? "player-checks" : "player-checks-standin"}${agingName === undefined ? "" : `-${agingName}`}`;
 writeFileSync(join(root, "reports", `${report}.md`), lines.join("\n"));
+// AB3: the aging options the development arms played under, beside the code, only when not the default.
+const agingRecord = agingName === undefined ? {} : { aging };
 writeFileSync(join(root, "reports", `${report}.json`), JSON.stringify(standIn === undefined
-  ? { seeds, arms, code: fingerprint, summaries }
-  : { seeds, arms, code: fingerprint, league: { file: leaguePath, sha256: leagueSha, snapshotDate: standIn.snapshotDate, season: standIn.season }, summaries }, null, 2));
+  ? { seeds, arms, code: fingerprint, ...agingRecord, summaries }
+  : { seeds, arms, code: fingerprint, ...agingRecord, league: { file: leaguePath, sha256: leagueSha, snapshotDate: standIn.snapshotDate, season: standIn.season }, summaries }, null, 2));
 console.log(lines.join("\n"));

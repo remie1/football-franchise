@@ -128,7 +128,7 @@ export const ABILITY_CURVES: Readonly<Record<AbilityCurveName, AbilityCurves>> =
  */
 export const TECHNIQUE_KNEE = { age: 31, perAfterKnee: 0.6 } as const;
 
-/** The smarts-snaps override for AB9-T4 (O2): half of D's 0.45 (CHOSEN, §12.2.8). A named value for the flags; any number ≥ 0 is taken. */
+/** The smarts-snaps override for AB9-T4 (O2): half of D's 0.45 (CHOSEN, §12.6, "D+O2"). A named value for the flags' help and the tests; any number ≥ 0 is taken. */
 export const SMARTS_SNAPS_HALVED = 0.225;
 
 /** The ability path's rules, read once from the options. */
@@ -163,15 +163,17 @@ export function abilityRules(o: AgingOptions): AbilityRules | undefined {
 /**
  * The options as the players' steps record them in `PlayerMemory.switches` (§12.1, "Records"): only
  * what is not the default, and only on the ability path with development on, where they act. Empty at
- * the defaults, so a save made at the defaults is main's to the byte.
+ * the defaults, so a save made at the defaults is main's to the byte. A smarts-snaps override equal
+ * to the chosen set's own value is the set's rules, so it is dropped too (D and B both take 0.45).
  */
 export function agingSwitches(o: AgingOptions, development: boolean): Pick<AgingOptions, "aging" | "abilityCurves" | "techniqueKnee" | "smartsSnaps"> {
-  if (abilityRules(o) === undefined || !development) return {};
+  const rules = abilityRules(o);
+  if (rules === undefined || !development) return {};
   return {
     aging: "ability",
     ...(o.abilityCurves === "B" ? { abilityCurves: "B" as const } : {}),
     ...(o.techniqueKnee === true ? { techniqueKnee: true } : {}),
-    ...(o.smartsSnaps !== undefined ? { smartsSnaps: o.smartsSnaps } : {}),
+    ...(o.smartsSnaps !== undefined && o.smartsSnaps !== rules.curves.smartsSnaps ? { smartsSnaps: o.smartsSnaps } : {}),
   };
 }
 
@@ -220,7 +222,9 @@ export const ABILITY_GROUP_OF: Readonly<Record<string, AbilityGroup | "FIXED">> 
 /**
  * What follows the body on the ability path: body.ts `FOLLOWS`, plus elusiveness (quickness .6, speed
  * .3) and yac (.4 / .4), which leave SKILL for QUICKNESS (§12.2.1, "Leaving SKILL"; the toy's
- * `PROPOSED_RATINGS`). They keep full learning and take no technique fade.
+ * `PROPOSED_RATINGS`; the weights CHOSEN). They keep full learning and take no technique fade. Every
+ * body change on the ability path moves them: the development week's, and an injury's lasting mark
+ * (`healWeek`'s `follows`, passed by the players' steps on the ability path).
  */
 export const ABILITY_FOLLOWS: Readonly<Record<string, Readonly<Partial<Record<BodyRating, number>>>>> = {
   ...FOLLOWS,
@@ -245,8 +249,11 @@ export function yearsPast(fade: Fade, age: number, shift: number, wear = 0): num
 
 /**
  * A group's loss in the year at `age` (positive; the fade's units): `per × yearsPast`, or with the
- * knee, `per` for the years past up to the knee and `perAfterKnee` for those beyond it. The knee is
- * at the same effective age as the start (age − shift), so a man two years late reaches it two years later.
+ * knee, `per` for the years past up to the knee and `perAfterKnee` for those beyond it. Two choices
+ * (CHOSEN, §12.2.5 says neither; the AB3 note lists them): the knee is read at the same effective age
+ * as the start (age − shift), so a man two years late reaches it two years later; and the years past
+ * the knee share the fade's cap, so at the cap TECHNIQUE's yearly loss is 0.19775 × 2 + 0.6 × 6 ≈ 4.0
+ * points with the knee on, against 0.19775 × 8 ≈ 1.58 off.
  */
 export function fadeLoss(fade: Fade, age: number, shift: number, wear = 0, knee?: { readonly age: number; readonly perAfterKnee: number }): number {
   const past = yearsPast(fade, age, shift, wear);
@@ -329,14 +336,15 @@ export function legLossYear(age: number, development: Pick<PlayerDevelopment, "f
 
 /**
  * §12.2.4, "smarts from playing slow": what each SMARTS rating gains in a game week,
- * `c × yearly leg loss × playShare / gamesPerSeason` (`playShare` capped at 0..1). 0 with c = 0, and
+ * `c × yearly leg loss × share / gamesPerSeason`, `share` capped at 0..1. The development week's
+ * share is his snaps over a starter's 65 a game (development.ts `slowSmartsShare`). 0 with c = 0, and
  * for a man who did not play.
  */
-export function slowSmartsWeek(c: number, legLoss: number, playShare: number, rules: Pick<LeagueRules, "gamesPerSeason">): number {
+export function slowSmartsWeek(c: number, legLoss: number, share: number, rules: Pick<LeagueRules, "gamesPerSeason">): number {
   if (c === 0) return 0;
-  const share = Math.max(0, Math.min(1, playShare));
-  if (share === 0) return 0;
-  return c * legLoss * share / Math.max(1, rules.gamesPerSeason);
+  const s = Math.max(0, Math.min(1, share));
+  if (s === 0) return 0;
+  return c * legLoss * s / Math.max(1, rules.gamesPerSeason);
 }
 
 // ---------------------------------------------------------------------------------------------

@@ -35,7 +35,10 @@ export function bodyScale(body: Body, weightLb: number): Record<BodyRating, numb
  * made (`attributes` derive.ts: 0.7/0.3 and 0.6/0.4); firstStep and pursuit follow speed and
  * agility, power and anchor follow strength (ADR-087 §2.3; the shares are CHOSEN, tuned in D5).
  */
-export const FOLLOWS: Readonly<Record<string, Readonly<Partial<Record<BodyRating, number>>>>> = {
+/** What moves with the body: each following rating's shares of the body ratings' changes. */
+export type Follows = Readonly<Record<string, Readonly<Partial<Record<BodyRating, number>>>>>;
+
+export const FOLLOWS: Follows = {
   speed: { speed: 1 },
   agility: { agility: 1 },
   jumping: { jumping: 1 },
@@ -103,9 +106,10 @@ const clampTo = (v: number, b: { min: number; max: number }) => Math.max(b.min, 
  * mark with development switched off).
  *
  * `follows`: what moves with the body; `FOLLOWS` unless given. ADR-087 §12.2.1: the ability path's
- * development week passes its own (`aging.ts` `ABILITY_FOLLOWS`, which adds elusiveness and yac).
+ * development week and lasting marks pass their own (`aging.ts` `ABILITY_FOLLOWS`, which adds
+ * elusiveness and yac).
  */
-export function changeBody(player: PlayerState, delta: BodyChange, follows: Readonly<Record<string, Readonly<Partial<Record<BodyRating, number>>>>> = FOLLOWS): BodyResult {
+export function changeBody(player: PlayerState, delta: BodyChange, follows: Follows = FOLLOWS): BodyResult {
   const dev = player.attributes.development;
   const weightFrom = player.bio.weightLb;
   const weightTo = clampTo(weightFrom + (delta.weightLb ?? 0), BODY_BOUNDS.weightLb);

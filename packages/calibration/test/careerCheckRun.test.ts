@@ -14,8 +14,8 @@ import { buildLeague, buildStaff, runSeason, type SeasonRun } from "@ff/franchis
 import type { CapCheckInput } from "../src/season/capCheck.js";
 import {
   armInput, CAREER_FINGERPRINT_LEAVES_OUT, CAREER_SEED_SETS, careerCachePaths, careerFingerprint, CareerCheckStopped, COACH_STYLE_LINEUPS,
-  CAREER_CHECK_VERSION, decodePeople, decodeState, encodePeople, encodeState, listCareerBuilds, peopleDifference, readCareerRecords, runCareerSeed,
-  seedOf, stateDifference, withHeadCoachLineups, writeWhole,
+  CAREER_CHECK_VERSION, decodePeople, decodeState, encodePeople, encodeState, gradedAging, listCareerBuilds, peopleDifference, readCareerRecords,
+  runCareerSeed, seedOf, stateDifference, withHeadCoachLineups, writeWhole,
 } from "../src/season/careerCheckRun.js";
 import { CAREER_ROWS_VERSION } from "../src/season/careerCheck.js";
 import type { SeasonPeople } from "../src/season/realSeason.js";
@@ -242,6 +242,41 @@ describe("the cache's files", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  it("names each build's aging options from its first finished record (AB3), and nothing at the defaults", () => {
+    const dir = scratch();
+    try {
+      const plain = join(dir, "00000000000000b0"), ability = join(dir, "00000000000000b1"), odd = join(dir, "00000000000000b2");
+      for (const d of [plain, ability, odd]) mkdirSync(d);
+      const v = { version: CAREER_CHECK_VERSION, rows: { version: CAREER_ROWS_VERSION } };
+      writeFileSync(join(plain, "both-a-20.json"), JSON.stringify(v));
+      writeFileSync(join(ability, "both-a-20.json"), JSON.stringify({ ...v, aging: { aging: "ability", abilityCurves: "B", techniqueKnee: true } }));
+      writeFileSync(join(odd, "both-a-20.json"), JSON.stringify({ ...v, aging: { aging: "abilty" } }));
+      const builds = listCareerBuilds(dir);
+      expect(builds.map((b) => b.aging)).toEqual([undefined, "ability-B-knee", "unknown"]);
+      expect("aging" in builds[0]!).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("grades the aging options the rows were played under: the asked set, or with none asked the rows' own, never a mix (AB3)", () => {
+    const rec = (seed: string, aging?: object) => ({ arm: "both" as const, seed, ...(aging ? { aging } : {}) });
+    const ability = { aging: "ability" } as const;
+    // The tree's build, at the defaults: default rows only.
+    expect(gradedAging([rec("a"), rec("b")], {})).toEqual({});
+    expect(() => gradedAging([rec("a"), rec("b", ability)], {})).toThrow(/both-b was played under aging options ability, not the position \(the default\) asked for/);
+    // Asked for ability (typed, or the tree's build fingerprinted with them): ability rows only.
+    expect(gradedAging([rec("a", ability), rec("b", { aging: "ability", smartsSnaps: 0.45 })], ability)).toEqual(ability);
+    expect(() => gradedAging([rec("a")], ability)).toThrow(/both-a was played under aging options position \(the default\), not the ability asked for/);
+    expect(() => gradedAging([rec("a", { aging: "ability", abilityCurves: "B" })], ability)).toThrow(/ability-B, not the ability asked for/);
+    // A --build grade with no aging flags: the rows' own, one set.
+    expect(gradedAging([rec("a", { aging: "ability", techniqueKnee: true }), rec("b", { aging: "ability", techniqueKnee: true })], undefined))
+      .toEqual({ aging: "ability", techniqueKnee: true });
+    expect(gradedAging([rec("a"), rec("b")], undefined)).toEqual({});
+    expect(gradedAging([], undefined)).toEqual({});
+    expect(() => gradedAging([rec("a"), rec("b", ability)], undefined)).toThrow(/the rows mix aging options/);
   });
 
   it("marks a build gradable only when its first finished record has this build's check and rows versions", () => {
@@ -533,6 +568,36 @@ describe("one seed: the cache and the checkpoint (made-up seasons)", () => {
       const opts = { file, league, seed: "resume-other", arm: "both" as const, seasons: 2, fingerprint: "0123456789abcdef", cacheDir: dir };
       expect(() => withMadeUpSeasons(() => runCareerSeed({ ...opts, stopAfter: 1 }))).toThrow(CareerCheckStopped);
       expect(() => withMadeUpSeasons(() => runCareerSeed({ ...opts, fingerprint: "fedcba9876543210" }))).toThrow(/another fingerprint/);
+      // Refused by name before its people are read: people that cannot be read back still give "another fingerprint".
+      const paths = careerCachePaths(dir, "both", "resume-other", 2);
+      const cp = JSON.parse(readFileSync(paths.checkpoint, "utf8")) as Record<string, unknown>;
+      writeFileSync(paths.checkpoint, JSON.stringify({ ...cp, sharedStaff: true, people: { players: [] } }));
+      expect(() => withMadeUpSeasons(() => runCareerSeed({ ...opts, fingerprint: "fedcba9876543210" }))).toThrow(/another fingerprint/);
+      expect(() => withMadeUpSeasons(() => runCareerSeed(opts))).toThrow(/shares its staff with the coaching world/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 300_000);
+
+  it("refuses a checkpoint whose people say the steps ran under other aging options than it records (AB3)", () => {
+    const dir = scratch();
+    try {
+      const aging = { aging: "ability" } as const;
+      const opts = { file, league, seed: "resume-ran", arm: "both" as const, seasons: 2, fingerprint: "0123456789abcdef", cacheDir: dir, aging };
+      expect(() => withMadeUpSeasons(() => runCareerSeed({ ...opts, stopAfter: 1 }))).toThrow(CareerCheckStopped);
+      const paths = careerCachePaths(dir, "both", "resume-ran", 2);
+      const cp = JSON.parse(readFileSync(paths.checkpoint, "utf8")) as { people: unknown; sharedStaff: boolean } & Record<string, unknown>;
+      const people = decodePeople(cp.people, cp.sharedStaff);
+      const withSwitches = (switches: object) => {
+        const memory = { ...(people.playerMemory ?? { injuries: {}, grades: {}, battles: [], injuredStarters: [], weeksInJob: {}, unsignedSince: {} }), switches };
+        writeFileSync(paths.checkpoint, JSON.stringify({ ...cp, ...encodePeople({ ...people, playerMemory: memory } as SeasonPeople) }));
+      };
+      // The steps ran at the defaults, but the checkpoint says ability: refused.
+      withSwitches({ development: true, injuries: true });
+      expect(() => withMadeUpSeasons(() => runCareerSeed(opts))).toThrow(/another set of aging options/);
+      // The steps ran under ability, as recorded: carried on.
+      withSwitches({ development: true, injuries: true, aging: "ability" });
+      expect(withMadeUpSeasons(() => runCareerSeed(opts)).from).toBe("resumed");
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

@@ -11,7 +11,7 @@
  * development on, the only ones it acts on; at the defaults (`{}`) every arm is as before.
  */
 import { buildLeague, buildStaff } from "@ff/franchise";
-import { runRealSeason } from "./realSeason.js";
+import { runRealSeason, type PlayerSwitches } from "./realSeason.js";
 import { fieldedStarters, summariseSeason, type RosterGroup, type SeasonCheck } from "./playerChecks.js";
 import type { readStandInFile } from "./standInLeague.js";
 import { agingLabel, type AgingSwitches } from "./agingFlags.js";
@@ -42,9 +42,30 @@ export function rosterGroups(file: StandInFile): Map<string, Exclude<RosterGroup
 /** Whether the aging options act on this arm (development on), so its seasons are kept apart under them. */
 export const agingActsOn = (arm: Arm): boolean => ARMS[arm]?.development === true;
 
-export function checkSeason(seed: string, arm: Arm, season = 2027, standIn?: StandInFile, aging: AgingSwitches = {}): SeasonCheck {
+/**
+ * The players' switches an arm plays (ADR-087 §12.1, AB3): the arm's own, with the aging options
+ * (settled) joined only on the arms they act on (development on) and only when not the default; every
+ * other arm, and every arm at the defaults, is the arm's own switches as before.
+ */
+export function armSwitches(arm: Arm, aging: AgingSwitches = {}): PlayerSwitches | undefined {
   const switches = ARMS[arm];
-  const players = switches && agingActsOn(arm) && agingLabel(aging) !== undefined ? { ...switches, ...aging } : switches;
+  return switches && agingActsOn(arm) && agingLabel(aging) !== undefined ? { ...switches, ...aging } : switches;
+}
+
+/**
+ * The aging options, checked against the arms chosen (`--arms`): refused when none of them has
+ * development on, since no arm would play them while the report and caches would carry their name.
+ */
+export function agingForArms(arms: readonly string[], aging: AgingSwitches): AgingSwitches {
+  const name = agingLabel(aging);
+  if (name !== undefined && !arms.some((a) => isArm(a) && agingActsOn(a))) {
+    throw new SyntaxError(`the aging options (${name}) act only on the arms with development on (development, both); add one to --arms or drop them`);
+  }
+  return aging;
+}
+
+export function checkSeason(seed: string, arm: Arm, season = 2027, standIn?: StandInFile, aging: AgingSwitches = {}): SeasonCheck {
+  const players = armSwitches(arm, aging);
   // Stand-ins: every arm plays the file's season, the one the switched-on arms must play.
   const played = standIn?.season ?? season;
   const staff = players ? buildStaff(buildLeague(seed), { firstSeason: played, lineups: true }).world.staff : undefined;

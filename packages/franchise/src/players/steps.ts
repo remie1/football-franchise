@@ -28,7 +28,7 @@ import { flatCap, type CapForSeason } from "../draft/money.js";
 import type { DayStep, DayStepContext, LeaguePeople } from "../season/people.js";
 import { currentJob, seatOf } from "../staff/world.js";
 import { nextDay } from "../calendar/clock.js";
-import { abilityRules, agingSwitches, chartSpots, weekSide, type AgingOptions, type AgingRule } from "./aging.js";
+import { ABILITY_FOLLOWS, abilityRules, agingSwitches, chartSpots, weekSide, type AgingOptions, type AgingRule } from "./aging.js";
 import { depthChartWeek, readBlur } from "./depthChart.js";
 import { PRACTICE_PHASES, developmentWeek } from "./development.js";
 import { gameInjuries, healWeek, isAvailable, weekInjuries } from "./injuries.js";
@@ -315,7 +315,8 @@ export function playerSteps(config: PlayerStepsConfig): DayStep[] {
       if (!weekEnd) return { people: { ...people, players, playerMemory: { ...memory, injuries: history, switches } }, events };
 
       if (injuries) {
-        const healed = healWeek({ at: ctx.day, players, history });
+        // ADR-087 §12.2.1: on the ability path a lasting mark moves what follows the body there (elusiveness and yac too).
+        const healed = healWeek({ at: ctx.day, players, history, ...(aging === "ability" ? { follows: ABILITY_FOLLOWS } : {}) });
         players = healed.players; history = healed.history; events.push(...healed.events);
         const drawn = weekInjuries({ at: ctx.day, rules: ctx.rules, players, weeks, history, seed: ctx.seed });
         players = drawn.players; history = drawn.history; events.push(...drawn.events);

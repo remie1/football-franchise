@@ -15,8 +15,9 @@
  * The three tuning flags need the ability path (`--aging ability` or `--ability-rules`). A value the
  * flags do not take is refused, so a misspelling never plays the position path silently. The options
  * are kept only when they are not the default (`--aging position` and `--ability-curves D` are the
- * defaults and are dropped), so a run at the defaults passes exactly what it passed before AB3, and
- * its cache keys are unchanged.
+ * defaults and are dropped, and so is a `--smarts-snaps` equal to the chosen set's own value, 0.45 in
+ * both sets), so a run at the defaults passes exactly what it passed before AB3, its cache keys are
+ * unchanged, and one set of rules has one name (`agingLabel`).
  *
  * Calibration may not import franchise's own type for these (ADR-078 R1's named surface), so the
  * shape is written out here; it is the franchise `AgingOptions` shape, field for field.
@@ -31,6 +32,13 @@ export interface AgingSwitches {
 }
 
 type Mutable<T> = { -readonly [K in keyof T]: T[K] };
+
+/**
+ * Each fitted set's own smarts from snaps, points per 1,000 snaps: a copy of franchise's
+ * `ABILITY_CURVES[set].smartsSnaps` (ADR-087 §12.2.1; calibration may not import the table, ADR-078
+ * R1), which a test reads from franchise's source. A `--smarts-snaps` equal to it is the set's rules.
+ */
+export const SET_SMARTS_SNAPS: Readonly<Record<"D" | "B", number>> = { D: 0.45, B: 0.45 };
 
 /** The flags as typed, before `settleAging` checks them. */
 export interface AgingFlags extends Mutable<AgingSwitches> {
@@ -64,7 +72,8 @@ export function readAgingFlag(arg: string, next: () => string, into: AgingFlags)
 
 /**
  * The flags checked and settled: `--ability-rules` read as `--aging ability` (refused beside
- * `--aging position`), the tuning flags refused off the ability path, and the defaults dropped.
+ * `--aging position`), the tuning flags refused off the ability path, and the defaults dropped (a
+ * smarts-snaps value equal to the chosen set's own, `SET_SMARTS_SNAPS`, among them).
  */
 export function settleAging(flags: AgingFlags): AgingSwitches {
   if (flags.abilityRules === true && flags.aging === "position") throw new SyntaxError("--ability-rules sets --aging ability; drop --aging position");
@@ -80,17 +89,45 @@ export function settleAging(flags: AgingFlags): AgingSwitches {
     aging: "ability",
     ...(flags.abilityCurves === "B" ? { abilityCurves: "B" as const } : {}),
     ...(flags.techniqueKnee === true ? { techniqueKnee: true } : {}),
-    ...(flags.smartsSnaps !== undefined ? { smartsSnaps: flags.smartsSnaps } : {}),
+    ...(flags.smartsSnaps !== undefined && flags.smartsSnaps !== SET_SMARTS_SNAPS[flags.abilityCurves ?? "D"] ? { smartsSnaps: flags.smartsSnaps } : {}),
   };
 }
 
 /**
+ * The season command's aging options (`main.ts`): the flags settled, refused with `--load` (a save
+ * carries on under its own, `seasonPlayers`) and `--aging ability` refused without `--development`.
+ */
+export function seasonAging(flags: AgingFlags, o: { readonly load: boolean; readonly development: boolean }): AgingSwitches {
+  const typed = Object.keys(flags).length > 0;
+  const aging = settleAging(flags);
+  if (typed && o.load) throw new SyntaxError("--load carries on with the save's own aging options; drop them");
+  if (aging.aging === "ability" && !o.development) throw new SyntaxError("--aging ability acts on the players' growth and aging; add --development");
+  return aging;
+}
+
+/**
+ * The season command's players' switches (ADR-087 §9, §12.1): carrying on (`loaded`), the save's own
+ * (`PlayerMemory.switches`, `saved`; none when it has none), aging options and all (`agingFromRecord`);
+ * a new league, the flags' (`aging` settled by `seasonAging`), only with development or injuries on.
+ * The aging options join only when not the default, so a default run passes what it did before AB3.
+ */
+export function seasonPlayers(o: {
+  readonly loaded: boolean; readonly saved?: Readonly<Record<string, unknown>> & { readonly development: boolean; readonly injuries: boolean };
+  readonly development: boolean; readonly injuries: boolean; readonly aging: AgingSwitches;
+}): ({ readonly development: boolean; readonly injuries: boolean } & AgingSwitches) | undefined {
+  if (o.loaded) return o.saved ? { development: o.saved.development, injuries: o.saved.injuries, ...agingFromRecord(o.saved) } : undefined;
+  return o.development || o.injuries ? { development: o.development, injuries: o.injuries, ...o.aging } : undefined;
+}
+
+/**
  * A short name for the options, for cache keys and file names: `ability`, `ability-B`,
- * `ability-knee`, `ability-smarts0.225` and their joins; undefined at the defaults.
+ * `ability-knee`, `ability-smarts0.225` and their joins; undefined at the defaults. It names the
+ * rules, not the flags typed: a smarts-snaps value equal to the set's own (`SET_SMARTS_SNAPS`) adds nothing.
  */
 export function agingLabel(o: AgingSwitches): string | undefined {
   if (o.aging !== "ability") return undefined;
-  return ["ability", o.abilityCurves === "B" ? "B" : "", o.techniqueKnee === true ? "knee" : "", o.smartsSnaps !== undefined ? `smarts${o.smartsSnaps}` : ""]
+  const smarts = o.smartsSnaps !== undefined && o.smartsSnaps !== SET_SMARTS_SNAPS[o.abilityCurves ?? "D"];
+  return ["ability", o.abilityCurves === "B" ? "B" : "", o.techniqueKnee === true ? "knee" : "", smarts ? `smarts${o.smartsSnaps}` : ""]
     .filter(Boolean).join("-");
 }
 

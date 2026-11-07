@@ -222,12 +222,18 @@ const NO_WEAR = 0;
 /**
  * The ability path's week inputs (ADR-087 §12.2.1, §12.2.4): `weekInputs` at the set's learning floor
  * and smarts snaps, plus passing from snaps (× growth) and slow smarts (his yearly leg loss × c × his
- * share of his side's snaps this week / the season's games; none when c is 0). No position is read.
+ * share of a starter's snaps this week / the season's games; none when c is 0). No position is read.
+ *
+ * Slow smarts' share (§12.2.4) is his snaps this week, every side counted (`PlayerWeek.snaps`, the
+ * count smarts and passing snaps read), over a starter's 65 a game (`EXPECTED_STARTER_SNAPS_PER_GAME`),
+ * capped at 1; not `PlayerWeek.playShare` (his side's snaps over the team's busiest man's), which the
+ * play points read. So a kicker's 10 snaps are about 0.15 of a starter's, however few his side has.
  */
 function abilityWeekInputs(player: PlayerState, week: PlayerWeek, at: CalendarStamp, rules: LeagueRules, growth: number, ability: AbilityRules): AbilityWeekInputs {
   const base = weekInputs(player, week, at, rules, growth, ability);
   const dev = player.attributes.development!;
   const c = ability.curves.slowSmarts;
+  const share = slowSmartsShare(week.snaps);
   return {
     common: base.common,
     disguise: base.disguise,
@@ -235,9 +241,14 @@ function abilityWeekInputs(player: PlayerState, week: PlayerWeek, at: CalendarSt
     performance: base.performance,
     smartsSnaps: base.snaps,
     passingSnaps: growth * ability.curves.passingSnaps * Math.max(0, week.snaps) / 1000,
-    slowSmarts: c === 0 ? 0 : slowSmartsWeek(c, legLossYear(player.bio.age, dev, player.bio.weightLb, growth, ability, NO_WEAR), week.playShare, rules),
+    slowSmarts: c === 0 ? 0 : slowSmartsWeek(c, legLossYear(player.bio.age, dev, player.bio.weightLb, growth, ability, NO_WEAR), share, rules),
     ageShare: base.ageShare,
   };
+}
+
+/** §12.2.4: slow smarts' share of a week, his snaps (every side) over a starter's 65 a game, 0 to 1. */
+export function slowSmartsShare(snaps: number): number {
+  return Math.min(1, Math.max(0, snaps) / EXPECTED_STARTER_SNAPS_PER_GAME);
 }
 
 /** Half the width of a week's wobble step: a year of them spreads by `WOBBLE.yearlySd`. */

@@ -61,7 +61,8 @@
  * `--aging ability` (with `--development`) ages the players by ability group, not by position (ADR-087
  * §12; `--ability-curves`, `--technique-knee` and `--smarts-snaps` tune it, `--ability-rules` is the
  * shorthand, `agingFlags.ts`); the default `--aging position` is exactly today's. A save records the
- * options when not the default, and `--load` carries on under them.
+ * options when not the default, and `--load` carries on under them; `--out` names them too (`aging`,
+ * only when not the default, so a default run's file is as before).
  *
  * Mood (ADR-096 step 2): `--mood`, with `--development` or `--injuries`, adds the fans' and media's
  * mood to the walk: a `PUBLIC_MOOD_UPDATED` per team after each game and at the offseason's big
@@ -85,9 +86,9 @@ import { compareStamps, DEFAULT_LEAGUE_RULES, isTruthLayerEvent, stampToString, 
 import { buildLeague, buildStaff, makeSave, readSave } from "@ff/franchise";
 import { createNewsDesk, formatEdition } from "@ff/narrative";
 import { CALLER_VERSIONS, DEFAULT_CALLER_VERSION, type CallerVersion } from "../caller/anticipate.js";
-import { officiatingFor, runRealSeason, seasonToPlay, standInOfficialsLine, type SeasonRosters } from "./realSeason.js";
+import { agingOf, officiatingFor, runRealSeason, seasonToPlay, standInOfficialsLine, type SeasonRosters } from "./realSeason.js";
 import { readStandInFile } from "./standInLeague.js";
-import { agingFromRecord, agingLabel, readAgingFlag, settleAging, type AgingFlags } from "./agingFlags.js";
+import { agingLabel, readAgingFlag, seasonAging, seasonPlayers, type AgingFlags } from "./agingFlags.js";
 import { checkStamp, engineRulesDigestOf, LEGACY_RULES, rulesTunables } from "../pocket/rules.js";
 import { savePlayedWith, seasonOutStamp, seasonRules } from "./stamp.js";
 
@@ -166,11 +167,8 @@ function parse(argv: readonly string[]) {
   if (mood && load !== undefined) throw new SyntaxError("--load carries on with the save's own mood; drop --mood");
   if (mood && !development && !injuries) throw new SyntaxError("--mood needs --development or --injuries (mood runs in the players' walk)");
   if (lineupHopes && !(development || injuries)) throw new SyntaxError("--lineup-hopes needs --development or --injuries (the coaches set depth charts only with the players' steps)");
-  // ADR-087 §12.1 (AB3): the aging options; a save carries on under its own.
-  const typedAging = Object.keys(agingFlags).length > 0;
-  const aging = settleAging(agingFlags);
-  if (typedAging && load !== undefined) throw new SyntaxError("--load carries on with the save's own aging options; drop them");
-  if (aging.aging === "ability" && !development) throw new SyntaxError("--aging ability acts on the players' growth and aging; add --development");
+  // ADR-087 §12.1 (AB3): the aging options; a save carries on under its own (`seasonAging` refuses the rest).
+  const aging = seasonAging(agingFlags, { load: load !== undefined, development });
   return { seed, season, callerVersion, out, stopAfter, save, load, switchCaller, rosters, teamStrengthSd, leagueFile, development, injuries, lineupHopes, mood, engineRules, aging };
 }
 
@@ -218,9 +216,12 @@ const base = loaded?.league ?? buildLeague(seed);
 // ADR-087: the players' switches, from the command line or, carrying on, from the save.
 const savedSwitches = loaded?.development?.people.playerMemory?.switches;
 // The aging options (AB3) join them only when not the default, so a default run passes what it did before.
-const players = loaded
-  ? (savedSwitches ? { development: savedSwitches.development, injuries: savedSwitches.injuries, ...agingFromRecord(savedSwitches) } : undefined)
-  : (args.development || args.injuries ? { development: args.development, injuries: args.injuries, ...(args.lineupHopes ? { lineupHopes: true } : {}), ...args.aging } : undefined);
+const switched = seasonPlayers({
+  loaded: loaded !== undefined, ...(savedSwitches ? { saved: savedSwitches } : {}),
+  development: args.development, injuries: args.injuries, aging: args.aging,
+});
+// ADR-094 §9: a new league's `--lineup-hopes` joins them (not kept in saves yet, so never with `--load`).
+const players = switched !== undefined && !loaded && args.lineupHopes ? { ...switched, lineupHopes: true } : switched;
 const agingName = players === undefined ? undefined : agingLabel(players);
 if (agingName !== undefined) console.log(`Players age by ability (${agingName}; ADR-087 §12)`);
 // ADR-096 step 2: fan and media mood, from the command line or, carrying on, from the save (its memory says it ran).
@@ -318,6 +319,8 @@ if (args.out) {
   const events = players ? run.events.filter((e) => !isTruthLayerEvent(e.event)) : run.events;
   // ADR-089 §9: what played, caller and rules, beside the season (O11: always written).
   const playedBy = seasonOutStamp(callerVersion, engineRules, engineRulesDigestOf(engineRules));
-  writeFileSync(path, JSON.stringify({ seed, ...playedBy, league, season: run.state, events, ...squads, ...(coaching ? { coaching } : {}) }, listTraits, 2));
+  // ADR-087 §12.1: the aging options it played under, only when not the default (a default run's file is as before).
+  const aging = agingName === undefined ? {} : { aging: agingOf(players) };
+  writeFileSync(path, JSON.stringify({ seed, ...playedBy, ...aging, league, season: run.state, events, ...squads, ...(coaching ? { coaching } : {}) }, listTraits, 2));
   console.log(`Saved ${path}`);
 }
