@@ -724,6 +724,16 @@ walk (`runCapCheck` with `players`), the watch-only reader (`careerCheck.ts`), t
 | Rookies | Yes, with a draft re-check | Draft-class talent (`PROSPECT_TALENT`) may be tuned together with growth; every such change re-runs the draft check (D7) with the draft thread. |
 | Aged | Real veterans only | "Everyone aged once" ages the stand-in league's veterans only (a new league file, the old one kept). The made-up league stays as it is, so ADR-089's final records stand. |
 
+**Expected availability, beside `expectedOverallChange` (2026-11-07).** For the same cap decisions,
+franchise `players/` has `expectedAvailability(player, { at, starter, history })`: of the
+regular-season games left from `at` (all of the next season from the playoffs and the offseason),
+how many he is expected to be fit for, that share, and the chance he misses none. It is worked out
+without draws, week by week from his injury today, with the injury step's own chances (games at a
+starter's 65 snaps or a backup's 24, CHOSEN; practice; away from football; his durability, age and a
+recent return) and its own spread of weeks out, and the tests hold it to the real step's mean over
+12,000 walked seasons a case. Nothing calls it yet, and its risk reads his listed position's group
+until the owner's 2026-11-06 ruling (risk by depth-chart spot) is built.
+
 **Two more answers after tuning round 1 (decision cards, 2026-11-01 01:54Z).**
 
 | Card | Answer | What it sets |
