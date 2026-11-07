@@ -412,10 +412,29 @@ export function overallWithCarry(player: PlayerState): number {
  * a prospect, whom the week leaves alone.
  */
 export function expectedOverallChange(player: PlayerState, options: ExpectedChangeOptions): number {
+  return expectedWalk(player, options, [options.weeks ?? yearWeeks(options.rules ?? DEFAULT_LEAGUE_RULES)])[0]!;
+}
+
+/**
+ * ADR-085 step 13: `expectedOverallChange` at the end of each of the next `years` years, from one walk
+ * (a year is this calendar's weeks): element 0 is a year ahead, element 1 two years ahead, and so on.
+ * Each element equals `expectedOverallChange` with `weeks` set to that many years of weeks.
+ */
+export function expectedOverallPath(player: PlayerState, options: Omit<ExpectedChangeOptions, "weeks"> & { readonly years: number }): number[] {
+  const year = yearWeeks(options.rules ?? DEFAULT_LEAGUE_RULES);
+  return expectedWalk(player, options, Array.from({ length: Math.max(0, Math.floor(options.years)) }, (_, i) => (i + 1) * year));
+}
+
+/** The walk behind both: the expected change after each count of weeks in `marks` (ascending). */
+function expectedWalk(player: PlayerState, options: Omit<ExpectedChangeOptions, "weeks">, marks: readonly number[]): number[] {
+  const out = marks.map(() => 0);
   const dev = player.attributes.development;
-  if (!dev || player.bio.draft === "PROSPECT") return 0;
+  if (!dev || player.bio.draft === "PROSPECT") return out;
   const rules = options.rules ?? DEFAULT_LEAGUE_RULES;
-  const total = options.weeks ?? yearWeeks(rules);
+  const total = marks.reduce((m, x) => Math.max(m, x), 0);
+  const base = overallWithCarry(player);
+  let mark = 0;
+  while (mark < marks.length && marks[mark]! <= 0) mark++;
   const growth = growthOf(dev.growth);
   const games = Math.max(0, rules.gamesPerSeason);
   const seasonWeeks = Math.max(1, phaseWeeks("REGULAR_SEASON", rules));
@@ -458,6 +477,7 @@ export function expectedOverallChange(player: PlayerState, options: ExpectedChan
       }
       if (next === "OFF_EVAL") p = { ...p, bio: { ...p.bio, creditedSeasons: (p.bio.creditedSeasons ?? 0) + 1 } };
     }
+    while (mark < marks.length && marks[mark] === i + 1) out[mark++] = overallWithCarry(p) - base;
   }
-  return overallWithCarry(p) - overallWithCarry(player);
+  return out;
 }

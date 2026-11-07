@@ -31,7 +31,13 @@ export const CLAIM_MARGIN = 8;
 export interface CutdownInput {
   season: number;
   rules: LeagueRules;
+  /** Today's rating: the depth charts, and the order the cut men go through waivers. */
   rate: Rate;
+  /**
+   * How a team judges a man for its 53, its claims and its practice squad (ADR-085 step 13: ahead,
+   * through its GM's eyes). Default: `rate`.
+   */
+  rateFor?: (team: TeamId) => Rate;
   lean?: (team: TeamId) => CoachLean | undefined;
   /** When the cuts are made (default: the rules' cut-down day). */
   at?: CalendarStamp;
@@ -51,6 +57,7 @@ const isNewer = (p: PlayerState, season: number) => seasonsIn(p, season) < NEWER
 
 export function runCutdown(people: LeaguePeople, input: CutdownInput): { people: LeaguePeople; events: FranchiseEvent[] } {
   const { season, rules, rate } = input;
+  const judge = input.rateFor ?? (() => rate);
   const byId = new Map(people.players.map((p) => [String(p.bio.id), p]));
   const events: FranchiseEvent[] = [];
   const limit = rules.rosterLimit;
@@ -67,7 +74,8 @@ export function runCutdown(people: LeaguePeople, input: CutdownInput): { people:
   for (const team of people.teams) {
     const roster = team.roster.map((id) => byId.get(String(id))!);
     const lean = input.lean?.(team.id);
-    const score = (p: PlayerState) => rate(p)
+    const judged = judge(team.id);
+    const score = (p: PlayerState) => judged(p)
       + (lean === "VETERAN" && p.bio.age >= 27 ? LEAN_POINTS : 0)
       + (lean === "INCUMBENT" && seasonsIn(p, season) > 0 ? LEAN_POINTS : 0);
     if (roster.length <= limit) { kept.set(team.id, roster); continue; }
@@ -98,9 +106,10 @@ export function runCutdown(people: LeaguePeople, input: CutdownInput): { people:
     for (const team of order) {
       if (team === cutFrom.get(String(p.bio.id))) continue;
       const roster = kept.get(team)!;
-      const here = roster.filter((q) => q.bio.position === p.bio.position).sort((a, b) => rate(a) - rate(b));
+      const judged = judge(team);
+      const here = roster.filter((q) => q.bio.position === p.bio.position).sort((a, b) => judged(a) - judged(b));
       const weakest = here[0];
-      if (!weakest || rate(p) < rate(weakest) + CLAIM_MARGIN) continue;
+      if (!weakest || judged(p) < judged(weakest) + CLAIM_MARGIN) continue;
       kept.set(team, [...roster.filter((q) => q !== weakest), p]);
       claimed.add(String(p.bio.id));
       events.push({ type: "WAIVER_CLAIMED", payload: { player: p.bio.id, from: cutFrom.get(String(p.bio.id))!, to: team } });
@@ -123,20 +132,32 @@ export function runCutdown(people: LeaguePeople, input: CutdownInput): { people:
   const unsigned = [...cutFrom.keys()].filter((id) => !claimed.has(id)).map((id) => byId.get(id)!);
   const squads = new Map<TeamId, PlayerState[]>();
   const taken = new Set<string>();
-  const byRate = (a: PlayerState, b: PlayerState) => rate(b) - rate(a) || String(a.bio.id).localeCompare(String(b.bio.id));
+  const byRate = (r: Rate) => (a: PlayerState, b: PlayerState) => r(b) - r(a) || String(a.bio.id).localeCompare(String(b.bio.id));
   for (const team of order) {
     const room = Math.max(0, psLimit - (already.get(team)?.length ?? 0));
-    const own = unsigned.filter((p) => cutFrom.get(String(p.bio.id)) === team && isNewer(p, season)).sort(byRate).slice(0, room);
+    const own = unsigned.filter((p) => cutFrom.get(String(p.bio.id)) === team && isNewer(p, season)).sort(byRate(judge(team))).slice(0, room);
     own.forEach((p) => taken.add(String(p.bio.id)));
     squads.set(team, own);
   }
-  const pool = unsigned.filter((p) => !taken.has(String(p.bio.id)) && isNewer(p, season)).sort(byRate);
+  const pool = unsigned.filter((p) => !taken.has(String(p.bio.id)) && isNewer(p, season));
+  // Each team takes the best left by its own judgment: the pool in its order, made when it first picks.
+  const orders = new Map<TeamId, PlayerState[]>();
+  const orderFor = (team: TeamId): PlayerState[] => {
+    let o = orders.get(team);
+    if (!o) {
+      const judged = judge(team);
+      const value = new Map(pool.map((p) => [p, judged(p)]));
+      o = [...pool].sort((a, b) => value.get(b)! - value.get(a)! || String(a.bio.id).localeCompare(String(b.bio.id)));
+      orders.set(team, o);
+    }
+    return o;
+  };
   for (let more = true; more;) {
     more = false;
     for (const team of order) {
       const squad = squads.get(team)!;
       if (squad.length + (already.get(team)?.length ?? 0) >= psLimit) continue;
-      const next = pool.find((p) => !taken.has(String(p.bio.id)));
+      const next = orderFor(team).find((p) => !taken.has(String(p.bio.id)));
       if (!next) break;
       taken.add(String(next.bio.id));
       squad.push(next);
