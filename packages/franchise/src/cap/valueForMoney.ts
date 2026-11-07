@@ -80,6 +80,18 @@ export function valueForMoney(input: ValueForMoneyInput): number {
 }
 
 /**
+ * How much a man would help a team, in dollars a year: his lift at the market's price of a point, before
+ * his pay (value for money is this less what he costs over the minimum, and less `extraCost`). Where the
+ * market has no price for a point, his lift alone, in rating points, as `valueForMoney` reads it there.
+ * Free agency's "offers" prices call the man who helps most first (`LeagueYearConfig.marketPrices`).
+ */
+export function helpOf(input: Pick<ValueForMoneyInput, "position" | "here" | "grade" | "curve">): number {
+  const lift = liftAt(input.position, input.here, input.grade);
+  const price = pointPriceAt(input.curve, input.grade);
+  return price <= 0 ? lift : lift * price;
+}
+
+/**
  * The man a signing would push off the 53 at his position: the last man inside the position's shape,
  * when the newcomer would rank above him. Undefined when there is a seat to spare or he would not make it.
  */

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { REPLACEMENT_GRADE, STARTERS, WANTED } from "../src/draft/board.js";
-import { VALUE_FOR_MONEY, depthValue, liftAt, pointPriceAt, pushedOut, valueForMoney } from "../src/cap/valueForMoney.js";
+import { VALUE_FOR_MONEY, depthValue, helpOf, liftAt, pointPriceAt, pushedOut, valueForMoney } from "../src/cap/valueForMoney.js";
 import type { MarketCurve } from "../src/cap/value.js";
 
 // ADR-085 step 14, §3.1 (owner's yes, 2026-11-06): value for money, every man at the position counted.
@@ -52,6 +52,17 @@ describe("value for money (ADR-085 step 14, §3.1)", () => {
     expect(valueForMoney({ ...base, apy: 3_000_000, extraCost: 500_000 })).toBeCloseTo(lift - 2_500_000, 0);
     // The same man at a star's price is a poor buy for a team already this deep.
     expect(valueForMoney({ ...base, apy: 30_000_000 })).toBeLessThan(0);
+  });
+
+  it("a man's help is his lift at a point's price before his pay: value for money is it less his cost", () => {
+    // Free agency's "offers" prices call the man who would help a team most first (step 14).
+    const base = { position: "WR" as const, here: [78, 76, 74, 60, 58, 56], grade: 77, floor: 1_000_000, curve };
+    expect(helpOf(base)).toBeCloseTo(liftAt("WR", base.here, 77) * pointPriceAt(curve, 77), 0);
+    for (const apy of [1_000_000, 3_000_000, 30_000_000]) {
+      expect(helpOf(base)).toBeCloseTo(valueForMoney({ ...base, apy, extraCost: 400_000 }) + (apy - base.floor) + 400_000, 0);
+    }
+    // With no price for a point, his lift alone, as value for money reads it there.
+    expect(helpOf({ ...base, curve: undefined })).toBeCloseTo(liftAt("WR", base.here, 77), 6);
   });
 
   it("with no price for a point in the market yet, is his lift alone", () => {

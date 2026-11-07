@@ -53,6 +53,13 @@ export interface LeaguePeople {
    */
   capCarryover?: { team: TeamId; season: number; amount: number }[];
   /**
+   * ADR-085 step 14, free agency's "offers" prices (`LeagueYearConfig.marketPrices`): the ask each
+   * unsigned man carries into his next market day of the league year `season`, when no team met it and
+   * the most a team that wanted him would pay was less. Absent = none (and always absent with today's
+   * calendar prices). Saves do not hold it yet.
+   */
+  freeAgentAsks?: { player: PlayerId; season: number; ask: number }[];
+  /**
    * ADR-087: what the players' steps remember between days (past injuries, recent grades, position
    * battles, when each free agent became unsigned). Saved as S1's `depthMemory`. Absent = nothing yet.
    */

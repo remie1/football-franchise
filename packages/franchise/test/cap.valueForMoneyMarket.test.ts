@@ -161,3 +161,123 @@ describe("seats held for the draft (step 14, §3.3 and §3.4)", () => {
     expect(signedBy(marketDay(people, { season: 2026, phase: "OFF_DRAFT", week: 4, day: 1 }), "kicker")).toEqual([String(teams[0]!.id)]);
   });
 });
+
+describe("free agency's prices from the offers (step 14, switched off by default)", () => {
+  // The design "Free agency: prices from the offers" (2026-11-07): four rules, behind
+  // `LeagueYearConfig.marketPrices: "offers"`. Today's market ("calendar") is the default.
+  const offerSteps = leagueYearSteps({ rate, cap, scouting: () => 100, marketPrices: "offers" });
+  const on = (s: typeof steps, people: LeaguePeople, day: CalendarStamp) => s.find((x) => x.id === "free-agency")!.run(people, ctxAt(day));
+  /** What he signed for a year, to the nearest $1,000 (undefined: he did not sign). */
+  const paid = (r: ReturnType<typeof on>, id: string): number | undefined => {
+    const e = (r?.events ?? []).find((x) => x.type === "CONTRACT_SIGNED" && String(x.payload.player) === id);
+    return e?.type === "CONTRACT_SIGNED" ? Math.round(e.payload.value! / e.payload.years! / 1000) * 1000 : undefined;
+  };
+  const PREMIUM: CalendarStamp = { season: 2026, phase: "OFF_RESET_FA", week: 1, day: 2 };
+  const VALUE: CalendarStamp = { season: 2026, phase: "OFF_RESET_FA", week: 2, day: 1 };
+  const VALUE_NEXT: CalendarStamp = { season: 2026, phase: "OFF_RESET_FA", week: 3, day: 1 };
+  const SUMMER: CalendarStamp = { season: 2026, phase: "OFF_SUMMER", week: 1, day: 1 };
+  const SUMMER_NEXT: CalendarStamp = { season: 2026, phase: "OFF_SUMMER", week: 2, day: 1 };
+  const thin = { t: teams[1]!, change: { WR: wr([70, 60, 55]) } };
+  const star = man("star", "WR", 84, 26, 4);
+  /** A kicker and `n` more: a roster filled to leave few seats. */
+  const kickers = (n: number): Seat[] => [{ position: "K", ovr: 60 }, ...Array.from({ length: n }, (_, i): Seat => ({ position: "K", ovr: 50, id: `extra-k-${i}` }))];
+
+  it("switched off, the date sets his price and no ask is carried between market days", () => {
+    const people = world([thin], [star], 2027);
+    const [premium, value, summer] = [PREMIUM, VALUE, SUMMER].map((d) => on(steps, people, d));
+    expect(paid(premium, "star")!).toBeGreaterThan(paid(value, "star")!);
+    expect(paid(value, "star")!).toBeGreaterThan(paid(summer, "star")!);
+    for (const r of [premium, value, summer]) expect(r!.people.freeAgentAsks).toBeUndefined();
+  });
+
+  it("rule 1, no price by the date: the same man signs for the same money on a premium day, a value day and in the summer", () => {
+    const people = world([thin], [star], 2027);
+    const money = [PREMIUM, VALUE, SUMMER].map((d) => paid(on(offerSteps, people, d), "star"));
+    expect(money[0]).toBeDefined();
+    expect(new Set(money).size).toBe(1);
+    // His value times his agent's optimism: today's ask on a value day.
+    expect(money[1]).toBe(paid(on(steps, people, VALUE), "star"));
+  });
+
+  it("rule 2, top target first: a team with one seat calls the man who would help it most, not its biggest bargain", () => {
+    // The receiver lifts this team's thin receivers far more than the 34-year-old safety lifts its
+    // safeties, but the safety, cheap at his age, is the bigger bargain.
+    const t = teams[1]!;
+    const oneSeat = { t, change: { WR: wr([70, 60, 55]), SS: [{ position: "SS", ovr: 58 }, { position: "SS", ovr: 56 }] as Seat[], K: kickers(14) } };
+    const people = world([oneSeat], [star, man("vet", "SS", 74, 34, 9)], 2027);
+    // 90 seats, less the 25 held for the draft before it is made: one left.
+    expect(people.teams[0]!.roster.length).toBe(90 - MARKET.draftSeats - MARKET.undraftedSeats - 1);
+    const today = on(steps, people, VALUE);
+    expect([signedBy(today, "star"), signedBy(today, "vet")]).toEqual([[], [String(t.id)]]);
+    const offers = on(offerSteps, people, VALUE);
+    expect([signedBy(offers, "star"), signedBy(offers, "vet")]).toEqual([[String(t.id)], []]);
+  });
+
+  it("rule 3, bidding: two teams that want him push his price above his ask; a team alone pays his ask", () => {
+    const rival = { t: teams[2]!, change: { WR: wr([74, 66, 60, 58]) } };
+    // The same rival with no seat left: its deals still make the market, but it cannot bid.
+    const full = { t: teams[2]!, change: { WR: wr([74, 66, 60, 58]), K: kickers(14) } };
+    // Today's market: offers stop at his ask.
+    const ask = paid(on(steps, world([thin, rival], [star], 2027), VALUE), "star")!;
+    expect(paid(on(steps, world([thin, full], [star], 2027), VALUE), "star")).toBe(ask);
+    const bid = on(offerSteps, world([thin, rival], [star], 2027), VALUE);
+    expect(signedBy(bid, "star")).toEqual([String(thin.t.id)]);
+    expect(paid(bid, "star")!).toBeGreaterThan(ask);
+    expect(paid(on(offerSteps, world([thin, full], [star], 2027), VALUE), "star")).toBe(ask);
+  });
+
+  it("rule 4: a man no team meets comes down overnight to the most a team that wanted him would pay, and signs there", () => {
+    // A team deep at receiver values this man below what his agent asks ("pricey" is an id whose agent's
+    // optimism, drawn by id, is high).
+    const deep = { t: teams[3]!, change: { WR: wr([80, 78, 70, 66, 64, 62]) } };
+    const asking = man("pricey", "WR", 84, 26, 4);
+    const people = world([deep], [asking], 2027);
+    const first = on(offerSteps, people, VALUE);
+    expect(signedBy(first, "pricey")).toEqual([]);
+    const carried = first!.people.freeAgentAsks!;
+    expect(carried).toEqual([{ player: asking.bio.id, season: 2027, ask: expect.any(Number) }]);
+    expect(carried[0]!.ask % 1000).toBe(0);
+    const next = on(offerSteps, first!.people, VALUE_NEXT);
+    expect(signedBy(next, "pricey")).toEqual([String(deep.t.id)]);
+    expect(paid(next, "pricey")).toBe(carried[0]!.ask);
+    expect(next!.people.freeAgentAsks).toEqual([]);
+    // Today's market keeps his ask until the calendar lowers it.
+    expect(signedBy(on(steps, people, VALUE), "pricey")).toEqual([]);
+    expect(signedBy(on(steps, people, VALUE_NEXT), "pricey")).toEqual([]);
+  });
+
+  it("rule 4: his ask never drops inside a day; what a team short of room could pay sets tomorrow's", () => {
+    // About $3.3M of room (a big one-year quarterback deal), and receivers on guaranteed money, too
+    // dear to cut to make more.
+    const tight = { t: teams[1]!, change: {
+      WR: [70, 60, 55].map((ovr): Seat => ({ position: "WR", ovr, guaranteed: true })),
+      QB: [{ position: "QB", ovr: 66, apy: 133_000_000, years: 1 }, { position: "QB", ovr: 60 }] as Seat[],
+    } };
+    const people = world([tight], [star], 2027);
+    // Today's market, in the bargain weeks: between rounds he drops his ask to the team's room and signs that day.
+    const today = on(steps, people, SUMMER);
+    expect(signedBy(today, "star")).toEqual([String(tight.t.id)]);
+    const room = paid(today, "star")!;
+    const offers = on(offerSteps, people, SUMMER);
+    expect(signedBy(offers, "star")).toEqual([]);
+    expect(offers!.people.freeAgentAsks).toEqual([{ player: star.bio.id, season: 2027, ask: room }]);
+    expect(paid(on(offerSteps, offers!.people, SUMMER_NEXT), "star")).toBe(room);
+  });
+
+  it("an ask is carried within its league year only, and only by a man still unsigned", () => {
+    const people = world([thin], [star], 2027);
+    const fresh = paid(on(offerSteps, people, VALUE), "star")!;
+    const carrying = (season: number): LeaguePeople => ({ ...people, freeAgentAsks: [{ player: star.bio.id, season, ask: 2_000_000 }] });
+    const kept = on(offerSteps, carrying(2027), VALUE);
+    expect(paid(kept, "star")).toBe(2_000_000);
+    expect(kept!.people.freeAgentAsks).toEqual([]);
+    // Carried from last league year, it is forgotten.
+    expect(paid(on(offerSteps, carrying(2026), VALUE), "star")).toBe(fresh);
+  });
+
+  it("same people, day and seed: the same market", () => {
+    const people = world([thin, { t: teams[2]!, change: { WR: wr([74, 66, 60, 58]) } }, { t: teams[3]!, change: { WR: wr([80, 78, 70, 66, 64, 62]) } }],
+      [star, man("pricey", "WR", 84, 26, 4), man("vet", "SS", 74, 34, 9)], 2027);
+    expect(JSON.stringify(on(offerSteps, people, VALUE))).toBe(JSON.stringify(on(offerSteps, people, VALUE)));
+  });
+});

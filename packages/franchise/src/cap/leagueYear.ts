@@ -36,7 +36,7 @@ import { BASE_CAP, CASH_FLOOR, MAX_PRORATION_YEARS, POST_JUNE_1_DESIGNATIONS, RF
 import { ROOKIE_SCALE_2026 } from "./rookieScale2026.js";
 import { minimumContract, minimumSalary, tagContract, tagPrice, tenderPrice } from "./signings.js";
 import { REAL_STRUCTURE, ageFactorAt, apyOf, firstYearShareFor, guaranteedShare, marketCurves, realStructure, valuePlayer, veteranContract, type MarketCurves } from "./value.js";
-import { pushedOut, valueForMoney } from "./valueForMoney.js";
+import { helpOf, pushedOut, valueForMoney } from "./valueForMoney.js";
 import { askingPrice, offerWorth, type MarketWindow } from "./negotiation.js";
 import { floorShortfall, planWithFloor, teamCapPlan, type CapPlan } from "./leaning.js";
 
@@ -140,6 +140,16 @@ export interface LeagueYearConfig {
    * since that camp's extensions are already in its deals.
    */
   campExtensionsFrom?: number;
+  /**
+   * Step 14, how free agency sets prices (design "Free agency: prices from the offers", 2026-11-07).
+   * "calendar", the default: the date sets a free agent's ask (`WINDOW_ASK`, `BARGAIN_WEEKLY`), each
+   * team calls its biggest bargain first, offers stop at the ask, and from the draft a man no team can
+   * fit drops his ask to the roomiest team's room between a day's rounds. "offers": the four rules of
+   * `freeAgency` (no price by the date; a team calls first the man who would help it most; teams that
+   * want the same man bid; a man no offer met comes down overnight to the most a team that wanted him
+   * would pay). Built switched off while the middle class is looked at.
+   */
+  marketPrices?: "calendar" | "offers";
 }
 
 /** The year's config with its view ahead. */
@@ -980,6 +990,34 @@ function complianceCheck(
 /** Puts a hole at a position ahead of every upgrade in a team's market list. */
 const HOLE_FIRST = 1e6;
 
+/** The asks carried into this league year's next market day (`LeaguePeople.freeAgentAsks`), by player. */
+function carriedAsks(people: LeaguePeople, season: number): Map<string, number> {
+  return new Map((people.freeAgentAsks ?? []).filter((a) => a.season === season).map((a) => [String(a.player), a.ask]));
+}
+
+/**
+ * A market day: rounds of offers until nobody signs. Each round every team with a seat and room makes
+ * one offer, to the target at the top of its list, and each man takes the offer worth most to him if it
+ * is worth his ask. How prices are set depends on `config.marketPrices` (step 14):
+ *
+ *   - "calendar" (default): his ask is set by the day's window (`marketWindow`, `askingPrice`); a team's
+ *     list puts its biggest bargain (value for money) first; an offer stops at his ask; and from the
+ *     draft, a man no team could fit drops his ask, between rounds, to the room of the roomiest team
+ *     that wanted him (step 12).
+ *   - "offers" (design "Free agency: prices from the offers", 2026-11-07), four rules:
+ *     1. no price by the date: his ask is his value times his agent's optimism on every market day,
+ *        or the ask he carried from his last market day when that is lower;
+ *     2. among the men worth their price to it (value for money), a team calls first the man who would
+ *        help it most (`helpOf`); a hole still has its head start (`HOLE_FIRST`);
+ *     3. teams that want the same man bid: he goes to the offer worth most to him at its team's limit
+ *        (what the team thinks he is worth, need counted), for the money that beats the next team's
+ *        best at its limit, never above the winner's limit; a team alone raises its offer up to its
+ *        limit when the rest of the offer leaves him short of his ask. A raise that would not fit the
+ *        team's room, or that needs a swap, is not made;
+ *     4. a man still unsigned at the day's end carries into his next market day the most any team that
+ *        wanted him that day would have paid (its offer, or its room when it could not fit him), when
+ *        that is less than his ask. His ask never drops inside a day.
+ */
 function freeAgency(
   people: LeaguePeople, ctx: DayStepContext, config: YearConfig, skillOf: (t: TeamId, p: LeaguePeople) => number,
   market: { window: MarketWindow; weeksIntoBargain: number },
@@ -1008,10 +1046,17 @@ function freeAgency(
     if (c.ended.reason === "EXPIRED") ranOut.set(String(c.player), c.team);
   }
   const moves = [...(people.freeAgentMoves ?? [])];
+  const offersPrice = config.marketPrices === "offers";
+  const carried = offersPrice ? carriedAsks(people, season) : new Map<string, number>();
   const asks = new Map(pool.map((p) => {
     const cs = seasonsIn(p, season);
     const floor = minimumSalary(season, cs, config.cap);
-    return [String(p.bio.id), askingPrice(p, askValue(p, config, curves, floor, config.cap(season)), market.window, market.weeksIntoBargain, floor, ctx.seed, season)];
+    const value = askValue(p, config, curves, floor, config.cap(season));
+    if (!offersPrice) return [String(p.bio.id), askingPrice(p, value, market.window, market.weeksIntoBargain, floor, ctx.seed, season)];
+    // "offers", rule 1: no price by the date; rule 4: the ask he carried, when it is lower.
+    const fresh = askingPrice(p, value, "VALUE", 0, floor, ctx.seed, season);
+    const kept = carried.get(String(p.bio.id));
+    return [String(p.bio.id), kept === undefined ? fresh : Math.max(floor, Math.min(fresh, kept))];
   }));
   const signed = new Set<string>();
   // Men let go to make room (step 12): they join the free agents after today's market.
@@ -1019,8 +1064,12 @@ function freeAgency(
   // A player who turned a team down today is not asked again today: the team moves to its next target.
   const turnedDown = new Set<string>();
   const graded = new Map<string, number>();
+  // "offers", rule 4: the most any team that wanted a man today would pay him, and, of the teams that
+  // could not fit him, the most such a team could (the lesser of its room and its limit).
+  const wantedAt = new Map<string, number>();
+  const shortToday = new Map<string, number>();
   for (let round = 0; round < MARKET.rounds && pool.length > 0; round++) {
-    const offers = new Map<string, { team: TeamId; contract: PlayerContract; worth: number; cut?: { i: number; p: PlayerState } }[]>();
+    const offers = new Map<string, MarketOffer[]>();
     // The most room any team that wanted him had, when none could fit him (step 12).
     const shortOf = new Map<string, number>();
     const order = shuffled(teams.map((t) => t.id), ctx.seed, `fa/${String(ctx.day.phase)}/${ctx.day.week}/${ctx.day.day}/${round}`);
@@ -1049,7 +1098,7 @@ function freeAgency(
       }
       const needs = new Map<Position, number>();
       // His best target: the most valuable free agent he needs and can afford.
-      let best: { p: PlayerState; contract: PlayerContract; score: number; starts: boolean; cut?: { i: number; p: PlayerState } } | undefined;
+      let best: { p: PlayerState; contract: PlayerContract; score: number; starts: boolean; limit: number; cut?: { i: number; p: PlayerState } } | undefined;
       // Step 12: a team short of room may let go a lesser man at the position to make it (a swap).
       const liveAt = new Map<string, number>();
       book.contracts.forEach((c, i) => { if (c.team === t.id && !c.ended && c.years.some((y) => y.season === season && !y.voidYear)) liveAt.set(String(c.player), i); });
@@ -1090,8 +1139,9 @@ function freeAgency(
         const cs = seasonsIn(p, season);
         const floor = minimumSalary(season, cs, config.cap);
         const v = valuePlayer(p, g, curves, floor, config.cap(season), config.ahead.value(t.id, p));
-        // Step 12: a team pays what it thinks he is worth, but never more than he asks.
-        const apy = Math.max(floor, Math.min(asks.get(String(p.bio.id))!, Math.round(v.apy * (MARKET.offerBase + MARKET.offerNeed * need) / 1000) * 1000));
+        // Step 12: a team pays what it thinks he is worth (its limit), but never more than he asks.
+        const limit = Math.max(floor, Math.round(v.apy * (MARKET.offerBase + MARKET.offerNeed * need) / 1000) * 1000);
+        const apy = Math.max(floor, Math.min(asks.get(String(p.bio.id))!, limit));
         let contract = buildOffer(p, t.id, season, ctx.day, apy, v.years, cs, config.cap, "VETERAN");
         // Step 12: when next year has no room for a longer deal, the team offers one year ("prove it").
         if (v.years > 1 && !secondYearFits(t.id, contract, book, config.cap, plan(t.id), totals)) {
@@ -1102,7 +1152,8 @@ function freeAgency(
           cut = cutFor(pos, g, capNumber(contract.years[0]!) - room);
           if (!cut) {
             const id = String(p.bio.id);
-            shortOf.set(id, Math.max(shortOf.get(id) ?? 0, room));
+            // "offers": a team that cannot fit him would still pay no more than its limit.
+            shortOf.set(id, Math.max(shortOf.get(id) ?? 0, offersPrice ? Math.min(room, limit) : room));
             continue;
           }
         }
@@ -1121,22 +1172,24 @@ function freeAgency(
         }
         const value = valueForMoney({ position: pos, here, grade: g, apy: apyOf(contract), floor: dealFloor(contract, cs, config.cap), curve: curves.get(TAG_GROUP[pos]), extraCost: seat });
         if (!hole && value < 0) continue;
-        const score = hole + value;
-        if (!best || score > best.score) best = { p, contract, score, starts: wouldStart(g, pos, here), ...(cut ? { cut: { i: cut.i, p: cut.p } } : {}) };
+        if (offersPrice) wantedAt.set(String(p.bio.id), Math.max(wantedAt.get(String(p.bio.id)) ?? 0, apy));
+        // "calendar": the biggest bargain first. "offers", rule 2: of the men worth their price, the one
+        // who would help most first.
+        const score = hole + (offersPrice && value >= 0 ? helpOf({ position: pos, here, grade: g, curve: curves.get(TAG_GROUP[pos]) }) : value);
+        if (!best || score > best.score) best = { p, contract, score, starts: wouldStart(g, pos, here), limit, ...(cut ? { cut: { i: cut.i, p: cut.p } } : {}) };
       }
       if (!best) continue;
-      const worth = offerWorth(best.p, {
-        apy: apyOf(best.contract), guaranteed: guaranteedShare(best.contract), winShare: winShareOf(t.id, ctx.state),
-        starts: best.starts,
-        ownTeam: lastTeam.get(String(best.p.bio.id)) === t.id,
-      }, asks.get(String(best.p.bio.id))!);
+      const terms = { winShare: winShareOf(t.id, ctx.state), starts: best.starts, ownTeam: lastTeam.get(String(best.p.bio.id)) === t.id };
+      const worth = offerWorth(best.p, { ...terms, apy: apyOf(best.contract), guaranteed: guaranteedShare(best.contract) }, asks.get(String(best.p.bio.id))!);
       const list = offers.get(String(best.p.bio.id)) ?? [];
-      list.push({ team: t.id, contract: best.contract, worth, ...(best.cut ? { cut: best.cut } : {}) });
+      list.push({ team: t.id, contract: best.contract, worth, terms, limit: best.limit, room, ...(best.cut ? { cut: best.cut } : {}) });
       offers.set(String(best.p.bio.id), list);
     }
+    // "offers", rule 4: no drop inside the day; what the teams that could not fit him would pay is kept for tonight.
+    if (offersPrice) for (const [id, most] of shortOf) shortToday.set(id, Math.max(shortToday.get(id) ?? 0, most));
     // Step 12: in the bargain basement, a man nobody could fit comes down to what the best of them can pay.
     let lowered = 0;
-    if (market.window === "BARGAIN") {
+    if (!offersPrice && market.window === "BARGAIN") {
       for (const [id, most] of shortOf) {
         if (offers.has(id) || signed.has(id)) continue;
         const p = byId.get(id)!;
@@ -1147,10 +1200,11 @@ function freeAgency(
       }
     }
     if (offers.size === 0 && lowered === 0) break;
-    // Each player takes his best offer if it is worth his ask.
+    // Each player takes his best offer if it is worth his ask ("offers": once the teams have bid).
     for (const [id, list] of offers) {
-      const top = [...list].sort((a, b) => b.worth - a.worth)[0]!;
-      for (const o of list) if (o !== top || o.worth < 1) turnedDown.add(`${String(o.team)}|${id}`);
+      const asMade = [...list].sort((a, b) => b.worth - a.worth)[0]!;
+      const top = offersPrice ? winningBid(byId.get(id)!, list, asks.get(id)!) ?? asMade : asMade;
+      for (const o of list) if (o.team !== top.team || top.worth < 1) turnedDown.add(`${String(o.team)}|${id}`);
       if (top.worth < 1) continue;
       const p = byId.get(id)!;
       if (top.cut) {
@@ -1173,14 +1227,71 @@ function freeAgency(
     }
     pool = pool.filter((p) => !signed.has(String(p.bio.id)));
   }
-  if (signed.size === 0) return undefined;
+  // "offers", rule 4: a man still unsigned carries into his next market day the most a team that wanted
+  // him today would have paid, when that is less than his ask. Only this league year's unsigned men keep one.
+  const freeAgentAsks: NonNullable<LeaguePeople["freeAgentAsks"]> = [];
+  if (offersPrice) {
+    const next = new Map(carried);
+    for (const id of new Set([...wantedAt.keys(), ...shortToday.keys()])) {
+      if (signed.has(id)) continue;
+      const most = Math.max(wantedAt.get(id) ?? 0, shortToday.get(id) ?? 0);
+      if (most > 0 && most < asks.get(id)!) next.set(id, Math.floor(most / 1000) * 1000);
+    }
+    for (const p of pool) {
+      const ask = next.get(String(p.bio.id));
+      if (ask !== undefined) freeAgentAsks.push({ player: p.bio.id, season, ask });
+    }
+  }
+  const asksMoved = offersPrice && JSON.stringify(freeAgentAsks) !== JSON.stringify(people.freeAgentAsks ?? []);
+  if (signed.size === 0) return asksMoved ? { people: { ...people, freeAgentAsks }, events: [] } : undefined;
   return {
     people: {
       ...people, teams, players: placePlayers(people.players, teams), freeAgents: [...people.freeAgents.filter((id) => !signed.has(String(id))), ...released],
       contracts: book.contracts, deadMoney: book.dead, ...(moves.length > 0 ? { freeAgentMoves: moves } : {}),
+      ...(offersPrice ? { freeAgentAsks } : {}),
     },
     events: book.events,
   };
+
+  /**
+   * "offers", rule 3: the teams that want the same man bid. An offer's worth to him is its money over
+   * his ask times what the rest of it does for him (`rest`: winning, playing time, home, guarantees), so
+   * at its team's limit an offer is worth `limit × rest / ask`. He goes to the offer worth most at its
+   * limit, for the money that makes it worth as much as the next team's at that team's limit (and at
+   * least his ask), never above the winner's limit: a team alone pays his ask, or raises toward its
+   * limit when the rest of its offer leaves him short. Undefined when no raise is made (none is needed,
+   * the leader cannot meet his ask even at its limit, needs a swap, or the raise would not fit its
+   * room): then he weighs the offers as made.
+   */
+  function winningBid(p: PlayerState, list: readonly MarketOffer[], ask: number): MarketOffer | undefined {
+    const rest = (o: MarketOffer) => o.worth * ask / Math.max(1, apyOf(o.contract));
+    const atLimit = (o: MarketOffer) => o.limit * rest(o) / Math.max(1, ask);
+    const ranked = [...list].sort((a, b) => atLimit(b) - atLimit(a) || b.worth - a.worth);
+    const lead = ranked[0]!;
+    if (atLimit(lead) < 1 || lead.cut) return undefined;
+    const next = ranked.length >= 2 ? atLimit(ranked[1]!) : 0;
+    const price = Math.min(lead.limit, Math.ceil(ask * Math.max(1, next) / Math.max(1e-9, rest(lead)) / 1000) * 1000);
+    if (price <= apyOf(lead.contract)) return undefined;
+    const raised = buildOffer(p, lead.team, season, ctx.day, price, lead.contract.years.filter((y) => !y.voidYear).length, seasonsIn(p, season), config.cap, "VETERAN");
+    if (capNumber(raised.years[0]!) > lead.room) return undefined;
+    return { ...lead, contract: raised, worth: offerWorth(p, { ...lead.terms, apy: apyOf(raised), guaranteed: guaranteedShare(raised) }, ask) };
+  }
+}
+
+/** A team's offer to a man in a round of a market day, with what "offers" prices need to bid with. */
+interface MarketOffer {
+  team: TeamId;
+  contract: PlayerContract;
+  /** Its worth to him, in units of his ask (`offerWorth`). */
+  worth: number;
+  /** The rest of the offer, beside the money and guarantees. */
+  terms: { winShare: number; starts: boolean; ownTeam: boolean };
+  /** The most the team would pay him a year: its value of him, need counted. */
+  limit: number;
+  /** The team's cap room for him this year. */
+  room: number;
+  /** The teammate a swap lets go to make room. */
+  cut?: { i: number; p: PlayerState };
 }
 
 function shuffled<T>(xs: readonly T[], seed: string, label: string): T[] {

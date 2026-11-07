@@ -1,11 +1,13 @@
 /**
- * `pnpm --filter @ff/calibration cap-check -- --league <file> [--seed <seed>] [--seasons 5] [--out <file>] [--development] [--injuries]`
+ * `pnpm --filter @ff/calibration cap-check -- --league <file> [--seed <seed>] [--seasons 5] [--out <file>] [--development] [--injuries] [--market-prices offers]`
  *
  * Plays the stand-in league for several seasons with the league year and the draft in the walk
  * (ADR-085 §7) and prints each year's money: how full teams are against the cap, dead money, each
  * position group's share, the biggest deals, and how much moved (signings, cuts, free agents,
  * compensatory picks). `--out` saves the numbers as JSON. `--development` and `--injuries` switch
  * on the players' growth and aging and their injuries (ADR-087; both off by default, as before).
+ * `--market-prices offers` plays free agency under ADR-085 step 14's prices from the offers (the
+ * default, `calendar`, is today's market).
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -19,6 +21,7 @@ function parse(argv: readonly string[]) {
   let out: string | undefined;
   let development = false;
   let injuries = false;
+  let marketPrices: "calendar" | "offers" | undefined;
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]!;
     const next = (): string => {
@@ -33,12 +36,17 @@ function parse(argv: readonly string[]) {
     else if (arg === "--out") out = next();
     else if (arg === "--development") development = true;
     else if (arg === "--injuries") injuries = true;
+    else if (arg === "--market-prices") {
+      const v = next();
+      if (v !== "calendar" && v !== "offers") throw new SyntaxError("--market-prices is calendar or offers");
+      marketPrices = v;
+    }
     else throw new SyntaxError(`unknown argument ${arg}`);
   }
   if (league === undefined) throw new SyntaxError("--league <file> is required (the stand-in league)");
   if (!Number.isInteger(seasons) || seasons < 1) throw new SyntaxError("--seasons must be a whole number, 1 or more");
   const players = development || injuries ? { development, injuries } : undefined;
-  return { seed, seasons, league, out, players };
+  return { seed, seasons, league, out, players, marketPrices };
 }
 
 const fromCaller = (path: string) => resolve(process.env.INIT_CWD ?? process.cwd(), path);
@@ -71,9 +79,10 @@ function print(y: CapYear): void {
 
 const args = parse(process.argv.slice(2));
 const file = readStandInFile(readFileSync(fromCaller(args.league), "utf8"));
-const years = runCapCheck({ seed: args.seed, file, seasons: args.seasons, onYear: print, weekOneSplit: true, ...(args.players ? { players: args.players } : {}) });
+const market = args.marketPrices !== undefined ? { marketPrices: args.marketPrices } : {};
+const years = runCapCheck({ seed: args.seed, file, seasons: args.seasons, onYear: print, weekOneSplit: true, ...(args.players ? { players: args.players } : {}), ...market });
 if (args.out) {
   const players = args.players ? { players: args.players } : {};
-  writeFileSync(fromCaller(args.out), JSON.stringify({ seed: args.seed, league: args.league, ...players, years }, null, 2));
+  writeFileSync(fromCaller(args.out), JSON.stringify({ seed: args.seed, league: args.league, ...players, ...market, years }, null, 2));
   console.log(`Saved ${fromCaller(args.out)}`);
 }
