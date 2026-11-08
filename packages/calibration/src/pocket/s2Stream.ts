@@ -421,7 +421,7 @@ export interface MustActWitnessFold extends S2CheckFold {
   clockExpired: number;
   /**
    * Step 5a only (the play's bundle carries `pocket.cleanPocket`; absent on every other fold, so
-   * steps 1 to 4 re-fold as before): clean picks read (a `pocket_movement` CHECK labelled `:clean`,
+   * steps 1 to 4 re-fold as before): clean picks read (a `pocket_movement` CHECK labeled `:clean`,
    * `cleanPick.ts`). Each is its own act, never a forced one: it must sit on a clean expiry as the
    * engine's predicate restates it (a CLEAN status, the rule part not holding, the count part under
    * the block holding) and before `QB_PURSUIT`. One that does not is a witness exception.
