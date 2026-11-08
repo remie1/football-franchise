@@ -360,10 +360,17 @@ export function buildFitRecord(x: FitRecordInput): FitRecord {
   if (x.runs.length !== FIT_GRID_SIZE || x.runs.some((r, i) => r.k !== i)) throw new Error(`buildFitRecord: the ${String(FIT_GRID_SIZE)} runs in offset order`);
   const target = fitTargetUsed();
   const values = estimateLosses(x.runs.map((r) => r.counts), target);
+  // A combination with no attempt in any window has no loss (`windowLoss` gives Infinity, which JSON
+  // writes as null, and `verifyFitRecord` would then read as an altered record): refused here by name,
+  // before anything is written (code-tests F16).
+  const empty = values.findIndex((v) => !Number.isFinite(v));
+  if (empty >= 0) throw new Error(`buildFitRecord: combination ${String(empty)} has no attempt in any window, so it has no loss; nothing was written`);
   const w = fitWinnerOf(values);
   const { index: _index, ...winner } = w;
   void _index;
   const confirmLoss = jointLoss(x.confirm.counts, target);
+  if (!Number.isFinite(confirmLoss)) throw new Error("buildFitRecord: the confirm run has no attempt in any window, so it has no loss; nothing was written");
+  if (w.loss === 0) throw new Error("buildFitRecord: the winner's estimated loss is 0, so the confirm run's gap has no percent (AM-9 `fit.approximation` reads it); nothing was written");
   const gapPercent = (100 * (confirmLoss - w.loss)) / w.loss;
   return {
     format: FIT5A_FORMAT,

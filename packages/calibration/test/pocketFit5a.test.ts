@@ -385,6 +385,14 @@ describe("the record (filing §4.3)", () => {
     expect(Object.keys(r.runs[0]!).sort()).toEqual(["atOrUnder025", "attempts", "binnedOnTick", "calls", "counts", "deltas", "k", "offset", "overlayDigest", "streamDigest"]);
   });
 
+  it("refuses to build a record with a combination or a confirm run that has no attempt, or a zero winning loss (code-tests F16)", () => {
+    const runs: FitRun[] = FIT_OFFSETS.map((o, k) => fitRunOf(k, `fnv1a:${String(k)}`, syntheticFold({ HALF_FIELD: o, FULL_FIELD: o, CONCEPT: o })));
+    const zero = (r: FitRun): FitRun => ({ ...r, counts: { HALF_FIELD: r.counts.HALF_FIELD.map(() => 0), FULL_FIELD: r.counts.FULL_FIELD.map(() => 0), CONCEPT: r.counts.CONCEPT.map(() => 0) } });
+    const input = (rs: FitRun[], confirm: FitRun) => ({ amendments: "fnv1a:3f9478eb", fingerprint: ENV.fingerprint, games: 1, benchOverlayDigest: rs[FIT_TODAY_INDEX]!.overlayDigest, corpus: CORPUS, runs: rs, confirm: { counts: confirm.counts, streamDigest: confirm.streamDigest }, replayOffsets: [0] });
+    expect(() => buildFitRecord(input(runs.map(zero), runs[FIT_TODAY_INDEX]!))).toThrow(/combination 0 has no attempt in any window, so it has no loss; nothing was written/);
+    expect(() => buildFitRecord(input(runs, zero(runs[FIT_TODAY_INDEX]!)))).toThrow(/the confirm run has no attempt in any window/);
+  });
+
   it("refuses a record whose losses, winner or target differ", () => {
     const r = syntheticRecord();
     const values = [...r.losses.values];
