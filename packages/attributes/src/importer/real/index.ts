@@ -16,5 +16,12 @@ export * from "./picks.js";
 export * from "./deadMoney.js";
 export * from "./development.js";
 export * from "./leagueFile.js";
-export type { RosterRow, PlayerRow, CombineRow, DepthRow, ContractRow, SnapRow, InjuryRow } from "./rows.js";
-export { loadSnapRows, loadSnapshotRows, loadTrackingRows } from "./rows.js";
+export * from "./officials.js";
+export {
+  copiedCrews, crewsOfSnapshot, fetchOfficialsSnapshot, officialsSnapshotDir, readOfficialsSnapshot, snapshotTaken,
+  type CopiedCrews, type CopiedCrewsBuilt, type OfficialsSnapshot, type SealedTables,
+} from "./officialsSnapshot.js";
+export type { RosterRow, PlayerRow, CombineRow, DepthRow, ContractRow, SnapRow, InjuryRow, ScheduleRow, OfficialRow, PlayRow } from "./rows.js";
+export {
+  loadSnapRows, loadSnapshotRows, loadTrackingRows, loadScheduleRows, loadOfficialRows, loadPlayerNames, loadPlayRows,
+} from "./rows.js";

@@ -11,6 +11,10 @@
  *
  * Parquet, not CSV: the contracts file's CSV twin is stale (no player ids, empty season
  * history; ADR-088 provenance), so the parquet is the only current copy.
+ *
+ * The officials snapshot (ADR-093 step 1b, `officialsFiles`) is a second kind, fetched into its own
+ * root, `data-cache/real/officials/<YYYY-MM-DD>/`, with the same manifest; `verifySnapshot` checks a
+ * kept folder against that manifest before anything reads it.
  */
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
@@ -48,6 +52,31 @@ export function snapshotFiles(season: number): Readonly<Record<string, string>> 
   };
 }
 
+/**
+ * Seasons of play-by-play the officials snapshot holds (ADR-093 step 1b): the spread window's three
+ * complete seasons and this one, which the lean window shares with the last of them.
+ */
+export const OFFICIALS_SEASONS = 4;
+
+/**
+ * The files one officials snapshot holds (ADR-093 step 1b): the schedules (who refereed each game,
+ * and the coaches), the officials table and the players list (every name a made-up referee avoids),
+ * and the play-by-play, whose descriptions hold every flag, for `season - 3` to `season`. The columns
+ * read are `ScheduleRow`'s, `OfficialRow`'s and `PlayRow`'s (`rows.ts`) and the players' `display_name`;
+ * never `official_id`. Cadence: fetched on demand (`standin-officials -- --fetch`) when a league file's
+ * crews are made or refreshed, never on a schedule; a kept folder is read again with `--snapshot`.
+ */
+export function officialsFiles(season: number): Readonly<Record<string, string>> {
+  const pbp: Record<string, string> = {};
+  for (let y = season - OFFICIALS_SEASONS + 1; y <= season; y++) pbp[`pbp${y}`] = `pbp/play_by_play_${y}.parquet`;
+  return {
+    schedules: "schedules/games.parquet",
+    officials: "officials/officials.parquet",
+    players: "players/players.parquet",
+    ...pbp,
+  };
+}
+
 export interface ManifestEntry {
   readonly url: string;
   readonly bytes: number;
@@ -76,13 +105,15 @@ export async function fetchSnapshot(opts: {
   readonly season: number;
   readonly now: Date;
   readonly download?: Download;
+  /** The files to fetch, key to release path: `snapshotFiles(season)` when left out, `officialsFiles(season)` for the officials. */
+  readonly files?: Readonly<Record<string, string>>;
 }): Promise<{ dir: string; manifest: SnapshotManifest }> {
   const download = opts.download ?? httpDownload;
   const date = opts.now.toISOString().slice(0, 10);
   const dir = join(opts.root, date);
   await mkdir(dir, { recursive: true });
   const files: Record<string, ManifestEntry> = {};
-  for (const [key, path] of Object.entries(snapshotFiles(opts.season))) {
+  for (const [key, path] of Object.entries(opts.files ?? snapshotFiles(opts.season))) {
     const url = `${NFLVERSE}/${path}`;
     const body = await download(url);
     await writeFile(join(dir, `${key}.parquet`), body);
@@ -99,6 +130,24 @@ export async function latestSnapshot(root: string): Promise<string | null> {
   const dated = (await readdir(root)).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
   const last = dated[dated.length - 1];
   return last === undefined ? null : join(root, last);
+}
+
+/**
+ * The folder's manifest, once every file it names has been hashed again and found to be the bytes
+ * that were fetched. Throws on a missing file or a different sha256, so a run on a kept folder is
+ * known to read what the first run read (ADR-093 step 1b).
+ */
+export async function verifySnapshot(dir: string): Promise<SnapshotManifest> {
+  const manifest = await readManifest(dir);
+  for (const [key, entry] of Object.entries(manifest.files)) {
+    const path = join(dir, `${key}.parquet`);
+    if (!existsSync(path)) throw new Error(`snapshot ${dir}: ${key}.parquet is missing, and the manifest names it`);
+    const sha256 = createHash("sha256").update(await readFile(path)).digest("hex");
+    if (sha256 !== entry.sha256) {
+      throw new Error(`snapshot ${dir}: ${key}.parquet is not the file that was fetched (sha256 ${sha256}, the manifest says ${entry.sha256})`);
+    }
+  }
+  return manifest;
 }
 
 export async function readManifest(dir: string): Promise<SnapshotManifest> {

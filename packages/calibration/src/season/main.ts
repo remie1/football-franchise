@@ -66,7 +66,11 @@
  * Officials (ADR-093 step 1): a new league's 17 crews are made from the world seed, and each week's
  * games are given theirs as the season reaches them. `--save` keeps the crews and each game's crew,
  * and `--load` carries on with them, each saved game keeping its crew (`officiatingFor`); a save from
- * before crews carries on without any. The stand-in league plays with drawn crews too, but still
+ * before crews carries on without any. The stand-in league plays its league file's 17 crews, copies
+ * of the real NFL crews under made-up referee names (step 1b; attributes' `standin-officials`
+ * command): as they stand in the file's season, or carried one winter into the next (for today's
+ * file, 2026, or 2027, the default with both player switches off), and a line says which; any other
+ * `--season` is refused, and a file without crews plays with drawn ones. The stand-in league still
  * cannot save. `--out` is unchanged. No game reads its crew until step 2, so until then a season
  * game's record shows no crew, whatever the save holds.
  */
@@ -76,7 +80,7 @@ import { compareStamps, DEFAULT_LEAGUE_RULES, isTruthLayerEvent, stampToString, 
 import { buildLeague, buildStaff, makeSave, readSave } from "@ff/franchise";
 import { createNewsDesk, formatEdition } from "@ff/narrative";
 import { CALLER_VERSIONS, DEFAULT_CALLER_VERSION, type CallerVersion } from "../caller/anticipate.js";
-import { officiatingFor, runRealSeason, seasonToPlay, type SeasonRosters } from "./realSeason.js";
+import { officiatingFor, runRealSeason, seasonToPlay, standInOfficialsLine, type SeasonRosters } from "./realSeason.js";
 import { readStandInFile } from "./standInLeague.js";
 import { checkStamp, engineRulesDigestOf, LEGACY_RULES, rulesTunables } from "../pocket/rules.js";
 import { savePlayedWith, seasonOutStamp, seasonRules } from "./stamp.js";
@@ -228,7 +232,10 @@ const printNews = (editions: ReturnType<Desk["take"]>) => {
 };
 // ADR-093 step 1: a new league makes its crews; a save carries on with its own; a save from before
 // crews has none and plays on without them, as a save from before coaches carries on without coaches.
-const officiating = officiatingFor(loaded?.save);
+// Step 1b: the stand-in league plays its file's crews, in the season the run plays (any other is refused).
+const officiating = officiatingFor(loaded?.save, standIn === undefined ? undefined : { file: standIn, season });
+const officialsLine = standInOfficialsLine(standIn, officiating, season);
+if (officialsLine !== undefined) console.log(officialsLine);
 const { league, rated, run } = runRealSeason({
   seed, season, callerVersion, rosters, league: base,
   ...(standIn === undefined ? {} : { standIn }),

@@ -1030,7 +1030,7 @@ Every bound below is provisional: 3.0 re-derives it from the measured v1 − v4 
   scratch harness to a kept calibration tool; new validators that throw on a removed man (ADR-006),
   never filter. `unruled`.
 - **Real-result tethering.** Charting has no look data, so a front look has no real-world handle. Tethering stays on the played coverage family and the rusher count (ADR-071:360-363), and the creeper counts as a four-man rush there, as it does in `blitz_rate`. `unruled`.
-- **Awareness provenance.** The pressure read keys on QB and centre Awareness, which the attributes pipeline derives from scouting text and inference, the latter capped at 0.6 confidence (`docs/design/attributes.md`:49, :72). It now sets who is fooled, and so hot interceptions and sacks. If a weekly feed moves it, it should move slowly, as ADR-072 says of Discipline (ADR-072:282-283). `unruled`.
+- **Awareness provenance.** The pressure read keys on QB and centre Awareness, which the attributes pipeline derives from scouting text and inference, the latter capped at 0.6 confidence (`docs/design/attributes.md`:49, :79). It now sets who is fooled, and so hot interceptions and sacks. If a weekly feed moves it, it should move slowly, as ADR-072 says of Discipline (ADR-072:282-283). `unruled`.
 - **CLAUDE.md's Iron Rule 1** lists only `calibration` → `engine` as ratified, but ADR-017's
   Decision 3 (ADR-017:95, with Charter Amendment 7) ratified `calibration` → `playbook`, which today's
   code and this design use. Reconcile the CLAUDE.md wording, separately; not this ADR's defect.

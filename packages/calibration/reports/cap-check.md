@@ -217,6 +217,26 @@ Five-year check with the kept version:
 
 New-team deals of $2M+ rose from 111 a year to 175, close to the real range, and dead money moved from $22M to $29M a team, near the real $34M. Own-team multi-year deals did not change and remain the largest gap. The aging thread's runs, which retire players, are the better measure of how many good players leave the league.
 
+## The 2026 rookie class on its real deal lengths (2026-11-07)
+
+The league file held the 2026 rookie class on one-year deals. OverTheCap lists a new deal's years, value
+and guaranteed money the day it is signed and fills in its year-by-year pay later, and the importer read a
+deal without year rows as one year at its yearly average (ADR-088 R4, amended). `standin-contracts` gave
+those deals their real length: 235 picks on four years, 62 undrafted rookies on three. Same seed, five
+years, the file before and after:
+
+| Mean of 2027 to 2031 | Real lengths | One-year deals (before) | Real |
+|---|---|---|---|
+| Exclusive-rights tenders, 2027 / 2028 | 35 / 37 | 253 / 208 | |
+| New-team deals, $2M+ | 179 | 183 | 180 to 240 |
+| New-team deals, $5M+ | 90 | 92 | 80 to 120 |
+| Own-team deals of 2+ years | 123 | 116 | 210 to 290 |
+| Dead money before cut-down, mean a team ($M) | 30.9 | 29.3 | |
+| Cap used, median | 97.8% | 98.0% | |
+
+The extra tenders were the class reaching exclusive-rights free agency after one season. The rest moves
+little.
+
 ## What does not match yet
 
 1. **Too few re-signings.** Before step 7, teams signed about a fifth of the real number of own-team multi-year deals, because there were no early extensions. Step 7 raises it to under half the real number; cap room is now the limit.

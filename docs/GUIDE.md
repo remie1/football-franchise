@@ -199,8 +199,14 @@ windows. Its fix is designed right after the pocket fix, measured on the fixed p
   crews and the league's standard move). Nobody counts missed calls, so how much the officials
   miss is your call, fenced in by the league's own grading (you chose 2 in 3 of the holding seen
   and 1 in 20 judgment flags wrong). An assistant head coach offers challenges with an honest
-  percentage, under the NFL's real challenge rules. Its first two steps (the rulebook and the
-  officials), which change no play, come next; the fouls themselves come after the pocket fix.
+  percentage, under the NFL's real challenge rules. Step 1 is built (6 November 2026): the
+  officials' rolls, and the league's 17 crews, made with the league, given at most one game a
+  week each (never the same team twice in four weeks), saved, and carried into each new season
+  at 0.68, your answer. Step 1b gives the stand-in league copies of the 17 real crews under
+  made-up referee names, kept as their records show, your answer (`standin-officials`). A
+  stand-in season now plays 2026, or 2027 with the copies carried one winter (the default with
+  growth and injuries off; with either on, it plays 2026). No game uses a crew until step 2. The
+  rulebook (step 0) is still to come, and the fouls themselves come after the pocket fix.
 
 **Started outside the simulator (21 October 2026):** a game viewer for the browser, a season
 shell for the front office, faster CI, and this guide.

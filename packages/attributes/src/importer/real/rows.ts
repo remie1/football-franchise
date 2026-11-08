@@ -1,6 +1,8 @@
 /**
- * The snapshot's rows, as the importer reads them (ADR-088). Only the columns used are read.
- * Field names are nflverse's.
+ * The snapshot's rows, as the importer reads them (ADR-088). Only the columns named are read, and
+ * import-real's are the columns used. The officials snapshot's rows (ADR-093 step 1b) are plan-v2
+ * §3 A1's lists, three columns of which nothing reads yet: the schedules' `week`, the officials
+ * table's `season` and the plays' `season`. Field names are nflverse's.
  */
 import { FIRST_SNAP_SEASON, readRows } from "./snapshot.js";
 import type { ContractHistoryRow } from "./contracts.js";
@@ -72,6 +74,10 @@ export interface SnapRow {
 
 const cols = <T>(...names: (keyof T & string)[]) => names;
 
+/** The contract file's columns the importer reads (`buildContracts`; `standin-contracts` too). */
+export const CONTRACT_COLUMNS = cols<ContractRow>(
+  "gsis_id", "is_active", "year_signed", "years", "value", "guaranteed", "apy", "apy_cap_pct", "draft_year", "season_history");
+
 export interface InjuryRow {
   readonly gsis_id: string | null;
   readonly week: number;
@@ -98,12 +104,78 @@ export async function loadSnapshotRows(dir: string, season: number) {
     readRows<PlayerRow>(dir, "players", cols<PlayerRow>("gsis_id", "pfr_id", "birth_date", "draft_year", "draft_round", "draft_pick", "display_name")),
     readRows<CombineRow>(dir, "combine", cols<CombineRow>("pfr_id", "ht", "wt", "forty", "bench", "vertical", "cone")),
     readRows<DepthRow>(dir, "depth", cols<DepthRow>("dt", "team", "gsis_id", "pos_abb", "pos_rank")),
-    readRows<ContractRow>(dir, "contracts", cols<ContractRow>(
-      "gsis_id", "is_active", "year_signed", "years", "apy", "apy_cap_pct", "draft_year", "season_history")),
+    readRows<ContractRow>(dir, "contracts", CONTRACT_COLUMNS),
     loadSnapRows(dir, season),
     readRows<InjuryRow>(dir, "injuries", cols<InjuryRow>("gsis_id", "week", "report_primary_injury", "practice_primary_injury", "report_status")),
   ]);
   return { rosters, players, combine, depth, contracts, snaps, injuries };
+}
+
+/**
+ * A game in the schedules (the officials snapshot, ADR-093 step 1b): who refereed it, the one source
+ * the copies read for that, and its coaches, read only to keep made-up referees off real names.
+ */
+export interface ScheduleRow {
+  readonly game_id: string;
+  /** The old-style id, which the officials table's `game_id` uses. */
+  readonly old_game_id: string | null;
+  readonly season: number;
+  readonly game_type: string;
+  readonly week: number;
+  /** Null until the game is played. */
+  readonly home_score: number | null;
+  readonly referee: string | null;
+  readonly home_coach: string | null;
+  readonly away_coach: string | null;
+}
+
+/**
+ * One official at one game (the officials table), read for the taken set and the port check only.
+ * `official_id` is never read: nflverse renumbered the officials in 2023 (ADR-093 step 1b).
+ */
+export interface OfficialRow {
+  /** The old-style game id (the schedules' `old_game_id`). */
+  readonly game_id: string;
+  readonly official_name: string | null;
+  readonly position: string | null;
+  readonly season: number;
+}
+
+/** One play. Every flag is in `desc`, which holds real players' names and never leaves the importer. */
+export interface PlayRow {
+  readonly game_id: string;
+  readonly old_game_id: string | null;
+  readonly season: number;
+  readonly season_type: string;
+  readonly play_type: string | null;
+  readonly desc: string | null;
+}
+
+/**
+ * How the officials snapshot's loaders below read a file: `readRows` (`snapshot.ts`), which reads only
+ * the columns named. A test passes a stand-in that keeps only the columns asked for, as the parquet
+ * reader does, so a column a loader's list leaves out shows (ADR-093 step 1b).
+ */
+export type ReadRows = <T>(dir: string, key: string, columns: readonly string[]) => Promise<T[]>;
+
+export async function loadScheduleRows(dir: string, read: ReadRows = readRows): Promise<ScheduleRow[]> {
+  return read<ScheduleRow>(dir, "schedules", cols<ScheduleRow>(
+    "game_id", "old_game_id", "season", "game_type", "week", "home_score", "referee", "home_coach", "away_coach"));
+}
+
+export async function loadOfficialRows(dir: string, read: ReadRows = readRows): Promise<OfficialRow[]> {
+  return read<OfficialRow>(dir, "officials", cols<OfficialRow>("game_id", "official_name", "position", "season"));
+}
+
+/** Every real player's `display_name` in the officials snapshot's players list, read only for the taken set. */
+export async function loadPlayerNames(dir: string, read: ReadRows = readRows): Promise<string[]> {
+  const rows = await read<Pick<PlayerRow, "display_name">>(dir, "players", cols<PlayerRow>("display_name"));
+  return rows.map((r) => r.display_name).filter((n): n is string => typeof n === "string");
+}
+
+/** One season of plays (`pbp<season>`), so a caller counts a season at a time and keeps no more. */
+export async function loadPlayRows(dir: string, season: number, read: ReadRows = readRows): Promise<PlayRow[]> {
+  return read<PlayRow>(dir, `pbp${season}`, cols<PlayRow>("game_id", "old_game_id", "season", "season_type", "play_type", "desc"));
 }
 
 /** Which file, id column and value columns each tracking source reads (`tracking.ts`). */
