@@ -158,7 +158,7 @@ export function drawFadeShift(rng: Rng): Record<AbilityGroup, number> {
  *     (fitted): from §12.5's starting GUESS 0.3, set once by a calibration run of the walk's first draft
  *     (the stand-in league, 10 seeds, every game a seeded coin) so that the undrafted signees average
  *     0.62 years older than the men drafted: 0.616 expected at 0.57, with each man's own age draw
- *     integrated out (MEASURED; 0.311 at the GUESS). ADR-087 §12.9, the AB4 note.
+ *     integrated out (MEASURED; 0.329 at the GUESS). ADR-087 §12.9, the AB4 note.
  */
 export const ROOKIE_AGE = {
   draftDay: [

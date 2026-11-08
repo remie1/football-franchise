@@ -5,6 +5,7 @@ import { ATTRIBUTE_REGISTRY_V1, createRng, teamId, type PlayerState, type Positi
 import {
   drawRookieAge, generateLeagueRosters, overallAt, ROOKIE_AGE, ROOKIE_YEARS_PAST_DRAFT, ROSTER_SHAPE, ROSTER_SIZE, type FictionalProvenance,
 } from "../src/index.js";
+import { gauss, measure, SLOT_TALENT } from "../src/fictional/generate.js";
 
 const teams: Team[] = Array.from({ length: 32 }, (_, i) => ({
   id: teamId(`T${String(i + 1).padStart(2, "0")}`),
@@ -213,28 +214,36 @@ describe("the made-up league's ages under aging \"ability\" (ADR-087 §12.5, §1
       expect(Math.abs(got - share), `age ${age + ROOKIE_YEARS_PAST_DRAFT}: ${got}`).toBeLessThan(0.01);
     }
     expect(ROOKIE_YEARS_PAST_DRAFT).toBe(1);
-    // Each from his own development stream's "age" fork, against his talent's own draw (replayed here).
+    // Each from his own development stream's "age" fork, against his talent's own draw, exactly. His slot
+    // (the generator's, before the depth sort) is recovered: each slot's stream is replayed as the
+    // generator draws it (his talent's own draw, then his measurements, which read his talent), and his
+    // slot is the one whose measurements are his (the league's provenance), one slot each.
     const l = leagues[0]!.ability;
+    const prov = l.provenance as FictionalProvenance;
     const root = createRng("ages-1", "attributes:fictional");
     const byId = new Map(l.players.map((p) => [String(p.bio.id), p]));
+    let checked = 0;
     for (const t of l.teams) {
+      const key = String(t.id);
       for (const position of Object.keys(ROSTER_SHAPE) as Position[]) {
-        const ids = t.depthChart[position]!;
-        const zs = Array.from({ length: ROSTER_SHAPE[position] }, (_, slot) => {
-          const rng = root.fork(`${String(t.id)}/${position}/${slot}`);
-          const u = 1 - rng.next(); const v = rng.next();
-          return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+        const slots = Array.from({ length: ROSTER_SHAPE[position] }, (_, slot) => {
+          const rng = root.fork(`${key}/${position}/${slot}`);
+          const talentZ = gauss(rng);
+          const talent = prov.teamStrength[key]! + (SLOT_TALENT[slot] ?? SLOT_TALENT[SLOT_TALENT.length - 1]!) + talentZ;
+          return { talentZ, measurements: JSON.stringify(measure(rng, position, talent)) };
         });
-        for (const id of ids) {
+        for (const id of t.depthChart[position]!) {
+          const mine = slots.filter((s) => s.measurements === JSON.stringify(prov.measurements[String(id)]));
+          expect(mine, String(id)).toHaveLength(1);
           const p = byId.get(String(id))!;
           if (!rookie(p)) continue;
-          const e = () => root.fork(`development/${String(id)}`).fork("age");
-          // His slot is the generator's, before the depth sort: one of his position's slots gives his age.
-          const possible = zs.map((z) => drawRookieAge(e(), z) + ROOKIE_YEARS_PAST_DRAFT);
-          expect(possible, String(id)).toContain(p.bio.age);
+          const e = root.fork(`development/${String(id)}`).fork("age");
+          expect(p.bio.age, String(id)).toBe(drawRookieAge(e, mine[0]!.talentZ) + ROOKIE_YEARS_PAST_DRAFT);
+          checked++;
         }
       }
     }
+    expect(checked).toBeGreaterThan(400);
   });
 
   it("runs the less talented rookies-to-be older: the undrafted ones are older than those drafted", () => {

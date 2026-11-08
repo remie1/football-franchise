@@ -86,10 +86,13 @@ describe("rookie ages after the draft (ADR-087 §12.5, AB4)", () => {
     }
     const all = pooled(runs);
     // MEASURED on these two seeds: 448 drafted, mean 22.03; 868 undrafted signees, mean 22.66; 0.631 older
-    // (0.670 and 0.596). The band is about 3 standard errors of a two-seed gap (about 0.056) around 0.62.
+    // (0.670 and 0.596). The band (CHOSEN) is REAL 0.62 ± 2 standard errors of a two-seed gap (about 0.056,
+    // from the men's age spread over these counts). By the AB4 tuning table (0.542 expected at ρ 0.50, 0.648
+    // at 0.60) it fails a ρ under about 0.47, and the GUESS 0.3 (0.324 when planted, AB4 review); inside the
+    // band it checks the link's size, not the fit to two places, which attributes' pin of ROOKIE_AGE.rho holds.
     const gap = mean(all.undrafted) - mean(all.drafted);
-    expect(gap).toBeGreaterThan(0.45);
-    expect(gap).toBeLessThan(0.8);
+    expect(gap).toBeGreaterThan(0.51);
+    expect(gap).toBeLessThan(0.73);
     // Ages a year past draft day (the year turn): 21 to 26.
     for (const a of [...all.drafted, ...all.undrafted]) expect(a >= 21 && a <= 26, String(a)).toBe(true);
   }, 600_000);

@@ -145,8 +145,10 @@ describe("rookie ages for made-up classes (ADR-087 §12.5, AB4)", () => {
   it("run the less talented older, with no draft: below the round-7 talent cut, about 0.9 years older (the copula at ρ 0.57)", () => {
     // The cut: the class's top 7 × 32 by talent, as the draft's regular rounds take that many. Below it are
     // the undrafted, both those a team signs and those who go home, so the gap is wider than the 0.62 the
-    // signees are fitted to after the draft (calibration's `rookieAges.test.ts`): 0.933 by integrating the
-    // copula at ρ 0.57 against the shares (MEASURED, numerically). At "position", ages do not follow talent.
+    // signees are fitted to after the draft (calibration's `rookieAges.test.ts`): 0.933 (MEASURED, by
+    // numerical integration of the copula at ρ 0.57 against the shares), and 0.939 (MEASURED over these 20
+    // classes). The band is ADR-087 §12.5's amendment AM-AB4-1, for the orchestrator to ratify (the plan's
+    // text said "about 0.6"). At "position", ages do not follow talent.
     const gapBelowCut = (classes: typeof abilityClasses) => {
       const gaps = classes.map((c, k) => {
         const { seed, draft } = SEEDS[k]!;

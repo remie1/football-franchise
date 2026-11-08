@@ -1527,11 +1527,36 @@ How it is drawn:
 - D7 slightly up, since younger rookies learn faster under `learningRate`;
 - the undrafted row: older, as is real.
 
+**What AB4 measured against those estimates (AB4 review, 2026-11-08).** The source is the smoke: career-check d5b-t1, arm `both`, 3 seasons, `--aging ability`, on AB4 and on aging-r3 (e7f2164). The rows are read from the week-8 53s counted like the NFL, with r3 in parentheses. The §12.9 AB4 note has the rest. The first two estimates are contradicted:
+- The rookie-age row. Rookies on week-8 53s average 22.14 in 2027 and 22.10 in 2028 (22.95, 23.01), against REAL 22.67. That is further from REAL than r3, on the young side, where the GUESS said "toward 22.67". The league's share 22 or under is 15.2% and 17.3% (8.7%, 5.8%) against REAL 8.85%: up 6.5 and 11.5 points, not about 1.8 (MEASURED).
+- Age-league is 26.01 and 25.70 (26.16, 26.04) against REAL 26.18. That is −0.15 and then −0.34 against r3, falling with each class, not about −0.05. Over a 20-season walk the fall would build (MEASURED).
+- D7, the starter rate by round band 1 / 2 / 3 / 4-7, over the walk's three drafts (96 to 331 player-seasons a band, one seed). It reads 0.708 / 0.552 / 0.495 / 0.290 (0.688 / 0.490 / 0.475 / 0.302) against REAL 0.635 / 0.512 / 0.410 / 0.239. That is up in rounds 1-3 and slightly down in 4-7, within one seed's noise (MEASURED).
+- The undrafted row: measured only after the draft. In calibration's `rookieAges.test.ts`, the undrafted signees on the offseason 90s, a year past draft day, run 0.631 older than the drafted (MEASURED), against REAL 0.62 (fractional ages on week-8 53s). So this is not yet on REAL's own basis. The career-check record carries no drafted/undrafted split of rookie ages, so the week-8 row cannot show the gap. The undrafted share did not move: 27.4% and 26.7% (27.4%, 26.8%), against REAL 27.4% (MEASURED).
+
+Why the first two go the wrong way: the REAL shares above are those of rookies still on a 53 at week 8, and most of those men were drafted (1,442 of 1,891). AB4 draws the shares for the whole class of 900. The link then makes the drafted men about 0.6 years younger than the class mean: 21.05 on draft day at ρ 0.57, against the class's 21.66 (MEASURED, AB4 tuning run).
+
+**Open: the orchestrator decides before AB4 merges (AB4 review, 2026-11-08).** AB4's builder left the re-targeting to AB9 on its own call. Nobody with authority has decided it. There are two ways:
+- (a) Take the deferral. AB4 merges as built, and AB9 carries AB9-R1 below. Until AB9-R1 lands, an `--aging ability` grade of rookie-age, share-22 and age-league reads worse than r3 by construction. No 20-season `--aging ability` grade of those rows is taken before AB9-R1.
+- (b) Re-target now. AB9-R1's work is done as an AB4 follow-up, before AB4 merges.
+
+**AB9-R1** (named by the AB4 review; it is AB9's work only if the orchestrator takes (a)):
+- Re-target the draft-day shares so that the drafted men, and the undrafted who make a 53, land on REAL's week-8 shares. That means drawing the class about half a year older than REAL's 53 shares (GUESS).
+- Re-fit ρ to the after-draft 0.62.
+- Re-measure the made-up league's rookies-to-be (rookies' mean 22.65 today, against REAL 22.67) and the draft-free check (AM-AB4-1 below).
+- Add a drafted/undrafted split of rookie ages to the week-8 reader, so that the 0.62 is graded on REAL's own basis.
+
 **Tests** (attributes `draftClass.test.ts` and `generate.test.ts`):
 - over 20 classes of 900 (`DRAFT_CLASS_SIZE`), the shares sit within ±1 pt of the target;
 - every non-age field is deep-equal to main;
 - under `aging: "position"` the whole class is deep-equal to main;
-- the undrafted are about 0.6 older after the draft runs. This test lives in calibration, the only package that may both make a class (`generateDraftClass`, a permitted surface under ADR-086 R1) and run the draft (`runSeason`); franchise imports only contracts, and attributes cannot run the draft. A draft-free check sits beside it in attributes: prospects below the round-7 talent cut run about 0.6 older. (AB4 measured 0.94 there at the ρ that gives the after-draft 0.62; one ρ cannot give both, and the fit follows the after-draft target. See the AB4 note in §12.9.)
+- the undrafted are about 0.6 older after the draft runs. This test lives in calibration, the only package that may both make a class (`generateDraftClass`, a permitted surface under ADR-086 R1) and run the draft (`runSeason`); franchise imports only contracts, and attributes cannot run the draft. A draft-free check sits beside it in attributes: prospects below the round-7 talent cut run about 0.6 older.
+
+**Amendment AM-AB4-1: the draft-free check's target.** Proposed by AB4 and put in this form by its review, 2026-11-08. It is **not ratified**: the orchestrator ratifies it, or asks the owner which target governs. Until then, the test above is built to it, and the text above is the plan as ratified.
+- The conflict. The plan asks for two things: prospects below the round-7 talent cut about 0.6 older, and the undrafted signees 0.62 older after the draft. One ρ cannot give both. Below the cut are the undrafted who sign, but also those who go home, and those are the least talented and the oldest.
+  - At the fitted ρ 0.57, the below-cut gap is 0.939 (MEASURED, 20 classes, seeds `rookie-age-1` to `-20`) and 0.933 (MEASURED, by numerical integration of the copula against the shares).
+  - At ρ 0.36, the below-cut gap is 0.592, but the after-draft gap is only 0.393 with each man's `e` integrated out (0.382 as drawn). These are MEASURED: the same integration, and the AB4 tuning run's prospects.
+- Proposed: the after-draft gap (REAL 0.62) is the fit's target, as §12.5's "How it is drawn" says. The draft-free check holds the below-cut gap at 0.85-1.02 at ρ 0.57 (CHOSEN; `draftClass.test.ts`), not about 0.6.
+- The review's alternative, not built: compare a signee-like middle band (talent ranks 225 to 700 of 900) with the top 224. This also misses 0.62: 0.707 at ρ 0.57 (MEASURED, by numerical integration). The draft does not take the top 224 by talent draw: the drafted average talent z 1.11 and the undrafted signees −0.03 (MEASURED, AB4 tuning run). So no talent-rank band in attributes stands in exactly for the draft.
 
 ### 12.6 E. The 99s, D7 over-starting and the win spread
 
@@ -1623,12 +1648,12 @@ Every PR follows these rules:
 | AB1 | Reader v6 (`CAREER_ROWS_VERSION` 6, `CAREER_CHECK_VERSION` 6), measure-only rows: ability means by age; 99s by rating / group / age; injuries per snap by age and spot; concussion lengths; contact per snap by spot (counted by roll sets, §12.3.6, from the participation rows; information only); team-overall spread and r; availability's REAL reference merged and aligned. Re-run the baseline on the 4 tune seeds | calibration | Reads only; the season output is unchanged | none (baseline) |
 | AB2 | Draw `fadeShift` (generator, under `aging`); importer `/2` with the `"aging"` fork, `injuryHistory` kept out until AB7; loader knows `/2`; the loader's refusal test moves to an unknown version | attributes, calibration loader | `aging: "position"` leaves it absent; `forSwitches` drops it with development off (loader pin unchanged); the file is reviewed as a data diff | none |
 | AB3 | Variant D as one fitted set (Q2): the ability curves, learning floor, workouts, smarts and passing snaps, slow smarts at c = 0.2, elusiveness/yac move; variant B's set kept as the T2 arm; `techniqueKnee` off; `playerWeeks` side from the chart key on the ability path; `expectedOverallChange/Path` `aging` option | franchise `players/aging.ts` (new), `curves.ts` (new), `development.ts`, `steps.ts` (`PlayerStepsConfig.aging` and the resume), `body.ts` and `injuries.ts` (the followers a change of body moves), `types.ts`, `index.ts`; `developmentTables.ts` unchanged as built (the ability set lives in `aging.ts`); calibration: the `--aging` / `--ability-rules` flags, `PlayerSwitches.aging` through `realSeason.ts` and `capCheck.ts` to `buildStandInLeague`, the generated league, the reserve pool and the walk's draft classes (the callers of attributes' `generateLeagueRosters` and `generateDraftClass`), and the career-check cache key (AB2 note) | `aging: "position"` default | peak-usage, at99, share-31-group, careers/reach 5, decline order, passing rows, D7 (re-check) |
-| AB4 | Rookie ages and the specialist rule dropped | attributes `draftClass.ts`, `generate.ts`, `development.ts` (the draw); calibration `rookieAges.test.ts` | `aging: "position"` | rookie-age, share-22, age-league, undrafted, D7 (slight) |
+| AB4 | Rookie ages and the specialist rule dropped | attributes `draftClass.ts`, `generate.ts`, `development.ts` (the draw); calibration `rookieAges.test.ts` | `aging: "position"` | rookie-age, share-22, age-league, undrafted, D7 (slight). MEASURED in the AB4 smoke: the first three move away from REAL. The undrafted row is not readable on week-8 53s yet. See §12.5's open choice and AB9-R1 |
 | AB5 | Injury risk by spot (chart key; `expectedAvailability` with no spot reads the chart key), the new age factor, the spot path's own `bySpot.perSnap` refit | franchise `injuries.ts`, `injuryTables.ts`, `availability.ts` (`spot?`) | `injuryRisk: "group"`; `INJURY_RATES.game.perSnap` untouched | availability, injuries per snap by age/spot |
 | AB6 | Concussion mark (`CONCUSSION_MARK`) and repeat weights; back/ribs healing at 31+ (`HEALING_BY_AGE`); `injuryRisk` threaded through `gameInjuries`, `weekInjuries`, `healWeek`, `drawInjury`, `lastingMark`; wear (`PlayerMemory.contact` by roll sets, kept only with `aging: "ability"`; `perContact` 0 until tuned) | franchise | `injuryRisk: "group"` reads none of the new tables (`INJURY_KINDS` unchanged); wear 0 | concussion rows, availability 31+, durability by concussions |
 | AB7 | P8 history: a new importer reader builds spells from past injury reports and weekly rosters into `provenance.history` (`import-real`), and `standin-development` writes P8 from it at `/3`; the loader knows `/3` and keeps it only with injuries on and `injuryRisk: "spot"` (`forSwitches` drops `injuryHistory` otherwise, and `stripStartingDevelopment` drops it too, so a second `standin-development` run changes nothing; both pinned); franchise seeds memory once on the spot path; the kind mapping also covers the copied current injury | attributes importer, calibration loader, franchise | Stripped unless injuries are on with `injuryRisk: "spot"` (loader pin unchanged; the file is a data diff) | stand-in league's injuries by age in years 1-3 |
 | AB8 | Retirement by choice (after M1's answer); `retire()` money path; E6 sent | franchise `retirement.ts`, `draft/money.ts`, `steps.ts` | `retirement: "unsigned"` | retired-signed; back-on-53 and starters-gone (slightly worse, expected) |
-| AB9 | 20-season grade: `--ability-rules` on the 4 tune seeds; tuning arms T1 base (variant D as fitted, slow smarts on), T2 slow smarts off (variant B's whole fitted set), T3 `techniqueKnee`, T4 O2 (smarts snaps halved), T5 wear on, T6 back/ribs healing off; then pass 2 on the 12 grade seeds (`career-check -- --grade --pass 2`) | calibration (runs only) | Runs only | all of the above |
+| AB9 | 20-season grade: `--ability-rules` on the 4 tune seeds; tuning arms T1 base (variant D as fitted, slow smarts on), T2 slow smarts off (variant B's whole fitted set), T3 `techniqueKnee`, T4 O2 (smarts snaps halved), T5 wear on, T6 back/ribs healing off; then pass 2 on the 12 grade seeds (`career-check -- --grade --pass 2`). If the orchestrator takes AB4's deferral (§12.5, (a)), AB9 also carries AB9-R1 before its first `--aging ability` grade of rookie-age, share-22 and age-league. AB9-R1 is not runs only: it changes attributes' draft-day shares and ρ behind `aging: "ability"`, and adds a split to calibration's week-8 reader | calibration (runs only; AB9-R1 apart) | Runs only (AB9-R1 apart: behind `aging: "ability"`) | all of the above |
 | AB10 | Real veterans aged once at league start under the ability curves: a copy of the curves in attributes, pinned by digest against franchise's; the tables freeze for this (D5b tuning limits) | attributes importer | Writes a new stand-in league file at `/4` (the Aged card: "a new league file, the old one kept"); `standin-2026-10-23.json` is left unchanged, so every run on it is unchanged | stand-in league's ages and ratings (on the new file) |
 | AB11 | The new rules become the growth-on defaults: `ability` / `spot` / `choice` (already ruled, R1-R3); `AGING_PROFILES` and the position path deleted. Lands when AB9 and AB10 are done and graded. Growth off is still unchanged; switching growth and injuries on by default stays Q8's, for the owner | franchise, attributes, calibration | Growth off unchanged | the whole card |
 
@@ -1869,7 +1894,7 @@ Two follow-ups for other threads came out of it: §12.11 M6 (trades, the career-
   - Each prospect's `z_talent` and `e` were replayed from the class's streams, so the gap could be read for any ρ. The replay was checked against the class's own ages at ρ 0.3, for every man.
   - MEASURED, 2026-11-07: 2,240 drafted (224 a draft; the first draft has no compensatory picks) and 4,611 undrafted signees (415-497 a draft). Mean talent z is 1.11 for the drafted and −0.03 for the undrafted signees.
   - The undrafted signees' mean age less the drafted men's, with each man's `e` integrated out:
-    - 0.311 at the GUESS 0.3
+    - 0.329 at the GUESS 0.3 (0.311 as drawn; AB4 listed 0.311 here, corrected in its review)
     - 0.542 at 0.50
     - 0.595 at 0.55
     - **0.616 at 0.57**
@@ -1883,11 +1908,11 @@ Two follow-ups for other threads came out of it: §12.11 M6 (trades, the career-
     - Shares: 20 13.50%, 21 31.47%, 22 34.97%, 23 16.52%, 24 2.96%, 25 0.58%. Every share is within 0.5 points of its target.
     - The mean is 21.657; K, P and LS alone are 21.648 (982 men).
   - The draft-free check: below the round-7 talent cut (the top 7 × 32 by talent), prospects run 0.939 years older (`"position"`: −0.018).
-    - §12.5 said "about 0.6" here, which one ρ cannot give together with the after-draft 0.62. Below the cut are the undrafted who sign, but also those who go home, who are the least talented and the oldest, so the gap is wider: 0.933 by integrating the copula at ρ 0.57 (computed). It would be about 0.59 at ρ 0.36, where the after-draft gap is only 0.37.
-    - The fit follows the after-draft target, as §12.5 and the plan ask. The attributes test holds 0.85-1.02.
+    - §12.5 said "about 0.6" here, which one ρ cannot give together with the after-draft 0.62. Below the cut are the undrafted who sign, but also those who go home, who are the least talented and the oldest, so the gap is wider: 0.933 (MEASURED, by numerical integration of the copula at ρ 0.57). It would be 0.592 at ρ 0.36, where the after-draft gap is only 0.393 (0.382 as drawn).
+    - The fit follows the after-draft target, as §12.5 and the plan ask. The attributes test holds 0.85-1.02. That band is a change of §12.5's target, so it is written there as amendment AM-AB4-1, for the orchestrator to ratify.
   - After the draft (calibration `rookieAges.test.ts`, seeds `rookie-ages-1` and `-2`, a year past draft day):
     - 448 drafted, mean 22.03; 868 undrafted signees, mean 22.66; the undrafted are 0.631 older (0.670 and 0.596 by seed).
-    - The test holds 0.45-0.80 (about 3 SEs of a two-seed gap). At the default aging the gap is under 0.15.
+    - The test holds 0.51-0.73: REAL 0.62 ± 2 SEs of a two-seed gap (about 0.056), tightened in the AB4 review from 0.45-0.80 (CHOSEN). By the tuning table it fails a ρ under about 0.47, and the GUESS 0.3 (0.324 when the review planted it). Inside the band it checks the link's size, while attributes' pin of `ROOKIE_AGE.rho` holds the fit. At the default aging the gap is under 0.15.
   - The made-up league (20 leagues `ages-1` to `-20`, 32 teams, season 2027, growth on), against `"position"` in parentheses:
     - mean age 24.50 (24.22);
     - rookies-to-be 34.4% of the league (32.4%; the specialists who were 23-24 join them);
@@ -1898,7 +1923,7 @@ Two follow-ups for other threads came out of it: §12.11 M6 (trades, the career-
   - §12.5's shares are those of REAL rookies on week-8 53s, most of them drafted (1,442 of 1,891). Here they are drawn for the whole class.
   - With the link, the drafted run about 0.6 years under the class mean, so the rookies on week-8 53s come out younger than REAL. In the smoke below: 22.10-22.14 against 22.67; 68-70% of rookies at 22 or under against 44.5%.
   - The league's share 22 or under rises to 15-17% (REAL 8.85%), and age-league falls about 0.15-0.2 years with each class.
-  - Matching the 53's rookies to REAL would mean drawing the class about half a year older than REAL's 53 shares. That would also move the made-up league's rookies-to-be and the draft-free check. It is a tuning choice, left to AB9.
+  - Matching the 53's rookies to REAL would mean drawing the class about half a year older than REAL's 53 shares. That would also move the made-up league's rookies-to-be and the draft-free check. AB4's builder left this tuning choice to AB9. The AB4 review moved it into §12.5 as an open choice for the orchestrator before AB4 merges: (a) defer to AB9 as AB9-R1, or (b) re-target now.
 - **Tests.**
   - attributes `draftClass.test.ts` (9 new):
     - the table (shares, the fold, the mean, ρ 0.57);
@@ -1921,7 +1946,8 @@ Two follow-ups for other threads came out of it: §12.11 M6 (trades, the career-
     - determinism, and fewer teams;
     - the grep of `abilityAge`, `ageSpread` and `ENTRY_AGE`.
   - attributes `development.test.ts`: AB2's "move no other stream" test now takes off the ages and what follows from them (age, draft line, credited seasons, career snaps) beside the shifts. It checks growth and patience for everyone, and career snaps for every man but K, P and LS.
-  - calibration `rookieAges.test.ts` (new, 2 tests, about 75 s): the after-draft gap under `"ability"`, and none at the default.
+  - calibration `rookieAges.test.ts` (new, 2 tests, about 75 s alone and about 2 minutes under load): the after-draft gap under `"ability"`, and none at the default.
+  - AB4 review: `generate.test.ts`'s replay now recovers each man's slot exactly. The man's slot is the one whose replayed measurements are his. The test then checks his age against `drawRookieAge` exactly, as `draftClass.test.ts` does, where it had checked only that one of his position's slots could give it. A reversed link (`−z_talent`), planted, fails it.
 
 **Proofs** (MEASURED, against e7f2164 in a temporary worktree, the same commands; `scratchpad/ab4/inertness.md` in the session).
 - **The nine season runs are byte-identical.** The sha256 of each out or save file:
@@ -1947,7 +1973,8 @@ Two follow-ups for other threads came out of it: §12.11 M6 (trades, the career-
 
   - In 2028, the plain week-8 overall is 66.49, sd 7.56, age 25.77 and win spread 2.25 (AB3: 66.42, 7.69, 26.10, 2.10).
   - The 2027 rookies are 21 24.6%, 22 43.0%, 23 26.9%, 24 4.9%, 25 0.6% (REAL 12.8, 31.5, 35.4, 16.6, 2.9).
-  - The record carries no drafted/undrafted split of rookie ages; the after-draft gap is the calibration test's 0.631 (REAL 0.62).
+  - D7, read in the AB4 review from the same two smoke records (`rows.draft.starterRate`, the walk's drafts of 2027-29, 96 to 331 player-seasons a band). Starter rate by round band 1 / 2 / 3 / 4-7: 0.708 / 0.552 / 0.495 / 0.290 (r3 0.688 / 0.490 / 0.475 / 0.302; REAL `NFL_DRAFT` 0.635 / 0.512 / 0.410 / 0.239). It is up in rounds 1-3 and slightly down in 4-7, on one seed (MEASURED).
+  - The undrafted row (undrafted rookies older) cannot be read from this smoke. The record carries no drafted/undrafted split of rookie ages; it has only the undrafted share, which did not move. The only measure of the gap is the calibration test's 0.631 (REAL 0.62). That counts the offseason signees a year past draft day, not the week-8 53s that REAL counts. AB9-R1 (§12.5) adds the split to the week-8 reader.
   - `season --seed homie-1 --development --injuries --aging ability` plays to its champion on both trees. Its players' mean age is 24.44 (r3 24.14), 22 or under 16.3% (33.7%), and K, P and LS 24.00 (25.46).
 
 ### 12.10 NEW contracts edits (not approved; each needs the owner's typed yes)
