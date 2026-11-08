@@ -3,12 +3,16 @@
  * step on a whole file (ADR-087 §2.5, `development.ts`), and its officiating block (ADR-093 step 1b,
  * `officials.ts`).
  *
- * All three commands write through `serializeLeagueFile`: `import-real` (`main.ts`), which builds the
- * file, `standin-development` (`developMain.ts`), which refreshes the records on one already built, and
- * `standin-officials` (`officialsMain.ts`), which puts in or refreshes the 17 copied crews. So a file
- * `import-real` writes and the same file refreshed are the same bytes. The block sits just before
- * `startingDevelopment`, so the two refreshing steps commute and each changes nothing run twice.
- * `officiatingWrites` and `importRealWrites` decide what the two officials commands write.
+ * All four commands write through `serializeLeagueFile`: `import-real` (`main.ts`), which builds
+ * the file, `standin-development` (`developMain.ts`), which refreshes the records on one already
+ * built, `standin-contracts` (`contractsMain.ts`), which rebuilds its estimated deals in place, and
+ * `standin-officials` (`officialsMain.ts`), which puts in or refreshes the 17 copied crews. So a
+ * file `import-real` writes and the same file refreshed are the same bytes. The block sits just
+ * before `startingDevelopment`, so `standin-development` and `standin-officials` commute.
+ * `standin-contracts` changes only `contracts`, which keeps its place; neither of the other two
+ * reads it, and it reads nothing they change, so it commutes with both. Each of the three changes
+ * nothing run twice. `officiatingWrites` and `importRealWrites` decide what the two officials
+ * commands write.
  */
 import type { PlayerState, RatedLeague } from "@ff/contracts";
 import type { Measurements } from "../../fictional/derive.js";

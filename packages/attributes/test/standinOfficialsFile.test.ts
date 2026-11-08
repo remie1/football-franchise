@@ -23,9 +23,11 @@ const block = file.officiating;
 const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 /**
  * The committed league file before `standin-officials` wrote its officiating block (the file at
- * 87681e2, with its growth records), by its sha256: only a new snapshot of the league may change this.
+ * 87681e2, with its growth records, and its estimated deals rebuilt by `standin-contracts` on
+ * 2026-11-07), by its sha256: only a new snapshot of the league, a refresh of its contracts, or new
+ * growth records (`standin-development`) may change this.
  */
-const FILE_BEFORE_OFFICIALS_SHA256 = "bb55709a7656460c348046afd84bc5d193fdd2a29e392139bfe1bbe7180058ed";
+const FILE_BEFORE_OFFICIALS_SHA256 = "d9102480a2db6e889935cb15eb832eedf5cd63227417ea999db23831b376b7eb";
 
 describe("the committed league file's copied crews (ADR-093 step 1b)", () => {
   it("are 17 crews o:01 to o:17 in id order, with 17 made-up referees and five whole leans each, every family averaging 50", () => {
@@ -82,8 +84,8 @@ describe("the committed league file's copied crews (ADR-093 step 1b)", () => {
 
   it("hold no gsis-like or pfr-like id and no key named official_id", () => {
     const json = JSON.stringify(block);
-    expect(json).not.toMatch(/\d{2}-\d{7}/); // gsis-like, as standinDevelopment.test.ts:155
-    expect(json).not.toMatch(/[A-Z][A-Za-z.']{3}[A-Z][A-Za-z.']\d{2}/); // pfr-like, as standinDevelopment.test.ts:156
+    expect(json).not.toMatch(/\d{2}-\d{7}/); // gsis-like, as in standinDevelopment.test.ts's "holds no real-player ids"
+    expect(json).not.toMatch(/[A-Z][A-Za-z.']{3}[A-Z][A-Za-z.']\d{2}/); // pfr-like, as in the same test
     const keys: string[] = [];
     const walk = (v: unknown): void => {
       if (Array.isArray(v)) v.forEach(walk);

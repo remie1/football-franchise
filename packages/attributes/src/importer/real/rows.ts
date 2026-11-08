@@ -74,6 +74,10 @@ export interface SnapRow {
 
 const cols = <T>(...names: (keyof T & string)[]) => names;
 
+/** The contract file's columns the importer reads (`buildContracts`; `standin-contracts` too). */
+export const CONTRACT_COLUMNS = cols<ContractRow>(
+  "gsis_id", "is_active", "year_signed", "years", "value", "guaranteed", "apy", "apy_cap_pct", "draft_year", "season_history");
+
 export interface InjuryRow {
   readonly gsis_id: string | null;
   readonly week: number;
@@ -100,8 +104,7 @@ export async function loadSnapshotRows(dir: string, season: number) {
     readRows<PlayerRow>(dir, "players", cols<PlayerRow>("gsis_id", "pfr_id", "birth_date", "draft_year", "draft_round", "draft_pick", "display_name")),
     readRows<CombineRow>(dir, "combine", cols<CombineRow>("pfr_id", "ht", "wt", "forty", "bench", "vertical", "cone")),
     readRows<DepthRow>(dir, "depth", cols<DepthRow>("dt", "team", "gsis_id", "pos_abb", "pos_rank")),
-    readRows<ContractRow>(dir, "contracts", cols<ContractRow>(
-      "gsis_id", "is_active", "year_signed", "years", "apy", "apy_cap_pct", "draft_year", "season_history")),
+    readRows<ContractRow>(dir, "contracts", CONTRACT_COLUMNS),
     loadSnapRows(dir, season),
     readRows<InjuryRow>(dir, "injuries", cols<InjuryRow>("gsis_id", "week", "report_primary_injury", "practice_primary_injury", "report_status")),
   ]);

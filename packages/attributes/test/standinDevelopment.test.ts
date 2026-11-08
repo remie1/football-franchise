@@ -29,10 +29,11 @@ const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 const json = (x: unknown) => JSON.stringify(x, (_k, v) => (v instanceof Set ? [...v] : v));
 /**
  * The committed league file before `standin-development` wrote its records and `standin-officials`
- * its officials block (ADR-088's, commit e23bf69), by its sha256: only a new snapshot of the league
- * may change this.
+ * its officials block (ADR-088's, commit e23bf69, with its estimated deals rebuilt by
+ * `standin-contracts` on 2026-11-07: 301 deals, nothing else), by its sha256: only a new snapshot
+ * of the league, or a refresh of its contracts, may change this.
  */
-const FILE_BEFORE_RECORDS_SHA256 = "3a9ae15263af9cb61d8b2f5e327308f2a846e6037d1a46517000e3181fc5d3d3";
+const FILE_BEFORE_RECORDS_SHA256 = "ffdd05762bae1b197794cb0099c8c0dd8f37a1767bd93034549bf001f7a4ea96";
 
 /** The file as it was before the step: every record and the extras key taken off. */
 function stripped(): LeagueFileLike {
