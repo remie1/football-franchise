@@ -3,7 +3,7 @@
  *
  * 1. MOVE is today's climb in full: after its CHECK, a clean climb publishes what a forced one
  *    does (`QB_DECISION` STEP_UP, then a DELAYED `RUSH_THREAT` for each live EDGE threat).
- * 2. His reads restart at the first read; the play-scoped `r<n>` counter keeps counting
+ * 2. His reads restart at the first read; the play-scoped `r<n>` and `a<n>` counters keep counting
  *    (contracts-guardian C8).
  * 3. His count restarts: the next expiry on the count is 1.5 s after the move tick (one tick step
  *    and the 1.0 s reset); a CONCEPT play's second clean expiry comes by its reads one tick later.
@@ -52,7 +52,7 @@ import type { Tunables } from "../src/tunables.js";
 import { buildCleanPocketScenario, baseReceivers } from "./fixtures.js";
 import { PASS_FIXTURES } from "./pocketTunables.js";
 import { withPicture } from "./snapFixtures.js";
-import { S5S_TUNABLES, S5_TUNABLES, checkOf, cleanParts, cleanPicksOf, onCleanBench, tickOfEvent, withCleanPocket } from "./step5Fixtures.js";
+import { S5S_TUNABLES, S5_TUNABLES, checkOf, cleanParts, cleanPicksOf, onCleanBench, rollsOf, tickOfEvent, withCleanPocket } from "./step5Fixtures.js";
 
 const mustSpy = vi.mocked(mustDecideNow);
 const pickSpy = vi.mocked(resolveCleanPick);
@@ -131,9 +131,10 @@ describe("ADR-089 step 5a: the clean move is today's climb", () => {
 });
 
 describe("ADR-089 step 5a: the restart and the reset (D33, C8)", () => {
-  it("after a clean move his next progression read is the first read, the r<n> counter keeps counting, and his count is the move tick plus 1.5 s", () => {
+  it("after a clean move his next progression read is the first read, the r<n> and a<n> counters keep counting, and his count is the move tick plus 1.5 s", () => {
     let moves = 0;
     let byCount = 0;
+    let anticipationsAcross = 0;
     for (const run of RUNS) {
       for (const [fixture, build] of PASS_FIXTURES) {
         for (let i = 0; i < 40; i++) {
@@ -155,6 +156,16 @@ describe("ADR-089 step 5a: the restart and the reset (D33, C8)", () => {
             expect(next.target, `restart-${fixture}-${i}`).toBe(first);
             expect(next.n).toBe((before[before.length - 1]?.n ?? 0) + 1);
           }
+          // C8: the play-scoped anticipation counter `a<n>` keeps counting across the move too.
+          const anticipations = rollsOf(events)
+            .map((r) => ({ tick: r.tick ?? -1, n: Number(/:a(\d+):[^/]*:anticipation$/.exec(r.roll.rngLabel)?.[1] ?? Number.NaN) }))
+            .filter((a) => !Number.isNaN(a.n));
+          const aBefore = anticipations.filter((a) => a.tick <= move);
+          const aNext = anticipations.find((a) => a.tick > move);
+          if (aNext !== undefined) {
+            expect(aNext.n, `restart-${fixture}-${i}: a<n> after the move`).toBe((aBefore[aBefore.length - 1]?.n ?? 0) + 1);
+            if (aBefore.length > 0) anticipationsAcross += 1;
+          }
           const reset = Number((move + 1.5).toFixed(1));
           const after = mustSpy.mock.calls.map((c) => c[0]).filter((f) => f.tick > move);
           for (const f of after) expect(f.budgetSeconds).toBe(reset);
@@ -170,6 +181,7 @@ describe("ADR-089 step 5a: the restart and the reset (D33, C8)", () => {
     }
     expect(moves).toBeGreaterThan(100);
     expect(byCount).toBeGreaterThan(10);
+    expect(anticipationsAcross).toBeGreaterThan(0);
   });
 
   it("a CONCEPT play's second clean expiry comes by its reads one tick after the move, and offers ESCAPE only", () => {
