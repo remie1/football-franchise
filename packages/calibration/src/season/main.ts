@@ -1,8 +1,8 @@
 /**
  * `pnpm --filter @ff/calibration season -- --seed <seed> [--season 2027] [--caller v5] [--engine-rules <name>] [--out <file>]`
  *   `[--rosters generated|flat|standin] [--league <file>] [--team-sd <n>] [--stop-after <week> | playoffs:<week>] [--save <file>]`
- *   `[--development] [--injuries] [--aging position|ability] [--ability-curves D|B] [--technique-knee] [--smarts-snaps <n>] [--ability-rules]`
- *   `[--injury-risk group|spot] [--no-healing-by-age] [--per-contact <n>]`
+ *   `[--development] [--injuries] [--aging position|ability] [--ability-curves D|B] [--technique-knee] [--smarts-snaps <n>]`
+ *   `[--injury-risk group|spot] [--no-healing-by-age] [--per-contact <n>] [--retirement unsigned|choice] [--ability-rules]`
  * `pnpm --filter @ff/calibration season -- --load <file> [--caller v5] [--stop-after …] [--save <file>]`
  *
  * Plays a whole season (272 games plus the playoffs) through the real sim, prints the final
@@ -66,8 +66,10 @@
  * default `--injury-risk group` is exactly today's; the spot path also plays §12.3.3-12.3.4's lengths
  * and marks (AB6: the concussion repeat rule and mark, slower back and rib healing at 31 and over), and
  * takes two tuning switches, `--no-healing-by-age` (AB9-T6) and `--per-contact <n>` (wear from contact,
- * AB9-T5, with `--aging ability` too; default 0). `--ability-rules` is the shorthand for both (with
- * `--development` and `--injuries`). A save records the options when not the default, and `--load`
+ * AB9-T5, with `--aging ability` too; default 0). `--retirement choice` (with either switch; ADR-087
+ * §12.4, AB8) lets players retire by their own choice at three moments a year, on top of the unsigned
+ * rule; the default `--retirement unsigned` is exactly today's. `--ability-rules` is the shorthand for
+ * all three (with `--development` and `--injuries`). A save records the options when not the default, and `--load`
  * carries on under them; `--out` names them too (`aging`, only when not the default, so a default
  * run's file is as before).
  *
@@ -235,6 +237,7 @@ if (agingName !== undefined) {
     players?.aging === "ability" ? "players age by ability" : "", players?.injuryRisk === "spot" ? "injury risk follows the depth-chart spot" : "",
     players?.healingByAge === false ? "back and rib healing flat with age" : "",
     players?.perContact !== undefined ? `wear from contact (${players.perContact} years a contest past the free count)` : "",
+    players?.retirement === "choice" ? "players retire by their own choice too" : "",
   ];
   console.log(`New rules: ${rules.filter(Boolean).join(", ")} (${agingName}; ADR-087 §12)`);
 }

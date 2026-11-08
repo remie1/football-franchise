@@ -9,8 +9,8 @@
  *
  * `aging` (ADR-087 §12.1, AB3; settled, `settleAging`) joins the switches of the arms with
  * development on, the only ones it acts on; `injuryRisk` (AB5) the arms with injuries on, and so does
- * AB6's `healingByAge`; AB6's `perContact` only the arm with both on (`both`). At the defaults (`{}`)
- * every arm is as before.
+ * AB6's `healingByAge`; AB6's `perContact` only the arm with both on (`both`); `retirement` (AB8) every
+ * arm with either switch on. At the defaults (`{}`) every arm is as before.
  */
 import { buildLeague, buildStaff } from "@ff/franchise";
 import { runRealSeason, type PlayerSwitches } from "./realSeason.js";
@@ -45,6 +45,8 @@ export function rosterGroups(file: StandInFile): Map<string, Exclude<RosterGroup
 export const agingActsOn = (arm: Arm): boolean => ARMS[arm]?.development === true;
 /** AB5: whether `injuryRisk` acts on this arm (injuries on). */
 export const injuryRiskActsOn = (arm: Arm): boolean => ARMS[arm]?.injuries === true;
+/** AB8: whether `retirement` acts on this arm (either switch on: every arm but `off`). */
+export const retirementActsOn = (arm: Arm): boolean => ARMS[arm] !== undefined;
 
 /** The options (settled) that act on this arm (`actingRules`): the aging options with development on, `injuryRisk` with injuries on. */
 export function armRules(arm: Arm, aging: AgingSwitches = {}): AgingSwitches {
@@ -66,12 +68,12 @@ export function armSwitches(arm: Arm, aging: AgingSwitches = {}): PlayerSwitches
 
 /**
  * The options, checked against the arms chosen (`--arms`): the aging options refused when none of
- * them has development on, `injuryRisk` (and AB6's `healingByAge`) when none has injuries on, and
- * AB6's `perContact` when none has both on, since no arm would play them while the report and caches
- * would carry their name.
+ * them has development on, `injuryRisk` (and AB6's `healingByAge`) when none has injuries on, AB6's
+ * `perContact` when none has both on, and `retirement` when none has either (AB8), since no arm would
+ * play them while the report and caches would carry their name.
  */
 export function agingForArms(arms: readonly string[], aging: AgingSwitches): AgingSwitches {
-  const { injuryRisk, healingByAge: _healing, perContact, ...rest } = aging;
+  const { injuryRisk, healingByAge: _healing, perContact, retirement, ...rest } = aging;
   const name = agingLabel(rest);
   if (name !== undefined && !arms.some((a) => isArm(a) && agingActsOn(a))) {
     throw new SyntaxError(`the aging options (${name}) act only on the arms with development on (development, both); add one to --arms or drop them`);
@@ -81,6 +83,9 @@ export function agingForArms(arms: readonly string[], aging: AgingSwitches): Agi
   }
   if (perContact !== undefined && !arms.some((a) => isArm(a) && agingActsOn(a) && injuryRiskActsOn(a))) {
     throw new SyntaxError("--per-contact acts only on the arm with growth and injuries both on (both); add it to --arms or drop it");
+  }
+  if (retirement === "choice" && !arms.some((a) => isArm(a) && retirementActsOn(a))) {
+    throw new SyntaxError("--retirement choice acts only on the arms with a players' switch on (development, injuries, both); add one to --arms or drop it");
   }
   return aging;
 }
