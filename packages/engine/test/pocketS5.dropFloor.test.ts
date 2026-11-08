@@ -12,6 +12,9 @@
  * 4. A forced tick before the floor goes to today's movement pick (`:movement`), with no throwaway
  *    before 2.0 s.
  * 5. A screen plays as the block without a floor.
+ * 6. The floor reads the first read's route as RUN (guardian C9): a pre-snap hot conversion that
+ *    puts the X's hot slant (QUICK) at the front of the progression gives the play the QUICK floor,
+ *    not the INTERMEDIATE of the called first read or the DEEP of the X's called Go.
  */
 import { describe, expect, it } from "vitest";
 import type { MatchEventEnvelope } from "@ff/contracts";
@@ -20,7 +23,7 @@ import { PASS_CARDS } from "../src/game/playbook.js";
 import { floorSecondsOf, isScreen } from "../src/sim/cleanPocket.js";
 import { DEFAULT_TUNABLES } from "../src/tunables.js";
 import type { Tunables } from "../src/tunables.js";
-import { buildCleanPocketScenario } from "./fixtures.js";
+import { buildCleanPocketScenario, buildFrontScenario } from "./fixtures.js";
 import { buildTeamSnapshot } from "./gameFixtures.js";
 import { PASS_FIXTURES } from "./pocketTunables.js";
 import { S4S_TUNABLES, S4_TUNABLES } from "./step4Fixtures.js";
@@ -88,6 +91,7 @@ describe("ADR-089 step 5a: the drop floor by the first read", () => {
 
 describe("ADR-089 step 5a: before the floor nothing is decided in the pocket", () => {
   it("no aimed pocket throw is decided and no checkdown look is taken before the first read's floor; the s4 base does both", () => {
+    let onTheRunEarlyAll = 0;
     for (const { name, base, arm, picture } of PAIRS) {
       let armThrows = 0;
       let baseEarly = 0;
@@ -120,8 +124,10 @@ describe("ADR-089 step 5a: before the floor nothing is decided in the pocket", (
       expect(armThrows, name).toBeGreaterThan(300);
       expect(baseEarly, name).toBeGreaterThan(20);
       expect(baseEarlyLooks, name).toBeGreaterThan(0);
-      void onTheRunEarly;
+      onTheRunEarlyAll += onTheRunEarly;
     }
+    // Item 3 (code-tests F10): a throw on the run is not bound; some are decided before the floor.
+    expect(onTheRunEarlyAll).toBeGreaterThan(0);
   });
 
   it("a forced tick before the floor goes to today's movement pick (`:movement`), with no throwaway before 2.0 s", () => {
@@ -165,5 +171,39 @@ describe("ADR-089 step 5a: before the floor nothing is decided in the pocket", (
       if (JSON.stringify(c) !== JSON.stringify(d)) differ += 1;
     }
     expect(differ).toBeGreaterThan(0);
+  });
+});
+
+describe("ADR-089 step 5a: the floor after a hot conversion (guardian C9)", () => {
+  it("a hot slant converted to the front of the progression gives the QUICK floor, and pocket throws come before 2.0 s", () => {
+    let converted = 0;
+    let quickWindow = 0;
+    for (let i = 0; i < 200; i++) {
+      const { state, calls } = buildFrontScenario({ extras: 1, hot: true });
+      const x = simulatePassPlay(state, calls, `hotfloor-${i}`, S5S_TUNABLES).events;
+      const start = x.find((e) => e.event.type === "PLAY_START");
+      if (start?.event.type !== "PLAY_START") throw new Error("no PLAY_START");
+      const offense = (start.event.payload as { readonly offense: unknown }).offense as { readonly hotConversions?: readonly { readonly receiver: string }[]; readonly readOrder: readonly string[] };
+      const x1 = calls.offense.routes[0];
+      if (x1 === undefined) throw new Error("fixture has no X");
+      if ((offense.hotConversions ?? []).length === 0) {
+        expect(floorOfPlay(x), `hotfloor-${i}`).toBe(2.0);
+        continue;
+      }
+      converted += 1;
+      // The called first read is the Dig (INTERMEDIATE) and the X's called route the Go (DEEP).
+      expect(x1.depthClass).toBe("DEEP");
+      expect(calls.offense.routes.find((r) => r.receiver === calls.offense.readOrder[0])?.depthClass).toBe("INTERMEDIATE");
+      expect(String(offense.readOrder[0])).toBe(String(x1.receiver));
+      expect(floorOfPlay(x), `hotfloor-${i}`).toBe(1.0);
+      for (const d of throwDecisionsOf(x)) {
+        if (d.onTheRun) continue;
+        expect(d.tick, `hotfloor-${i}`).toBeGreaterThanOrEqual(1.0);
+        if (d.tick < 2.0) quickWindow += 1;
+      }
+    }
+    expect(converted).toBeGreaterThan(50);
+    // Read from the called routes, the floor would be 2.0 and none of these would be decided.
+    expect(quickWindow).toBeGreaterThan(10);
   });
 });
