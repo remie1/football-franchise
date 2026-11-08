@@ -33,6 +33,7 @@ import {
   rePointsOf,
   releaseSharesOf,
   step5AliasesOf,
+  fitTableLines,
   runStep5,
   s5aRecordProblemOf,
   step5GateRefusal,
@@ -51,13 +52,24 @@ import {
 } from "../src/pocket/step5.js";
 import { RELEASE_BINS } from "../src/pocket/selection.js";
 import { am1ArmReading, type GuardSide } from "../src/pocket/guardAm1.js";
-import { emptyFitFold } from "../src/pocket/fit5a.js";
+import { emptyFitFold, type FitRecord } from "../src/pocket/fit5a.js";
 import type { Step1Env } from "../src/pocket/step1.js";
 
 const PKG = join(import.meta.dirname, "..");
 const FILED = join(PKG, FILED_PATH);
 const AMEND = join(PKG, AMENDMENTS_PATH);
 const ENV: Step1Env = { fingerprint: "fnv1a:test5", commit: "test", dirty: false, node: "v-test" };
+/** A fit record in shape only (fitTableLines reads it and computes nothing it does not print); pocketFit5a builds a real one. */
+const SYNTHETIC_FIT = {
+  bench: { arm: "E8", league: "gen", seedSet: 1, games: 2, caller: "v7", clock: "S theta 11, k 2, beta 0.5, push window", overlayDigest: "x", corpus: { genThroughWeek: 1, flatFirst: 1 } },
+  today: { HALF_FIELD: -0.5, FULL_FIELD: 1, CONCEPT: -1 },
+  todayLoss: 3,
+  losses: { order: "", values: [3, 1, 2] },
+  winner: { offsets: { HALF_FIELD: 0, FULL_FIELD: 0, CONCEPT: 0 }, deltas: { HALF_FIELD: -0.5, FULL_FIELD: 1, CONCEPT: -1 }, loss: 3, tiedWith: [], decidedBy: "loss", conceptSetByTie: false, onEdge: { HALF_FIELD: false, FULL_FIELD: false, CONCEPT: false }, e9IsE8: true },
+  callDeviation: { HALF_FIELD: 0.01, FULL_FIELD: 0.02, CONCEPT: 0.03 },
+  confirm: { deltas: { HALF_FIELD: -0.5, FULL_FIELD: 1, CONCEPT: -1 }, streamDigest: "x", loss: 3.1, estimateLoss: 3, gapPercent: 3.33, named: false },
+  runs: [],
+} as unknown as FitRecord;
 const TINY = { flatFirst: 1, genThroughWeek: 1 } as const;
 const OPEN: Step5GateState = { fitPin: "fnv1a:fit", fitRecord: "fnv1a:fit", s5aDigest: "fnv1a:s5a", s5aFinal: true, s5aOutcome: { faults: [], breaches: [], misses: [] } };
 
@@ -256,11 +268,24 @@ describe("step 5's visit and grading on a tiny corpus (scratch; nothing is recor
     const k = play("E8", 1).report.sacks.gen;
     expect(g.sections.affected).toContainEqual(expect.stringContaining(`gen set 1 time to throw ${play("E8", 1).report.timeToThrow.gen.toFixed(2)} s, sacks ${String(k.sacks)} of ${String(k.dropbacks)} dropbacks, pressured sacks ${String(k.pressuredSacks)} of ${String(k.pressuredDropbacks)} pressured dropbacks`));
     expect(g.sections.affected.some((l) => l.startsWith("beside the hit and sack figures, E9: flat set 1 time to throw "))).toBe(true);
+    // The nobody-open share "with its split" (measurement M5 item 5): the split rows by class, beside.
+    const nobody = g.sections.clauses.find((c) => c.id === "s5a.nobodyOpen")!;
+    const split = (s: SeedSet, cls: string): string => {
+      const v = rowValueOf(play("E8", s), `nobody_open_share.split.${cls}`, "gen");
+      return v === null ? "n/a" : v.toFixed(2);
+    };
+    expect(nobody.values).toContain(`beside, its split (% of dropbacks): gen set 1 ${["CHECKDOWN", "DESPERATION", "THROWAWAY", "SACK"].map((c) => `${c} ${split(1, c)}`).join(", ")}; set 2 ${["CHECKDOWN", "DESPERATION", "THROWAWAY", "SACK"].map((c) => `${c} ${split(2, c)}`).join(", ")}`);
+    // AM-9 reportRows: the fit table is printed from the committed record when there is one (measurement M5 item 1).
+    expect(g.sections.affected.some((l) => l.startsWith("the fit table (AM-9)"))).toBe(false);
     // R-6's third clause (measurement M6): with the fit record's confirm digest, E9's set-1 gen stream must equal it.
     expect(g.sections.proofs.some((p) => p.id === "R-6 confirm")).toBe(false);
     const e9Digest = foldDigests(play("E8", 1).s5.gen.fit.games);
     const confirmed = gradeStep5({ half: "5a", records, file, guard, fresh: { 1: play("E0", 1), 2: play("E0", 2) }, fitConfirmDigest: e9Digest });
     expect(confirmed.sections.proofs.find((p) => p.id === "R-6 confirm")).toMatchObject({ verdict: "PASS" });
+    const fit = { ...structuredClone(SYNTHETIC_FIT) };
+    const withFit = gradeStep5({ half: "5a", records, file, guard, fresh: { 1: play("E0", 1), 2: play("E0", 2) }, fit });
+    const table = fitTableLines(fit);
+    expect(withFit.sections.affected.filter((l) => table.includes(l))).toEqual(table);
     const unconfirmed = gradeStep5({ half: "5a", records, file, guard, fresh: { 1: play("E0", 1), 2: play("E0", 2) }, fitConfirmDigest: "fnv1a:00000000" });
     expect(unconfirmed.sections.outcome.structuralFailures).toEqual([`R-6 confirm: 1 failing, first: E9 set 1 gen folds to ${e9Digest}, the fit record's confirm run to fnv1a:00000000`]);
     // Fidelity F-10: the two recomputed clauses equal collect's registered rows on every record.
@@ -449,6 +474,12 @@ describe("step 5's visit and grading on a tiny corpus (scratch; nothing is recor
     expect(g.sections.affected).toContain(`flat's direction against D1 (F0 minus D1, flat, set 1): ${["sack_rate", "hit_or_sack_rate", "release_distribution", "threat_creation_rate", "unblocked_pressures_per_100", "unblocked_share_of_hit_or_sack", "quick_pressure_share_by_origin"].map((row) => `${row} ${rowValueOf(play("E0", 1), row, "flat") === null ? "n/a" : "+0.00 (level)"}`).join("; ")}`);
     expect(g.sections.affected.some((l) => l.startsWith("beside the hit and sack figures, F0: flat set 1 time to throw "))).toBe(true);
     expect(g.sections.affected.some((l) => /^live-WON_REP CLEAN ticks on F0 \(set 1\): flat dropbacks with exactly one \S+%, PUSH ticks \S+; gen /.test(l))).toBe(true);
+    // AM-10: the pressured-only CLOCK_EXPIRED count beside s5b.clockExpired, and mr.bin20.raw's fitted-shape status (measurement M5 items 13 and 15).
+    const ce = g.sections.clauses.find((c) => c.id === "s5b.clockExpired")!;
+    const e1 = f0(1, 3).s5.gen.extra;
+    expect(ce.values).toContainEqual(expect.stringContaining(`beside, the pressured-only count (not CLEAN through the throwaway): gen set 1 ${String(e1.clockExpired - e1.cleanClockExpired)} of ${String(e1.clockExpired)} (`));
+    const bin = g.sections.clauses.find((c) => c.id === "mr.bin20.raw")!;
+    expect(bin.values).toContain("beside, its fitted-shape status: the 2.0 s bin is one of the seven bins of the pressured curve, which AM-10's fallback moves into the fitted ledger; no selection in this run");
     // A guard clause the filing does not hold is refused by name, never skipped (measurement M7).
     const a = preflightStep5("5a", FILED, AMEND);
     const without = { ...a.file, bands: { ...a.file.bands, clauses: a.file.bands.clauses.filter((c) => c.id !== "s5a.int") } };

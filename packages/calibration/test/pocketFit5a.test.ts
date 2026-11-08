@@ -59,7 +59,7 @@ import {
   type FitRun,
   type SystemCounts,
 } from "../src/pocket/fit5a.js";
-import { step5GateRefusal, step5GateState } from "../src/pocket/step5.js";
+import { fitTableLines, step5GateRefusal, step5GateState } from "../src/pocket/step5.js";
 import { CLEAN_BENCH_PARTS, cleanBenchTunablesS5 } from "../src/pocket/oneThreatBench.js";
 import { overlayDigestOf, POCKET_1_S5A_FIT_DIGEST, READ_SYSTEMS, type ReadSystem, type ReadSystemOffsets } from "../src/pocket/rules.js";
 import { STEP1_CALLER, type Step1Corpus, type Step1Env } from "../src/pocket/step1.js";
@@ -383,6 +383,28 @@ describe("the record (filing §4.3)", () => {
     expect(verifyFitRecord(r)).toEqual([]);
     // No falsifier row by grid value: only window counts, call counts, losses and the winner.
     expect(Object.keys(r.runs[0]!).sort()).toEqual(["atOrUnder025", "attempts", "binnedOnTick", "calls", "counts", "deltas", "k", "offset", "overlayDigest", "streamDigest"]);
+  });
+
+  it("prints the fit table from the record (AM-9 reportRows; measurement M5 item 1)", () => {
+    const r = syntheticRecord();
+    const lines = fitTableLines(r);
+    expect(lines).toHaveLength(6 + r.runs.length);
+    expect(lines[0]).toBe(`the fit table (AM-9), from the committed record: bench E8 gen set 1, 1 games, caller ${STEP1_CALLER}, clock ${r.bench.clock}; 6859 combinations`);
+    expect(lines[1]).toBe(`  today's deltas (HALF_FIELD -0.5, FULL_FIELD 1, CONCEPT -1): loss ${r.todayLoss.toFixed(4)}`);
+    const w = r.winner;
+    expect(lines[2]).toContain(`winner: offsets HALF_FIELD ${String(w.offsets.HALF_FIELD)}, FULL_FIELD ${String(w.offsets.FULL_FIELD)}, CONCEPT ${String(w.offsets.CONCEPT)}; deltas HALF_FIELD ${String(w.deltas.HALF_FIELD)}`);
+    expect(lines[2]).toContain(`loss ${w.loss.toFixed(4)}; decided by ${w.decidedBy}`);
+    // The runner-up is the least loss at any other combination, decoded from the filed order.
+    const win = comboIndex(FIT_OFFSETS.indexOf(w.offsets.HALF_FIELD), FIT_OFFSETS.indexOf(w.offsets.FULL_FIELD), FIT_OFFSETS.indexOf(w.offsets.CONCEPT));
+    let ru = -1;
+    r.losses.values.forEach((v, i) => {
+      if (i !== win && (ru < 0 || v < r.losses.values[ru]!)) ru = i;
+    });
+    const n = FIT_OFFSETS.length;
+    expect(lines[3]).toBe(`  runner-up: offsets HALF_FIELD ${String(FIT_OFFSETS[Math.floor(ru / (n * n))])}, FULL_FIELD ${String(FIT_OFFSETS[Math.floor(ru / n) % n])}, CONCEPT ${String(FIT_OFFSETS[ru % n])}; loss ${r.losses.values[ru]!.toFixed(4)}`);
+    expect(lines[4]).toMatch(/^ {2}call deviation \(largest relative, across the runs\): HALF_FIELD \S+, FULL_FIELD \S+, CONCEPT \S+$/);
+    expect(lines[5]).toBe(`  confirm run at the winner's deltas: loss ${r.confirm.loss.toFixed(4)} against the estimate ${r.confirm.estimateLoss.toFixed(4)}, gap ${r.confirm.gapPercent.toFixed(2)}% (${r.confirm.named ? "named" : "not named"}: the line is 20%)`);
+    expect(lines[6]).toBe(`  offset -1.5: calls ${String(r.runs[0]!.calls.HALF_FIELD)}/${String(r.runs[0]!.calls.FULL_FIELD)}/${String(r.runs[0]!.calls.CONCEPT)}, attempts ${String(r.runs[0]!.attempts.HALF_FIELD)}/${String(r.runs[0]!.attempts.FULL_FIELD)}/${String(r.runs[0]!.attempts.CONCEPT)} (HALF/FULL/CONCEPT), at or under 0.25 s ${String(r.runs[0]!.atOrUnder025)}`);
   });
 
   it("refuses to build a record with a combination or a confirm run that has no attempt, or a zero winning loss (code-tests F16)", () => {

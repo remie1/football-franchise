@@ -43,11 +43,12 @@ import { AMENDMENTS_PATH, amendmentsAtStep, amendmentsDigest, entryOf, loadAmend
 import { armById, recordedStep5, step5ArmDef, step5ArmRefusal, STEP5A_RUN_IDS, STEP5B_RUN_IDS, STEP5_GRID, type ArmId, type Step5Records } from "./arms.js";
 import { FILED_PATH, type GuardClock, type IntMix } from "./bands.js";
 import { goldenGames, type SeedSet } from "./corpus.js";
-import { emptyFitFold, FIT5A_RECORD, fitRecordDigest, fitReplay, foldFitGame, readFitRecord, releaseSecondsOf, runFit5a, verifyFitRecord, type FitFold } from "./fit5a.js";
+import { emptyFitFold, FIT5A_RECORD, FIT_GAP_NAMED_PERCENT, FIT_GRID_SIZE, FIT_OFFSETS, fitRecordDigest, fitReplay, foldFitGame, readFitRecord, releaseSecondsOf, runFit5a, verifyFitRecord, type FitFold, type FitRecord } from "./fit5a.js";
 import { filedDigest, STEP0_FILED_DIGEST, type BandClause, type FiledFile, type JsonValue } from "./filed.js";
 import { foldDigests, gameBytesDigest, gameDigest, GOLDEN_LEAGUES } from "./golden.js";
 import { am1ArmReading, guardWithView, skipsEqualDials, SEED_SETS, type Am1Lines, type GuardSide } from "./guardAm1.js";
 import { classifyMiss, MISS_RULE_COVERS, type MissSplit } from "./missRule.js";
+import { NOBODY_OPEN_CLASSES } from "./constructs.js";
 import { CLEAN_BENCH_PARTS } from "./oneThreatBench.js";
 import { LEAGUES, ON_THE_RUN_REAL, renderStep5Sections, type League, type Step2ClauseResult, type Step2Proof, type Step4GuardRow, type Step5Sections } from "./report.js";
 import { cleanPocketRowProblems, cleanPocketRows, emptyCleanPocketRowsFold, foldCleanPocketRowsGame, type CleanPocketRowsFold } from "./rows.js";
@@ -675,12 +676,52 @@ export interface GradeStep5Inputs {
    * same dials and seeds, so its game digests fold to this digest. Absent before the fit is recorded.
    */
   readonly fitConfirmDigest?: string;
+  /** AM-9 `reportRows` ("the fit table"): the committed fit record, printed beside the 5a clauses. Absent before the fit is recorded. */
+  readonly fit?: FitRecord;
 }
 
 /** The committed fit record's confirm-run stream digest, or undefined when no record is committed. */
 export function fitConfirmDigestOf(pkgRoot: string = PKG_ROOT): string | undefined {
   const fitPath = join(pkgRoot, FIT5A_RECORD);
   return existsSync(fitPath) ? readFitRecord(fitPath).confirm.streamDigest : undefined;
+}
+
+/** The committed fit record, or undefined when none is committed (AM-9 `reportRows`: the fit table). */
+export function committedFitRecordOf(pkgRoot: string = PKG_ROOT): FitRecord | undefined {
+  const fitPath = join(pkgRoot, FIT5A_RECORD);
+  return existsSync(fitPath) ? readFitRecord(fitPath) : undefined;
+}
+
+const systemsText = (o: Readonly<Record<string, number>>): string => `HALF_FIELD ${String(o["HALF_FIELD"])}, FULL_FIELD ${String(o["FULL_FIELD"])}, CONCEPT ${String(o["CONCEPT"])}`;
+
+/**
+ * AM-9 `reportRows` (measurement M5 item 1): the fit table, from the record as committed. The bench,
+ * today's loss, the winner (offsets, deltas, loss, how it was decided, the tie rule on CONCEPT, the
+ * edges), the runner-up (the least loss of any other combination), the call deviation, the confirm
+ * run and its gap, and one line per offset run (calls and attempts by system, throws at or under
+ * 0.25 s). Reads the record only; computes nothing it does not print.
+ */
+export function fitTableLines(r: FitRecord): string[] {
+  const values = r.losses.values;
+  const w = r.winner;
+  const winIndex = FIT_GRID_SIZE * FIT_GRID_SIZE * FIT_OFFSETS.indexOf(w.offsets.HALF_FIELD) + FIT_GRID_SIZE * FIT_OFFSETS.indexOf(w.offsets.FULL_FIELD) + FIT_OFFSETS.indexOf(w.offsets.CONCEPT);
+  let runner = -1;
+  for (let i = 0; i < values.length; i += 1) if (i !== winIndex && (runner < 0 || values[i]! < values[runner]!)) runner = i;
+  const at = (i: number): Record<string, number> => ({
+    HALF_FIELD: FIT_OFFSETS[Math.floor(i / (FIT_GRID_SIZE * FIT_GRID_SIZE))]!,
+    FULL_FIELD: FIT_OFFSETS[Math.floor(i / FIT_GRID_SIZE) % FIT_GRID_SIZE]!,
+    CONCEPT: FIT_OFFSETS[i % FIT_GRID_SIZE]!,
+  });
+  const edges = (Object.keys(w.onEdge) as (keyof typeof w.onEdge)[]).filter((k) => w.onEdge[k]);
+  return [
+    `the fit table (AM-9), from the committed record: bench ${r.bench.arm} ${r.bench.league} set ${String(r.bench.seedSet)}, ${String(r.bench.games)} games, caller ${r.bench.caller}, clock ${r.bench.clock}; ${String(values.length)} combinations`,
+    `  today's deltas (${systemsText(r.today)}): loss ${num(r.todayLoss, 4)}`,
+    `  winner: offsets ${systemsText(w.offsets)}; deltas ${systemsText(w.deltas)}; loss ${num(w.loss, 4)}; decided by ${w.decidedBy}; CONCEPT set by the tie rule ${w.conceptSetByTie ? "yes" : "no"}; on an edge ${edges.length === 0 ? "none" : edges.join(", ")}; tied with ${String(w.tiedWith.length)}; E9 is E8 ${w.e9IsE8 ? "yes" : "no"}`,
+    `  runner-up: offsets ${runner < 0 ? "none" : `${systemsText(at(runner))}; loss ${num(values[runner], 4)}`}`,
+    `  call deviation (largest relative, across the runs): ${(["HALF_FIELD", "FULL_FIELD", "CONCEPT"] as const).map((k) => `${k} ${num(r.callDeviation[k], 3)}`).join(", ")}`,
+    `  confirm run at the winner's deltas: loss ${num(r.confirm.loss, 4)} against the estimate ${num(r.confirm.estimateLoss, 4)}, gap ${num(r.confirm.gapPercent)}% (${r.confirm.named ? "named" : "not named"}: the line is ${String(FIT_GAP_NAMED_PERCENT)}%)`,
+    ...r.runs.map((run) => `  offset ${String(run.offset)}: calls ${String(run.calls.HALF_FIELD)}/${String(run.calls.FULL_FIELD)}/${String(run.calls.CONCEPT)}, attempts ${String(run.attempts.HALF_FIELD)}/${String(run.attempts.FULL_FIELD)}/${String(run.attempts.CONCEPT)} (HALF/FULL/CONCEPT), at or under 0.25 s ${String(run.atOrUnder025)}`),
+  ];
 }
 
 /** AM-9's `e9IsE8`: with the fit recorded on today's deltas (all three offsets 0), E9 reads E8's record and E1 E0's; else none. */
@@ -708,6 +749,12 @@ export function gradeStep5(x: GradeStep5Inputs): Step5Grade {
   const replay: string[] = [];
   const affected: string[] = [];
   const beside = (f: (s: SeedSet) => number | null): string => sets.filter((s) => s !== graded).map((s) => `set ${String(s)} ${num(f(s))}`).join(", ");
+  /** Appends lines beside a clause already pushed and played (a no-op when it is absent or not played). */
+  const addBeside = (id: string, lines: readonly string[]): void => {
+    const c = clauses.find((k) => k.id === id);
+    if (c === undefined || c.verdict === "NOT PLAYED") return;
+    clauses[clauses.indexOf(c)] = { ...c, values: [...c.values, ...lines] };
+  };
   const notPlayed = (id: string, kind: Step2ClauseResult["kind"], arms: readonly ArmId[], filed: string): void => {
     clauses.push({ id, kind, arms, filed, values: [`not played: ${arms.filter((a) => sets.some((s) => at(a, s) === undefined)).join(", ")}`], verdict: "NOT PLAYED" });
   };
@@ -779,6 +826,7 @@ export function gradeStep5(x: GradeStep5Inputs): Step5Grade {
   }
   // s5b.clockExpired has no registered row in the arm records (their report carries the pocket rows,
   // not tier 1's throwaway_rate_clock_expired), so only mr.bin20.raw is held to its row here.
+  if (half === "5a" && x.fit !== undefined) affected.push(...fitTableLines(x.fit));
   if (half === "5a" && x.fitConfirmDigest !== undefined && at("E9", 1) !== undefined) {
     const e9 = foldDigests(at("E9", 1)!.s5.gen.fit.games);
     proof("R-6 confirm", "E9's set-1 gen stream equals the fit's confirm run (same dials, same seeds)", e9 === x.fitConfirmDigest ? [] : [`E9 set 1 gen folds to ${e9}, the fit record's confirm run to ${x.fitConfirmDigest}`]);
@@ -882,6 +930,8 @@ export function gradeStep5(x: GradeStep5Inputs): Step5Grade {
     for (const [id, row] of [["s5a.checkdown", "clean_checkdown_share"], ["s5a.laterRead", "clean_later_read_share"], ["s5a.nobodyOpen", "nobody_open_share"]] as const) {
       banded(id, "E9", undefined, (r, l) => rowValueOf(r, row, l), []);
     }
+    // The filed row is the nobody-open share "with its split" (measurement M5 item 5): the split rows by class.
+    addBeside("s5a.nobodyOpen", LEAGUES.map((l) => `beside, its split (% of dropbacks): ${l} ${sets.map((s) => `set ${String(s)} ${NOBODY_OPEN_CLASSES.map((c) => `${c} ${num(rowValueOf(at("E9", s), `nobody_open_share.split.${c}`, l))}`).join(", ")}`).join("; ")}`));
     reported("s5a.cleanThrowaway", ["E9"], (s, l) => {
       const row = cleanPocketRows(at("E9", s)!.s5[l].rows)["row:clean_throwaway_in_pocket"] as { readonly clean: { readonly inPocketPer100: number | null; readonly outOfPocketPer100: number | null } };
       return `in the pocket ${num(row.clean.inPocketPer100)}, outside ${num(row.clean.outOfPocketPer100)}`;
@@ -979,6 +1029,17 @@ export function gradeStep5(x: GradeStep5Inputs): Step5Grade {
     banded("s5b.clockExpired", "F0", undefined, ext, ["gen"], "CLOCK_EXPIRED throwaways per 100 dropbacks");
     banded("s5b.pressure", "F0", undefined, (r, l) => rowValueOf(r, "threat_creation_rate", l), ["gen"]);
     banded("mr.bin20.raw", "F0", undefined, (r, l) => bin20RawOf(r.s5[l]), ["gen"]);
+    // AM-10 `s5b.clockExpired`: "The pressured-only count is printed beside" (measurement M5 item 13).
+    addBeside("s5b.clockExpired", LEAGUES.map((l) => `beside, the pressured-only count (not CLEAN through the throwaway): ${l} ${sets.map((s) => {
+      const e = at("F0", s)!.s5[l].extra;
+      return `set ${String(s)} ${String(e.clockExpired - e.cleanClockExpired)} of ${String(e.clockExpired)} (${num(per100(e.clockExpired - e.cleanClockExpired, e.dropbacks))} per 100 dropbacks)`;
+    }).join(", ")}`));
+    // AM-10 `reported`: "mr.bin20.raw's fitted-shape status printed beside its grade" (measurement M5 item 15).
+    addBeside("mr.bin20.raw", [
+      `beside, its fitted-shape status: the 2.0 s bin is one of the seven bins of the pressured curve, which AM-10's fallback moves into the fitted ledger; ${
+        selection === undefined ? "no selection in this run" : selection.winner === undefined ? "the selection has no winner" : `the curve selected ${selection.winner} (shape ${selection.winnerShape ?? "?"}), so this grade reads a bin F0's shape was fitted on`
+      }`,
+    ]);
     banded("mr.unblockedPressures", "F0", undefined, (r, l) => rowValueOf(r, "unblocked_pressures_per_100", l), ["gen"]);
     banded("mr.unblockedShare", "F0", undefined, (r, l) => rowValueOf(r, "unblocked_share_of_hit_or_sack", l), ["gen"]);
     banded("s5b.binsTwiceFtn", "F0", undefined, (r, l) => binsAboveTwiceFtn(r.s5[l]), [], "reported under the fallback");
@@ -1305,7 +1366,7 @@ export function runStep5(opts: Step5Options): Step5RunResult {
     if (problems.length > 0) throw new Error(`ADR-089 step ${half}: refused to grade: E0 set ${String(s)}'s second fresh play at ${path} is not this build's: ${problems.join("; ")}. Delete it and run the fresh process again`);
     fresh[s] = record;
   }
-  const grade = gradeStep5({ half, records, file, guard, fresh, step4: opts.step4 ?? loadStep4References(), aliases: step5AliasesOf(opts.step5Records), ...(half === "5a" ? ((d) => (d === undefined ? {} : { fitConfirmDigest: d }))(fitConfirmDigestOf()) : {}), ...(plan.oneSet === undefined ? {} : { oneSet: plan.oneSet }) });
+  const grade = gradeStep5({ half, records, file, guard, fresh, step4: opts.step4 ?? loadStep4References(), aliases: step5AliasesOf(opts.step5Records), ...(half === "5a" ? ((d) => (d === undefined ? {} : { fitConfirmDigest: d }))(fitConfirmDigestOf()) : {}), ...(half === "5a" ? ((f) => (f === undefined ? {} : { fit: f }))(committedFitRecordOf()) : {}), ...(plan.oneSet === undefined ? {} : { oneSet: plan.oneSet }) });
   if (opts.report !== undefined) {
     writeAtomic(opts.report, renderStep5Report(grade, records));
     wrote.push(opts.report);
