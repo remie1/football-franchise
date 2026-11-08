@@ -129,7 +129,8 @@ export function standInOfficialsLine(
  * players' steps, to the stand-in loader (`buildStandInLeague`, whose `forSwitches` keeps each man's
  * fade shifts only with development on and `aging: "ability"`), and to the generator for the made-up
  * league, the reserve pool and the walk's draft classes, which draw the shifts (and, from AB4, §12.5's
- * ages) only then.
+ * ages) only then. `injuryRisk` (AB5) goes with them to franchise's steps, which play it only with
+ * injuries on.
  */
 export interface PlayerSwitches extends AgingSwitches {
   readonly development?: boolean;
@@ -146,6 +147,7 @@ export function agingOf(s: PlayerSwitches | undefined): AgingSwitches {
     ...(s.abilityCurves === undefined ? {} : { abilityCurves: s.abilityCurves }),
     ...(s.techniqueKnee === undefined ? {} : { techniqueKnee: s.techniqueKnee }),
     ...(s.smartsSnaps === undefined ? {} : { smartsSnaps: s.smartsSnaps }),
+    ...(s.injuryRisk === undefined ? {} : { injuryRisk: s.injuryRisk }),
   };
 }
 const switchedOn = (s: PlayerSwitches | undefined): boolean => s?.development === true || s?.injuries === true;

@@ -22,6 +22,11 @@
  * out cannot be hurt again; one playing hurt can, and the new injury takes the old one's place (the
  * old one, at most day to day, stays open in his history until he is healthy).
  *
+ * Where the risk comes from (ADR-087 §12.1, `injuryRisk`): by default (`"group"`) his listed
+ * position's group, as always; with `"spot"` (§12.3.1-12.3.2, step AB5; `injurySpot.ts`) the chart
+ * key his team lists him at this week, with the measured age factor. Only the default reads his
+ * listed position (`groupRisk`); the spot path reads his own team's chart (`spotRiskReader`).
+ *
  * Every draw is forked from the season seed by the day and the player (and the game), so a resumed
  * run draws exactly what a straight run draws and adding one player never reshuffles another.
  * Pure: inputs in, new objects out; players keep their order and unchanged players come back as the
@@ -31,7 +36,7 @@ import {
   CALENDAR_PHASE_ORDER, DEFAULT_LEAGUE_RULES, POSITION_GROUP, attrId, compareStamps, createRng, getAttr, stampToString,
   type AttrId, type BodyMeasure, type AttributeMap, type CalendarStamp, type FranchiseEvent, type GameId,
   type GameParticipation, type Injury, type InjuryBand, type InjurySetting, type LeagueRules, type PlayerState,
-  type PositionGroup, type Rng,
+  type PositionGroup, type Rng, type Team,
 } from "@ff/contracts";
 import { phaseWeeks } from "../calendar/clock.js";
 import { addPoints, changeBody, type BodyChange, type Follows, type RatingMove } from "./body.js";
@@ -39,7 +44,20 @@ import {
   BAND_MIN_WEEKS, BAND_ORDER, BODY_REPORT_STEPS, INJURY_KINDS, INJURY_RATES, MARK_AGE, REPEAT_DURABILITY,
   type WeeksBucket,
 } from "./injuryTables.js";
+import { injuryRiskRule, spotAgeFactor, spotRiskReader, type InjuryRisk, type InjuryRiskProfile } from "./injurySpot.js";
 import type { PastInjury, PlayerWeek } from "./types.js";
+
+export { spotOf, type InjuryRisk, type InjuryRiskProfile } from "./injurySpot.js";
+
+/**
+ * ADR-087 §12.1 (AB5): where game and practice risk come from. Absent or `"group"`, today's rule;
+ * `"spot"` reads each man's key on his own team's chart (`teams`, required there).
+ */
+export interface InjuryRiskInput {
+  readonly injuryRisk?: InjuryRisk;
+  /** The spot path's charts: each man's spot is his key on his own team's (`teamId`) chart. Read only with `injuryRisk: "spot"`. */
+  readonly teams?: readonly Pick<Team, "id" | "depthChart">[];
+}
 
 export interface InjuryResult {
   /** The same order as the input; unchanged players are the same objects. */
@@ -49,7 +67,7 @@ export interface InjuryResult {
   readonly history: Record<string, PastInjury[]>;
 }
 
-export interface GameInjuryInput {
+export interface GameInjuryInput extends InjuryRiskInput {
   readonly game: GameId;
   /** The game day: the injury's `since`. */
   readonly at: CalendarStamp;
@@ -66,7 +84,7 @@ export interface GameInjuryInput {
   readonly rules?: LeagueRules;
 }
 
-export interface WeekInjuryInput {
+export interface WeekInjuryInput extends InjuryRiskInput {
   /** The week's last day. */
   readonly at: CalendarStamp;
   readonly rules: LeagueRules;
@@ -158,13 +176,15 @@ function recentlyBack(history: readonly PastInjury[] | undefined, at: CalendarSt
 
 /**
  * The game and practice risk factors beyond his position and exposure: true durability (65 is
- * typical), age, and a recent return from injury.
+ * typical), age, and a recent return from injury. The age factor is the rule's: on the group path
+ * (the default) 1 + `age.perYear` a year past `age.from`; on the spot path §12.3.2's knots
+ * (`spotAgeFactor`).
  */
-export function riskFactor(player: PlayerState, history: readonly PastInjury[] | undefined, at: CalendarStamp, rules: LeagueRules): number {
+export function riskFactor(player: PlayerState, history: readonly PastInjury[] | undefined, at: CalendarStamp, rules: LeagueRules, injuryRisk: InjuryRisk = "group"): number {
   const r = INJURY_RATES;
   const durability = getAttr(player.attributes.values, attrId("durability"), r.durability.typical);
   const body = Math.exp(-r.durability.perPoint * (durability - r.durability.typical));
-  const age = 1 + r.age.perYear * Math.max(0, player.bio.age - r.age.from);
+  const age = injuryRisk === "spot" ? spotAgeFactor(player.bio.age) : 1 + r.age.perYear * Math.max(0, player.bio.age - r.age.from);
   const recent = recentlyBack(history, at, rules) ? r.recentReturn.factor : 1;
   return body * age * recent;
 }
@@ -184,13 +204,17 @@ interface Drawn {
 /** Each (setting, group)'s kind weights, worked out once: the table is fixed. */
 const KIND_WEIGHTS = new Map<string, readonly (readonly [string, number])[]>();
 
-/** The kinds that can be drawn in this setting for this group, with their weights (`share` × `byGroup`); also read by `availability.ts`. */
-export function kindWeights(setting: InjurySetting, group: PositionGroup): readonly (readonly [string, number])[] {
-  const key = `${setting}/${group}`;
+/**
+ * The kinds that can be drawn in this setting for this group, with their weights (`share` ×
+ * `byGroup`); also read by `availability.ts`. No group (the spot path's man on no chart key,
+ * §12.3.1): the league's mix, each kind's `share` alone.
+ */
+export function kindWeights(setting: InjurySetting, group: PositionGroup | undefined): readonly (readonly [string, number])[] {
+  const key = `${setting}/${group ?? "league"}`;
   let weights = KIND_WEIGHTS.get(key);
   if (!weights) {
     weights = Object.entries(INJURY_KINDS)
-      .map(([id, k]) => [id, (k.share[setting] ?? 0) * (k.byGroup?.[group] ?? 1)] as const)
+      .map(([id, k]) => [id, (k.share[setting] ?? 0) * (group === undefined ? 1 : k.byGroup?.[group] ?? 1)] as const)
       .filter(([, w]) => w > 0);
     KIND_WEIGHTS.set(key, weights);
   }
@@ -214,8 +238,8 @@ function drawWeeks(rng: Rng, buckets: readonly WeeksBucket[]): number {
   return bucket ? rng.int(bucket[0], bucket[1]) : 0;
 }
 
-/** One draw: hurt with chance 1 - exp(-rate); then which kind, for this setting and position; then how long. */
-function drawInjury(rng: Rng, rate: number, setting: InjurySetting, group: PositionGroup): Drawn | undefined {
+/** One draw: hurt with chance 1 - exp(-rate); then which kind, for this setting and group (none: the league's mix); then how long. */
+function drawInjury(rng: Rng, rate: number, setting: InjurySetting, group: PositionGroup | undefined): Drawn | undefined {
   if (!(rate > 0) || rng.next() >= 1 - Math.exp(-rate)) return undefined;
   const pick = pickWeighted(rng, kindWeights(setting, group), (w) => w[1]);
   if (!pick) return undefined;
@@ -224,6 +248,29 @@ function drawInjury(rng: Rng, rate: number, setting: InjurySetting, group: Posit
 
 /** A prospect is skipped; a player who is out cannot be hurt again. */
 const canBeHurt = (p: PlayerState) => p.bio.draft !== "PROSPECT" && isAvailable(p);
+
+/** The group path's profile for each group, worked out once. */
+const GROUP_RISK = new Map<PositionGroup, InjuryRiskProfile>();
+
+/**
+ * His risk on the group path (`injuryRisk: "group"`, the default, today's rule): his listed
+ * position's group's game and practice factors and kind mix, at `INJURY_RATES.game.perSnap`.
+ */
+export function groupRisk(p: Pick<PlayerState, "bio">): InjuryRiskProfile {
+  const group = POSITION_GROUP[p.bio.position];
+  let risk = GROUP_RISK.get(group);
+  if (risk === undefined) {
+    risk = { level: INJURY_RATES.game.perSnap, game: INJURY_RATES.game.byGroup[group], practice: INJURY_RATES.practice.byGroup[group], kinds: group };
+    GROUP_RISK.set(group, risk);
+  }
+  return risk;
+}
+
+/** The input's rule, checked, and the reader of each man's profile under it. */
+function riskReader(input: InjuryRiskInput): { rule: InjuryRisk; riskOf: (p: PlayerState) => InjuryRiskProfile } {
+  const rule = injuryRiskRule(input.injuryRisk);
+  return { rule, riskOf: rule === "spot" ? spotRiskReader(input.teams) : groupRisk };
+}
 
 function copyHistory(history: Readonly<Record<string, readonly PastInjury[]>>): Record<string, PastInjury[]> {
   const out: Record<string, PastInjury[]> = {};
@@ -248,23 +295,24 @@ function hurt(
 
 /**
  * One game's injuries, at the final whistle (§5.2): for every player in the who-played report, a
- * chance per snap by his position group, × his durability, age and recent-return factors.
+ * chance per snap by his position group (or, with `injuryRisk: "spot"`, his chart key), × his
+ * durability, age and recent-return factors.
  */
 export function gameInjuries(input: GameInjuryInput): InjuryResult {
   const rules = input.rules ?? DEFAULT_LEAGUE_RULES;
+  const { rule, riskOf } = riskReader(input);
   const exposure = new Map<string, number>();
   for (const r of input.reports) exposure.set(String(r.player), (exposure.get(String(r.player)) ?? 0) + gameExposure(r.snaps));
   const root = createRng(input.seed, STREAM).fork(`game/${stampToString(input.at)}/${String(input.game)}`);
   const history = copyHistory(input.history);
   const events: FranchiseEvent[] = [];
-  const g = INJURY_RATES.game;
   const players = input.players.map((p) => {
     const id = String(p.bio.id);
     const snaps = exposure.get(id) ?? 0;
     if (snaps <= 0 || !canBeHurt(p)) return p;
-    const group = POSITION_GROUP[p.bio.position];
-    const rate = g.perSnap * snaps * g.byGroup[group] * riskFactor(p, history[id], input.at, rules);
-    const drawn = drawInjury(root.fork(id), rate, "GAME", group);
+    const risk = riskOf(p);
+    const rate = risk.level * snaps * risk.game * riskFactor(p, history[id], input.at, rules, rule);
+    const drawn = drawInjury(root.fork(id), rate, "GAME", risk.kinds);
     return drawn ? hurt(p, drawn, "GAME", input.at, history, events, input.game) : p;
   });
   return { players, events, history };
@@ -272,11 +320,13 @@ export function gameInjuries(input: GameInjuryInput): InjuryResult {
 
 /**
  * One week's practice and away-from-football injuries, for every player (prospects skipped).
- * Practice: the phase's load × how much of the week he practised with his team, × his position's,
- * durability, age and recent-return factors. Away: the same small chance for everyone, every week.
+ * Practice: the phase's load × how much of the week he practised with his team, × his position's
+ * (with `injuryRisk: "spot"`, his chart key's group's, or 1 on no key), durability, age and
+ * recent-return factors. Away: the same small chance for everyone, every week.
  */
 export function weekInjuries(input: WeekInjuryInput): InjuryResult {
   const { at, rules } = input;
+  const { rule, riskOf } = riskReader(input);
   const root = createRng(input.seed, STREAM).fork(stampToString(at));
   const pr = INJURY_RATES.practice;
   const load = pr.phaseLoad[at.phase];
@@ -285,17 +335,17 @@ export function weekInjuries(input: WeekInjuryInput): InjuryResult {
   const players = input.players.map((player) => {
     if (!canBeHurt(player)) return player;
     const id = String(player.bio.id);
-    const group = POSITION_GROUP[player.bio.position];
+    const risk = riskOf(player);
     const week = input.weeks.get(id);
     const practised = week?.withTeam ? load * Math.max(0, Math.min(1, week.practiced)) : 0;
     let p = player;
     if (practised > 0) {
-      const rate = pr.perWeek * practised * pr.byGroup[group] * riskFactor(p, history[id], at, rules);
-      const drawn = drawInjury(root.fork(`${id}/practice`), rate, "PRACTICE", group);
+      const rate = pr.perWeek * practised * risk.practice * riskFactor(p, history[id], at, rules, rule);
+      const drawn = drawInjury(root.fork(`${id}/practice`), rate, "PRACTICE", risk.kinds);
       if (drawn) p = hurt(p, drawn, "PRACTICE", at, history, events);
     }
     if (isAvailable(p)) {
-      const drawn = drawInjury(root.fork(`${id}/away`), INJURY_RATES.away.perWeek, "AWAY", group);
+      const drawn = drawInjury(root.fork(`${id}/away`), INJURY_RATES.away.perWeek, "AWAY", risk.kinds);
       if (drawn) p = hurt(p, drawn, "AWAY", at, history, events);
     }
     return p;

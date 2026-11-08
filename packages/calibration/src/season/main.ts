@@ -59,10 +59,13 @@
  * games and move his lineup (ADR-094 §9: a look at the young men, a desperate shake-up); off by
  * default, and not kept in saves yet, so not with `--load`.
  * `--aging ability` (with `--development`) ages the players by ability group, not by position (ADR-087
- * §12; `--ability-curves`, `--technique-knee` and `--smarts-snaps` tune it, `--ability-rules` is the
- * shorthand, `agingFlags.ts`); the default `--aging position` is exactly today's. A save records the
- * options when not the default, and `--load` carries on under them; `--out` names them too (`aging`,
- * only when not the default, so a default run's file is as before).
+ * §12; `--ability-curves`, `--technique-knee` and `--smarts-snaps` tune it, `agingFlags.ts`); the
+ * default `--aging position` is exactly today's. `--injury-risk spot` (with `--injuries`; ADR-087
+ * §12.3.1, AB5) reads injury risk by each man's depth-chart key with the measured age factor; the
+ * default `--injury-risk group` is exactly today's. `--ability-rules` is the shorthand for both (with
+ * `--development` and `--injuries`). A save records the options when not the default, and `--load`
+ * carries on under them; `--out` names them too (`aging`, only when not the default, so a default
+ * run's file is as before).
  *
  * Mood (ADR-096 step 2): `--mood`, with `--development` or `--injuries`, adds the fans' and media's
  * mood to the walk: a `PUBLIC_MOOD_UPDATED` per team after each game and at the offseason's big
@@ -168,7 +171,7 @@ function parse(argv: readonly string[]) {
   if (mood && !development && !injuries) throw new SyntaxError("--mood needs --development or --injuries (mood runs in the players' walk)");
   if (lineupHopes && !(development || injuries)) throw new SyntaxError("--lineup-hopes needs --development or --injuries (the coaches set depth charts only with the players' steps)");
   // ADR-087 §12.1 (AB3): the aging options; a save carries on under its own (`seasonAging` refuses the rest).
-  const aging = seasonAging(agingFlags, { load: load !== undefined, development });
+  const aging = seasonAging(agingFlags, { load: load !== undefined, development, injuries });
   return { seed, season, callerVersion, out, stopAfter, save, load, switchCaller, rosters, teamStrengthSd, leagueFile, development, injuries, lineupHopes, mood, engineRules, aging };
 }
 
@@ -223,7 +226,10 @@ const switched = seasonPlayers({
 // ADR-094 §9: a new league's `--lineup-hopes` joins them (not kept in saves yet, so never with `--load`).
 const players = switched !== undefined && !loaded && args.lineupHopes ? { ...switched, lineupHopes: true } : switched;
 const agingName = players === undefined ? undefined : agingLabel(players);
-if (agingName !== undefined) console.log(`Players age by ability (${agingName}; ADR-087 §12)`);
+if (agingName !== undefined) {
+  const rules = [players?.aging === "ability" ? "players age by ability" : "", players?.injuryRisk === "spot" ? "injury risk follows the depth-chart spot" : ""];
+  console.log(`New rules: ${rules.filter(Boolean).join(", ")} (${agingName}; ADR-087 §12)`);
+}
 // ADR-096 step 2: fan and media mood, from the command line or, carrying on, from the save (its memory says it ran).
 const mood = loaded ? loaded.development?.people.playerMemory?.mood !== undefined : args.mood;
 // The season the run plays, worked out once, as `runRealSeason` does, for the coaches and the stop day too.

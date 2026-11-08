@@ -1,7 +1,7 @@
 /**
  * `pnpm --filter @ff/calibration career-check -- --league <file> (--seed <seed> | --seed-set tune|grade --index <n>) [--arm both|development|incumbent|form] [--seasons 20] [--out <file>]`
  * `pnpm --filter @ff/calibration career-check -- --grade --pass 1|2 --league <file> [--seasons 20] [--seeds a,b] [--coach-seeds a,b] [--build <fingerprint>] [--report <path>] [--smoke]`
- *   either with `[--aging position|ability] [--ability-curves D|B] [--technique-knee] [--smarts-snaps <n>] [--ability-rules]`
+ *   either with `[--aging position|ability] [--ability-curves D|B] [--technique-knee] [--smarts-snaps <n>] [--injury-risk group|spot] [--ability-rules]`
  *
  * ADR-087 §9, row D5b: the 20-season check. Plays ONE seed of the stand-in league with growth and
  * injuries switched on (the cap check's walk, `careerCheckRun.ts`) and keeps its rows under
@@ -38,6 +38,9 @@
  * The grade reads each record's own options and refuses rows played under others (or a mix); a
  * `--build <fingerprint>` grade with no aging flags takes the rows' own options. The report's name
  * and header, and its JSON's `meta.aging`, name the options the rows were played under.
+ * `--injury-risk spot` (AB5; injury risk by each man's depth-chart key with the measured age
+ * factor) travels with them the same way, under the same name (`spot`, `ability-spot`), and
+ * `--ability-rules` sets both. It needs injuries on, so it is refused on the `development` arm.
  *
  * Paths given on the command line are read from the folder the command was typed in.
  */
@@ -54,7 +57,7 @@ import {
 } from "./careerCheckRun.js";
 import { gradeCareerCheck, gradedLeague, renderGradeJson, renderGradeMarkdown, type GradeWindows } from "./careerGrade.js";
 import { readStandInFile } from "./standInLeague.js";
-import { agingLabel, readAgingFlag, settleAging, type AgingFlags, type AgingSwitches } from "./agingFlags.js";
+import { agingLabel, assertRulesAct, readAgingFlag, settleAging, type AgingFlags, type AgingSwitches } from "./agingFlags.js";
 
 interface Args {
   readonly league: string;
@@ -127,6 +130,8 @@ function parse(argv: readonly string[]): Args {
     seed = seedOf(set, index);
   }
   if (seed === undefined) throw new SyntaxError("give --seed <seed>, or --seed-set tune|grade --index <n>");
+  // AB5: options the arm would not play are refused here, as the walk refuses them (`armInput`).
+  assertRulesAct(aging, { development: true, injuries: arm !== "development" }, `the ${arm} arm`);
   return { league, seasons, grade, arm, seed, smoke, ...(out ? { out } : {}), aging, agingTyped };
 }
 
@@ -145,7 +150,7 @@ const agingName = agingLabel(args.aging);
 const treeFingerprint = careerFingerprint({
   repoRoot, leagueSha256: leagueSha, engineRules: CAREER_ENGINE_RULES, callerVersion, ...(agingName === undefined ? {} : { aging: args.aging }),
 }).fingerprint;
-if (agingName !== undefined) console.log(`career-check: players age by ability (${agingName}; ADR-087 §12)`);
+if (agingName !== undefined) console.log(`career-check: new rules ${agingName} (ADR-087 §12)`);
 const cacheRoot = join(root, "data-cache", "career-check");
 const cacheOf = (fingerprint: string) => join(cacheRoot, fingerprint);
 
@@ -204,7 +209,7 @@ if (!args.grade) {
   // with no aging flags takes the rows' own, and names and heads the report by them.
   const graded = gradedAging(read, args.build !== undefined && !args.agingTyped ? undefined : args.aging);
   const gradedName = agingLabel(graded);
-  if (gradedName !== undefined) console.log(`career-check: the rows were played with the players aging by ability (${gradedName}; ADR-087 §12)`);
+  if (gradedName !== undefined) console.log(`career-check: the rows were played under the new rules ${gradedName} (ADR-087 §12)`);
   // The league the rows were played on, from their records, not the file on disk now (a --build grade of older rows).
   const played = gradedLeague(read, league);
   if (played.treeLeague !== undefined) {

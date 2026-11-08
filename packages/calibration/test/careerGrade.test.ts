@@ -736,6 +736,16 @@ describe("the grade on made-up seeds", () => {
     expect(gradeCareerCheck(passingInput(passing(), { meta: { ...meta, smoke: true } })).flip.recommended).toBe(false);
   });
 
+  it("names the new rules the rows were played under on the Aging line: ability, spot, both, and none at the defaults (AB3, AB5)", () => {
+    const line = (aging?: string) => renderGradeMarkdown(gradeCareerCheck(input(steady(), { meta: { ...meta, ...(aging ? { aging } : {}) } })))
+      .split("\n").find((l) => l.startsWith("**Aging:**"));
+    expect(line()).toBeUndefined();
+    expect(line("ability")).toBe("**Aging:** the players aged by ability group, not by position (ADR-087 §12), under `ability`, as the rows' records name it.");
+    expect(line("spot")).toBe("**Aging:** injury risk followed the depth-chart spot, with the measured age factor (§12.3.1-12.3.2) (ADR-087 §12), under `spot`, as the rows' records name it.");
+    expect(line("ability-B-spot")).toBe("**Aging:** the players aged by ability group, not by position; injury risk followed the depth-chart spot, " +
+      "with the measured age factor (§12.3.1-12.3.2) (ADR-087 §12), under `ability-B-spot`, as the rows' records name it.");
+  });
+
   it("lists the checks the reference's own SE leaves unresolvable, even with no sim value", () => {
     const g = gradeCareerCheck(input(steady()));
     const ids = g.unresolvable.map((u) => u.split(":")[0]);
