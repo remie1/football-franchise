@@ -326,9 +326,24 @@ describe("S-1's two facts (plan R-3): the clean-expiry THROW's target and the TH
     let expiryThrows = 0;
     let below30 = 0;
     let rankPushed = 0;
+    let cleanCaught = 0;
+    let named = 0;
     for (const league of ["gen", "flat"] as const) {
       goldenGames(league, (o, snapshot) => {
         for (const x of s5DropbacksOf(o.events, s2ContextOf(t, snapshot))) {
+          for (const e of x.escapes) {
+            if (e.outcome !== "CAUGHT") {
+              expect(e.caughtBy).toBeUndefined();
+              continue;
+            }
+            if (!e.clean) continue;
+            cleanCaught += 1;
+            if (e.caughtBy !== undefined) {
+              named += 1;
+              // Guardian C5: on a CLEAN tick the named man was more than pocket-1's 1.0 s pressure horizon away.
+              expect(e.caughtBy.etaJump, `${x.playId} t${String(e.tick)}`).toBeGreaterThan(1.0);
+            }
+          }
           if (x.breakOutThrow !== undefined) {
             breakOuts += 1;
             if ((x.breakOutThrow.best ?? -1) < throwBarFor(t, x.readSystem)) desperation += 1;
@@ -346,7 +361,8 @@ describe("S-1's two facts (plan R-3): the clean-expiry THROW's target and the TH
         }
       }, { tunables: t, callerVersion: STEP1_CALLER, first: 12 });
     }
-    process.stdout.write(`s5Stream S-1 on golden 12 a league: break-out throws ${String(breakOuts)}, desperation ${String(desperation)}; clean-expiry throws ${String(expiryThrows)}, below 30 ${String(below30)}, rank-pushed ${String(rankPushed)}\n`);
+    process.stdout.write(`s5Stream S-1 on golden 12 a league: break-out throws ${String(breakOuts)}, desperation ${String(desperation)}; clean-expiry throws ${String(expiryThrows)}, below 30 ${String(below30)}, rank-pushed ${String(rankPushed)}; clean CAUGHT escapes ${String(cleanCaught)}, with a named rusher ${String(named)}\n`);
+    expect(named).toBeGreaterThan(0);
     // Without the engine's d23OnRun rule (a mutant that takes the desperation throw on the run), 23 of 47 such throws read as desperation here.
     expect(breakOuts).toBeGreaterThan(10);
     expect(desperation).toBe(0);

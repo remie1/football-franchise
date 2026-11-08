@@ -133,6 +133,12 @@ export interface S5Escape {
   readonly tick: number;
   readonly clean: boolean;
   readonly outcome: EscapeOutcome;
+  /**
+   * On a CAUGHT escape (guardian C5): the rusher the caught rule named, read from the RUSH_THREAT
+   * ARRIVED published on the escape's tick, and how far that moved his published etaTick forward
+   * (his previous etaTick minus the escape's tick). Undefined when nobody was named (a coverage sack).
+   */
+  readonly caughtBy?: { readonly rusher: string; readonly etaJump: number };
 }
 
 export interface S5Bump {
@@ -259,7 +265,16 @@ export function readS5Dropback(play: S2Play, readOrder: readonly string[], ctx: 
     if (play.pursuit !== undefined && c.tick > play.pursuit.tick + TOLERANCE) continue;
     const clean = cleanChecks.some((p) => same(p.tick, c.tick));
     const outcome: EscapeOutcome = play.pursuit !== undefined && same(play.pursuit.tick, c.tick) ? "ESCAPED" : sackTick !== undefined && same(sackTick, c.tick) ? "CAUGHT" : "CONTAINED";
-    escapes.push({ tick: c.tick, clean, outcome });
+    let caughtBy: S5Escape["caughtBy"];
+    if (outcome === "CAUGHT") {
+      const i = d.threats.findIndex((t) => t.state === "ARRIVED" && same(t.tick, c.tick));
+      const arrived = d.threats[i];
+      if (arrived !== undefined) {
+        const before = d.threats.slice(0, i).filter((t) => t.rusher === arrived.rusher).at(-1);
+        caughtBy = { rusher: arrived.rusher, etaJump: before === undefined ? 0 : before.etaTick - arrived.etaTick };
+      }
+    }
+    escapes.push({ tick: c.tick, clean, outcome, ...(caughtBy === undefined ? {} : { caughtBy }) });
   }
 
   // The clean expiries.
@@ -393,7 +408,14 @@ export interface S5Fold {
   cleanMoves: number;
   restarts: number;
   bumps: { receivers: number; byContest: Record<"TRAILING" | "EVEN", number>; moves: number };
-  escapes: { attempts: number; clean: Record<EscapeOutcome, number>; forced: Record<EscapeOutcome, number>; repeatedPlays: number };
+  escapes: {
+    attempts: number;
+    clean: Record<EscapeOutcome, number>;
+    forced: Record<EscapeOutcome, number>;
+    repeatedPlays: number;
+    /** Guardian C5: clean CAUGHT escapes with a named rusher, and the etaTick jump their ARRIVED made (sum and largest, seconds). */
+    cleanCaughtNamed: { n: number; sumJump: number; maxJump: number };
+  };
   floorWaits: { holds: number; floorBound: number; dropbacks: number };
   coverageSacks: { n: number; sacks: number; sumTick: number };
   byCall: Record<string, { readSystem: string; dropbacks: number; cleanExpiryDropbacks: number }>;
@@ -419,7 +441,7 @@ export function emptyS5Fold(): S5Fold {
     cleanMoves: 0,
     restarts: 0,
     bumps: { receivers: 0, byContest: zeros(["TRAILING", "EVEN"] as const), moves: 0 },
-    escapes: { attempts: 0, clean: zeros(ESCAPE_OUTCOMES), forced: zeros(ESCAPE_OUTCOMES), repeatedPlays: 0 },
+    escapes: { attempts: 0, clean: zeros(ESCAPE_OUTCOMES), forced: zeros(ESCAPE_OUTCOMES), repeatedPlays: 0, cleanCaughtNamed: { n: 0, sumJump: 0, maxJump: 0 } },
     floorWaits: { holds: 0, floorBound: 0, dropbacks: 0 },
     coverageSacks: { n: 0, sacks: 0, sumTick: 0 },
     byCall: {},
@@ -467,6 +489,12 @@ export function foldS5Dropback(fold: S5Fold, x: S5Dropback): void {
   for (const e of x.escapes) {
     fold.escapes.attempts += 1;
     (e.clean ? fold.escapes.clean : fold.escapes.forced)[e.outcome] += 1;
+    if (e.clean && e.caughtBy !== undefined) {
+      const c = fold.escapes.cleanCaughtNamed;
+      c.n += 1;
+      c.sumJump += e.caughtBy.etaJump;
+      c.maxJump = Math.max(c.maxJump, e.caughtBy.etaJump);
+    }
   }
   if (x.escapes.length > 1) fold.escapes.repeatedPlays += 1;
   if (x.floorWaits.length > 0) fold.floorWaits.dropbacks += 1;

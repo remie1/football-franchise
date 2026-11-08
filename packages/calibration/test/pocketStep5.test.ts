@@ -30,6 +30,7 @@ import {
   q5Problems,
   guardAllOf,
   rePointsOf,
+  releaseSharesOf,
   step5AliasesOf,
   runStep5,
   s5aRecordProblemOf,
@@ -49,6 +50,7 @@ import {
 } from "../src/pocket/step5.js";
 import { RELEASE_BINS } from "../src/pocket/selection.js";
 import { am1ArmReading, type GuardSide } from "../src/pocket/guardAm1.js";
+import { emptyFitFold } from "../src/pocket/fit5a.js";
 import type { Step1Env } from "../src/pocket/step1.js";
 
 const PKG = join(import.meta.dirname, "..");
@@ -139,6 +141,17 @@ describe("step 5's pins, preflight and gate", () => {
     expect(existsSync(parent)).toBe(false);
     expect(() => runStep5({ half: "5a", cacheParent: parent, filedPath: FILED, amendmentsPath: AMEND, env: { ...ENV, dirty: true }, gate: OPEN })).toThrow(STEP5_DIRTY_REFUSAL);
     expect(existsSync(parent)).toBe(false);
+  });
+});
+
+describe("releaseSharesOf (s5a.under1 and s5a.over35 on the fit's windows; code-tests F11)", () => {
+  it("one release in each of the 11 windows: under1 is windows 0 and 1 (2 of 11), over35 windows 6 to 10 (5 of 11)", () => {
+    const f = emptyFitFold();
+    f.bySystem.HALF_FIELD.counts = f.bySystem.HALF_FIELD.counts.map(() => 1);
+    const r = releaseSharesOf(f);
+    expect(r.under1).toBeCloseTo((100 * 2) / 11, 12);
+    expect(r.over35).toBeCloseTo((100 * 5) / 11, 12);
+    expect(releaseSharesOf(emptyFitFold())).toEqual({ under1: null, over35: null });
   });
 });
 
@@ -256,10 +269,32 @@ describe("step 5's visit and grading on a tiny corpus (scratch; nothing is recor
       expect(c.values, id).toEqual(g.sections.clauses.find((k) => k.id === id)!.values);
     }
     expect(aliased.sections.outcome.structuralFailures).toEqual([]);
+    // The alone arms beside the guard, unguarded (AM-8): E8 against E0 here.
+    const alone = aliased.sections.guard.filter((r) => r.arm === "E8");
+    expect(alone.map((r) => [r.league, r.role, r.graded])).toEqual([["flat", "information", false], ["gen", "information", false]]);
     // Without the alias, the graded clauses go unplayed, and that is a fault, never a silent pass.
     const silent = gradeStep5({ half: "5a", records: noE9, file, guard, fresh: { 1: play("E0", 1), 2: play("E0", 2) } });
     expect(silent.sections.outcome.structuralFailures).toEqual(expect.arrayContaining([expect.stringMatching(/^s5a\.cleanScramble: a graded clause was not played/), expect.stringMatching(/^s5a\.int: a graded clause was not played/)]));
     expect(silent.sections.outcome.mergeCard).toBe(false);
+    // The filed report rows (measurement M5, fidelity F-8, code-tests F4, guardian C5): AM-8's reported splits, the break-outs with C5's row, the raw edges, the guard's detail.
+    const e8 = play("E8", 1);
+    for (const l of ["flat", "gen"] as const) {
+      const sp = e8.s5[l].splits;
+      expect(Object.keys(sp).sort()).toEqual(["CLEAN_EXPIRY/AFTER_CLEAN_MOVE", "CLEAN_EXPIRY/OTHER", "DESPERATION/CLEAN", "DESPERATION/DIRTY", "ON_THE_RUN/CLEAN_BREAKOUT", "ON_THE_RUN/PRESSURED", "PROGRESSION/AFTER_CLEAN_MOVE", "PROGRESSION/OTHER"]);
+      for (const cls of ["PROGRESSION", "CLEAN_EXPIRY", "ON_THE_RUN", "DESPERATION"] as const) {
+        const parts = Object.entries(sp).filter(([k]) => k.startsWith(`${cls}/`)).map(([, v]) => v);
+        expect(parts.reduce((a, v) => a + v.aimed, 0), `${l} ${cls}`).toBe(e8.s5[l].guard[cls].aimedByBin.reduce((a, b) => a + b, 0));
+        expect(parts.reduce((a, v) => a + v.interceptions, 0), `${l} ${cls}`).toBe(e8.s5[l].guard[cls].interceptions);
+      }
+      expect(e8.s5[l].extra.releases, l).toBeGreaterThan(0);
+    }
+    expect(Object.values(e8.s5.gen.splits).some((v) => v.aimed > 0)).toBe(true);
+    expect(g.sections.affected.some((x) => x.startsWith("E9 set 1 gen: AM-8's reported splits (INT/aimed, never graded): PROGRESSION AFTER_CLEAN_MOVE "))).toBe(true);
+    expect(g.sections.affected.some((x) => /^E9 set 1 gen: break-outs beside s5a\.cleanScramble: .*clean CAUGHT sacks with a named rusher \d+ of \d+/.test(x))).toBe(true);
+    for (const id of ["s5a.under1", "s5a.over35"]) expect(g.sections.clauses.find((c) => c.id === id)!.values.some((v) => v.startsWith("beside, the raw edge"))).toBe(true);
+    const e9gen = g.sections.guard.find((r) => r.arm === "E9" && r.league === "gen")!;
+    expect(e9gen.ownClock).toContain("the release clock: raw seconds on both sides (AM-8)");
+    expect(e9gen.ownClock.some((x) => /^league-wide: Z .*minimum breaching mean excess .*set 1 rise .* SE /.test(x))).toBe(true);
     // The guard on AM-8's clock: raw release seconds on both sides (bins and rate table), the league mix from the same raw fold.
     expect(STEP5_GUARD_CLOCK).toBe("RAW");
     for (const id of ["E0", "E8"] as const) for (const l of ["flat", "gen"] as const) {

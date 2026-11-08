@@ -49,7 +49,7 @@ import { foldDigests, gameBytesDigest, gameDigest, GOLDEN_LEAGUES } from "./gold
 import { am1ArmReading, guardWithView, skipsEqualDials, SEED_SETS, type Am1Lines, type GuardSide } from "./guardAm1.js";
 import { classifyMiss, MISS_RULE_COVERS, type MissSplit } from "./missRule.js";
 import { CLEAN_BENCH_PARTS } from "./oneThreatBench.js";
-import { LEAGUES, renderStep5Sections, type League, type Step2ClauseResult, type Step2Proof, type Step4GuardRow, type Step5Sections } from "./report.js";
+import { LEAGUES, ON_THE_RUN_REAL, renderStep5Sections, type League, type Step2ClauseResult, type Step2Proof, type Step4GuardRow, type Step5Sections } from "./report.js";
 import { cleanPocketRowProblems, cleanPocketRows, emptyCleanPocketRowsFold, foldCleanPocketRowsGame, type CleanPocketRowsFold } from "./rows.js";
 import type { RePoint, Reselection } from "./reselect.js";
 import { cleanPocketOf } from "./cleanPick.js";
@@ -284,6 +284,10 @@ export interface Step5Extra {
   /** S-1's second half: THROWs after a clean break-out, and of them those with best below the normal bar (desperation). */
   breakOutThrows: number;
   onRunDesperation: number;
+  /** Beside s5a.under1 and s5a.over35: every THROW's raw release, at or under 1.0 s and at or over 3.5 s (the raw edges). */
+  releases: number;
+  rawAtOrUnder1: number;
+  rawAtOrOver35: number;
   /** S-2: dropbacks with more than one clean move. */
   twoCleanMoves: number;
   /** S-3: a HOLD, or a throwaway, on a clean-expiry tick. */
@@ -291,9 +295,28 @@ export interface Step5Extra {
   expiryThrowaways: number;
 }
 
+/**
+ * AM-8's `reportedSplits` (reported, never graded): PROGRESSION and CLEAN_EXPIRY by AFTER_CLEAN_MOVE
+ * (a clean move at or before the throw's decision) or OTHER; ON_THE_RUN by CLEAN_BREAKOUT (the escape
+ * was a clean pick's) or PRESSURED; DESPERATION by DIRTY (the last status at or before the release is
+ * not CLEAN, AM-8 `dirtyPocket`) or CLEAN. Keyed `CLASS/SPLIT`, each the aimed throws and their INTs.
+ */
+export const STEP5_REPORTED_SPLITS = Object.freeze({
+  PROGRESSION: ["AFTER_CLEAN_MOVE", "OTHER"],
+  CLEAN_EXPIRY: ["AFTER_CLEAN_MOVE", "OTHER"],
+  ON_THE_RUN: ["CLEAN_BREAKOUT", "PRESSURED"],
+  DESPERATION: ["DIRTY", "CLEAN"],
+} as const);
+export type SplitFold = Record<string, { aimed: number; interceptions: number }>;
+
+export function emptySplitFold(): SplitFold {
+  return Object.fromEntries(Object.entries(STEP5_REPORTED_SPLITS).flatMap(([cls, splits]) => splits.map((sp) => [`${cls}/${sp}`, { aimed: 0, interceptions: 0 }])));
+}
+
 /** Step 5's folds on one league. `curve` is the pressured curve by raw release bin (attempts, throwaways on their tick). */
 export interface Step5LeagueFolds {
   readonly s5: S5Fold;
+  readonly splits: SplitFold;
   readonly rows: CleanPocketRowsFold;
   readonly guard: GuardFold;
   readonly curve: Record<string, { attempts: number; pressured: number }>;
@@ -309,10 +332,11 @@ export interface Step5Record extends Omit<Step4Record, "format"> {
 export function emptyStep5LeagueFolds(): Step5LeagueFolds {
   return {
     s5: emptyS5Fold(),
+    splits: emptySplitFold(),
     rows: emptyCleanPocketRowsFold(),
     guard: emptyGuardFold(),
     curve: Object.fromEntries(RELEASE_BINS.map((b) => [b, { attempts: 0, pressured: 0 }])),
-    extra: { dropbacks: 0, nonClean: 0, clockExpired: 0, cleanClockExpired: 0, emptyPoolThrows: 0, belowBarTargetThrows: 0, rankPushedExpiryThrows: 0, breakOutThrows: 0, onRunDesperation: 0, twoCleanMoves: 0, expiryHolds: 0, expiryThrowaways: 0 },
+    extra: { dropbacks: 0, nonClean: 0, clockExpired: 0, cleanClockExpired: 0, emptyPoolThrows: 0, belowBarTargetThrows: 0, rankPushedExpiryThrows: 0, breakOutThrows: 0, onRunDesperation: 0, releases: 0, rawAtOrUnder1: 0, rawAtOrOver35: 0, twoCleanMoves: 0, expiryHolds: 0, expiryThrowaways: 0 },
     fit: emptyFitFold(),
   };
 }
@@ -348,7 +372,9 @@ export function guardAllOf(g: GuardFold): IntMix {
 export function foldStep5Game(L: Step5LeagueFolds, events: readonly MatchEventEnvelope[], tunables: Tunables, snapshot: GameSnapshot, classify: ThrowClassifier): void {
   const ctx = s2ContextOf(tunables, snapshot);
   const expiryBar = cleanPocketOf(tunables)?.expiryBar ?? 30;
-  for (const x of s5DropbacksOf(events, ctx)) {
+  const xs = s5DropbacksOf(events, ctx);
+  const byPlay = new Map(xs.map((x) => [x.playId, x]));
+  for (const x of xs) {
     foldS5Dropback(L.s5, x);
     if (x.cleanMoves.length > 1) L.extra.twoCleanMoves += 1;
     if (x.breakOutThrow !== undefined) {
@@ -371,6 +397,26 @@ export function foldStep5Game(L: Step5LeagueFolds, events: readonly MatchEventEn
     const d = readDropback(slice);
     if (d === undefined) continue;
     L.extra.dropbacks += 1;
+    // AM-8's reported splits.
+    if (isAimed(d) && d.throwTick !== undefined) {
+      const cls = classify(d, tunables).cls;
+      const x = byPlay.get(d.playId);
+      const throwTick = d.throwTick;
+      const releaseAt = releaseSecondsOf(slice.events) ?? throwTick;
+      const split =
+        cls === "PROGRESSION" || cls === "CLEAN_EXPIRY"
+          ? (x?.cleanMoves.some((m) => m <= throwTick + 1e-9) === true ? "AFTER_CLEAN_MOVE" : "OTHER")
+          : cls === "ON_THE_RUN"
+            ? (x?.escapes.some((e) => e.clean && e.outcome === "ESCAPED") === true ? "CLEAN_BREAKOUT" : "PRESSURED")
+            : cls === "DESPERATION"
+              ? ((d.statuses.filter((st) => st.tick <= releaseAt + 1e-9).at(-1)?.status ?? "CLEAN") === "CLEAN" ? "CLEAN" : "DIRTY")
+              : undefined;
+      const cell = split === undefined ? undefined : L.splits[`${cls}/${split}`];
+      if (cell !== undefined) {
+        cell.aimed += 1;
+        if (d.intercepted) cell.interceptions += 1;
+      }
+    }
     const clean = worstStatus(d) === "CLEAN";
     if (!clean) L.extra.nonClean += 1;
     if (d.throwawayTick !== undefined && d.throwawayCause === "CLOCK_EXPIRED") {
@@ -378,6 +424,11 @@ export function foldStep5Game(L: Step5LeagueFolds, events: readonly MatchEventEn
       if (clean) L.extra.cleanClockExpired += 1;
     }
     const release = d.throwTick !== undefined ? (releaseSecondsOf(slice.events) ?? d.throwTick) : d.throwawayTick;
+    if (d.throwTick !== undefined && release !== undefined) {
+      L.extra.releases += 1;
+      if (release <= 1.0 + 1e-9) L.extra.rawAtOrUnder1 += 1;
+      if (release >= 3.5 - 1e-9) L.extra.rawAtOrOver35 += 1;
+    }
     if (release === undefined) continue;
     const bin = L.curve[releaseBinOf(release)];
     if (bin === undefined) continue;
@@ -700,14 +751,34 @@ export function gradeStep5(x: GradeStep5Inputs): Step5Grade {
       const verdict = isGraded && oneSet === undefined ? (reading.breaches.length > 0 ? "BREACH" : "PASS") : "REPORTED";
       if (verdict === "BREACH") guardBreaches.push(`${arm} against ${base}, ${l}: ${reading.breaches.join(", ")}`);
       const fresh = guard.freshBases.includes(base) ? [`${base} is played fresh (AM-8 freshBases)`] : [];
-      guardRows.push({ arm, against: base, league: l, role: "graded", verdict, graded: isGraded, Z: reading.league.Z, breaches: reading.breaches, filedBreaches: reading.filedBreaches, ownClock: fresh });
+      // AM-8's reportFiledReading, reportMinimumExcess and reportPairedSE: each reading's sets, its minimum breaching excess and its SE.
+      const readingLine = (name: string, rd: (typeof reading)["league"]): string =>
+        `${name}: Z ${num(rd.Z)}, minimum breaching mean excess ${num(rd.eStar, 3)}, mean excess ${num(rd.meanExcess, 3)}; ` +
+        rd.sets.map((st) => `set ${String(st.seedSet)} rise ${num(st.rise, 3)} allowed ${num(st.allowed, 3)} SE ${num(st.se, 3)} (filed reading ${st.rise <= st.allowed ? "within" : "over"})`).join(", ");
+      const detail = [readingLine("league-wide", reading.league), ...reading.classes.flatMap((c) => (c.reading === undefined ? [] : [readingLine(c.cls, c.reading)]))];
+      guardRows.push({ arm, against: base, league: l, role: "graded", verdict, graded: isGraded, Z: reading.league.Z, breaches: reading.breaches, filedBreaches: reading.filedBreaches, ownClock: [...fresh, `the release clock: raw seconds on both sides (AM-8)`, ...detail] });
+    }
+  }
+  // AM-8: the alone arms (E1 to E8, E10) printed beside the guard against E0, unguarded.
+  if (half === "5a") {
+    for (const id of ["E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E10"] as ArmId[]) {
+      for (const l of LEAGUES) {
+        const side = (a: ArmId): Partial<Record<SeedSet, GuardSide>> =>
+          Object.fromEntries(sets.flatMap((s) => {
+            const r = at(a, s);
+            return r === undefined ? [] : [[s, { all: guardAllOf(r.s5[l].guard), byClass: Object.fromEntries(Object.entries(r.s5[l].guard).map(([cls, cell]) => [cls, { aimedByBin: cell.aimedByBin, interceptions: cell.interceptions } satisfies IntMix])) }]];
+          }));
+        if (!records.has(id) || !sets.some((s) => at("E0", s) !== undefined)) continue;
+        const reading = am1ArmReading(side("E0"), side(id), STEP5_GUARD_CLOCK, guard.lines);
+        guardRows.push({ arm: id, against: "E0", league: l, role: "information", verdict: "REPORTED (an alone arm, unguarded; AM-8)", graded: false, Z: reading.league.Z, breaches: [], filedBreaches: reading.filedBreaches, ownClock: [] });
+      }
     }
   }
   const guardClause = (id: string, arm: ArmId): void => {
     const c = clauseOf(id);
     // A guard clause the filing does not hold is a build fault in this harness, never a silent no-op (measurement M7).
     if (c === undefined) throw new Error(`ADR-089 step ${half}: the guard clause ${id} is not in the filing`);
-    const rows = guardRows.filter((g) => g.arm === arm);
+    const rows = guardRows.filter((g) => g.arm === arm && g.role === "graded");
     const verdict = rows.length === 0 || rows.every((g) => g.verdict === "NOT PLAYED") ? "NOT PLAYED" : oneSet !== undefined ? "REPORTED" : rows.some((g) => g.verdict === "BREACH") ? "FAIL" : "PASS";
     clauses.push({ id, kind: c.kind, arms: [arm, guard.bases[arm] ?? "?"], filed: "AM-8", values: rows.map((g) => `${g.league} ${g.verdict}`), verdict, note: `under ${guard.am8}, the S5 class view` });
   };
@@ -719,6 +790,13 @@ export function gradeStep5(x: GradeStep5Inputs): Step5Grade {
     banded("s5a.release", "E9", undefined, (r, l) => rowValueOf(r, "release_distribution", l), [], "the raw mean");
     banded("s5a.under1", "E9", undefined, (r, l) => releaseSharesOf(r.s5[l].fit).under1, [], "at or under 1.25 s raw, on the fit's windows");
     banded("s5a.over35", "E9", undefined, (r, l) => releaseSharesOf(r.s5[l].fit).over35, [], "over 3.25 s raw, on the fit's windows");
+    // Beside each, the raw edge share itself (at or under 1.0 s; at or over 3.5 s).
+    for (const [id, key] of [["s5a.under1", "rawAtOrUnder1"], ["s5a.over35", "rawAtOrOver35"]] as const) {
+      const c = clauses.find((k) => k.id === id);
+      if (c === undefined || c.verdict === "NOT PLAYED") continue;
+      const edge = (s: SeedSet, l: League): string => num(per100(at("E9", s)!.s5[l].extra[key], at("E9", s)!.s5[l].extra.releases));
+      clauses[clauses.indexOf(c)] = { ...c, values: [...c.values, ...LEAGUES.map((l) => `beside, the raw edge ${key === "rawAtOrUnder1" ? "at or under 1.0 s" : "at or over 3.5 s"}: ${l} ${sets.map((s) => `set ${String(s)} ${edge(s, l)}`).join(", ")}`)] };
+    }
     reported("s5a.cleanOuts", ["E9"], (s, l) => {
       const row = cleanPocketRows(at("E9", s)!.s5[l].rows)["row:clean_throwaway_in_pocket"] as { readonly cleanOuts: { readonly per100: number | null } };
       return `${num(row.cleanOuts.per100)} (clean_outs_rate beside ${num(rowValueOf(at("E9", s), "clean_outs_rate", l))} against 10.63)`;
@@ -883,6 +961,20 @@ export function gradeStep5(x: GradeStep5Inputs): Step5Grade {
           `floor waits ${String(f.floorWaits.holds)}; escapes ${String(f.escapes.attempts)} (repeated ${String(f.escapes.repeatedPlays)}); coverage sacks ${String(f.coverageSacks.n)} of ${String(f.coverageSacks.sacks)}`,
       );
       const ex = r.s5[l].extra;
+      const sp = r.s5[l].splits;
+      const rate = (c: { aimed: number; interceptions: number } | undefined): string => (c === undefined ? "n/a" : `${String(c.interceptions)}/${String(c.aimed)} (${num(per100(c.interceptions, c.aimed))})`);
+      affected.push(
+        `${id} set ${String(s)} ${l}: AM-8's reported splits (INT/aimed, never graded): ` +
+          Object.entries(STEP5_REPORTED_SPLITS).map(([cls, splits]) => `${cls} ${splits.map((x) => `${x} ${rate(sp[`${cls}/${x}`])}`).join(", ")}`).join("; ") +
+          `; on the run against the real out-of-pocket ${ON_THE_RUN_REAL.clean.toFixed(2)} (clean) and ${ON_THE_RUN_REAL.pressured.toFixed(2)} (pressured)`,
+      );
+      const esc = f.escapes;
+      const cc = esc.cleanCaughtNamed;
+      affected.push(
+        `${id} set ${String(s)} ${l}: break-outs beside s5a.cleanScramble: clean ${canonicalise(esc.clean)}, forced ${canonicalise(esc.forced)}; ` +
+          `clean CAUGHT sacks with a named rusher ${String(cc.n)} of ${String(esc.clean.CAUGHT)}, his etaTick moved forward by ${cc.n === 0 ? "n/a" : `${num(cc.sumJump / cc.n)} s on average, ${num(cc.maxJump)} s at most`} (guardian C5); ` +
+          `coverage sacks ${String(f.coverageSacks.n)}, mean tick ${f.coverageSacks.n > 0 ? num(f.coverageSacks.sumTick / f.coverageSacks.n) : "n/a"} against PFF's 3.8 s`,
+      );
       affected.push(
         `${id} set ${String(s)} ${l}: beside S-1: clean-expiry throws rank-pushed inside the cut pool ${String(ex.rankPushedExpiryThrows)}, to a man below 30 ${String(ex.belowBarTargetThrows)}; ` +
           `throws after a clean break-out ${String(ex.breakOutThrows)}, of them desperation ${String(ex.onRunDesperation)}`,
