@@ -9,7 +9,8 @@
  *    `QB_PURSUIT` whose first `POCKET_STATUS` is CLEAN, on which the arm's rule part does not hold
  *    (not forced), no live threat has arrived (no arrival contest can run), the count part holds on
  *    the restated budget and reads and at or past the restated drop floor (`cleanPick.ts`), and the
- *    best read so far is below the normal bar (anyone at the bar throws, item a). Its trigger is
+ *    best read so far is below the normal bar (anyone at the bar throws, item a), leaving out the
+ *    checkdown look taken on that tick, which the engine takes after item a. Its trigger is
  *    "reads" when his progression reads since the last restart reached `maxReads` by then, else
  *    "count". Its outcome is what the stream did on that tick: a THROW (D23's decision roll), the
  *    pick (`:clean`) answered by MOVE or ESCAPE, a CLOCK_EXPIRED throwaway (no option offered, so
@@ -54,7 +55,7 @@ import type { GameSnapshot, Tunables } from "@ff/engine";
 import { fromOfApproach } from "./approach.js";
 import { cleanPocketOf, isCleanPickLabel, isScreenRoute, restatedFloorSeconds } from "./cleanPick.js";
 import { BROKEN_PHASES } from "./m6Contact.js";
-import { cleanMoveTicksOf, mustActPartsOf, readS2Play, s2ContextOf, type LiveThreat, type S2Context, type S2Play } from "./s2Stream.js";
+import { cleanMoveTicksOf, mustActPartsOf, readS2Play, s2ContextOf, type LiveThreat, type ReadKind, type S2Context, type S2Play } from "./s2Stream.js";
 import { playsOf, throwBarFor, type Dropback } from "./throwClass.js";
 
 const TOLERANCE = 1e-9;
@@ -163,6 +164,25 @@ function poolAt(d: Dropback, tick: number): { readonly best: number | undefined;
   return { best: values.length === 0 ? undefined : Math.max(...values), values };
 }
 
+/**
+ * The best effective openness item a reads on `tick` (anyone at the normal bar throws): every read
+ * by then, last per man, except the checkdown look taken on the tick itself. The engine runs item a
+ * before that look (`sim/passPlay.ts`: the normal-bar throw, then the outlet's look, then D23's roll),
+ * so an outlet who reaches the bar on the expiry tick does not stop the expiry; D23 then throws to
+ * the cut pool. `kinds` are the play's `QB_READ` kinds in stream order (`S2Play.reads`), one for each
+ * of the dropback's reads.
+ */
+function bestForItemA(d: Dropback, kinds: readonly ReadKind[], tick: number): number | undefined {
+  if (kinds.length !== d.reads.length) throw new Error(`s5Stream: ${d.playId}: ${String(d.reads.length)} QB_READs on the dropback, ${String(kinds.length)} on the play`);
+  const last = new Map<string, number>();
+  d.reads.forEach((r, i) => {
+    if (r.tick > tick + TOLERANCE) return;
+    if (kinds[i] === "CHECKDOWN" && same(r.tick, tick)) return;
+    last.set(r.target, r.effective);
+  });
+  const values = [...last.values()];
+  return values.length === 0 ? undefined : Math.max(...values);
+}
 
 /** A man's contest position at `tick`, from his coverage CHECK's band (the arm's band table), or the uncovered cell's. */
 export function contestPositionAt(d: Dropback, tunables: Tunables, receiver: string, tick: number): ContestPositionName {
@@ -227,13 +247,15 @@ export function readS5Dropback(play: S2Play, readOrder: readonly string[], ctx: 
   }
 
   // The clean expiries.
+  const readKinds = play.reads.map((r) => r.kind);
   const cleanExpiries: S5CleanExpiry[] = [];
   for (const s of statusAt.values()) {
     if (!inPocket(s.index) || s.status !== "CLEAN" || s.live.some((x) => x.arrived)) continue;
     const parts = at(s, s.tick);
     if (parts.rulePart || !parts.count) continue;
     const { best, values } = poolAt(d, s.tick);
-    if (best !== undefined && best >= bar && s.tick >= floorSeconds - TOLERANCE) continue;
+    const itemA = bestForItemA(d, readKinds, s.tick);
+    if (itemA !== undefined && itemA >= bar && s.tick >= floorSeconds - TOLERANCE) continue;
     const t = s.tick;
     const pick = picks.find((p) => same(p.tick, t));
     const outcome: CleanExpiryOutcome =

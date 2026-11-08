@@ -29,7 +29,7 @@ import { POCKET_1_S5A_RULES, readSystemDeltaLeaves, step5Bundle } from "../src/p
 import { climbLaneOpenOn, todayUrgencyOf } from "../src/pocket/s5Stream.js";
 import { s2ContextOf, type LiveThreat } from "../src/pocket/s2Stream.js";
 import { STEP1_CALLER } from "../src/pocket/step1.js";
-import type { Dropback } from "../src/pocket/throwClass.js";
+import { throwBarFor, type Dropback } from "../src/pocket/throwClass.js";
 
 const S5 = cleanBenchTunablesS5({ on: CLEAN_BENCH_PARTS });
 const S4 = cleanBenchTunablesS4();
@@ -255,3 +255,77 @@ describe("the clean pick's offered set and today's urgency (guardian C4; the rul
     expect(fold.picks.urgencyAbove0.byOffered.one + fold.picks.urgencyAbove0.byOffered.two).toBe(fold.picks.urgencyAbove0.n);
   }, 300_000);
 });
+
+describe("the clean expiry where the outlet's look reaches the bar on the expiry tick (the engine's order: item a, then the look, then D23)", () => {
+  it("is read as a clean expiry ending in D23's THROW, not skipped as an item-a throw", () => {
+    const t = step5Bundle(POCKET_1_S5A_RULES, []);
+    const bar = (rs: string): number => throwBarFor(t, rs);
+    let found = 0;
+    let atBar = 0;
+    let itemAAtBar = 0;
+    goldenGames("gen", (o, snapshot) => {
+      const ctx = s2ContextOf(t, snapshot);
+      const xs = s5DropbacksOf(o.events, ctx);
+      for (const slice of playsOfEvents(o.events)) {
+        const start = slice.find((e) => e.event.type === "PLAY_START");
+        const rs = (start?.event.payload as { offense?: { readSystem?: string } } | undefined)?.offense?.readSystem;
+        if (rs === undefined) continue;
+        let tick = 0;
+        let status: string | undefined;
+        const prog = new Map<string, number>();
+        let look: number | undefined;
+        for (const { event } of slice) {
+          if (event.type === "TICK") {
+            tick = event.payload.tick;
+            status = undefined;
+            look = undefined;
+            continue;
+          }
+          if (event.type === "POCKET_STATUS" && status === undefined) status = event.payload.status;
+          if (event.type === "QB_PURSUIT") break;
+          if (event.type === "QB_READ") {
+            const label = event.payload.varianceRoll.rngLabel;
+            if (/:checkdown:[^/]*:read$/.test(label)) look = event.payload.effectiveOpenness;
+            else prog.set(String(event.payload.target), event.payload.effectiveOpenness);
+          }
+          if (event.type === "THROW") {
+            const best = Math.max(-1, ...prog.values());
+            if (status === "CLEAN" && look !== undefined && look >= bar(rs) && best < bar(rs)) {
+              const playId = (event as { playId?: string }).playId ?? "";
+              const x = xs.find((d) => d.playId === playId);
+              const e = x?.cleanExpiries.find((c) => c.tick === tick);
+              expect(e, `${playId} t${String(tick)}: look ${String(look)}, progression best ${String(best)}, bar ${String(bar(rs))}`).toBeDefined();
+              expect(e?.outcome).toBe("THROW");
+              found += 1;
+              if (look === bar(rs)) atBar += 1;
+            }
+            // Item a's own edge: a progression read at exactly the bar throws at item a, no expiry.
+            if (status === "CLEAN" && best === bar(rs)) {
+              const playId = (event as { playId?: string }).playId ?? "";
+              const x = xs.find((d) => d.playId === playId);
+              expect(x?.cleanExpiries.find((c) => c.tick === tick), `${playId} t${String(tick)}: item a at the bar`).toBeUndefined();
+              itemAAtBar += 1;
+            }
+            break;
+          }
+        }
+      }
+    }, { tunables: t, callerVersion: STEP1_CALLER, first: 12 });
+    process.stdout.write(`s5Stream, outlet-at-the-bar expiries on gen golden 12: ${String(found)} (at exactly the bar ${String(atBar)}); item-a throws at exactly the bar ${String(itemAAtBar)}\n`);
+    expect(found).toBeGreaterThan(0);
+    expect(atBar).toBeGreaterThan(0);
+    expect(itemAAtBar).toBeGreaterThan(0);
+  }, 300_000);
+});
+
+function playsOfEvents(events: readonly MatchEventEnvelope[]): MatchEventEnvelope[][] {
+  const out = new Map<string, MatchEventEnvelope[]>();
+  for (const e of events) {
+    const id = (e.event as { playId?: unknown }).playId;
+    if (typeof id !== "string") continue;
+    const list = out.get(id) ?? [];
+    list.push(e);
+    out.set(id, list);
+  }
+  return [...out.values()];
+}
