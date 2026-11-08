@@ -13604,3 +13604,45 @@ Derived by grep at this record's head (`228cc19`), not recalled. Each line is `u
 - **Strength against agility at game level:** ⛔ NEITHER. On the flat league the two probes are equal by construction,
   so this probe cannot tell them apart (ADR-089 Appendix I.6).
 - **The escape and coverage sacks inside the contact clauses:** ⛔ NEITHER until step 6 rules them.
+
+## 180. Calibration's nflverse ingest and fixtures hold real names: a standing exception that needs its own ruling
+
+- **Form.** An observation, not a ruling: it rules nothing and changes nothing, so the template's ruling sections are not
+  needed (`BACKLOG-ENTRY-TEMPLATE.md`: "say so explicitly"). Found while planning ADR-093 step 1b; the paths are DERIVED
+  by reading the files at `a936f0a`, and the further places below were COMPUTED at `798ba65` by a count of whole real
+  full names over every package's code, tests and reports that prints no name.
+- **What.** `docs/design/attributes.md` §5 says "`importer/real/` is the only module containing real names", and Iron
+  Rule 7 says real-player data touch exactly one module. Calibration's nflverse readers take in real names of players,
+  coaches and referees (`packages/calibration/src/ingest/sources/schedules.ts`: `referee`, `home_coach`, `away_coach`;
+  `weeklyRosters.ts`, `depthCharts.ts`, `injuries.ts`, `ngs.ts` and `snapCounts.ts`: players' names;
+  `src/injuries/rows.ts`: players' `full_name` and the snap counts' `player`, for the injury rates), and the
+  availability join falls back to a player's normalized name within the team-week (the snap counts' `player` against
+  the rosters' `full_name`, in `src/ingest/availability.ts`). Calibration's own committed text names real players too,
+  as the cases its readings rest on and as examples: `src/ingest/sources/rosterStatus.ts`'s `basis` notes, comments in
+  `src/injuries/classify.ts`, `src/injuries/timeline.ts` and `src/ingest/availability.ts`, `src/injuries/report.ts`'s
+  definition of a game missed for injury (which the committed `reports/injury-rates.md` and `.json` carry), and the
+  `normaliseName` test in `test/availability.test.ts` (lines with a real full name: 15, 6, 2, 1, 1 and 5). Outside
+  calibration, the same count finds real full names on the engine's test players (`packages/engine/test/fixtures.ts`,
+  `ballCarrier.test.ts`, `coverage.test.ts` and `renderPlay.test.ts`; whether chosen or by chance is not checked) and
+  in the importer's own dead-money test (`packages/attributes/test/deadMoney.test.ts`). 12 of the 13 CSV samples in
+  `packages/calibration/test/fixtures/nflverse/`
+  carry real names (DERIVED from their headers); `games_sample.csv` names 15 of the 17 real referees behind the
+  stand-in league's copied crews (COMPUTED, counts only; ADR-093 §16 A11). Other texts allow calibration to read real data (the Charter's D4,
+  `docs/design/calibration.md`), so the project's texts disagree.
+- **Why it does not matter yet.** Nothing calibration writes into a league, a save or the game carries those names:
+  calibration measures real numbers and compares them, and the tests' names stay in their tests. ADR-093 step 1b added
+  no real name outside `importer/real/`.
+- **Why it will.** Ship-legal builds must hold no Family A to H raw data (`attributes.md` §5), and real names are
+  committed in the repo today: fixtures, notes, comments, tests and a report.
+- **Proposed fix (nothing built).** The coach and referee columns of the schedules ingest are read by nothing and can be
+  dropped with no test edit (`harness.test.ts` and `metrics.test.ts` build their rows `as ScheduleRow`), and
+  `test/fixtures/nflverse/games_sample.csv` scrubbed with its builder (`test/fixtures/build-fixtures.mjs`). Players' names
+  feed the availability join and need the ruling itself: keep them as calibration's standing exception, or join on ids
+  alone. The names in calibration's own text can go: its notes and comments can describe each case without a name
+  (nothing reads the `basis` notes but `test/sources.test.ts`, which checks only their length), the tests can switch
+  to made-up names, and the committed injury-rates report changes with `report.ts`. Any such commit merges only when
+  neither the pocket fix (ADR-089) nor ADR-087's 20-season check has a run in
+  play, as ADR-093 §16 A11's Caches line has it for step 1b, since a change to calibration's source voids ADR-089's
+  cached arms and changes career-check's build.
+- **Owner and trigger.** Owner: the Orchestrator, then the project owner (the ruling). Trigger: before any ship build,
+  or when the next calibration ingest change comes.

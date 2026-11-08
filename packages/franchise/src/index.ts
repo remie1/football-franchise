@@ -193,3 +193,9 @@ export {
   COURSE_TILT, CLASS_SPREAD, classGrade, classMultiplier, landingSpread, gmPickValue,
   type GmCurve, type ClassGrade, type Landing, type PickValueInput,
 } from "./trades/pickValue.js";
+
+// ADR-096 step 2: fan and media mood.
+export { MOOD, MOOD_STREAM } from "./mood/rates.js";
+export { expectedPoints, readGame, type GameRead, type LeagueBase } from "./mood/game.js";
+export { emptyMoodMemory, type MoodMemory } from "./mood/memory.js";
+export { MOOD_STEP_PREFIX, moodSteps, seatedMen, subjectKey, type MoodStepsConfig } from "./mood/steps.js";

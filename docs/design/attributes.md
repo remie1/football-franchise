@@ -53,6 +53,13 @@ NFL.com/Zierlein draft profiles, Brugler's *The Beast*, beat-writer camp reports
 ### Family G — Existing game ratings (rank-order validation only)
 Madden position-group orderings. Spearman correlation against our derived orderings; investigate large disagreements (their reputation lag is a known bias — disagreement ≠ our error). **Values are never copied** (their creative work; also methodologically lazy).
 
+### Family H — Officials (the stand-in league's crews, ADR-093 step 1b)
+| Dataset | Fields read | Access | Cadence |
+|---|---|---|---|
+| nflverse `schedules/games.parquet`, `officials/officials.parquet`, `players/players.parquet`, `pbp/play_by_play_<y>.parquet` (y = season − 3 to season) | schedules: game_id, old_game_id, season, game_type, week, home_score, referee, home_coach, away_coach; officials: game_id, official_name, position, season (never official_id); players: display_name; play-by-play: game_id, old_game_id, season, season_type, play_type, desc | free; cached in `data-cache/real/officials/<date>/` with a sha256 manifest, checked (`verifySnapshot`) before any row is read | on demand: `standin-officials -- --fetch` when a league file's crews are made or refreshed; a kept folder is re-read with `--snapshot` |
+
+Read only inside `importer/real/` (§5): each official's name in the officials table (at any position), the schedules' referees and coaches, and each real player's `display_name` go into the taken set for the made-up referee names, with the league file's stand-ins and both sealed tables' names, and the referees' sealed table (`sealed-officials.json`, beside `sealed.json`) keeps each copy's id and name across refreshes. The plays' `desc`, which holds real players' names, is read only for its flags, and its names go into no set. Production use only for the crews' leans (flags per scrimmage snap), never for a player's attributes.
+
 ## 3. THE LAYERED DERIVATION MODEL
 
 Per player, per attribute, in order; each layer OVERWRITES-BY-CONFIDENCE rather than blind-averages:
@@ -94,10 +101,10 @@ Blend rule per attribute: `estimate = Σ(source_i × w_i × conf_i) / Σ(w_i × 
 
 ## 5. IMPORTER ISOLATION & ANONYMIZATION
 
-- `importer/real/` is the only module containing real names, and maps `realIdentity → PlayerId` in one sealed table.
+- `importer/real/` is the only module containing real names, and maps `realIdentity → PlayerId` in one sealed table. The stand-in league's copied crews keep a second, `sealed-officials.json`, from each real referee to a made-up name and a crew id (Family H, ADR-093 step 1b).
 - Downstream output is `PlayerBio + TrueAttributes` — the bio's `displayName` is just a string; nothing else in the repo may join back to real identity.
 - `importer/fictional/` (the launch twin) must emit the *identical shape*: name generator, bio generator, and a **rookie-class generator** that samples the archetype priors + historical combine distributions so drafted classes feel statistically real. Anonymization = config flag swapping importers; add a CI test asserting both importers satisfy the same output schema.
-- Ship-legal rule: release builds contain no Family A–G raw data, only generated rosters.
+- Ship-legal rule: release builds contain no Family A–H raw data, only generated rosters.
 
 ## 6. ROOKIES (both modes)
 

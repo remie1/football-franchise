@@ -117,7 +117,7 @@ event**, so a reconstructed play says what was seen, what was decided, and what 
 
 ⛔ **A FINDING THAT BLOCKS THE LEASH AS DESCRIBED: THERE IS NO `discipline` ATTRIBUTE.**
 `ATTRIBUTE_REGISTRY_V1` (`contracts/src/registry.ts`) has `gapDiscipline` (DL/OL/LB, run fits) and
-nothing for anyone else. `attributes.md:72` names "awareness/discipline" as an inference target from
+nothing for anyone else. `attributes.md:79` names "awareness/discipline" as an inference target from
 pre-snap penalty rates, so the idea is in the docs; the attribute is not in the registry. Adding it
 (ALL positions, `mental`) is a registry petition.
 

@@ -47,6 +47,7 @@ import { staffSteps, type StaffStepsConfig } from "../staff/steps.js";
 import { meetingSteps, type MeetingStepsConfig } from "../meeting/steps.js";
 import { leagueYearSteps, type LeagueYearConfig } from "../cap/leagueYear.js";
 import { aheadView } from "../cap/ahead.js";
+import { moodSteps, type MoodStepsConfig } from "../mood/steps.js";
 import { advance, nextDay, phaseWeeks, seasonStart, DAYS_PER_WEEK, type ClockWorld } from "../calendar/clock.js";
 import { buildSchedule } from "../schedule/buildSchedule.js";
 import { computeStandings } from "../standings/computeStandings.js";
@@ -143,6 +144,11 @@ export interface RunSeasonInput {
    * without one, as before.
    */
   officiating?: OfficiatingInput;
+  /**
+   * ADR-096 step 2: fan and media mood (`moodSteps`), run after every other step. Needs `people`.
+   * Absent: no mood, and the run is as before.
+   */
+  mood?: MoodStepsConfig;
 }
 
 export interface SeasonRun {
@@ -217,6 +223,7 @@ export function runSeason(input: RunSeasonInput): SeasonRun {
     ...(input.meeting ? meetingSteps(input.meeting) : []),
     ...(input.coaching ? staffSteps(input.coaching) : []),
     ...(yearConfig ? leagueYearSteps(yearConfig) : []), ...(draftConfig ? draftSteps(draftConfig) : []),
+    ...(input.mood ? moodSteps(input.mood) : []),
   ];
   if (steps.length > 0 && !input.people) throw new Error("runSeason: daySteps, the players' steps, the coaches', the league year and the draft need people");
   if (input.coaching && !input.people?.coaching) throw new Error("runSeason: the coaches' steps need people.coaching");

@@ -8,7 +8,7 @@
   ("1. A 2. A 3. B 4. B 5. A 6. B 7. A"). Contracts edits M1 and M2 approved by the owner's typed
   yes 2026-11-07 14:09Z ("Yes, make contracts edits M1 and M2") and made (§8). The script writer
   ruled 2026-11-07 14:10Z on the thread's card: **templates now, an AI writer as an option later**
-  (§7). Nothing outside contracts is built.
+  (§7). Step 2 (mood) built 2026-11-07, off by default (§11); merging waits for the owner.
 - **Plan doc (plain words, the questions as put to the owner):**
   https://claude.ai/artifact/7MtH3yZVLokYE8qhEWEfh6
 - **Origin:** the owner's post-game podcast idea (2026-10-22, thread "Coaching staff"), the test
@@ -267,3 +267,51 @@ viewer's own, and an episode file is not a save.
 Q1-Q7 ruled by the owner, 2026-11-07 13:58Z. Contracts edits M1 and M2 approved by the owner's
 typed yes, 2026-11-07 14:09Z, and made. The writer ruled on the card, 2026-11-07 14:10Z. Merging
 this ADR waits for the owner.
+
+## 11. Step 2 build record (2026-11-07, thread "Build fan and media mood")
+
+**Built:** `packages/franchise/src/mood/` (`rates.ts`, `game.ts`, `steps.ts`, `memory.ts`), one day
+step run after every other step when `runSeason` is given `mood`; `season --mood` (with
+`--development` or `--injuries`); the cap check's walk takes `mood: true`; `mood-check` in calibration
+(`reports/mood-check.md`). No contracts edit: readings go out as M1 and sit on the teams as M2; what
+mood remembers beside them (rest points, the watch list's quiet weeks, recent grade gaps, the grade
+fit, each team's record against expectation) sits in the steps' memory (`PlayerMemory.mood`), the
+save's franchise-owned `depthMemory`, so a save carries on exactly (tested).
+
+**Where the build reads the ADR one way of several:**
+
+- **Expected margin** comes from ADR-081's `teamStrength` (points of margin, MEASURED through the
+  engine), not from rank order, so no rank-to-margin slope is fit. Points a team is expected to score:
+  the league's points a game so far, plus its offense's edge over the average offense, less the other
+  side's defense's edge over the average defense.
+- **Home field** is 0: the engine has none, and the check measured our league's home margin at 0.26
+  points a game over 8,160 games (the real NFL's is about 1.5 to 2).
+- **Big calls** are left out: franchise sees no play-by-play. The head coach takes half the team's
+  share (the ADR's CHOSEN "half of the whole"), labeled a placeholder. Adding his calls needs a
+  per-game summary from the season runner, a contracts petition when wanted.
+- **How it happened** from period scores: a blown lead is a lead of 14+ at the end of any period but
+  the last; "decided late" is overtime, or a margin of 8 or less where the side ahead after three
+  periods did not win (an approximation of "on the last score"). Each cause is 0.1 toward the result,
+  0.25 at most together.
+- **Watch list form** compares a player's game grade (ADR-087's contest grade) with the grade the
+  league's own fit of grade on rating promises (least squares over every graded player, 20+ snaps,
+  older seasons halved each year); 8 points off the same way two games running puts him on. A new
+  man joins at 0; a full list drops the man with the most quiet weeks.
+- **Media pull**: toward 100 tanh((wins - expected wins) / 3), a tenth of the gap a game, for the team,
+  the head coach and the GM; expected wins add up each game's odds from the two strengths.
+- **Preseason games** move nothing. Drift alone sends no event (M1: weeks with a game or a moment).
+
+**The many-season look** (`mood-check`, seeds `mood-check-1` to `-3`, 10 seasons each, the stand-in
+league with growth, injuries, the league year, the draft and the coaches' carousel): fans sit at -60
+or lower after 21.0% of games and at +60 or higher after 19.8%; media 2.2% and 2.2%. 88.6% of
+team-seasons have at least one furious week, 46.3% four or more. Final moods follow wins (0-4 wins:
+fans -50, media -54; 13+: fans +42, media +51). The shares hold steady from the first season to the
+tenth (19% to 22% furious each year). The takes' mood sides are live often (FIRE in 97.7% of
+team-seasons, mostly on the coordinators, whose share is their unit's whole result), before step 3's
+other conditions. No real count of fan anger exists in this repo; these are ours to look at.
+
+**Owner's pick, 2026-11-07 17:47Z ("cool down the coordinators"):** each coordinator now takes half of
+his unit's result (`MOOD.coordinatorShare` 0.5, as the head coach takes half of the team's; CHOSEN).
+Re-run on the same three seeds: FIRE live at least once in 76.7% of team-seasons (was 97.7%); by seat
+the OC 29.3% (was 90.5%), the DC 23.0% (was 83.2%), the head coach 38.8% and the GM 75.0% unchanged.
+Team moods are unchanged.

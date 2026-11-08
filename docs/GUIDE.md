@@ -199,8 +199,14 @@ windows. Its fix is designed right after the pocket fix, measured on the fixed p
   crews and the league's standard move). Nobody counts missed calls, so how much the officials
   miss is your call, fenced in by the league's own grading (you chose 2 in 3 of the holding seen
   and 1 in 20 judgment flags wrong). An assistant head coach offers challenges with an honest
-  percentage, under the NFL's real challenge rules. Its first two steps (the rulebook and the
-  officials), which change no play, come next; the fouls themselves come after the pocket fix.
+  percentage, under the NFL's real challenge rules. Step 1 is built (6 November 2026): the
+  officials' rolls, and the league's 17 crews, made with the league, given at most one game a
+  week each (never the same team twice in four weeks), saved, and carried into each new season
+  at 0.68, your answer. Step 1b gives the stand-in league copies of the 17 real crews under
+  made-up referee names, kept as their records show, your answer (`standin-officials`). A
+  stand-in season now plays 2026, or 2027 with the copies carried one winter (the default with
+  growth and injuries off; with either on, it plays 2026). No game uses a crew until step 2. The
+  rulebook (step 0) is still to come, and the fouls themselves come after the pocket fix.
 
 **Started outside the simulator (21 October 2026):** a game viewer for the browser, a season
 shell for the front office, faster CI, and this guide.
@@ -261,6 +267,18 @@ turnover. The real-player stand-in league now carries growth records and today's
 rookie ages, the retired list, signed again and exits by age, the league file recounted the real way
 (`standin-recount`), and each player's expected games available ahead (`expectedAvailability`, for the
 cap). Next is aging by ability group, with no rule by position.
+
+**Fans and media have a mood (ADR-096 step 2, built 7 November 2026, off by default):** with
+`--mood` (beside `--development` or `--injuries`) every team's fans and local media hold a mood from
+-100 (furious) to +100 (thrilled) about the team, the head coach, the GM, both coordinators and up
+to six players they are watching. It moves after each game by how far the result beat or missed
+what the two rosters said, how it happened (a rout, a blown lead, a late loss, a home loss) and any
+streak; the offense's and defense's shares go to their coordinators, and the GM also answers for a
+thin roster behind a hurt starter, an aging unit and next year's cap. Fans swing hard and fast;
+the media move slower and stay near the record. Firings, hires, big signings and first-round picks
+move it in the offseason, and in weeks without a game it settles back. Nothing in the game reads it
+yet; the weekly podcast will (step 3 on). `mood-check` plays many seasons to see that fans are not
+furious all the time (`reports/mood-check.md`).
 
 **Your coach's personality (ADR-083, ruled 23 October 2026, not built):** your type builds up from
 how you answer people, shown as five meters on your coach page. Only your main trait counts, and it

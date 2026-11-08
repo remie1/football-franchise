@@ -6,6 +6,7 @@
  * (`depthChart.ts`) and unsigned retirements (`unsigned.ts`) are pure functions of their inputs;
  * `steps.ts` runs them as day steps inside `runSeason`'s walk.
  */
+import type { MoodMemory } from "../mood/memory.js";
 import type { AttrId, CalendarStamp, InjuryBand, PlayerId, Position, TeamId } from "@ff/contracts";
 
 /** The rating groups of ADR-087 §2.3: what moves each rating. */
@@ -78,6 +79,11 @@ export interface PlayerMemory {
   unsignedSince: Record<string, CalendarStamp>;
   /** Which switches the steps ran with, so a loaded season carries on with the same ones. Set by `steps.ts`. */
   switches?: { development: boolean; injuries: boolean };
+  /**
+   * ADR-096: fan and media mood's own memory (rest points, the watch list's quiet weeks, grade gaps),
+   * kept here because this is the save's slot for the steps' memory. Absent until mood runs.
+   */
+  mood?: MoodMemory;
 }
 
 export function emptyMemory(): PlayerMemory {
