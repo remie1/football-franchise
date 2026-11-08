@@ -749,11 +749,15 @@ export function gradeStep5(x: GradeStep5Inputs): Step5Grade {
   const replay: string[] = [];
   const affected: string[] = [];
   const beside = (f: (s: SeedSet) => number | null): string => sets.filter((s) => s !== graded).map((s) => `set ${String(s)} ${num(f(s))}`).join(", ");
-  /** Appends lines beside a clause already pushed and played (a no-op when it is absent or not played). */
-  const addBeside = (id: string, lines: readonly string[]): void => {
+  /**
+   * Appends lines beside a clause already pushed and played (a no-op when it is absent or not played).
+   * The lines are built only then, so a line may read the clause's arms without a guard: a 5b grade
+   * with F0 not yet played has no record to read.
+   */
+  const addBeside = (id: string, lines: () => readonly string[]): void => {
     const c = clauses.find((k) => k.id === id);
     if (c === undefined || c.verdict === "NOT PLAYED") return;
-    clauses[clauses.indexOf(c)] = { ...c, values: [...c.values, ...lines] };
+    clauses[clauses.indexOf(c)] = { ...c, values: [...c.values, ...lines()] };
   };
   const notPlayed = (id: string, kind: Step2ClauseResult["kind"], arms: readonly ArmId[], filed: string): void => {
     clauses.push({ id, kind, arms, filed, values: [`not played: ${arms.filter((a) => sets.some((s) => at(a, s) === undefined)).join(", ")}`], verdict: "NOT PLAYED" });
@@ -931,7 +935,7 @@ export function gradeStep5(x: GradeStep5Inputs): Step5Grade {
       banded(id, "E9", undefined, (r, l) => rowValueOf(r, row, l), []);
     }
     // The filed row is the nobody-open share "with its split" (measurement M5 item 5): the split rows by class.
-    addBeside("s5a.nobodyOpen", LEAGUES.map((l) => `beside, its split (% of dropbacks): ${l} ${sets.map((s) => `set ${String(s)} ${NOBODY_OPEN_CLASSES.map((c) => `${c} ${num(rowValueOf(at("E9", s), `nobody_open_share.split.${c}`, l))}`).join(", ")}`).join("; ")}`));
+    addBeside("s5a.nobodyOpen", () => LEAGUES.map((l) => `beside, its split (% of dropbacks): ${l} ${sets.map((s) => `set ${String(s)} ${NOBODY_OPEN_CLASSES.map((c) => `${c} ${num(rowValueOf(at("E9", s), `nobody_open_share.split.${c}`, l))}`).join(", ")}`).join("; ")}`));
     reported("s5a.cleanThrowaway", ["E9"], (s, l) => {
       const row = cleanPocketRows(at("E9", s)!.s5[l].rows)["row:clean_throwaway_in_pocket"] as { readonly clean: { readonly inPocketPer100: number | null; readonly outOfPocketPer100: number | null } };
       return `in the pocket ${num(row.clean.inPocketPer100)}, outside ${num(row.clean.outOfPocketPer100)}`;
@@ -1030,12 +1034,12 @@ export function gradeStep5(x: GradeStep5Inputs): Step5Grade {
     banded("s5b.pressure", "F0", undefined, (r, l) => rowValueOf(r, "threat_creation_rate", l), ["gen"]);
     banded("mr.bin20.raw", "F0", undefined, (r, l) => bin20RawOf(r.s5[l]), ["gen"]);
     // AM-10 `s5b.clockExpired`: "The pressured-only count is printed beside" (measurement M5 item 13).
-    addBeside("s5b.clockExpired", LEAGUES.map((l) => `beside, the pressured-only count (not CLEAN through the throwaway): ${l} ${sets.map((s) => {
+    addBeside("s5b.clockExpired", () => LEAGUES.map((l) => `beside, the pressured-only count (not CLEAN through the throwaway): ${l} ${sets.map((s) => {
       const e = at("F0", s)!.s5[l].extra;
       return `set ${String(s)} ${String(e.clockExpired - e.cleanClockExpired)} of ${String(e.clockExpired)} (${num(per100(e.clockExpired - e.cleanClockExpired, e.dropbacks))} per 100 dropbacks)`;
     }).join(", ")}`));
     // AM-10 `reported`: "mr.bin20.raw's fitted-shape status printed beside its grade" (measurement M5 item 15).
-    addBeside("mr.bin20.raw", [
+    addBeside("mr.bin20.raw", () => [
       `beside, its fitted-shape status: the 2.0 s bin is one of the seven bins of the pressured curve, which AM-10's fallback moves into the fitted ledger; ${
         selection === undefined ? "no selection in this run" : selection.winner === undefined ? "the selection has no winner" : `the curve selected ${selection.winner} (shape ${selection.winnerShape ?? "?"}), so this grade reads a bin F0's shape was fitted on`
       }`,

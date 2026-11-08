@@ -436,6 +436,13 @@ describe("step 5's visit and grading on a tiny corpus (scratch; nothing is recor
     expect(g.selection?.stop).toBeUndefined();
     expect(g.sections.selection?.[0]).toBe("gen: winner S:theta=12");
     expect(g.sections.clauses.find((c) => c.id === "s5b.sack")!.verdict).toBe("NOT PLAYED");
+    // F0 is not played here: its clauses say so and nothing is printed beside them. Before the fix the
+    // pressured-only CLOCK_EXPIRED line read F0's record before the clause's verdict was checked, and threw.
+    for (const id of ["s5b.clockExpired", "mr.bin20.raw"]) {
+      const c = g.sections.clauses.find((k) => k.id === id)!;
+      expect(c.verdict).toBe("NOT PLAYED");
+      expect(c.values).toEqual(["not played: F0"]);
+    }
     expect(rePointsOf(records, "gen")).toHaveLength(14);
     // R-7: the measures carry the selection; a second recomputation from the filed words agrees, and a moved loss is named.
     const path = join(scratch, "step5b.json");
