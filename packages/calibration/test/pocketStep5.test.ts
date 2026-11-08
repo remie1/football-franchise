@@ -29,6 +29,7 @@ import {
   q5Problems,
   guardAllOf,
   rePointsOf,
+  step5AliasesOf,
   runStep5,
   step5GateRefusal,
   step5GateState,
@@ -219,6 +220,25 @@ describe("step 5's visit and grading on a tiny corpus (scratch; nothing is recor
     (moved.s5.gen.fit.games as string[])[0] = "fnv1a:moved";
     const bad = gradeStep5({ half: "5a", records, file, guard, fresh: { 1: play("E0", 1), 2: moved } });
     expect(bad.sections.outcome.structuralFailures).toEqual([expect.stringMatching(/^S-7: E0 set 2's two fresh plays differ: gen: the stream digests differ/)]);
+    // AM-9 e9IsE8 (code-tests F1): with the fit on today's deltas E9 is E8; its clauses and guard rows read E8's record.
+    expect(step5AliasesOf({ fitted: { HALF_FIELD: 0, FULL_FIELD: 0, CONCEPT: 0 } })).toEqual({ E9: "E8", E1: "E0" });
+    expect(step5AliasesOf({ fitted: { HALF_FIELD: 0.5, FULL_FIELD: 0, CONCEPT: 0 } })).toEqual({});
+    expect(step5AliasesOf({})).toEqual({});
+    const noE9: Step5RecordsBySet = new Map<ArmId, Partial<Record<SeedSet, Step5Record>>>([
+      ["E0", { 1: play("E0", 1), 2: play("E0", 2) }],
+      ["E8", { 1: play("E8", 1), 2: play("E8", 2) }],
+    ]);
+    const aliased = gradeStep5({ half: "5a", records: noE9, file, guard, fresh: { 1: play("E0", 1), 2: play("E0", 2) }, aliases: { E9: "E8", E1: "E0" } });
+    for (const id of ["s5a.cleanScramble", "s5a.completion", "s5a.int"]) {
+      const c = aliased.sections.clauses.find((k) => k.id === id)!;
+      expect(c.verdict, id).toBe(g.sections.clauses.find((k) => k.id === id)!.verdict);
+      expect(c.values, id).toEqual(g.sections.clauses.find((k) => k.id === id)!.values);
+    }
+    expect(aliased.sections.outcome.structuralFailures).toEqual([]);
+    // Without the alias, the graded clauses go unplayed, and that is a fault, never a silent pass.
+    const silent = gradeStep5({ half: "5a", records: noE9, file, guard, fresh: { 1: play("E0", 1), 2: play("E0", 2) } });
+    expect(silent.sections.outcome.structuralFailures).toEqual(expect.arrayContaining([expect.stringMatching(/^s5a\.cleanScramble: a graded clause was not played/), expect.stringMatching(/^s5a\.int: a graded clause was not played/)]));
+    expect(silent.sections.outcome.mergeCard).toBe(false);
     // The guard on AM-8's clock: raw release seconds on both sides (bins and rate table), the league mix from the same raw fold.
     expect(STEP5_GUARD_CLOCK).toBe("RAW");
     for (const id of ["E0", "E8"] as const) for (const l of ["flat", "gen"] as const) {

@@ -545,13 +545,27 @@ export interface GradeStep5Inputs {
   /** D1 from step 4's records (5b). */
   readonly step4?: Step4References;
   readonly oneSet?: SeedSet;
+  /**
+   * AM-9 `fit.record`: "if the winner is offset 0 on all three, E9 is E8 and the record says so" (and
+   * E1 is E0). Neither is defined apart then (`step5ArmRefusal`), so their clauses and guard rows read
+   * the arm they are: `{ E9: "E8", E1: "E0" }` (`step5AliasesOf`).
+   */
+  readonly aliases?: Readonly<Partial<Record<ArmId, ArmId>>>;
+}
+
+/** AM-9's `e9IsE8`: with the fit recorded on today's deltas (all three offsets 0), E9 reads E8's record and E1 E0's; else none. */
+export function step5AliasesOf(records: Step5Records = recordedStep5()): Readonly<Partial<Record<ArmId, ArmId>>> {
+  const f = records.fitted;
+  if (f === undefined || Object.values(f).some((v) => v !== 0)) return {};
+  return { E9: "E8", E1: "E0" };
 }
 
 export function gradeStep5(x: GradeStep5Inputs): Step5Grade {
   const { half, records, file, guard, oneSet } = x;
   const sets: readonly SeedSet[] = oneSet === undefined ? SEED_SETS : [oneSet];
   const graded: SeedSet = oneSet ?? GRADED_SET;
-  const at = (id: ArmId, s: SeedSet): Step5Record | undefined => records.get(id)?.[s];
+  const aliases = x.aliases ?? {};
+  const at = (id: ArmId, s: SeedSet): Step5Record | undefined => records.get(id)?.[s] ?? (aliases[id] === undefined || records.has(id) ? undefined : records.get(aliases[id]!)?.[s]);
   const clauseOf = (id: string): BandClause | undefined => file.bands.clauses.find((c) => c.id === id);
   const clauses: Step2ClauseResult[] = [];
   const proofs: Step2Proof[] = [];
@@ -834,6 +848,11 @@ export function gradeStep5(x: GradeStep5Inputs): Step5Grade {
     }
   }
 
+  // A graded clause that was not played on a full two-set grade is not a pass (code-tests F1): the
+  // records cannot open 5b's gate while any graded clause of the half went ungraded.
+  if (oneSet === undefined) {
+    for (const c of clauses) if (c.kind === "graded" && c.verdict === "NOT PLAYED") structuralFailures.push(`${c.id}: a graded clause was not played (${c.values.join("; ")}); the half's records cannot be final without it`);
+  }
   const outcome = { structuralFailures, foldFaults, gradedFailures, guardBreaches, mergeCard: oneSet === undefined && structuralFailures.length === 0 && foldFaults.length === 0 && guardBreaches.length === 0, next };
   if (half === "5a" && gradedFailures.length > 0) next.push("a graded 5a miss goes to the owner (accept it as a named miss and go on, or stop for a design change); 5b's grids wait for the owner's word (--after-owner <ts>)");
   return {
@@ -1050,7 +1069,7 @@ export function runStep5(opts: Step5Options): Step5RunResult {
     if (problems.length > 0) throw new Error(`ADR-089 step ${half}: refused to grade: E0 set ${String(s)}'s second fresh play at ${path} is not this build's: ${problems.join("; ")}. Delete it and run the fresh process again`);
     fresh[s] = record;
   }
-  const grade = gradeStep5({ half, records, file, guard, fresh, step4: opts.step4 ?? loadStep4References(), ...(plan.oneSet === undefined ? {} : { oneSet: plan.oneSet }) });
+  const grade = gradeStep5({ half, records, file, guard, fresh, step4: opts.step4 ?? loadStep4References(), aliases: step5AliasesOf(opts.step5Records), ...(plan.oneSet === undefined ? {} : { oneSet: plan.oneSet }) });
   if (opts.report !== undefined) {
     writeAtomic(opts.report, renderStep5Report(grade, records));
     wrote.push(opts.report);
