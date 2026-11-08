@@ -290,7 +290,13 @@ describe("the spot path's two tuning flags (§12.3.3, §12.3.6; AB6, AB9-T5 and 
   });
 
   it("refuses a value --per-contact does not take, and either flag off the spot path (--per-contact off the ability path too)", () => {
-    for (const bad of ["-1", "", " ", "x", "NaN", "Infinity"]) expect(() => flags("--ability-rules", "--per-contact", bad), bad).toThrow(/--per-contact is years of wear per contest, 0 or more/);
+    // A plain decimal only (the AB6 review): no hex, binary or octal form, no sign, no padding.
+    for (const bad of ["-1", "", " ", "x", "NaN", "Infinity", "0x10", "0b1", "0o7", "+0.002", " 0.002", "0.002 ", "1e", ".", "1_000", "-0"]) {
+      expect(() => flags("--ability-rules", "--per-contact", bad), bad).toThrow(/--per-contact is years of wear per contest, a plain decimal 0 or more/);
+    }
+    for (const [good, v] of [["2e-3", 0.002], [".5", 0.5], ["5.", 5], ["0.0020", 0.002], ["1E-3", 0.001]] as const) {
+      expect(flags("--ability-rules", "--per-contact", good), good).toStrictEqual({ ...SPOT, perContact: v });
+    }
     expect(() => flags("--ability-rules", "--per-contact")).toThrow(/requires a value/);
     expect(() => flags("--no-healing-by-age")).toThrow(/--no-healing-by-age act only on the spot path; add --injury-risk spot/);
     expect(() => flags("--aging", "ability", "--per-contact", "0.002")).toThrow(/--per-contact act only on the spot path/);

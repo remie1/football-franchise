@@ -296,6 +296,17 @@ export const HEALING_BY_AGE = { from: 31, classes: ["back", "ribs"], longMajorOd
  * first seen, n 452; 26.3% for a later one with quick relapses set apart, n 77). That gives 0.607 and
  * 1.136, to 2 places 0.61 and 1.14; they play 16.1% and 26.4%. `priorOfKind` counts the man's own
  * `PlayerMemory.injuries` of the kind (AB7 adds real veterans' P8 history).
+ *
+ * A known mismatch (the AB6 review; AB9 reads it): REAL splits first from later by an earlier
+ * time-loss spell seen in a regular season (calibration's reader calls that split `seen`), while
+ * `priorOfKind` counts every earlier concussion draw, a day-to-day one (29.3% of the table's draws),
+ * one in camp or in the playoffs too (the reader's `prior`). So a man whose earlier concussions were
+ * all day to day, in camp or in the playoffs draws at `later`, where REAL would put him among the
+ * firsts, and the pooled concussion length runs a little longer than the two targets give. On the
+ * 3-season `--ability-rules` smoke 19 of 301 time-loss regular-season concussions (6.3%) were later
+ * by `priorOfKind` and first the real side's way (MEASURED, one seed): at ×1.14 in place of ×0.61
+ * that is about +0.65 points on the pooled out-4+ share (computed: 6.3% × (26.4 − 16.1)). AB9 grades
+ * the concussion row the real side's way and changes the count to time-loss priors only if it misses.
  */
 export const CONCUSSION_REPEAT = { kind: "concussion", first: 0.61, later: 1.14 } as const;
 

@@ -110,7 +110,11 @@ export function spotAgeFactor(age: number): number {
 
 // ─── How long, and what it leaves (§12.3.3-12.3.4; step AB6) ─────────────────────────────────────
 
-/** How many injuries of this kind his history holds (`PlayerMemory.injuries`), healed or open: the repeat rule's `priorOfKind`. */
+/**
+ * How many injuries of this kind his history holds (`PlayerMemory.injuries`), healed or open, every
+ * draw counted (day to day, camp and playoffs too): the repeat rule's `priorOfKind` (§12.3.4). Not
+ * REAL's split, which is by an earlier time-loss spell: `CONCUSSION_REPEAT`'s known mismatch.
+ */
 export function priorOfKind(history: readonly Pick<PastInjury, "kind">[] | undefined, kind: string): number {
   let n = 0;
   for (const h of history ?? []) if (h.kind === kind) n++;

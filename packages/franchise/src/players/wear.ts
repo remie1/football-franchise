@@ -44,18 +44,22 @@ export const CONTACT_ROLL_SETS: Readonly<Record<string, readonly string[]>> = {
 /**
  * Wear's two numbers (§12.3.6).
  * - `free`: contests a man takes before any wear. The median career contact at age 27 (§12.3.6),
- *   MEASURED in AB1's rows (career-check rows version 6, the 4 tune seeds d5b-t1 to -t4 × 20 seasons,
- *   build 6b118e35f8d06440, the default rules): of the walk's own entrants aged 27 in 2033-45 with a
- *   regular-season snap, the median of each man's contact over every game with a who-played report
- *   through that season, 782.5 / 759 / 791 / 756 by seed, 772.1 as the grader reads it (each seed's
- *   median, then the mean). Pinned at 772 (CHOSEN, the measure to the whole contest). The walk's first
- *   seasons cannot measure it (its first entrants reach 27 in 2030), so a short run reads it only
- *   truncated; ADR-087 §12.9's AB6 note gives the short smoke's reading beside it.
+ *   MEASURED with AB1's reader on the 20-season default baseline of the base AB6 stands on (46e8c44:
+ *   career-check rows version 7, the 4 tune seeds d5b-t1 to -t4 × 20 seasons, build e4be89df45616e34,
+ *   the `/2` league file e9852a70…, the default rules): of the walk's own entrants aged 27 in 2033-45
+ *   with a regular-season snap, the median of each man's contact over every game with a who-played
+ *   report through that season, 843 / 752 / 764.5 / 805.5 by seed, 791.25 as the grader reads it (each
+ *   seed's median, then the mean; SE 20.7 over the seeds). Pinned at 791 (CHOSEN, the measure to the
+ *   whole contest). As first built it was 772, read from the v6 baseline (build 6b118e35f8d06440, the
+ *   old `/1` file before the walk played the file's deals: 782.5 / 759 / 791 / 756), which ADR-087
+ *   §12.9's rebase note says no longer stands for the new base. The walk's first seasons cannot measure
+ *   it (its first entrants reach 27 in 2030), so a short run reads it only truncated, and the ability
+ *   path's own playing time may move it: AB9 re-reads it on its arms.
  * - `perContact`: years of wear per contest past `free`. 0 (GUESS) until tuning sets it (AB9-T5: about
  *   1 year ahead for the top tenth of contact takers by age 30); the players' steps take it as
  *   `PlayerStepsConfig.perContact`.
  */
-export const WEAR = { free: 772, perContact: 0 } as const;
+export const WEAR = { free: 791, perContact: 0 } as const;
 
 /**
  * The contact one man took in one game's contests: for each roll set, the largest won + lost among its

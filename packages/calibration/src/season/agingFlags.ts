@@ -23,7 +23,8 @@
  *    on by default there). Named for the table it turns off (`HEALING_BY_AGE`), with `no-` because the
  *    rule is on unless the switch is typed. Needs `--injury-risk spot` (or `--ability-rules`).
  *  - `--per-contact <n>` (AB6; AB9-T5, "wear on"): years of wear per contest of contact past the free
- *    count (§12.3.6, franchise `PlayerStepsConfig.perContact`, default 0, no wear). Named for the
+ *    count (§12.3.6, franchise `PlayerStepsConfig.perContact`, default 0, no wear), a plain decimal
+ *    (`0.002`, `2e-3`; no hex or other form `Number` would also read). Named for the
  *    franchise option and the spec's own `perContact`, so the flag, the record and the label say the
  *    same thing. Needs the ability path and the spot path (`--ability-rules`, or both flags), since the
  *    contact count is kept on the one and wear acts on the other.
@@ -64,6 +65,9 @@ type Mutable<T> = { -readonly [K in keyof T]: T[K] };
  */
 export const SET_SMARTS_SNAPS: Readonly<Record<"D" | "B", number>> = { D: 0.45, B: 0.45 };
 
+/** A plain decimal number, no sign, with an optional exponent (`--per-contact`'s value). */
+const PLAIN_DECIMAL = /^(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
+
 /** The flags as typed, before `settleAging` checks them. */
 export interface AgingFlags extends Mutable<AgingSwitches> {
   /** `--ability-rules` was given. */
@@ -97,8 +101,10 @@ export function readAgingFlag(arg: string, next: () => string, into: AgingFlags)
   else if (arg === "--no-healing-by-age") into.healingByAge = false;
   else if (arg === "--per-contact") {
     const text = next();
-    const v = Number(text);
-    if (text.trim() === "" || !Number.isFinite(v) || v < 0) throw new SyntaxError(`--per-contact is years of wear per contest, 0 or more, not ${JSON.stringify(text)}`);
+    // A plain decimal, with an exponent if wanted (`0.002`, `2e-3`): `Number` alone would also take
+    // `0x10` (16), `0b1` or padded text, and a tuning value should read as it is typed.
+    const v = PLAIN_DECIMAL.test(text) ? Number(text) : NaN;
+    if (!Number.isFinite(v) || v < 0) throw new SyntaxError(`--per-contact is years of wear per contest, a plain decimal 0 or more, not ${JSON.stringify(text)}`);
     into.perContact = v;
   } else return false;
   return true;

@@ -99,11 +99,12 @@ describe("the contact count (contactOf, addContact)", () => {
 
 describe("the wear term (§12.3.6)", () => {
   it("is perContact years a contest past free, none at perContact 0 or below free", () => {
-    expect(WEAR).toStrictEqual({ free: 772, perContact: 0 });
+    // free: MEASURED on 46e8c44's 20-season default baseline (build e4be89df45616e34), 791.25 → 791.
+    expect(WEAR).toStrictEqual({ free: 791, perContact: 0 });
     expect(wearYears(5000, 0)).toBe(0);
-    expect(wearYears(772, 0.01)).toBe(0);
+    expect(wearYears(791, 0.01)).toBe(0);
     expect(wearYears(100, 0.01)).toBe(0);
-    expect(wearYears(1772, 0.002)).toBeCloseTo(2, 12);
+    expect(wearYears(1791, 0.002)).toBeCloseTo(2, 12);
     expect(wearYears(150, 0.1, 100)).toBeCloseTo(5, 12);
   });
 
@@ -303,7 +304,7 @@ describe("the new paths read no listed position (the owner's rule, R1)", () => {
   };
   const read = (file: string) => readFileSync(new URL(`../src/players/${file}`, import.meta.url), "utf8");
 
-  it("has none in wear.ts, nor in the steps' count and wear, nor in the development week's wear, nor in forget", () => {
+  it("has none in wear.ts, nor in the steps' count and wear, nor on the development week's ability path (where wear acts), nor in forget", () => {
     check("wear.ts", read("wear.ts"));
     const steps = read("steps.ts");
     const from = steps.indexOf("// AB6: the two tuning options");
@@ -314,9 +315,33 @@ describe("the new paths read no listed position (the owner's rule, R1)", () => {
     const ab6 = steps.slice(from, to).split("\n").filter((l) => /contact|wear|Wear|healingByAge|spotRules|perContact/.test(l)).join("\n");
     expect(ab6).toMatch(/addContact/);
     check("steps.ts (AB6 lines)", ab6);
-    const dev = read("development.ts").split("\n").filter((l) => /\bwear\b/.test(l) && !/^\s*(\*|\/\/)/.test(l)).join("\n");
-    expect(dev).toMatch(/input\.wear/);
-    check("development.ts (wear lines)", dev);
+    // The development week, by whole function bodies (not by lines that name wear): the week that hands
+    // the wear on, the ability path's week inputs, and the ability path of `developOne`, which is its
+    // whole body but the position path's own two arms (`? bodyWeek(player.bio.position, …)` and
+    // `? ratingDeltas(…)`), each found, so a moved arm fails here rather than slipping by. `aging.ts`,
+    // where the wear meets the curves (`abilityBodyWeek`, `abilityRatingDeltas`, `legLossYear`), is read whole.
+    const development = read("development.ts");
+    const slice = (text: string, fn: string) => {
+      const from = text.indexOf(fn);
+      expect(from, fn).toBeGreaterThan(0);
+      return text.slice(from, text.indexOf("\n}\n", from));
+    };
+    const week = slice(development, "export function developmentWeek(");
+    expect(week).toMatch(/input\.wear/);
+    check("developmentWeek", week);
+    check("abilityWeekInputs", slice(development, "function abilityWeekInputs("));
+    const one = slice(development, "function developOne(").split("\n");
+    const positionArms = one.filter((l) => /^\s*\? (bodyWeek|ratingDeltas)\(/.test(l));
+    expect(positionArms).toHaveLength(2);
+    const abilityPath = one.filter((l) => !positionArms.includes(l)).join("\n");
+    expect(abilityPath).toMatch(/abilityBodyWeek\([^)]*\bwear\)/);
+    expect(abilityPath).toMatch(/abilityRatingDeltas\(/);
+    check("developOne (the ability path)", abilityPath);
+    check("aging.ts", read("aging.ts"));
+    // A read planted on the ability path of developOne, on a line that does not name wear, is caught.
+    const planted = abilityPath.replace("const growth = growthOf(dev.growth);", "const growth = growthOf(dev.growth) * (player.bio.position === \"RB\" ? 1 : 1);");
+    expect(planted).not.toBe(abilityPath);
+    expect(() => check("planted in developOne", planted)).toThrow();
     const unsigned = read("unsigned.ts");
     check("forget", unsigned.slice(unsigned.indexOf("function forget("), unsigned.indexOf("\n}\n", unsigned.indexOf("function forget("))));
     // The test itself bites.
