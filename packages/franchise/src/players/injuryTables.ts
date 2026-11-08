@@ -201,7 +201,10 @@ export const INJURY_RATES = {
    * 0.98, 29-30 1.04, 31 and over 1.13), placed at the pooled bands' middles (27, 29.5, 32.5), and
    * each divided by the typical man's durability factor at that age (1.000, 1.021, 1.087, from
    * `OWN_CURVES.durability` through `exp(-0.02 × (d - 65))`), since durability's own fall already
-   * raises an older man's risk. Tuning may move each knot by up to one SE (.02 / .04 / .06).
+   * raises an older man's risk. Tuning may move each knot by up to one SE of its pooled band
+   * (§12.3.2): about .015 / .038 / .042 on the knots, computed from REAL (√observed ÷ expected per
+   * snap over the pooled bands, 4,447 / 712 / 596 injuries after a game played, is .015 / .039 / .046
+   * on the pooled ratios, then ÷ the durability factors above). Not the unpooled bands' .02 / .04 / .06.
    */
   spotAge: {
     knots: [[27, 0.98], [29.5, 1.02], [32.5, 1.04]] as readonly (readonly [age: number, factor: number])[],

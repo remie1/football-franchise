@@ -902,6 +902,11 @@ describe("a season-scale run on a made-up league (targets: MEASURED NFL numbers,
     const groupRate = (g: string) => (1000 * (s.groups[g]?.timeLoss ?? 0)) / (s.groups[g]?.snaps ?? 1);
     console.log(`ADR-087 AB5 spot path (bySpot.perSnap ${INJURY_RATES.game.bySpot.perSnap}): time-loss per team-game ${perGame(s, football).toFixed(4)}, ` +
       `group path (perSnap ${INJURY_RATES.game.perSnap}) ${perGame(group, footballOf(group)).toFixed(4)}; day to day ${perGame(s, s.dayToDay).toFixed(2)}; ` +
+      // Practice keeps the group path's `practice.perWeek` (only the game level was refit), so the
+      // spot age factor lowers it and the game level makes up the difference (the AB5 note).
+      `in season game / practice / away time-loss spot ${s.timeLoss.GAME} / ${s.timeLoss.PRACTICE} / ${s.timeLoss.AWAY}, ` +
+      `group ${group.timeLoss.GAME} / ${group.timeLoss.PRACTICE} / ${group.timeLoss.AWAY}; ` +
+      `whole-year practice time-loss spot ${s.year.PRACTICE.timeLoss}, group ${group.year.PRACTICE.timeLoss}; ` +
       `by group ${Object.keys(NFL.per1000WeightedSnaps).map((g) => `${g} ${groupRate(g).toFixed(2)}`).join(" ")}`);
     expect(INJURY_RATES.game.perSnap).toBe(0.00132);
     expect(INJURY_RATES.game.bySpot.perSnap).toBe(0.00141);

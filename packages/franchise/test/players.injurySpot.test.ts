@@ -249,17 +249,24 @@ describe("test 3: the spot table (§12.3.5)", () => {
     });
   });
 
-  it("takes its REAL rates from the injury-rates report as measured", () => {
-    const real = JSON.parse(readFileSync(new URL("../../calibration/reports/injury-rates.json", import.meta.url), "utf8")) as {
-      byDepthChartGroup: { groups: { group: string; spot: { per1000Snaps: number } }[]; fine: { spot: string; group: string; rates: { per1000Snaps: number } }[] };
-    };
-    const fine = new Map(real.byDepthChartGroup.fine.map((f) => [f.spot, f]));
-    // To the 3 places injury-rates.md prints, which §12.3.1's table was worked from.
-    const three = (x: number | undefined) => (x === undefined ? undefined : Math.round(x * 1000) / 1000);
-    for (const [spot, rate] of Object.entries(REAL_SPOT_RATES.spot)) expect(three(fine.get(spot)?.rates.per1000Snaps), spot).toBe(rate);
-    const groups = new Map(real.byDepthChartGroup.groups.map((g) => [g.group, g.spot.per1000Snaps]));
-    for (const [group, rate] of Object.entries(REAL_SPOT_RATES.group)) expect(three(groups.get(group)), group).toBe(rate);
-    for (const key of SPOT_ORDER) expect(fine.get(FINE[key])?.group, key).toBe(REAL_GROUP(key));
+  it("holds the REAL rates injury-rates.md prints, to 3 places", () => {
+    // Pinned here as a literal. The check against the report itself is calibration's
+    // (`packages/calibration/test/injurySpotRates.test.ts`, which holds the same literal to its own
+    // `reports/injury-rates.json`), so franchise's tests never read calibration's files; a change to
+    // one literal changes the other.
+    expect(REAL_SPOT_RATES).toStrictEqual({
+      spot: {
+        QB: 0.876, RB: 1.839, FB: 1.345, WR: 1.32, TE: 1.118, T: 1.039, G: 0.783, C: 0.81,
+        DE: 1.061, DT: 0.924, NT: 1.2, OLB: 1.02, ILB: 1.022, MLB: 0.912,
+        CB: 1.372, FS: 0.936, SS: 1.042, K: 1.877, P: 0.645, LS: 0.613,
+      },
+      group: { QB: 0.876, RB: 1.785, WR: 1.32, TE: 1.118, OL: 0.896, DL: 1.021, LB: 1.035, DB: 1.203, "K/P": 1.039 },
+    });
+    // Every chart key reads a fine spot in the table, and that spot's REAL group is there too.
+    for (const key of SPOT_ORDER) {
+      expect(REAL_SPOT_RATES.spot[FINE[key]], key).toBeGreaterThan(0);
+      expect(REAL_SPOT_RATES.group[REAL_GROUP(key)], key).toBeGreaterThan(0);
+    }
   });
 
   it("leaves the group path's level and table as they were", () => {
