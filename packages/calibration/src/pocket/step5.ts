@@ -743,6 +743,15 @@ export function gradeStep5(x: GradeStep5Inputs): Step5Grade {
   if (half === "5b") proof("S-10", "no CLOCK_EXPIRED throwaway on an F arm comes from a dropback CLEAN through the throwaway", every((id) => STEP5_GRID[id] !== undefined || id === "F0", (r, l) => (r.s5[l].extra.cleanClockExpired > 0 ? `${String(r.s5[l].extra.cleanClockExpired)} clean CLOCK_EXPIRED throwaway(s)` : undefined)));
   proof("rows", "the clean-pocket rows' build check (no clean scramble without the block)", every(() => true, (r, l) => cleanPocketRowProblems(r.s5[l].rows)[0]), "fold");
   proof("picks:offered", "every clean pick's option is in the offered set the stream and the arm's rules give (guardian C4)", every(() => true, (r, l) => (r.s5[l].s5.picks.offerFaults > 0 ? `${String(r.s5[l].s5.picks.offerFaults)} pick(s) outside their offered set` : undefined)), "fold");
+  // s5b.clockExpired has no registered row in the arm records (their report carries the pocket rows,
+  // not tier 1's throwaway_rate_clock_expired), so only mr.bin20.raw is held to its row here.
+  proof("rows:recomputed", "mr.bin20.raw, recomputed from the stream, equals collect's registered row (pressured_share_by_release_bin) on every record", every(() => true, (r, l) => {
+    const pairs: readonly (readonly [string, number | null, number | null])[] = [
+      ["pressured_share_by_release_bin", bin20RawOf(r.s5[l]), rowValueOf(r, "pressured_share_by_release_bin", l)],
+    ];
+    const off = pairs.filter(([, a, b]) => !(a === b || (a !== null && b !== null && Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(b)))));
+    return off.length === 0 ? undefined : off.map(([id, a, b]) => `${id}: the stream's ${String(a)} against the row's ${String(b)}`).join("; ");
+  }), "fold");
   proof("S-4", "no non-screen aimed pocket THROW decided before its first read's floor (arms with a floor; vacuous without one)", [
     ...every((id) => partsOfArm(id).includes("floor"), (r, l) => (r.s5[l].extra.earlyFloorThrows > 0 ? `${String(r.s5[l].extra.earlyFloorThrows)} aimed pocket THROW(s) before the floor` : undefined)),
   ]);

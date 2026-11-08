@@ -249,7 +249,18 @@ describe("step 5's visit and grading on a tiny corpus (scratch; nothing is recor
     expect(verdict("s5a.reset")).toBe("NOT PLAYED");
     expect(g.sections.guard.filter((r) => r.arm === "E9").map((r) => r.league)).toEqual(["flat", "gen"]);
     expect(g.sections.replay).toEqual(["E0 set 1, played fresh twice: identical (stream digests and records)", "E0 set 2, played fresh twice: identical (stream digests and records)"]);
-    expect(g.sections.proofs.map((p) => p.id)).toEqual(["S-1 proof:clean-expiry-bar", "S-2 proof:one-clean-move", "S-3", "S-6", "rows", "picks:offered", "S-4", "S-9"]);
+    expect(g.sections.proofs.map((p) => p.id)).toEqual(["S-1 proof:clean-expiry-bar", "S-2 proof:one-clean-move", "S-3", "S-6", "rows", "picks:offered", "rows:recomputed", "S-4", "S-9"]);
+    // Fidelity F-10: the two recomputed clauses equal collect's registered rows on every record.
+    expect(g.sections.proofs.find((p) => p.id === "rows:recomputed")).toMatchObject({ verdict: "PASS", detail: "clean" });
+    expect(rowValueOf(play("E8", 1), "pressured_share_by_release_bin", "gen")).not.toBeNull();
+    {
+      const doctored = structuredClone(play("E8", 1));
+      doctored.s5.gen.curve["2.0-2.5"]!.pressured += 1;
+      const r = new Map(records);
+      r.set("E9", { 1: doctored, 2: play("E8", 2) });
+      const gg = gradeStep5({ half: "5a", records: r, file, guard, fresh: { 1: play("E0", 1), 2: play("E0", 2) } });
+      expect(gg.sections.proofs.find((p) => p.id === "rows:recomputed")!.detail).toMatch(/^E9 set 1 gen: pressured_share_by_release_bin: the stream's /);
+    }
     expect(g.sections.outcome.structuralFailures).toEqual([]);
     // A fresh play that differs is a build fault (S-7).
     const moved = structuredClone(play("E0", 2));
