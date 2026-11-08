@@ -1062,6 +1062,19 @@ export function gradeStep5(x: GradeStep5Inputs): Step5Grade {
         affected.push(`live-WON_REP CLEAN ticks on F0 (set ${String(graded)}): ${LEAGUES.map((l) => `${l} dropbacks with exactly one ${num(rowValueOf(f, "clean_with_live_won_rep_dropbacks", l))}%, PUSH ticks ${num(rowValueOf(f, "clean_with_live_won_rep_push_ticks", l), 0)}`).join("; ")}`);
       }
     }
+    // AM-10 `acc.liveWonRep.push.L` (fidelity F-8): under shape L, live-WON_REP CLEAN ticks of PUSH reps
+    // at most 0 on each league and seed set, read at 5b on every L grid point played.
+    {
+      const lPoints = STEP5_GRID_IDS.filter((id) => STEP5_GRID[id]?.shape === "L");
+      const cells = lPoints.flatMap((id) => sets.flatMap((s) => {
+        const r = records.get(id)?.[s];
+        return r === undefined ? [] : LEAGUES.map((l) => ({ at: `${id} ${l} set ${String(s)}`, v: rowValueOf(r, "clean_with_live_won_rep_push_ticks", l) }));
+      }));
+      if (cells.length > 0) {
+        const over = cells.filter((c) => c.v === null || c.v > 0);
+        affected.push(`acc.liveWonRep.push's L band (at most 0, AM-10) on the L grid points: ${cells.map((c) => `${c.at} ${num(c.v, 0)}`).join("; ")}; ${over.length === 0 ? "within the band on every one" : `over the band or unread on ${over.map((c) => c.at).join(", ")}`}`);
+      }
+    }
     // F0 against F5 is AM-8's guard row on its own (no filed s5b clause carries it); a breach there is in guardBreaches.
     // The miss rule on F0 (AM-10's split), when a covered row missed.
     const f0 = at("F0", graded);

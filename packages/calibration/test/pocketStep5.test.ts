@@ -478,6 +478,19 @@ describe("step 5's visit and grading on a tiny corpus (scratch; nothing is recor
     const ce = g.sections.clauses.find((c) => c.id === "s5b.clockExpired")!;
     const e1 = f0(1, 3).s5.gen.extra;
     expect(ce.values).toContainEqual(expect.stringContaining(`beside, the pressured-only count (not CLEAN through the throwaway): gen set 1 ${String(e1.clockExpired - e1.cleanClockExpired)} of ${String(e1.clockExpired)} (`));
+    // AM-10 acc.liveWonRep.push.L (fidelity F-8): the L band read on every L grid point played.
+    expect(g.sections.affected.some((l) => l.startsWith("acc.liveWonRep.push's L band"))).toBe(false);
+    {
+      const withL = gradeStep5({ half: "5b", records: new Map([...records, ["F10", { 1: play("E0", 1), 2: play("E0", 2) }]]), file, guard, step4: new Map() });
+      const cell = (s: SeedSet, l: "flat" | "gen"): string => {
+        const v = rowValueOf(play("E0", s), "clean_with_live_won_rep_push_ticks", l);
+        return v === null ? "n/a" : v.toFixed(0);
+      };
+      const values = [1, 2].flatMap((s) => (["flat", "gen"] as const).map((l) => `F10 ${l} set ${String(s)} ${cell(s as SeedSet, l)}`));
+      const line = withL.sections.affected.find((l) => l.startsWith("acc.liveWonRep.push's L band"));
+      expect(line).toBeDefined();
+      expect(line!.startsWith(`acc.liveWonRep.push's L band (at most 0, AM-10) on the L grid points: ${values.join("; ")}; `)).toBe(true);
+    }
     // The stand-in row says what it compares (measurement M7).
     expect(g.sections.clauses.find((c) => c.id === "s5b.standIn")!.note).toBe("F0's sack_rate against the stand-in nearest 5b (sacks 1.95, TOT §4.3; reported)");
     const bin = g.sections.clauses.find((c) => c.id === "mr.bin20.raw")!;
