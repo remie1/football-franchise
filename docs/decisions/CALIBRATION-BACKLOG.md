@@ -13613,9 +13613,11 @@ Derived by grep at this record's head (`228cc19`), not recalled. Each line is `u
 - **What.** `docs/design/attributes.md` §5 says "`importer/real/` is the only module containing real names", and Iron
   Rule 7 says real-player data touch exactly one module. Calibration's nflverse readers take in real names of players,
   coaches and referees (`packages/calibration/src/ingest/sources/schedules.ts`: `referee`, `home_coach`, `away_coach`;
-  `weeklyRosters.ts`, `depthCharts.ts`, `injuries.ts` and `ngs.ts`: players' names; `src/injuries/rows.ts`: players'
-  `full_name`, for the injury rates), and the availability join falls back to a player's normalized name within the
-  team-week (`src/ingest/availability.ts`). 12 of the 13 CSV samples in `packages/calibration/test/fixtures/nflverse/`
+  `weeklyRosters.ts`, `depthCharts.ts`, `injuries.ts`, `ngs.ts` and `snapCounts.ts`: players' names;
+  `src/injuries/rows.ts`: players' `full_name` and the snap counts' `player`, for the injury rates), and the
+  availability join falls back to a player's normalized name within the team-week (the snap counts' `player` against
+  the rosters' `full_name`, in `src/ingest/availability.ts`). 12 of the 13 CSV samples in
+  `packages/calibration/test/fixtures/nflverse/`
   carry real names (DERIVED from their headers); `games_sample.csv` names 15 of the 17 real referees behind the
   stand-in league's copied crews (COMPUTED, counts only; ADR-093 §16 A11). Other texts allow calibration to read real data (the Charter's D4,
   `docs/design/calibration.md`), so the project's texts disagree.
@@ -13627,6 +13629,8 @@ Derived by grep at this record's head (`228cc19`), not recalled. Each line is `u
   dropped with no test edit (`harness.test.ts` and `metrics.test.ts` build their rows `as ScheduleRow`), and
   `test/fixtures/nflverse/games_sample.csv` scrubbed with its builder (`test/fixtures/build-fixtures.mjs`). Players' names
   feed the availability join and need the ruling itself: keep them as calibration's standing exception, or join on ids
-  alone. Any such commit lands under the ADR-089 window rule, since it changes calibration's source.
+  alone. Any such commit merges only when neither the pocket fix (ADR-089) nor ADR-087's 20-season check has a run in
+  play, as ADR-093 §16 A11's Caches line has it for step 1b, since a change to calibration's source voids ADR-089's
+  cached arms and changes career-check's build.
 - **Owner and trigger.** Owner: the Orchestrator, then the project owner (the ruling). Trigger: before any ship build,
   or when the next calibration ingest change comes.
