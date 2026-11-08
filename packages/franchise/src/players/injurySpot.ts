@@ -17,10 +17,18 @@
  *   league's off the chart.
  * - **The age factor** (`spotAgeFactor`): §12.3.2's knots (`INJURY_RATES.spotAge`), in place of the
  *   group path's 1 + 0.04 a year past 26. Durability and a recent return are read as on the group path.
+ * - **How long, and what it leaves** (§12.3.3-12.3.4; step AB6): `spotWeeks` is a kind's weeks with
+ *   the repeat rule on a concussion (`CONCUSSION_REPEAT`, by how many he has had, `priorOfKind`) and
+ *   slower healing for back and ribs at 31 and over (`HEALING_BY_AGE`, unless the tuning switch turns
+ *   it off); `spotLasting` is a kind's lasting mark with `CONCUSSION_MARK` for a concussion. Each
+ *   reads his age, his own injury history and the kind, nothing else.
  */
 import { POSITION_GROUP, type PlayerId, type Position, type PositionGroup, type Team } from "@ff/contracts";
 import { SPOT_ORDER, chartSpots } from "./aging.js";
-import { INJURY_RATES } from "./injuryTables.js";
+import {
+  BAND_MIN_WEEKS, CONCUSSION_MARK, CONCUSSION_REPEAT, HEALING_BY_AGE, INJURY_KINDS, INJURY_RATES, type LastingMark, type WeeksBucket,
+} from "./injuryTables.js";
+import type { PastInjury } from "./types.js";
 
 /** ADR-087 §12.1: where injury risk comes from. `"group"` (the default) is today's rule. */
 export type InjuryRisk = "group" | "spot";
@@ -98,4 +106,58 @@ export function spotAgeFactor(age: number): number {
     }
   }
   return last[1];
+}
+
+// ─── How long, and what it leaves (§12.3.3-12.3.4; step AB6) ─────────────────────────────────────
+
+/** How many injuries of this kind his history holds (`PlayerMemory.injuries`), healed or open: the repeat rule's `priorOfKind`. */
+export function priorOfKind(history: readonly Pick<PastInjury, "kind">[] | undefined, kind: string): number {
+  let n = 0;
+  for (const h of history ?? []) if (h.kind === kind) n++;
+  return n;
+}
+
+/** Is this kind in `HEALING_BY_AGE`'s class (back, ribs)? */
+const healsSlowerWithAge = (kind: string): boolean => (HEALING_BY_AGE.classes as readonly string[]).includes(kind);
+
+/**
+ * The multiplier on a kind's LONG and MAJOR week buckets on the spot path (1 = the table as it is):
+ * a concussion's repeat weight (`CONCUSSION_REPEAT`: `first` with no concussion before, `later` with
+ * one or more), and for back and ribs at `HEALING_BY_AGE.from` and over its `longMajorOdds` unless
+ * `healingByAge` is false (AB9-T6). Concussion takes no age term.
+ */
+export function longMajorWeight(kind: string, age: number, prior: number, healingByAge = true): number {
+  const repeat = kind === CONCUSSION_REPEAT.kind ? (prior > 0 ? CONCUSSION_REPEAT.later : CONCUSSION_REPEAT.first) : 1;
+  const healing = healingByAge && healsSlowerWithAge(kind) && age >= HEALING_BY_AGE.from ? HEALING_BY_AGE.longMajorOdds : 1;
+  return repeat * healing;
+}
+
+/** Each (kind, multiplier)'s weeks, worked out once: the table is fixed. */
+const SPOT_WEEKS = new Map<string, readonly WeeksBucket[]>();
+
+/**
+ * A kind's weeks lost on the spot path (§12.3.3-12.3.4): `INJURY_KINDS[kind].weeks` with its LONG and
+ * MAJOR buckets (from `BAND_MIN_WEEKS.LONG` weeks) × `longMajorWeight`, the others as they are; the
+ * draw renormalizes, so the odds of 4+ weeks are × the weight exactly. The table itself (the same
+ * array) when the weight is 1, so a draw it does not move is the table's draw.
+ */
+export function spotWeeks(kind: string, age: number, prior: number, healingByAge = true): readonly WeeksBucket[] {
+  const table = INJURY_KINDS[kind]!.weeks;
+  const m = longMajorWeight(kind, age, prior, healingByAge);
+  if (m === 1) return table;
+  const key = `${kind}/${m}`;
+  let weeks = SPOT_WEEKS.get(key);
+  if (weeks === undefined) {
+    weeks = table.map((b): WeeksBucket => (b[0] >= BAND_MIN_WEEKS.LONG ? [b[0], b[1], b[2] * m] : b));
+    SPOT_WEEKS.set(key, weeks);
+  }
+  return weeks;
+}
+
+/**
+ * A kind's lasting mark on the spot path (§12.3.4): `CONCUSSION_MARK` for a concussion (the table's
+ * concussion has none, and the group path keeps it so), every other kind's own from the table.
+ */
+export function spotLasting(kind: string): LastingMark | undefined {
+  return kind === CONCUSSION_REPEAT.kind ? CONCUSSION_MARK : INJURY_KINDS[kind]?.lasting;
 }

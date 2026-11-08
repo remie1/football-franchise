@@ -13,7 +13,8 @@
  *   LEG, STAMINA and DURABILITY keep main's own curves (`OWN_CURVES`), shifted on the loss side only.
  * - **The loss in a year** (§12.2.1): `per × min(cap, max(0, age − start − shift + wear))`. Gains are
  *   scaled by growth as on the position path and are never shifted. `wear` (§12.3.6) adds years to the
- *   body groups and DURABILITY; nothing counts contact before AB6, so every caller passes 0 for now.
+ *   body groups and DURABILITY: the development week passes each man's (`wear.ts`, AB6: 0 unless the
+ *   spot path's `perContact` is above 0); the expected walk passes 0.
  * - **One fitted set** (Q2): variant D's curves with its learning floor, workouts, smarts and passing
  *   snaps and slow smarts, as the toy fitted them together (`ABILITY_CURVES.D`). Variant B's whole set
  *   (`ABILITY_CURVES.B`, no slow smarts) is kept for tuning arm AB9-T2. The steeper technique fade from
@@ -264,7 +265,7 @@ export function fadeLoss(fade: Fade, age: number, shift: number, wear = 0, knee?
 
 /**
  * §12.2.6: what a year at `age` takes from his body, in the measurements' units, by his own fade
- * shifts (missing reads 0) and `wear` (years, §12.3.6; 0 until AB6). The ability path's
+ * shifts (missing reads 0) and `wear` (years, §12.3.6; `wear.ts`). The ability path's
  * `yearOfAging`, with no position: the 40 and 3-cone slower, the vertical and bench lower.
  */
 export function abilityYear(age: number, shift: PlayerDevelopment["fadeShift"], wear = 0, curves: AbilityCurves = ABILITY_CURVES.D): BodyChange {

@@ -68,6 +68,12 @@ describe("the arms and the seeds", () => {
     expect(armInput("incumbent", { injuryRisk: "spot" }).players).toStrictEqual({ development: true, injuries: true, injuryRisk: "spot" });
     expect(() => armInput("development", spot)).toThrow(/--injury-risk spot acts on injuries, which the development arm has off/);
     expect(() => armInput("development", { injuryRisk: "spot" })).toThrow(/add --injuries/);
+    // AB6: the spot path's tuning options join the arms with injuries on, and are refused on the development arm.
+    const knobs = { aging: "ability", injuryRisk: "spot", healingByAge: false, perContact: 0.002 } as const;
+    expect(armInput("both", knobs).players).toStrictEqual({ development: true, injuries: true, ...knobs });
+    expect(armInput("form", knobs).players).toStrictEqual({ development: true, injuries: true, ...knobs });
+    expect(() => armInput("development", knobs)).toThrow(/the development arm has off/);
+    expect(() => armInput("development", { aging: "ability", perContact: 0.002 })).toThrow(/--per-contact acts with growth and injuries both on, which the development arm does not have/);
   });
 
   it("a coach-style arm sets every sitting head coach's leanings, and no one else's", () => {
@@ -148,6 +154,12 @@ describe("the fingerprint", () => {
     const spot = careerFingerprint({ ...base, aging: { injuryRisk: "spot" } }).fingerprint;
     const abilitySpot = careerFingerprint({ ...base, aging: { aging: "ability", injuryRisk: "spot" } }).fingerprint;
     expect(new Set([fp, ability, ...others, spot, abilitySpot]).size).toBe(7);
+    // AB6: the spot path's tuning options join the name where not the default (true and 0 add nothing).
+    const sp = { aging: "ability", injuryRisk: "spot" } as const;
+    expect(careerFingerprint({ ...base, aging: { ...sp, healingByAge: true, perContact: 0 } }).fingerprint).toBe(abilitySpot);
+    const tuned = [{ healingByAge: false }, { perContact: 0.002 }, { perContact: 0.003 }, { healingByAge: false, perContact: 0.002 }]
+      .map((o) => careerFingerprint({ ...base, aging: { ...sp, ...o } }).fingerprint);
+    expect(new Set([fp, ability, ...others, spot, abilitySpot, ...tuned]).size).toBe(11);
   });
 
   it("leaves out only files the walk never reaches: the grader, the command, the real-NFL side", () => {
@@ -310,6 +322,12 @@ describe("the cache's files", () => {
     expect(() => gradedAging([rec("a", both)], ability)).toThrow(/ability-spot, not the ability asked for/);
     expect(() => gradedAging([rec("a", { injuryRisk: "spot" })], {})).toThrow(/spot, not the position \(the default\) asked for/);
     expect(() => gradedAging([rec("a", both), rec("b", ability)], undefined)).toThrow(/the rows mix aging options/);
+    // AB6: so are the spot path's tuning options.
+    const worn = { ...both, perContact: 0.002 } as const;
+    expect(gradedAging([rec("a", worn)], worn)).toEqual(worn);
+    expect(() => gradedAging([rec("a", worn)], both)).toThrow(/ability-spot-wear0.002, not the ability-spot asked for/);
+    expect(() => gradedAging([rec("a", both)], { ...both, healingByAge: false })).toThrow(/ability-spot, not the ability-spot-healflat asked for/);
+    expect(() => gradedAging([rec("a", worn), rec("b", both)], undefined)).toThrow(/the rows mix aging options/);
   });
 
   it("marks a build gradable only when its first finished record has this build's check and rows versions", () => {
@@ -631,6 +649,44 @@ describe("one seed: the cache and the checkpoint (made-up seasons)", () => {
     }
   }, 300_000);
 
+  it("a seed played under the spot path's tuning options records them, keeps them in its checkpoint, carries on under them, and refuses others (AB6)", () => {
+    const dir = scratch();
+    const handed: unknown[] = [];
+    hook.runSeason = ((i: SeasonInput) => { handed.push(i.players); return madeUp(i); }) as never;
+    const switchesOf = (x: unknown) => Object.fromEntries(Object.entries(x as object).filter(([, v]) => typeof v !== "function"));
+    try {
+      const rules = { aging: "ability", injuryRisk: "spot", healingByAge: false, perContact: 0.002 } as const;
+      const opts = { file, league, seed: "resume-knobs", arm: "both" as const, seasons: 2, fingerprint: "0123456789abcdef", cacheDir: dir };
+      const paths = careerCachePaths(dir, "both", "resume-knobs", 2);
+      expect(() => runCareerSeed({ ...opts, aging: rules, stopAfter: 1 })).toThrow(CareerCheckStopped);
+      expect((JSON.parse(readFileSync(paths.checkpoint, "utf8")) as { aging?: unknown }).aging).toEqual(rules);
+      expect(switchesOf(handed[0])).toStrictEqual({ development: true, injuries: true, ...rules });
+      // Carrying on without either, or with another wear, is another set of rules.
+      const { healingByAge: _h, ...wearOnly } = rules;
+      const { perContact: _p, ...flatOnly } = rules;
+      for (const other of [{ aging: "ability", injuryRisk: "spot" } as const, wearOnly, flatOnly, { ...rules, perContact: 0.003 }]) {
+        expect(() => runCareerSeed({ ...opts, aging: other })).toThrow(/another set of aging options/);
+      }
+      const resumed = runCareerSeed({ ...opts, aging: rules });
+      expect(resumed.from).toBe("resumed");
+      expect(resumed.record.aging).toEqual(rules);
+      expect(switchesOf(handed.at(-1))).toStrictEqual({ development: true, injuries: true, ...rules });
+      expect(runCareerSeed({ ...opts, aging: rules }).from).toBe("cache");
+      expect(() => runCareerSeed({ ...opts, aging: wearOnly })).toThrow(/other aging options/);
+      // The defaults typed (healing on, no wear) are the AB5 rules, by name and record.
+      runCareerSeed({ ...opts, seed: "resume-knobs-default", seasons: 1, aging: { aging: "ability", injuryRisk: "spot", healingByAge: true, perContact: 0 } });
+      expect(switchesOf(handed.at(-1))).toMatchObject({ development: true, injuries: true, aging: "ability", injuryRisk: "spot" });
+      expect(runCareerSeed({ ...opts, seed: "resume-knobs-default", seasons: 1, aging: { aging: "ability", injuryRisk: "spot" } }).from).toBe("cache");
+      // Refused on the development arm before anything is played.
+      const played = handed.length;
+      expect(() => runCareerSeed({ ...opts, seed: "resume-knobs-dev", arm: "development", aging: rules })).toThrow(/the development arm has off/);
+      expect(handed.length).toBe(played);
+    } finally {
+      hook.runSeason = undefined;
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 300_000);
+
   it("refuses a checkpoint made for another seed, arm, length or build", () => {
     const dir = scratch();
     try {
@@ -666,6 +722,9 @@ describe("one seed: the cache and the checkpoint (made-up seasons)", () => {
       expect(() => withMadeUpSeasons(() => runCareerSeed(opts))).toThrow(/another set of aging options/);
       // AB5: the steps ran under ability and spot, but the checkpoint says ability alone: refused.
       withSwitches({ development: true, injuries: true, aging: "ability", injuryRisk: "spot" });
+      expect(() => withMadeUpSeasons(() => runCareerSeed(opts))).toThrow(/another set of aging options/);
+      // AB6: the steps ran with wear on, but the checkpoint says ability alone: refused.
+      withSwitches({ development: true, injuries: true, aging: "ability", injuryRisk: "spot", perContact: 0.002 });
       expect(() => withMadeUpSeasons(() => runCareerSeed(opts))).toThrow(/another set of aging options/);
       // The steps ran under ability, as recorded: carried on.
       withSwitches({ development: true, injuries: true, aging: "ability" });

@@ -263,6 +263,51 @@ export const REPEAT_DURABILITY: Readonly<Record<InjuryBand, number>> = { DAY_TO_
  */
 export const MARK_AGE = { refAge: 25, perYear: 0.1, min: 0.5, max: 2 } as const;
 
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+// The spot path's lengths and marks (ADR-087 §12.3.3-12.3.4, step AB6). Read only with
+// `injuryRisk: "spot"` (`injurySpot.ts` `spotWeeks`, `spotLasting`); the group path reads
+// `INJURY_KINDS` as it stands, and that table is not changed.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+
+/**
+ * ADR-087 §12.3.3: slower healing at 31 and over, only where the REAL count shows it. At `from` and
+ * over, the LONG and MAJOR week buckets (4 weeks and more, `BAND_MIN_WEEKS.LONG`) of each kind in
+ * `classes` are × `longMajorOdds` and the buckets renormalized (`pickWeighted` divides by the total),
+ * which multiplies the odds of 4+ weeks by exactly `longMajorOdds`, whatever the kind's own share.
+ * - `longMajorOdds` 1.57: computed from REAL, the odds ratio of out 4+ weeks (Kaplan-Meier), 31 and
+ *   over against younger, in the class "back / neck / ribs / other": (43.9 / 56.1) ÷ (33.2 / 66.8)
+ *   (injury-rates.md, "By body-part class within each age band"; about 1.9 SE, so AB9-T6 grades the
+ *   arm without it, `healingByAge: false`).
+ * - `classes`: the kinds of that class here, `back` (back / neck) and `ribs` (chest / ribs /
+ *   abdomen). The class's "other" has no kind of its own in `INJURY_KINDS`: the accidents and illness
+ *   are away from football and not in the REAL class (CHOSEN).
+ * - `from` 31: the REAL bands' split (31-32 and 33 and over against 30 and under).
+ * - Concussion takes no age term (§12.3.3, "not yet"): the repeat rule carries older men's longer
+ *   absences (they have more priors), and AB1's concussion-length row shows whether a gap stays.
+ */
+export const HEALING_BY_AGE = { from: 31, classes: ["back", "ribs"], longMajorOdds: 1.57 } as const;
+
+/**
+ * ADR-087 §12.3.4: the repeat rule, on a concussion's LONG and MAJOR week buckets: × `first` when he
+ * has had no concussion before (`priorOfKind` 0), × `later` when he has had one or more, the buckets
+ * renormalized, so each scales the odds of 4+ weeks. Computed from REAL: m = [t / (1 − t)] ÷ [s / (1 − s)],
+ * s the table's own time-loss share out 4+ weeks (`INJURY_KINDS.concussion`: SHORT .761, LONG .084,
+ * MAJOR .155, so s = 23.9%), t the REAL share (injury-rates.md, "Repeat concussions": 16.0% for the
+ * first seen, n 452; 26.3% for a later one with quick relapses set apart, n 77). That gives 0.607 and
+ * 1.136, to 2 places 0.61 and 1.14; they play 16.1% and 26.4%. `priorOfKind` counts the man's own
+ * `PlayerMemory.injuries` of the kind (AB7 adds real veterans' P8 history).
+ */
+export const CONCUSSION_REPEAT = { kind: "concussion", first: 0.61, later: 1.14 } as const;
+
+/**
+ * ADR-087 §12.3.4: what a concussion leaves on the spot path, applied as he comes back, by
+ * `lastingMark`: durability 1 point lower × `markScale` (MARK_AGE), from a day-to-day knock up. It
+ * sits on top of `REPEAT_DURABILITY` (a repeat takes 0 / 1 / 2 / 3 more by its band), so a repeat
+ * leaves more. Size CHOSEN: no REAL anchor exists, so the reader reports durability by number of
+ * concussions. Not in `INJURY_KINDS.concussion`, which `lastingMark` reads on every path.
+ */
+export const CONCUSSION_MARK: LastingMark = { minBand: "DAY_TO_DAY", ratings: { durability: -1 } };
+
 /**
  * Steps per unit at which body changes are reported in INJURY_HEALED: the 40 and 3-cone to 0.01 s,
  * the vertical to 0.5 in, the bench to 1 rep, weight to 1 lb. The same precision as the development

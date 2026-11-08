@@ -82,7 +82,10 @@ export interface PlayerMemory {
    * `steps.ts`. ADR-087 §12.1: the aging options are written only when they are not the default and
    * act (development on, `aging: "ability"`; `aging.ts` `agingSwitches`), so a save made at the
    * defaults is main's to the byte, and a save without them carries on under today's rules.
-   * `injuryRisk` (AB5) is written only as `"spot"`, with injuries on (`steps.ts`).
+   * `injuryRisk` (AB5) is written only as `"spot"`, with injuries on (`steps.ts`). AB6's two tuning
+   * options are written only where they act and are not the default: `healingByAge` only as `false`,
+   * on the spot path (AB9-T6); `perContact` only above 0, on the spot path with `aging: "ability"`
+   * (AB9-T5).
    */
   switches?: {
     development: boolean;
@@ -92,7 +95,16 @@ export interface PlayerMemory {
     techniqueKnee?: boolean;
     smartsSnaps?: number;
     injuryRisk?: "group" | "spot";
+    healingByAge?: boolean;
+    perContact?: number;
   };
+  /**
+   * ADR-087 §12.3.6 (AB6): each man's contact taken so far, by player id (`wear.ts`: by roll sets, game
+   * by game, from the who-played reports), for wear. Kept only with `aging: "ability"` (absent
+   * otherwise, so a save on the default path is unchanged); a man with none has no entry, and a man
+   * who retires is forgotten with the rest of his memory.
+   */
+  contact?: Record<string, number>;
   /**
    * ADR-096: fan and media mood's own memory (rest points, the watch list's quiet weeks, grade gaps),
    * kept here because this is the save's slot for the steps' memory. Absent until mood runs.

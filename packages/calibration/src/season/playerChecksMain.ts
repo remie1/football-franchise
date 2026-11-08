@@ -161,7 +161,12 @@ if (agingName !== undefined) {
   }
   if (injuryRisk === "spot") {
     say("The arms with injuries on (`injuries`, `both`) read injury risk by each man's depth-chart key, with the measured age factor (ADR-087 §12.3.1-12.3.2; " +
-      "`--injury-risk spot`); the other arms are as in a default run.");
+      "`--injury-risk spot`), and the spot path's lengths and marks (§12.3.3-12.3.4: the concussion repeat rule and mark, " +
+      (aging.healingByAge === false ? "with back and rib healing flat with age, `--no-healing-by-age`" : "slower back and rib healing at 31 and over") +
+      "); the other arms are as in a default run.");
+  }
+  if (aging.perContact !== undefined) {
+    say(`The \`both\` arm wears the players by the contact they take, ${aging.perContact} years a contest past the free count (ADR-087 §12.3.6; \`--per-contact\`).`);
   }
 }
 say();

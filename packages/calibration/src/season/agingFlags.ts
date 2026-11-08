@@ -1,8 +1,9 @@
 /**
- * ADR-087 §12.1 (steps AB3 and AB5): the new rules' options on the command line, shared by `season`,
- * `career-check` and `player-checks`, and how a run records and restores them: the aging options
- * (AB3) and where injury risk comes from (AB5). They travel as one set (`AgingSwitches`), named by one
- * label, so a run's records, caches and resumes carry both.
+ * ADR-087 §12.1 (steps AB3, AB5 and AB6): the new rules' options on the command line, shared by
+ * `season`, `career-check` and `player-checks`, and how a run records and restores them: the aging
+ * options (AB3), where injury risk comes from (AB5) and the spot path's two tuning options (AB6). They
+ * travel as one set (`AgingSwitches`), named by one label, so a run's records, caches and resumes carry
+ * them all.
  *
  * The flags:
  *  - `--aging position|ability`: how the players age (franchise `PlayerStepsConfig.aging`, default
@@ -17,13 +18,23 @@
  *  - `--ability-rules`: the shorthand for the new rules. It sets `--aging ability` and (AB5)
  *    `--injury-risk spot`, so it needs development and injuries on; AB8 adds `--retirement choice`,
  *    as §12.1 has it set all three. For one rule alone, type its own flag.
+ *  - `--no-healing-by-age` (AB6; AB9-T6, "back/ribs healing off"): the spot path without §12.3.3's
+ *    slower back and rib healing at 31 and over (franchise `PlayerStepsConfig.healingByAge: false`;
+ *    on by default there). Named for the table it turns off (`HEALING_BY_AGE`), with `no-` because the
+ *    rule is on unless the switch is typed. Needs `--injury-risk spot` (or `--ability-rules`).
+ *  - `--per-contact <n>` (AB6; AB9-T5, "wear on"): years of wear per contest of contact past the free
+ *    count (§12.3.6, franchise `PlayerStepsConfig.perContact`, default 0, no wear). Named for the
+ *    franchise option and the spec's own `perContact`, so the flag, the record and the label say the
+ *    same thing. Needs the ability path and the spot path (`--ability-rules`, or both flags), since the
+ *    contact count is kept on the one and wear acts on the other.
  *
- * The three tuning flags need the ability path (`--aging ability` or `--ability-rules`). A value the
- * flags do not take is refused, so a misspelling never plays the position path silently. The options
- * are kept only when they are not the default (`--aging position`, `--ability-curves D` and
- * `--injury-risk group` are the defaults and are dropped, and so is a `--smarts-snaps` equal to the
- * chosen set's own value, 0.45 in both sets), so a run at the defaults passes exactly what it passed
- * before AB3, its cache keys are unchanged, and one set of rules has one name (`agingLabel`).
+ * The three aging tuning flags need the ability path (`--aging ability` or `--ability-rules`); AB6's
+ * two need the spot path. A value the flags do not take is refused, so a misspelling never plays the
+ * position path silently. The options are kept only when they are not the default (`--aging position`,
+ * `--ability-curves D`, `--injury-risk group` and `--per-contact 0` are the defaults and are dropped,
+ * and so is a `--smarts-snaps` equal to the chosen set's own value, 0.45 in both sets), so a run at the
+ * defaults passes exactly what it passed before AB3, its cache keys are unchanged, and one set of
+ * rules has one name (`agingLabel`).
  *
  * Calibration may not import franchise's own type for these (ADR-078 R1's named surface), so the
  * shape is written out here; it is the franchise `AgingOptions` shape, field for field, and
@@ -38,6 +49,10 @@ export interface AgingSwitches {
   readonly smartsSnaps?: number;
   /** AB5: `"group"` (the default) or `"spot"`. Acts only with injuries on. */
   readonly injuryRisk?: "group" | "spot";
+  /** AB6 (AB9-T6): `false` turns the spot path's slower back and rib healing at 31+ off; kept only as `false`. Acts only with injuries on. */
+  readonly healingByAge?: boolean;
+  /** AB6 (AB9-T5): years of wear per contest past the free count; kept only above 0. Acts only with development and injuries on. */
+  readonly perContact?: number;
 }
 
 type Mutable<T> = { -readonly [K in keyof T]: T[K] };
@@ -79,21 +94,27 @@ export function readAgingFlag(arg: string, next: () => string, into: AgingFlags)
     if (v !== "group" && v !== "spot") throw new SyntaxError(`--injury-risk is group or spot, not ${JSON.stringify(v)}`);
     into.injuryRisk = v;
   } else if (arg === "--ability-rules") into.abilityRules = true;
-  else return false;
+  else if (arg === "--no-healing-by-age") into.healingByAge = false;
+  else if (arg === "--per-contact") {
+    const text = next();
+    const v = Number(text);
+    if (text.trim() === "" || !Number.isFinite(v) || v < 0) throw new SyntaxError(`--per-contact is years of wear per contest, 0 or more, not ${JSON.stringify(text)}`);
+    into.perContact = v;
+  } else return false;
   return true;
 }
 
 /**
  * The flags checked and settled: `--ability-rules` read as `--aging ability` and `--injury-risk spot`
- * (refused beside `--aging position` or `--injury-risk group`), the tuning flags refused off the
- * ability path, and the defaults dropped (a smarts-snaps value equal to the chosen set's own,
- * `SET_SMARTS_SNAPS`, among them).
+ * (refused beside `--aging position` or `--injury-risk group`), the aging tuning flags refused off the
+ * ability path and AB6's off the spot path (`--per-contact` off the ability path too), and the
+ * defaults dropped (a smarts-snaps value equal to the chosen set's own, `SET_SMARTS_SNAPS`, among
+ * them, and `--per-contact 0`).
  */
 export function settleAging(flags: AgingFlags): AgingSwitches {
   if (flags.abilityRules === true && flags.aging === "position") throw new SyntaxError("--ability-rules sets --aging ability; drop --aging position");
   if (flags.abilityRules === true && flags.injuryRisk === "group") throw new SyntaxError("--ability-rules sets --injury-risk spot; drop --injury-risk group");
   const injuryRisk = flags.abilityRules === true ? "spot" : flags.injuryRisk;
-  const spot = injuryRisk === "spot" ? { injuryRisk: "spot" as const } : {};
   const aging = flags.abilityRules === true ? "ability" : flags.aging;
   const tuning = [
     flags.abilityCurves !== undefined ? "--ability-curves" : undefined,
@@ -101,6 +122,20 @@ export function settleAging(flags: AgingFlags): AgingSwitches {
     flags.smartsSnaps !== undefined ? "--smarts-snaps" : undefined,
   ].filter((f): f is string => f !== undefined);
   if (aging !== "ability" && tuning.length > 0) throw new SyntaxError(`${tuning.join(", ")} act only on the ability path; add --aging ability (or --ability-rules)`);
+  // AB6: the spot path's two tuning flags.
+  const spotTuning = [
+    flags.healingByAge !== undefined ? "--no-healing-by-age" : undefined,
+    flags.perContact !== undefined ? "--per-contact" : undefined,
+  ].filter((f): f is string => f !== undefined);
+  if (injuryRisk !== "spot" && spotTuning.length > 0) throw new SyntaxError(`${spotTuning.join(", ")} act only on the spot path; add --injury-risk spot (or --ability-rules)`);
+  if (flags.perContact !== undefined && aging !== "ability") {
+    throw new SyntaxError("--per-contact wears the ability path's curves, whose contact count is kept only there; add --aging ability (or --ability-rules)");
+  }
+  const spot = injuryRisk === "spot" ? {
+    injuryRisk: "spot" as const,
+    ...(flags.healingByAge === false ? { healingByAge: false } : {}),
+    ...(flags.perContact !== undefined && flags.perContact > 0 ? { perContact: flags.perContact } : {}),
+  } : {};
   if (aging !== "ability") return spot;
   return {
     aging: "ability",
@@ -113,12 +148,17 @@ export function settleAging(flags: AgingFlags): AgingSwitches {
 
 /**
  * The options that act under these switches (§12.1: the aging options only with development on,
- * `injuryRisk` only with injuries on), the rest dropped: what the players' steps play and record in
- * `PlayerMemory.switches`.
+ * `injuryRisk` only with injuries on; AB6: `healingByAge` with injuries on, `perContact` with both),
+ * the rest dropped: what the players' steps play and record in `PlayerMemory.switches`.
  */
 export function actingRules(o: AgingSwitches, on: { readonly development: boolean; readonly injuries: boolean }): AgingSwitches {
-  const { injuryRisk, ...aging } = o;
-  return { ...(on.development ? aging : {}), ...(on.injuries && injuryRisk !== undefined ? { injuryRisk } : {}) };
+  const { injuryRisk, healingByAge, perContact, ...aging } = o;
+  return {
+    ...(on.development ? aging : {}),
+    ...(on.injuries && injuryRisk !== undefined ? { injuryRisk } : {}),
+    ...(on.injuries && healingByAge !== undefined ? { healingByAge } : {}),
+    ...(on.development && on.injuries && perContact !== undefined ? { perContact } : {}),
+  };
 }
 
 /**
@@ -128,6 +168,10 @@ export function actingRules(o: AgingSwitches, on: { readonly development: boolea
 export function assertRulesAct(o: AgingSwitches, on: { readonly development: boolean; readonly injuries: boolean }, what: string): void {
   if (o.aging === "ability" && !on.development) throw new SyntaxError(`--aging ability acts on the players' growth and aging, which ${what} has off; add --development (or drop it)`);
   if (o.injuryRisk === "spot" && !on.injuries) throw new SyntaxError(`--injury-risk spot acts on injuries, which ${what} has off; add --injuries (or drop it)`);
+  if (o.healingByAge === false && !on.injuries) throw new SyntaxError(`--no-healing-by-age acts on injuries, which ${what} has off; add --injuries (or drop it)`);
+  if (o.perContact !== undefined && !(on.development && on.injuries)) {
+    throw new SyntaxError(`--per-contact acts with growth and injuries both on, which ${what} does not have; switch both on (or drop it)`);
+  }
 }
 
 /**
@@ -165,11 +209,17 @@ export function seasonPlayers(o: {
 /**
  * A short name for the options, for cache keys and file names: `ability`, `ability-B`,
  * `ability-knee`, `ability-smarts0.225` and their joins, then `spot` for `injuryRisk: "spot"` (AB5:
- * `spot` alone, `ability-spot`, `ability-B-spot`); undefined at the defaults. It names the rules, not
- * the flags typed: a smarts-snaps value equal to the set's own (`SET_SMARTS_SNAPS`) adds nothing.
+ * `spot` alone, `ability-spot`, `ability-B-spot`), then on the spot path AB6's `healflat` (back and
+ * rib healing flat with age, `healingByAge: false`) and `wear<n>` (`perContact` n): `spot-healflat`,
+ * `ability-spot-wear0.002`; undefined at the defaults. It names the rules, not the flags typed: a
+ * smarts-snaps value equal to the set's own (`SET_SMARTS_SNAPS`) adds nothing, nor does a
+ * `perContact` of 0.
  */
 export function agingLabel(o: AgingSwitches): string | undefined {
-  const spot = o.injuryRisk === "spot" ? "spot" : "";
+  const isSpot = o.injuryRisk === "spot";
+  const spot = isSpot
+    ? ["spot", o.healingByAge === false ? "healflat" : "", o.perContact !== undefined && o.perContact > 0 ? `wear${o.perContact}` : ""].filter(Boolean).join("-")
+    : "";
   if (o.aging !== "ability") return spot === "" ? undefined : spot;
   const smarts = o.smartsSnaps !== undefined && o.smartsSnaps !== SET_SMARTS_SNAPS[o.abilityCurves ?? "D"];
   return ["ability", o.abilityCurves === "B" ? "B" : "", o.techniqueKnee === true ? "knee" : "", smarts ? `smarts${o.smartsSnaps}` : "", spot]
@@ -184,7 +234,7 @@ export function agingLabel(o: AgingSwitches): string | undefined {
  */
 export function agingFromRecord(switches: Readonly<Record<string, unknown>> | undefined): AgingSwitches {
   if (switches === undefined) return {};
-  const { aging, abilityCurves, techniqueKnee, smartsSnaps, injuryRisk } = switches;
+  const { aging, abilityCurves, techniqueKnee, smartsSnaps, injuryRisk, healingByAge, perContact } = switches;
   if (injuryRisk !== undefined && injuryRisk !== "group" && injuryRisk !== "spot") throw new Error(`the save's injuryRisk is ${JSON.stringify(injuryRisk)}, which this version does not know`);
   if (aging !== undefined && aging !== "position" && aging !== "ability") throw new Error(`the save's aging is ${JSON.stringify(aging)}, which this version does not know`);
   if (abilityCurves !== undefined && abilityCurves !== "D" && abilityCurves !== "B") throw new Error(`the save's abilityCurves is ${JSON.stringify(abilityCurves)}, which this version does not know`);
@@ -192,12 +242,18 @@ export function agingFromRecord(switches: Readonly<Record<string, unknown>> | un
   if (smartsSnaps !== undefined && !(typeof smartsSnaps === "number" && Number.isFinite(smartsSnaps) && smartsSnaps >= 0)) {
     throw new Error(`the save's smartsSnaps is ${JSON.stringify(smartsSnaps)}, not a number of points 0 or more`);
   }
+  if (healingByAge !== undefined && typeof healingByAge !== "boolean") throw new Error(`the save's healingByAge is ${JSON.stringify(healingByAge)}, not true or false`);
+  if (perContact !== undefined && !(typeof perContact === "number" && Number.isFinite(perContact) && perContact >= 0)) {
+    throw new Error(`the save's perContact is ${JSON.stringify(perContact)}, not a number of years 0 or more`);
+  }
   return settleAging({
     ...(aging === undefined ? {} : { aging }),
     ...(abilityCurves === undefined ? {} : { abilityCurves }),
     ...(techniqueKnee === true ? { techniqueKnee: true } : {}),
     ...(smartsSnaps === undefined ? {} : { smartsSnaps }),
     ...(injuryRisk === undefined ? {} : { injuryRisk }),
+    ...(healingByAge === false ? { healingByAge: false } : {}),
+    ...(perContact === undefined ? {} : { perContact }),
   });
 }
 
