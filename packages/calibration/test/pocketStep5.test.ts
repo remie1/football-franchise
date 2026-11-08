@@ -216,6 +216,16 @@ describe("step 5's visit and grading on a tiny corpus (scratch; nothing is recor
     (moved.s5.gen.fit.games as string[])[0] = "fnv1a:moved";
     const bad = gradeStep5({ half: "5a", records, file, guard, fresh: { 1: play("E0", 1), 2: moved } });
     expect(bad.sections.outcome.structuralFailures).toEqual([expect.stringMatching(/^S-7: E0 set 2's two fresh plays differ: gen: the stream digests differ/)]);
+    // S-1's halves (plan R-3): a clean-expiry THROW to a man below 30, or a desperation THROW after a clean break-out, is a build fault.
+    for (const field of ["belowBarTargetThrows", "onRunDesperation", "emptyPoolThrows"] as const) {
+      const doctored = structuredClone(play("E8", 1));
+      doctored.s5.gen.extra[field] = 1;
+      const r = new Map(records);
+      r.set("E9", { 1: doctored, 2: play("E8", 2) });
+      const gg = gradeStep5({ half: "5a", records: r, file, guard, fresh: { 1: play("E0", 1), 2: play("E0", 2) } });
+      expect(gg.sections.outcome.structuralFailures, field).toEqual([expect.stringMatching(/^S-1 proof:clean-expiry-bar: 1 failing, first: E9 set 1 gen: /)]);
+    }
+    expect(g.sections.affected.some((l) => /beside S-1: clean-expiry throws rank-pushed inside the cut pool \d+, to a man below 30 0; throws after a clean break-out \d+, of them desperation 0/.test(l))).toBe(true);
     const m = step5MeasuresOf(records, g, guard, ENV.fingerprint, [{ id: "E0", seedSet: 1 }]) as { outcome: { faults: string[]; breaches: string[]; misses: string[] } };
     expect(m.outcome.faults).toEqual([]);
     expect(Array.isArray(m.outcome.misses)).toBe(true);

@@ -77,6 +77,20 @@ export interface S5CleanExpiry {
   /** Men read by then; of them, below the expiry bar (D23's removed men). */
   readonly pool: number;
   readonly belowBar: number;
+  /** On a THROW: the thrown man's effective openness, his last read by then (S-1: at the expiry bar or more). */
+  readonly targetOpenness: number | undefined;
+}
+
+/**
+ * A THROW decided after a clean break-out (an ESCAPED `:clean` pick), on the run: its tick, the best
+ * read by then (last per man, every read) and the thrown man's last read. Under `d23OnRun` the
+ * engine takes no desperation throw on the run after a clean break-out (only the normal-bar throw),
+ * so such a throw with best below the normal bar is a fault (S-1's second half).
+ */
+export interface S5BreakOutThrow {
+  readonly tick: number;
+  readonly best: number | undefined;
+  readonly targetOpenness: number | undefined;
 }
 
 export type CleanOption = "MOVE" | "ESCAPE";
@@ -142,6 +156,8 @@ export interface S5Dropback {
   readonly bumps: readonly S5Bump[];
   readonly escapes: readonly S5Escape[];
   readonly floorWaits: readonly { readonly tick: number; readonly floorBound: boolean }[];
+  /** The THROW after a clean break-out, when there is one (S-1's second half). */
+  readonly breakOutThrow: S5BreakOutThrow | undefined;
   /** A sack at or after a clean expiry. */
   readonly coverageSack: boolean;
   readonly sacked: boolean;
@@ -157,11 +173,11 @@ export function readOrderOf(playStartPayload: unknown): readonly string[] {
 }
 
 /** The best effective openness read by `tick` (last per man) and the men read. */
-function poolAt(d: Dropback, tick: number): { readonly best: number | undefined; readonly values: readonly number[] } {
+function poolAt(d: Dropback, tick: number): { readonly best: number | undefined; readonly values: readonly number[]; readonly of: (target: string | undefined) => number | undefined } {
   const last = new Map<string, number>();
   for (const r of d.reads) if (r.tick <= tick + TOLERANCE) last.set(r.target, r.effective);
   const values = [...last.values()];
-  return { best: values.length === 0 ? undefined : Math.max(...values), values };
+  return { best: values.length === 0 ? undefined : Math.max(...values), values, of: (target) => (target === undefined ? undefined : last.get(target)) };
 }
 
 /**
@@ -253,7 +269,7 @@ export function readS5Dropback(play: S2Play, readOrder: readonly string[], ctx: 
     if (!inPocket(s.index) || s.status !== "CLEAN" || s.live.some((x) => x.arrived)) continue;
     const parts = at(s, s.tick);
     if (parts.rulePart || !parts.count) continue;
-    const { best, values } = poolAt(d, s.tick);
+    const { best, values, of } = poolAt(d, s.tick);
     const itemA = bestForItemA(d, readKinds, s.tick);
     if (itemA !== undefined && itemA >= bar && s.tick >= floorSeconds - TOLERANCE) continue;
     const t = s.tick;
@@ -271,7 +287,15 @@ export function readS5Dropback(play: S2Play, readOrder: readonly string[], ctx: 
                 ? "SACK"
                 : "NONE";
     const expiryBar = block?.expiryBar ?? 30;
-    cleanExpiries.push({ tick: t, trigger: parts.reads >= maxReads ? "reads" : "count", outcome, best, pool: values.length, belowBar: values.filter((v) => v < expiryBar).length });
+    cleanExpiries.push({
+      tick: t,
+      trigger: parts.reads >= maxReads ? "reads" : "count",
+      outcome,
+      best,
+      pool: values.length,
+      belowBar: values.filter((v) => v < expiryBar).length,
+      targetOpenness: outcome === "THROW" ? of(d.throwTarget) : undefined,
+    });
   }
 
   // Clean moves, restarts and the bump.
@@ -297,6 +321,14 @@ export function readS5Dropback(play: S2Play, readOrder: readonly string[], ctx: 
       return { tick: h.tick, floorBound: best !== undefined && best >= bar };
     });
 
+  // The throw after a clean break-out (S-1's second half).
+  const cleanEscaped = escapes.find((e) => e.clean && e.outcome === "ESCAPED");
+  let breakOutThrow: S5BreakOutThrow | undefined;
+  if (cleanEscaped !== undefined && d.throwTick !== undefined && d.throwTick > cleanEscaped.tick - TOLERANCE) {
+    const at = poolAt(d, d.throwTick);
+    breakOutThrow = { tick: d.throwTick, best: at.best, targetOpenness: at.of(d.throwTarget) };
+  }
+
   const first = cleanExpiries[0];
   return {
     playId: play.playId,
@@ -311,6 +343,7 @@ export function readS5Dropback(play: S2Play, readOrder: readonly string[], ctx: 
     bumps,
     escapes,
     floorWaits,
+    breakOutThrow,
     coverageSack: sackTick !== undefined && first !== undefined && sackTick >= first.tick - TOLERANCE,
     sacked: d.sacked,
     sackTick,

@@ -52,6 +52,7 @@ import { CLEAN_BENCH_PARTS } from "./oneThreatBench.js";
 import { LEAGUES, renderStep5Sections, type League, type Step2ClauseResult, type Step2Proof, type Step4GuardRow, type Step5Sections } from "./report.js";
 import { cleanPocketRowProblems, cleanPocketRows, emptyCleanPocketRowsFold, foldCleanPocketRowsGame, type CleanPocketRowsFold } from "./rows.js";
 import type { RePoint, Reselection } from "./reselect.js";
+import { cleanPocketOf } from "./cleanPick.js";
 import { POCKET_1_S5A_DIGEST, POCKET_1_S5A_FIT_DIGEST, readsStep3Facts } from "./rules.js";
 import { s2ContextOf } from "./s2Stream.js";
 import { emptyS5Fold, foldS5Dropback, s5DropbacksOf, s5Summary, type S5Fold } from "./s5Stream.js";
@@ -60,7 +61,7 @@ import { emptyGuardFold, foldGuardGame, openFiling, PR33_STATE, sanitize, type G
 import { armFileOf, FULL_CORPUS, isUnder, jsonText, realOf, STEP1_CALLER, STEP1_CLOSED_RECORDS, step1Env, stampProblems, writeAtomic, type Step1Corpus, type Step1Env } from "./step1.js";
 import { rowValueOf, STEP2_CLOSED_RECORDS, STEP3_RECORDS, step3StampOf, timesFromPicture, unmadeChoicesOf, type Step3Stamp } from "./step3.js";
 import { playStep4Arm, STEP4_AMENDMENTS_PIN, STEP4_RECORDS, step4FoldsOf, type PlayStep4Options, type Step4Record } from "./step4.js";
-import { playsOf, readDropback, worstStatus } from "./throwClass.js";
+import { playsOf, readDropback, throwBarFor, worstStatus } from "./throwClass.js";
 import type { ThrowClassifier } from "./throwClass.js";
 
 export const STEP5_ARM_FORMAT = "adr-089-step5-arm/v1";
@@ -238,6 +239,13 @@ export interface Step5Extra {
   cleanClockExpired: number;
   /** S-1: a THROW on a clean expiry with nobody at the expiry bar in the pool. */
   emptyPoolThrows: number;
+  /** S-1: a THROW on a clean expiry whose target's last read is below the expiry bar. */
+  belowBarTargetThrows: number;
+  /** Printed beside S-1: clean-expiry THROWs to a man below the best read (rank-pushed inside the cut pool). */
+  rankPushedExpiryThrows: number;
+  /** S-1's second half: THROWs after a clean break-out, and of them those with best below the normal bar (desperation). */
+  breakOutThrows: number;
+  onRunDesperation: number;
   /** S-2: dropbacks with more than one clean move. */
   twoCleanMoves: number;
   /** S-3: a HOLD, or a throwaway, on a clean-expiry tick. */
@@ -266,7 +274,7 @@ export function emptyStep5LeagueFolds(): Step5LeagueFolds {
     rows: emptyCleanPocketRowsFold(),
     guard: emptyGuardFold(),
     curve: Object.fromEntries(RELEASE_BINS.map((b) => [b, { attempts: 0, pressured: 0 }])),
-    extra: { dropbacks: 0, nonClean: 0, clockExpired: 0, cleanClockExpired: 0, emptyPoolThrows: 0, twoCleanMoves: 0, expiryHolds: 0, expiryThrowaways: 0 },
+    extra: { dropbacks: 0, nonClean: 0, clockExpired: 0, cleanClockExpired: 0, emptyPoolThrows: 0, belowBarTargetThrows: 0, rankPushedExpiryThrows: 0, breakOutThrows: 0, onRunDesperation: 0, twoCleanMoves: 0, expiryHolds: 0, expiryThrowaways: 0 },
     fit: emptyFitFold(),
   };
 }
@@ -274,11 +282,19 @@ export function emptyStep5LeagueFolds(): Step5LeagueFolds {
 /** One game into step 5's folds, read under the arm's own tunables and the guard's class view. */
 export function foldStep5Game(L: Step5LeagueFolds, events: readonly MatchEventEnvelope[], tunables: Tunables, snapshot: GameSnapshot, classify: ThrowClassifier): void {
   const ctx = s2ContextOf(tunables, snapshot);
+  const expiryBar = cleanPocketOf(tunables)?.expiryBar ?? 30;
   for (const x of s5DropbacksOf(events, ctx)) {
     foldS5Dropback(L.s5, x);
     if (x.cleanMoves.length > 1) L.extra.twoCleanMoves += 1;
+    if (x.breakOutThrow !== undefined) {
+      L.extra.breakOutThrows += 1;
+      const bar = throwBarFor(tunables, x.readSystem);
+      if (x.breakOutThrow.best === undefined || x.breakOutThrow.best < bar) L.extra.onRunDesperation += 1;
+    }
     for (const e of x.cleanExpiries) {
       if (e.outcome === "THROW" && e.pool === e.belowBar) L.extra.emptyPoolThrows += 1;
+      if (e.outcome === "THROW" && (e.targetOpenness === undefined || e.targetOpenness < expiryBar)) L.extra.belowBarTargetThrows += 1;
+      if (e.outcome === "THROW" && e.targetOpenness !== undefined && e.best !== undefined && e.targetOpenness < e.best) L.extra.rankPushedExpiryThrows += 1;
       if (e.outcome === "HOLD") L.extra.expiryHolds += 1;
       if (e.outcome === "THROWAWAY") L.extra.expiryThrowaways += 1;
     }
@@ -560,7 +576,13 @@ export function gradeStep5(x: GradeStep5Inputs): Step5Grade {
   const has = (id: ArmId, parts: readonly string[]): boolean => parts.every((p) => partsOfArm(id).includes(p));
 
   // The structural proofs and fold checks (plan §7.2 R-3), each bound to the arms whose parts it reads.
-  proof("S-1 proof:clean-expiry-bar", "on arms with d23, no THROW on a clean expiry with nobody at the expiry bar in the pool", every((id) => has(id, ["d23"]), (r, l) => (r.s5[l].extra.emptyPoolThrows > 0 ? `${String(r.s5[l].extra.emptyPoolThrows)} throw(s) from an empty pool` : undefined)));
+  proof("S-1 proof:clean-expiry-bar", "on arms with d23, every THROW on a clean expiry goes to a man at the expiry bar (30) or more, and none comes from an empty pool; on arms with d23OnRun, no desperation THROW (best below the normal bar) after a clean break-out", [
+    ...every((id) => has(id, ["d23"]), (r, l) => {
+      const e = r.s5[l].extra;
+      return e.emptyPoolThrows + e.belowBarTargetThrows > 0 ? `${String(e.emptyPoolThrows)} throw(s) from an empty pool, ${String(e.belowBarTargetThrows)} to a man below the expiry bar` : undefined;
+    }),
+    ...every((id) => has(id, ["breakOut", "d23OnRun"]), (r, l) => (r.s5[l].extra.onRunDesperation > 0 ? `${String(r.s5[l].extra.onRunDesperation)} desperation throw(s) after a clean break-out` : undefined)),
+  ]);
   proof("S-2 proof:one-clean-move", "on arms with move, at most one clean move a play", every((id) => has(id, ["move"]), (r, l) => (r.s5[l].extra.twoCleanMoves > 0 ? `${String(r.s5[l].extra.twoCleanMoves)} play(s) with two clean moves` : undefined)));
   proof("S-3", "on the full checklist, no HOLD and no throwaway on a clean-expiry tick", every((id) => has(id, FULL_CHECKLIST), (r, l) => (r.s5[l].extra.expiryHolds + r.s5[l].extra.expiryThrowaways > 0 ? `${String(r.s5[l].extra.expiryHolds)} HOLD(s), ${String(r.s5[l].extra.expiryThrowaways)} throwaway(s) on a clean-expiry tick` : undefined)));
   if (half === "5a") proof("S-6", "the bench is clean: no dropback's worst status above CLEAN", every((id) => step5ArmDef(id)?.step5.kind === "bench", (r, l) => (r.s5[l].extra.nonClean > 0 ? `${String(r.s5[l].extra.nonClean)} dropback(s) above CLEAN` : undefined)));
@@ -755,6 +777,11 @@ export function gradeStep5(x: GradeStep5Inputs): Step5Grade {
         `${id} set ${String(s)} ${l}: dropbacks ${String(f.dropbacks)}; clean expiries ${String(f.cleanExpiries.total)} (reads ${String(f.cleanExpiries.byTrigger.reads)}, count ${String(f.cleanExpiries.byTrigger.count)}; ${num(sum.cleanExpiryPer100Dropbacks)} per 100); ` +
           `picks ${String(f.picks.total)} ${canonicalise(f.picks.byOption)}; clean moves ${String(f.cleanMoves)}; restarts ${String(f.restarts)} (${num(sum.restartPer100Dropbacks)} per 100); bump receivers ${String(f.bumps.receivers)}; ` +
           `floor waits ${String(f.floorWaits.holds)}; escapes ${String(f.escapes.attempts)} (repeated ${String(f.escapes.repeatedPlays)}); coverage sacks ${String(f.coverageSacks.n)} of ${String(f.coverageSacks.sacks)}`,
+      );
+      const ex = r.s5[l].extra;
+      affected.push(
+        `${id} set ${String(s)} ${l}: beside S-1: clean-expiry throws rank-pushed inside the cut pool ${String(ex.rankPushedExpiryThrows)}, to a man below 30 ${String(ex.belowBarTargetThrows)}; ` +
+          `throws after a clean break-out ${String(ex.breakOutThrows)}, of them desperation ${String(ex.onRunDesperation)}`,
       );
       if (f.picks.total > 0) {
         const cell = (c: S5Fold["picks"]["byOffered"]["one"]): string => `${String(c.n)} (by option ${canonicalise(c.byOption)}; by band ${canonicalise(c.byBand)})`;

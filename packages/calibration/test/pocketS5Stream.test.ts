@@ -66,8 +66,8 @@ describe("s5Stream on the fixture play (clean MOVE, reading HOLD at 2.5 s, THROW
     // The first at the floor on the spent count (MOVE); the second on the restated budget, with his
     // reads spent, ends in D23's throw (best 31, at the expiry bar and below the normal bar).
     expect(p!.cleanExpiries).toEqual([
-      { tick: 1.5, trigger: "count", outcome: "MOVE", best: 26, pool: 3, belowBar: 3 },
-      { tick: 3, trigger: "reads", outcome: "THROW", best: 31, pool: 4, belowBar: 3 },
+      { tick: 1.5, trigger: "count", outcome: "MOVE", best: 26, pool: 3, belowBar: 3, targetOpenness: undefined },
+      { tick: 3, trigger: "reads", outcome: "THROW", best: 31, pool: 4, belowBar: 3, targetOpenness: 31 },
     ]);
     expect(p!.picks).toEqual([{ tick: 1.5, band: "SOUND", option: "MOVE", offered: ["MOVE", "ESCAPE"], todayUrgency: 0 }]);
     expect(p!.bumps).toEqual([{ tick: 1.5, receiver: "p:t:31:WR1", contest: "EVEN" }]);
@@ -187,7 +187,7 @@ describe("the bump's stream facts, on constructed dropbacks", () => {
 
   it("the fold refuses one call under two read systems", () => {
     const fold = emptyS5Fold();
-    const x = { playId: "p", call: "Mesh", readSystem: "CONCEPT", screen: false, floorSeconds: 0, cleanExpiries: [], picks: [], cleanMoves: [], restarts: 0, bumps: [], escapes: [], floorWaits: [], coverageSack: false, sacked: false, sackTick: undefined };
+    const x = { playId: "p", call: "Mesh", readSystem: "CONCEPT", screen: false, floorSeconds: 0, cleanExpiries: [], picks: [], cleanMoves: [], restarts: 0, bumps: [], escapes: [], floorWaits: [], breakOutThrow: undefined, coverageSack: false, sacked: false, sackTick: undefined };
     foldS5Dropback(fold, x);
     expect(() => foldS5Dropback(fold, { ...x, readSystem: "HALF_FIELD" })).toThrow(/reads CONCEPT and HALF_FIELD/);
   });
@@ -219,7 +219,7 @@ describe("the clean pick's offered set and today's urgency (guardian C4; the rul
 
   it("the fold splits the picks one option from two, and counts those whose today's urgency is above 0 by option and offered set", () => {
     const fold = emptyS5Fold();
-    const base = { playId: "p", call: "Mesh", readSystem: "CONCEPT", screen: false, floorSeconds: 1, cleanExpiries: [], cleanMoves: [], restarts: 0, bumps: [], escapes: [], floorWaits: [], coverageSack: false, sacked: false, sackTick: undefined };
+    const base = { playId: "p", call: "Mesh", readSystem: "CONCEPT", screen: false, floorSeconds: 1, cleanExpiries: [], cleanMoves: [], restarts: 0, bumps: [], escapes: [], floorWaits: [], breakOutThrow: undefined, coverageSack: false, sacked: false, sackTick: undefined };
     foldS5Dropback(fold, {
       ...base,
       picks: [
@@ -316,6 +316,44 @@ describe("the clean expiry where the outlet's look reaches the bar on the expiry
     expect(atBar).toBeGreaterThan(0);
     expect(itemAAtBar).toBeGreaterThan(0);
   }, 300_000);
+});
+
+describe("S-1's two facts (plan R-3): the clean-expiry THROW's target and the THROW after a clean break-out", () => {
+  it("on golden 12 a league under pocket-1.s5a: every clean-expiry THROW goes to a man at 30 or more, and every THROW after a clean break-out to a best at the normal bar", () => {
+    const t = step5Bundle(POCKET_1_S5A_RULES, []);
+    let breakOuts = 0;
+    let desperation = 0;
+    let expiryThrows = 0;
+    let below30 = 0;
+    let rankPushed = 0;
+    for (const league of ["gen", "flat"] as const) {
+      goldenGames(league, (o, snapshot) => {
+        for (const x of s5DropbacksOf(o.events, s2ContextOf(t, snapshot))) {
+          if (x.breakOutThrow !== undefined) {
+            breakOuts += 1;
+            if ((x.breakOutThrow.best ?? -1) < throwBarFor(t, x.readSystem)) desperation += 1;
+          }
+          for (const e of x.cleanExpiries) {
+            if (e.outcome !== "THROW") {
+              expect(e.targetOpenness).toBeUndefined();
+              continue;
+            }
+            expiryThrows += 1;
+            expect(e.targetOpenness, `${x.playId} t${String(e.tick)}`).toBeDefined();
+            if ((e.targetOpenness ?? -1) < 30) below30 += 1;
+            if (e.best !== undefined && (e.targetOpenness ?? 0) < e.best) rankPushed += 1;
+          }
+        }
+      }, { tunables: t, callerVersion: STEP1_CALLER, first: 12 });
+    }
+    process.stdout.write(`s5Stream S-1 on golden 12 a league: break-out throws ${String(breakOuts)}, desperation ${String(desperation)}; clean-expiry throws ${String(expiryThrows)}, below 30 ${String(below30)}, rank-pushed ${String(rankPushed)}\n`);
+    // Without the engine's d23OnRun rule (a mutant that takes the desperation throw on the run), 23 of 47 such throws read as desperation here.
+    expect(breakOuts).toBeGreaterThan(10);
+    expect(desperation).toBe(0);
+    expect(expiryThrows).toBeGreaterThan(200);
+    expect(below30).toBe(0);
+    expect(rankPushed).toBeGreaterThan(0);
+  }, 600_000);
 });
 
 function playsOfEvents(events: readonly MatchEventEnvelope[]): MatchEventEnvelope[][] {
