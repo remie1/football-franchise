@@ -37,7 +37,11 @@
  * back on `run.officiating`. Absent, there are no crews, as before: a calibration batch, the pocket's
  * corpora and a save from before crews play without them. No game reads a crew until step 2, so
  * neither resolver hands one to the engine, and until then a season game's record shows no crew,
- * whatever the save holds.
+ * whatever the save holds. The stand-in league's crews are its league file's, copies of the real
+ * crews (step 1b): `officiatingFor` stands them in the file's season or carries them one winter into
+ * the next, and for a stand-in league whose file has its own crews `runRealSeason` refuses new ones,
+ * and standing ones at a season's start in any season but the file's, whoever chose the season
+ * (review TD5); a season carried on from a save keeps the crews it has.
  */
 import {
   clampRating, DEFAULT_LEAGUE_RULES, teamId,
@@ -72,11 +76,50 @@ export type SeasonOfficiatingInput = NonNullable<Parameters<typeof runSeason>[0]
  *  - a save with crews: `{ kind: "STANDING", crews, assignments }`, from its `world.officiating`, so
  *    each game the save gave a crew keeps it;
  *  - a save from before crews: `undefined`, and the season plays on without them.
+ *
+ * Step 1b (§16 A11): `standIn` is a stand-in league file and the season the run plays (the one
+ * `seasonToPlay` gives). A file with crews, the copies of the real crews, plays them: in the file's
+ * season s, as they stand (`STANDING` with no game given one yet; franchise draws every week from
+ * the run's seed); in s + 1, carried one winter (`CARRY` from s, franchise's carry on the run's
+ * seed); any other season is refused, since neither fits it and new crews would replace the copies.
+ * A file without crews gives `NEW`, as before. A save holds its own crews, so a save and a file
+ * together are refused.
  */
-export function officiatingFor(save: Pick<SaveFile, "world"> | undefined): SeasonOfficiatingInput | undefined {
-  if (save === undefined) return { kind: "NEW" };
-  const slot = save.world.officiating;
-  return slot === undefined ? undefined : { kind: "STANDING", crews: slot.crews, assignments: slot.assignments };
+export function officiatingFor(
+  save: Pick<SaveFile, "world"> | undefined,
+  standIn?: { readonly file: Pick<ReturnType<typeof readStandInFile>, "officiating">; readonly season: number },
+): SeasonOfficiatingInput | undefined {
+  if (save !== undefined) {
+    if (standIn !== undefined) throw new Error("officiatingFor: a save holds its own crews; a stand-in league file's are for a new league");
+    const slot = save.world.officiating;
+    return slot === undefined ? undefined : { kind: "STANDING", crews: slot.crews, assignments: slot.assignments };
+  }
+  const block = standIn?.file.officiating;
+  if (standIn === undefined || block === undefined) return { kind: "NEW" };
+  const s = block.season;
+  if (standIn.season === s) return { kind: "STANDING", crews: block.crews, assignments: [] };
+  if (standIn.season === s + 1) return { kind: "CARRY", from: { season: s, crews: block.crews, assignments: [] } };
+  throw new Error(`the stand-in league's crews stand in ${s} (its league file's officials): a season with them plays ${s}, ` +
+    `or ${s + 1} with them carried one winter, not ${standIn.season}; drop --season, or give ${s} or ${s + 1}`);
+}
+
+/**
+ * Step 1b (plan-v2 §6.4): the season command's one line on the stand-in league's crews, for the crews
+ * `officiatingFor` gave its run: carried one winter from the file's season into the run's, or as they
+ * stand in the run's. None for a file without crews, or a run without them. It lives here, where a
+ * test reaches it, as `officiatingFor` does (review TD5); the command only prints it.
+ */
+export function standInOfficialsLine(
+  file: Pick<ReturnType<typeof readStandInFile>, "officiating"> | undefined,
+  officiating: SeasonOfficiatingInput | undefined,
+  season: number,
+): string | undefined {
+  const fileCrews = file?.officiating;
+  if (fileCrews !== undefined && officiating !== undefined) {
+    const which = officiating.kind === "CARRY" ? `carried one winter from ${fileCrews.season} into ${season}` : `as they stand in ${season}`;
+    return `Officials: the league file's ${fileCrews.crews.length} crews, copies of the real crews, ${which}`;
+  }
+  return undefined;
 }
 
 /** The players' switches (ADR-087 §9). */
@@ -295,7 +338,10 @@ export interface RealSeasonInput {
    * carry on as they stand (`STANDING`, see `officiatingFor`), each game keeping its crew. The run
    * hands them back on `run.officiating`. Absent: no crews, as before (a calibration batch, the
    * pocket's corpora, a save from before crews). No game reads a crew until step 2, so neither
-   * resolver hands one to the engine.
+   * resolver hands one to the engine. A stand-in league whose file has crews plays them
+   * (`officiatingFor`, step 1b), so `{ kind: "NEW" }` is refused for it, and so is `STANDING` at a
+   * season's start in any season but the file's (the next season takes them carried in;
+   * `officiatingFor` refuses any other). A season carried on (`resumeFrom`) keeps the crews it has.
    */
   readonly officiating?: SeasonOfficiatingInput;
   /** Whose players play: each team's own made-up squad (default), or the flat league's. */
@@ -351,6 +397,20 @@ export function runRealSeason(input: RealSeasonInput): { league: League; rated?:
   const switched = switchedOn(input.players);
   if (switched && rosters === "flat") throw new Error("runRealSeason: development and injuries need squads; the flat league has none");
   const season = seasonToPlay({ ...input, rosters });
+  // ADR-093 step 1b: the stand-in league's crews are its file's copies; drawn ones would quietly replace them.
+  if (rosters === "standin" && input.standIn?.officiating !== undefined && input.officiating?.kind === "NEW") {
+    throw new Error("runRealSeason: the stand-in league's crews are its league file's (officiatingFor); new crews are for a league without them");
+  }
+  // They stand only in the file's season: standing in another, they would play it uncarried. Refused
+  // here, where every caller passes, not only by the season command's choice of season (review TD5).
+  // A CARRY names the season it carries from, and franchise checks that. The check is at a season's
+  // start: a season carried on from a save (`resumeFrom`) keeps the crews it has, as franchise takes
+  // them, each saved game's crew checked against its week's draw.
+  const fileCrewsSeason = rosters === "standin" ? input.standIn?.officiating?.season : undefined;
+  if (fileCrewsSeason !== undefined && input.officiating?.kind === "STANDING" && season !== fileCrewsSeason && input.resumeFrom === undefined) {
+    throw new Error(`runRealSeason: the stand-in league's crews stand only in ${fileCrewsSeason}, its league file's season, ` +
+      `not in ${season} (officiatingFor carries them into ${fileCrewsSeason + 1})`);
+  }
   if (input.resume !== undefined && !switched) throw new Error("runRealSeason: carrying on a season's people needs the players' switches");
   if (input.mood && !switched) throw new Error("runRealSeason: mood needs the players' switches (--development or --injuries)");
   let league: League = base;

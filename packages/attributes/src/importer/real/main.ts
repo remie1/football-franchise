@@ -11,18 +11,27 @@
  * snapshot; `--fetch` fetches both. Each stand-in also gets his starting development (ADR-087 §2.5,
  * `development.ts`), described under the file's `startingDevelopment` key; `standin-development`
  * (`developMain.ts`) refreshes just those on a file already built.
+ *
+ * The officials (ADR-093 step 1b): when the newest officials snapshot (`<cache>/officials/`, fetched by
+ * `standin-officials -- --fetch`) is of this season, the file also gets its 17 copied crews, its
+ * `officiating` block, made exactly as `standin-officials` (`officialsMain.ts`) makes them, and the
+ * referees' sealed table `<cache>/sealed-officials.json` is written when it changes. Otherwise the file
+ * has no copies, and `standin-officials` adds them. Either way no new stand-in takes a name in that
+ * table.
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { teamId, type Team } from "@ff/contracts";
 import { buildDeadMoney, fetchOtcPages, otcDownload, readOtcRows } from "./deadMoney.js";
 import { buildRealLeague } from "./league.js";
-import { LEAGUE_FILE_FORMAT, serializeLeagueFile } from "./leagueFile.js";
+import { importRealWrites, LEAGUE_FILE_FORMAT } from "./leagueFile.js";
+import { STANDIN_SPREAD } from "./officials.js";
+import { copiedCrews } from "./officialsSnapshot.js";
 import { PICKS_SOURCE, tradedPicks } from "./picks.js";
 import { REAL_CITY, REAL_TEAM_SLOTS, STANDIN_NICKNAME } from "./positions.js";
 import { loadSnapshotRows, loadTrackingRows } from "./rows.js";
 import { fetchSnapshot, latestSnapshot, readManifest } from "./snapshot.js";
-import type { SealedTable } from "./standins.js";
+import { parseSealedTable, withRefereesTaken, type SealedTable } from "./standins.js";
 
 export { LEAGUE_FILE_FORMAT };
 
@@ -49,11 +58,16 @@ async function main(argv: readonly string[]) {
   if (argv.includes("--fetch") || argv.includes("--fetch-otc")) await fetchOtcPages(dir, new Date(), otcDownload);
   const manifest = await readManifest(dir);
   const sealedPath = join(cache, "sealed.json");
-  const sealed: SealedTable = existsSync(sealedPath) ? JSON.parse(readFileSync(sealedPath, "utf8")) : {};
+  // A damaged table is refused by its path alone: its keys are real people's (`parseSealedTable`).
+  const sealed: SealedTable = existsSync(sealedPath) ? parseSealedTable(readFileSync(sealedPath, "utf8"), sealedPath) : {};
+  // ADR-093 step 1b: the referees' sealed table; no new stand-in takes one of its made-up names.
+  const refereesPath = join(cache, "sealed-officials.json");
+  const refereesText = existsSync(refereesPath) ? readFileSync(refereesPath, "utf8") : undefined;
+  const referees: SealedTable = refereesText === undefined ? {} : parseSealedTable(refereesText, refereesPath);
 
   const rows = await loadSnapshotRows(dir, season);
   const tracking = await loadTrackingRows(dir, [season - 1, season]);
-  const built = buildRealLeague({ seed, season, date: manifest.date, teams: standInTeams(), ...rows, tracking, sealed });
+  const built = buildRealLeague(withRefereesTaken({ seed, season, date: manifest.date, teams: standInTeams(), ...rows, tracking, sealed }, referees));
 
   const teamIds = built.league.teams.map((t) => String(t.id));
   const dead = buildDeadMoney({
@@ -68,8 +82,12 @@ async function main(argv: readonly string[]) {
     deadMoney: dead.charges, picks: tradedPicks(built.league.teams), picksSource: PICKS_SOURCE,
     // ADR-087 §2.5: how the growth records were made (`development.ts`); last, as `standin-development` writes it.
     startingDevelopment: built.startingDevelopment };
-  writeFileSync(out, serializeLeagueFile(file));
+  // ADR-093 step 1b: the 17 copied crews (`copiedCrews`), just before `startingDevelopment`, as `standin-officials` puts them.
+  const copied = await copiedCrews(cache, file, { players: built.sealed, referees });
+  const writes = importRealWrites(file, copied.kind === "copied" ? copied.crews : null, refereesText);
+  writeFileSync(out, writes.league);
   writeFileSync(sealedPath, JSON.stringify(built.sealed, null, 1) + "\n");
+  if (writes.referees !== null) writeFileSync(refereesPath, writes.referees);
 
   const r = Object.values(built.league.provenance.ratings);
   const per = built.league.teams.map((t) => t.roster.length);
@@ -80,6 +98,10 @@ async function main(argv: readonly string[]) {
   const dm = dead.charges.filter((c) => c.season === season).reduce((a, c) => a + c.amount, 0);
   console.log(`  dead money: ${dead.charges.length} charges, $${(dm / 1e6).toFixed(1)}M in ${season}; ${dead.matched} on today's rosters, ${dead.placeholders} players gone`);
   console.log(`  traded picks: ${file.picks.length} (rounds 1-3, as of ${PICKS_SOURCE.published})`);
+  console.log(copied.kind === "none"
+    ? `  ${copied.why}`
+    : `  officials: ${copied.crews.officiating.crews.length} copied crews (${STANDIN_SPREAD}) from the officials snapshot ${copied.crews.officiating.asOf}, ` +
+      `${copied.crews.report.minted} referees new; referees' sealed table ${refereesPath}, ${Object.keys(copied.crews.sealed).length} entries`);
   console.log(`  wrote ${out}; sealed table ${sealedPath}`);
 }
 

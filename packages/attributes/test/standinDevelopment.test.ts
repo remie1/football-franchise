@@ -28,9 +28,10 @@ const stream = (id: string) => createRng(SEED_LABEL, DEVELOPMENT_STREAM).fork(id
 const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 const json = (x: unknown) => JSON.stringify(x, (_k, v) => (v instanceof Set ? [...v] : v));
 /**
- * The committed league file before `standin-development` wrote its records (ADR-088's, commit
- * e23bf69, with its estimated deals rebuilt by `standin-contracts` on 2026-11-07: 301 deals, nothing
- * else), by its sha256: only a new snapshot of the league, or a refresh of its contracts, may change this.
+ * The committed league file before `standin-development` wrote its records and `standin-officials`
+ * its officials block (ADR-088's, commit e23bf69, with its estimated deals rebuilt by
+ * `standin-contracts` on 2026-11-07: 301 deals, nothing else), by its sha256: only a new snapshot
+ * of the league, or a refresh of its contracts, may change this.
  */
 const FILE_BEFORE_RECORDS_SHA256 = "ffdd05762bae1b197794cb0099c8c0dd8f37a1767bd93034549bf001f7a4ea96";
 
@@ -46,7 +47,8 @@ describe("the committed league file's growth records", () => {
   });
 
   it("are all the step added: taking them off gives back the file before them, to the byte", () => {
-    expect(sha256(serializeLeagueFile(stripped()))).toBe(FILE_BEFORE_RECORDS_SHA256);
+    const { officiating: _o, ...before } = stripped();
+    expect(sha256(serializeLeagueFile(before))).toBe(FILE_BEFORE_RECORDS_SHA256);
   });
 
   it("were made with today's constants (re-run standin-development if this fails)", () => {

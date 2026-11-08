@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { teamId, type Team } from "@ff/contracts";
-import { ageOn, buildStandIns, gamePosition, REAL_TEAM_SLOTS, rosterStatus, type StandInInput } from "../src/importer/real/index.js";
+import {
+  ageOn, buildStandIns, gamePosition, parseSealedTable, REAL_TEAM_SLOTS, rosterStatus, sealedTableText, withRefereesTaken,
+  type SealedTable, type StandInInput,
+} from "../src/importer/real/index.js";
 import type { DepthRow, RosterRow } from "../src/importer/real/rows.js";
 
 // Made-up ids and names throughout: no real player appears in a test.
@@ -86,6 +89,61 @@ describe("stand-ins (ADR-088 R2)", () => {
     const again = buildStandIns({ ...base, sealed: L.sealed, rosters: [...base.rosters, row({ gsis_id: "g11" })] });
     expect(again.sealed["g1"]).toEqual(L.sealed["g1"]);
     expect(again.sealed["g11"]!.id).toBe(`r:${Object.keys(L.sealed).length + 1}`);
+  });
+
+  it("never draws a name in alsoTaken (the sealed referees' made-up names) for a new stand-in (ADR-093 step 1b)", () => {
+    const name = L.sealed["g1"]!.name;
+    const L2 = buildStandIns({ ...base, alsoTaken: [name] });
+    expect(L2.sealed["g1"]!.name).not.toBe(name);
+    expect(L2.players.map((p) => p.bio.displayName)).not.toContain(name);
+    expect(Object.values(L2.sealed).map((s) => s.name)).not.toContain(name);
+    // A returning player keeps their sealed name: alsoTaken steers new draws only.
+    expect(buildStandIns({ ...base, sealed: L.sealed, alsoTaken: [name] }).sealed["g1"]).toEqual(L.sealed["g1"]);
+  });
+
+  it("withRefereesTaken adds the referees' sealed names to alsoTaken, import-real's call: no new stand-in takes a copy's referee name (ADR-093 step 1b)", () => {
+    const name = L.sealed["g1"]!.name;
+    const referees: SealedTable = { "made up referee": { id: "o:01", name } };
+    const input = withRefereesTaken({ ...base, alsoTaken: ["Sam Madeup"] }, referees);
+    expect(input).toEqual({ ...base, alsoTaken: ["Sam Madeup", name] });
+    expect(withRefereesTaken(base, referees).alsoTaken).toEqual([name]);
+    expect(withRefereesTaken(base, {}).alsoTaken).toEqual([]);
+    const L2 = buildStandIns(withRefereesTaken(base, referees));
+    expect(L2.sealed["g1"]!.name).not.toBe(name);
+    expect(L2.players.map((p) => p.bio.displayName)).not.toContain(name);
+  });
+
+  it("sealedTableText gives a sealed table's text as the commands write it, or null when that is the text there already (ADR-093 step 1b)", () => {
+    const text = JSON.stringify(L.sealed, null, 1) + "\n";
+    expect(sealedTableText(L.sealed, undefined)).toBe(text);
+    expect(sealedTableText(L.sealed, text)).toBeNull();
+    // The same table written another way is written again, as the commands write it.
+    expect(sealedTableText(L.sealed, JSON.stringify(L.sealed) + "\n")).toBe(text);
+    expect(sealedTableText({}, "{}\n")).toBeNull();
+    expect(parseSealedTable(sealedTableText(L.sealed, undefined)!, "/made/up/cache/sealed.json")).toEqual(L.sealed);
+  });
+
+  it("parseSealedTable reads a sealed table, and refuses a damaged one by its path alone, quoting none of it (ADR-093 step 1b)", () => {
+    const path = "/made/up/cache/sealed.json";
+    expect(parseSealedTable(JSON.stringify(L.sealed, null, 1) + "\n", path)).toEqual(L.sealed);
+    expect(parseSealedTable("{}", path)).toEqual({});
+    const refusal = (text: string): Error => {
+      try {
+        parseSealedTable(text, path);
+      } catch (e) {
+        return e as Error;
+      }
+      throw new Error("not refused");
+    };
+    // A parse error's own message can quote the text near the fault, here a made-up player's name.
+    const broken = refusal('{"g1": {"id": "r:1", "name": Made Up Player 01}}');
+    expect(broken.message).toBe(`${path} is not valid JSON, so it cannot be read as a sealed table; the run stops`);
+    expect(broken.cause).toBeUndefined();
+    for (const text of ["[]", "null", "7", '{"g1": "Made Up Player 01"}', '{"g1": {"id": 1, "name": "Made Up Player 01"}}', '{"g1": {"id": "r:1"}}']) {
+      const e = refusal(text);
+      expect(e.message, text).toBe(`${path} is not a sealed table (each key to an id and a name); the run stops`);
+      expect(e.message, text).not.toMatch(/Made Up|g1/);
+    }
   });
 
   it("elevates a practice-squad kicker when the team's 53 has none", () => {

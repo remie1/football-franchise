@@ -23,6 +23,36 @@ import type { CombineRow, DepthRow, PlayerRow, RosterRow } from "./rows.js";
 /** Real id (nflverse `gsis_id`) → stand-in. Local only: this is the one join back to real identity. */
 export type SealedTable = Record<string, { readonly id: string; readonly name: string }>;
 
+/**
+ * A sealed table's text, read. Its keys are real people's (a player's gsis id, a referee's name key), so
+ * a damaged table is refused by its path alone: a JSON parse error quotes the text near the fault, and
+ * that text must never reach a log (ADR-093 step 1b).
+ */
+export function parseSealedTable(text: string, path: string): SealedTable {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error(`${path} is not valid JSON, so it cannot be read as a sealed table; the run stops`);
+  }
+  const entry = (v: unknown) =>
+    typeof v === "object" && v !== null && typeof (v as { id?: unknown }).id === "string" && typeof (v as { name?: unknown }).name === "string";
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed) || !Object.values(parsed).every(entry)) {
+    throw new Error(`${path} is not a sealed table (each key to an id and a name); the run stops`);
+  }
+  return parsed as SealedTable;
+}
+
+/**
+ * A sealed table's text as the commands write it (`JSON.stringify(table, null, 1)` and a newline), or null
+ * when that is `before`, the text already there: the commands write the referees' table only when it
+ * changes (ADR-093 step 1b).
+ */
+export function sealedTableText(table: SealedTable, before: string | undefined): string | null {
+  const text = JSON.stringify(table, null, 1) + "\n";
+  return text === before ? null : text;
+}
+
 export type RosterStatus = "active" | "reserve" | "practice";
 
 /** Positions every game-day roster has; see the elevation rule in `buildStandIns`. */
@@ -56,6 +86,19 @@ export interface StandInInput {
   readonly combine: readonly CombineRow[];
   readonly depth: readonly DepthRow[];
   readonly sealed: SealedTable;
+  /**
+   * More names a new stand-in must not take: the made-up referees in the referees' sealed table
+   * (ADR-093 step 1b), so no stand-in minted at a later refresh shares a copy's referee name.
+   */
+  readonly alsoTaken?: readonly string[];
+}
+
+/**
+ * A build's input with the referees' sealed table's made-up names added to `alsoTaken`: import-real's call
+ * (ADR-093 step 1b), so no stand-in minted at a refresh shares a copy's referee name.
+ */
+export function withRefereesTaken<T extends StandInInput>(input: T, referees: SealedTable): T {
+  return { ...input, alsoTaken: [...(input.alsoTaken ?? []), ...Object.values(referees).map((s) => s.name)] };
 }
 
 /** What `RatedLeague.provenance` holds for the stand-in league (ADR-088 "interim placement"). */
@@ -137,6 +180,7 @@ export function buildStandIns(input: StandInInput): StandInLeague {
     ...Object.values(sealed).map((s) => s.name),
     ...input.rosters.map((r) => r.full_name).filter((n): n is string => n !== null),
     ...input.players.map((p) => p.display_name).filter((n): n is string => n !== null),
+    ...(input.alsoTaken ?? []),
   ]);
   let next = Math.max(0, ...Object.values(sealed).map((s) => Number(s.id.slice(2)) || 0)) + 1;
 
