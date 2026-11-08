@@ -738,8 +738,13 @@ Results per Tick:
 > candidates cut to men at 30 or more and today's decision roll on `t<tick>:decision`; the
 > desperation throw at 25 is not taken, and nobody at 30 goes on to the pick; **(c, D27)** the one
 > ranked pick between MOVE (offered once a play, with the climb lane open by step 3's FRONT rule
-> and step-ups under 2) and ESCAPE, at today's appeals and urgency 0 (asserted: a value above 0 on
-> a CLEAN tick is a bug and throws), today's band die and rank clamp, one d100 on
+> and step-ups under 2) and ESCAPE, at today's appeals at urgency 0 by definition (a tick whose
+> published status is CLEAN is an unhurried tick; the Orchestrator's ruling on D27, pending the
+> owner's card: from `pocket-1.s2` on, `arrival.pressureWithinSeconds` is 1.0 while
+> `pocketMovement.urgencyHorizonSeconds` stays 1.5, so a threat 1.0 to 1.25 s out publishes CLEAN
+> although the forced pick's rule would compute its urgency as 1; the clean pick does not read it,
+> the forced pick is unchanged, and calibration counts such picks, reported and never graded),
+> today's band die and rank clamp, one d100 on
 > `movement/t<tick>:clean`, published as a `pocket_movement` CHECK of today's form (guardian C1).
 > With one option offered the die is still drawn and the band decides nothing (guardian C4); with
 > none, no die and today's end of tick. **(d) MOVE** is today's climb in full (`QB_DECISION`

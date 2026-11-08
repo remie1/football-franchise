@@ -10,17 +10,21 @@
  *    die is still drawn (contracts-guardian C4), with none there is no die and no outcome.
  * 4. One d100 on `movement/t<tick>:clean`, a `pocket_movement` CHECK of today's form
  *    (contracts-guardian C1: the same keys, target, die, modifiers and attributes as a forced one).
- * 5. The urgency is 0 on a CLEAN tick and asserted: a threat inside the horizon throws, never
- *    overridden.
+ * 5. The appeals are computed at urgency 0 by definition (a tick whose published status is CLEAN
+ *    is an unhurried tick; the Orchestrator's ruling on D27, pending the owner's card): a threat
+ *    1.1 s out on a CLEAN tick under step 2's horizons (whose own urgency is 1) leaves the appeals
+ *    the no-threat ones, while the forced pick on the same threat still computes urgency 1.
  */
 import { describe, expect, it } from "vitest";
 import { createRng } from "@ff/contracts";
 import type { PlayerState, Rng } from "@ff/contracts";
 import { resolvePocketMovement } from "../src/resolve/pocketMovement.js";
 import type { ClimbLaneThreat } from "../src/resolve/pocketMovement.js";
+import { pocketFloorFromArrival, urgencySteps } from "../src/resolve/rushThreat.js";
 import { resolveCleanPick } from "../src/sim/cleanPocket.js";
 import { TUNABLES } from "../src/tunables.js";
 import { makePlayer } from "./fixtures.js";
+import { S5_TUNABLES } from "./step5Fixtures.js";
 
 const BASELINE: PlayerState = makePlayer("qb-70", "Al Baseline", "QB", {
   awareness: 70, pocketPatience: 70, mobility: 70, improvisation: 70, poise: 70, decisionMaking: 70,
@@ -87,8 +91,41 @@ describe("ADR-089 step 5a: the clean pick's appeals are today's at urgency 0", (
     expect(forks).toBe(0);
   });
 
-  it("a threat inside the urgency horizon is a bug on a clean expiry: it throws, never overridden", () => {
-    expect(() => pick({ threats: [threat("EDGE", 3.0)] })).toThrow(/clean pick at tick 2\.5 with urgency/);
+  it("a threat 1.1 s out on a CLEAN tick (step 2's horizons): today's urgency 1, the pick's appeals at urgency 0", () => {
+    // From pocket-1.s2 on the pressured warning is at 1.0 s and the urgency horizon stays 1.5 s, so
+    // a threat 1.0 to 1.25 s out publishes CLEAN and its own urgency is 1 (the step-5 blocker).
+    const far = threat("EDGE", 2.1);
+    expect(S5_TUNABLES.arrival.pressureWithinSeconds).toBe(1.0);
+    expect(S5_TUNABLES.pocketMovement.urgencyHorizonSeconds).toBe(1.5);
+    expect(pocketFloorFromArrival(S5_TUNABLES, 1.1)).toBe("CLEAN");
+    expect(urgencySteps(S5_TUNABLES, 1.1)).toBe(1);
+    const atClean = pick({ tunables: S5_TUNABLES, tick: 1.0, threats: [far] });
+    const noThreat = pick({ tunables: S5_TUNABLES, tick: 1.0, threats: [] });
+    expect(atClean?.urgency).toBe(0);
+    expect(atClean?.ranked).toEqual([
+      { response: "STEP_UP", appeal: 55 },
+      { response: "ESCAPE", appeal: 5 },
+    ]);
+    expect(atClean?.ranked).toEqual(noThreat?.ranked);
+    // The same die and band: the threat changes nothing the pick reads.
+    expect(atClean?.roll).toEqual(noThreat?.roll);
+    // The forced pick is untouched: on the same threat it computes its own urgency, 1.
+    const forced = resolvePocketMovement({
+      tunables: S5_TUNABLES,
+      qb: BASELINE,
+      tick: 1.0,
+      threats: [far],
+      climbLane: "INTERIOR",
+      stepUpsUsed: 0,
+      throwawayAvailable: false,
+      movementRng: createRng("clean-pick", "game:g/play:1").fork("movement").fork("t1.0:movement"),
+    });
+    expect(forced.urgency).toBe(1);
+    expect(forced.ranked.find((r) => r.response === "STEP_UP")?.appeal).not.toBe(55);
+  });
+
+  it("the shut-lane ESCAPE alone, a threat 1.1 s out: 25 at urgency 0", () => {
+    expect(pick({ tunables: S5_TUNABLES, tick: 1.0, threats: [threat("INTERIOR", 2.1)] })?.ranked).toEqual([{ response: "ESCAPE", appeal: 25 }]);
   });
 });
 

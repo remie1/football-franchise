@@ -162,10 +162,17 @@ export function rankResponses(args: {
   readonly climbLane: ClimbLaneRule;
   readonly stepUpsUsed: number;
   readonly throwawayAvailable: boolean;
+  /**
+   * ADR-089 step 5a (D27; the Orchestrator's ruling on the clean pick's urgency): the urgency the
+   * appeals are computed at, when the caller states it. Only the clean pick states it (0: a tick
+   * whose published `POCKET_STATUS` is CLEAN is an unhurried tick). Left out, as every forced pick
+   * leaves it, it is the tick's own, from the nearest threat's time to arrival, as today.
+   */
+  readonly urgency?: number;
 }): { readonly ranked: readonly ResponseAppeal[]; readonly urgency: number } {
   const { tunables } = args;
   const t = tunables.pocketMovement;
-  const urgency = urgencySteps(tunables, minTimeToArrival(args.threats, args.tick));
+  const urgency = args.urgency ?? urgencySteps(tunables, minTimeToArrival(args.threats, args.tick));
   const canClimb = climbLaneOpen(tunables, args.threats, args.stepUpsUsed, args.climbLane);
 
   const scored: ResponseAppeal[] = [];

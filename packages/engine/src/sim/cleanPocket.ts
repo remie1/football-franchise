@@ -22,7 +22,12 @@
  * - **b. D23.** Today's checkdown look, then today's pool cut to men at 30 or more and today's
  *   decision roll; the desperation throw at 25 is not taken (in `passPlay.ts`).
  * - **c. The one ranked pick** (`resolveCleanPick`): MOVE and ESCAPE only, today's appeals at
- *   urgency 0 (asserted), today's band die and rank clamp, on `movement/t<tick>:clean`.
+ *   urgency 0 by definition (a tick whose published status is CLEAN is an unhurried tick, D27; the
+ *   Orchestrator's ruling, pending the owner's card), today's band die and rank clamp, on
+ *   `movement/t<tick>:clean`. From `pocket-1.s2` on a CLEAN tick can carry a threat 1.0 to 1.25 s
+ *   out (`arrival.pressureWithinSeconds` 1.0 against `pocketMovement.urgencyHorizonSeconds` 1.5),
+ *   whose own urgency would be 1; the pick does not read it. Calibration counts those picks
+ *   (reported, never graded).
  * - **d. MOVE**: today's climb in full, then the read restart and the reset (`resetAfterMove`) and
  *   the window bump (`bumpFor`), openness only, never the contest position (D25).
  * - **e. ESCAPE**: today's escape roll and its three outcomes (in `passPlay.ts`).
@@ -132,9 +137,12 @@ export interface CleanPickArgs {
  * `moveOffered` and today's climb lane is open: no FRONT or INTERIOR threat by the play's rule and
  * step-ups under `stepUp.maxPerPlay`) and ESCAPE (offered when `escapeOffered`). The appeals are
  * today's (`rankResponses`, with no throwaway and STAND_IN left out), so ESCAPE carries
- * `noClimbLaneBonus` when the lane is shut and ties keep today's declaration order. The urgency is
- * computed as today's and must be 0 on a CLEAN tick: a value above 0 is a bug and throws, never
- * overridden. One d100 on `movement/t<tick>:clean`, today's band die and rank clamp
+ * `noClimbLaneBonus` when the lane is shut and ties keep today's declaration order. The appeals are
+ * computed at urgency 0 by definition, whatever the nearest threat's time to arrival: the tick
+ * published CLEAN, and a CLEAN tick is an unhurried one (D27; the Orchestrator's ruling). From
+ * `pocket-1.s2` on, a threat 1.0 to 1.25 s out publishes CLEAN although the forced pick's rule
+ * (`resolvePocketMovement`, unchanged) would compute its urgency as 1. One d100 on
+ * `movement/t<tick>:clean`, today's band die and rank clamp
  * (`rollRankedResponse`), published as a `pocket_movement` CHECK of today's form. With one option
  * the die is still drawn and the band decides nothing (contracts-guardian C4); with none,
  * `undefined` and no die (today's path runs).
@@ -148,14 +156,12 @@ export function resolveCleanPick(args: CleanPickArgs): PocketMovementOutcome | u
     climbLane: args.climbLane,
     stepUpsUsed: args.stepUpsUsed,
     throwawayAvailable: false,
+    urgency: 0,
   });
   const offered = ranked.filter((r) =>
     r.response === "STEP_UP" ? args.moveOffered : r.response === "ESCAPE" ? args.escapeOffered : false,
   );
   if (offered.length === 0) return undefined;
-  if (urgency !== 0) {
-    throw new Error(`@ff/engine: a clean pick at tick ${args.tick.toFixed(1)} with urgency ${String(urgency)}; a CLEAN tick has none`);
-  }
   return rollRankedResponse({
     tunables: args.tunables,
     qb: args.qb,
