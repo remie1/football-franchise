@@ -1129,6 +1129,16 @@ export function gradeStep5(x: GradeStep5Inputs): Step5Grade {
           `floor waits ${String(f.floorWaits.holds)}; escapes ${String(f.escapes.attempts)} (repeated ${String(f.escapes.repeatedPlays)}); coverage sacks ${String(f.coverageSacks.n)} of ${String(f.coverageSacks.sacks)}`,
       );
       const ex = r.s5[l].extra;
+      // AM-9 reportRows (measurement M5 item 7): the affected plays against §4.6's upper bounds, as
+      // shares of the clean dropbacks (restart 15.0%, bump 2.9% of gen clean dropbacks), and the caught share.
+      {
+        const clean = ex.dropbacks - ex.nonClean;
+        const caught = f.escapes.clean.CAUGHT + f.escapes.forced.CAUGHT;
+        affected.push(
+          `${id} set ${String(s)} ${l}: against §4.6's upper bounds: restarts ${num(per100(f.restarts, clean))}% and plays with a bump ${num(per100(f.bumps.moves, clean))}% of ${String(clean)} clean dropbacks (bounds 15.0% and 2.9% of gen clean dropbacks); ` +
+            `caught ${String(caught)} of ${String(f.escapes.attempts)} escape attempts (${num(per100(caught, f.escapes.attempts))}%); coverage sacks ${num(per100(f.coverageSacks.n, f.coverageSacks.sacks))}% of sacks`,
+        );
+      }
       const sp = r.s5[l].splits;
       const rate = (c: { aimed: number; interceptions: number } | undefined): string => (c === undefined ? "n/a" : `${String(c.interceptions)}/${String(c.aimed)} (${num(per100(c.interceptions, c.aimed))})`);
       affected.push(

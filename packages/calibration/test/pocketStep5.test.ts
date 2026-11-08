@@ -275,6 +275,18 @@ describe("step 5's visit and grading on a tiny corpus (scratch; nothing is recor
       return v === null ? "n/a" : v.toFixed(2);
     };
     expect(nobody.values).toContain(`beside, its split (% of dropbacks): gen set 1 ${["CHECKDOWN", "DESPERATION", "THROWAWAY", "SACK"].map((c) => `${c} ${split(1, c)}`).join(", ")}; set 2 ${["CHECKDOWN", "DESPERATION", "THROWAWAY", "SACK"].map((c) => `${c} ${split(2, c)}`).join(", ")}`);
+    // AM-9 reportRows (measurement M5 item 7): the affected plays against §4.6's bounds and the caught share.
+    {
+      const r8 = play("E8", 1);
+      const f = r8.s5.gen.s5;
+      const clean = r8.s5.gen.extra.dropbacks - r8.s5.gen.extra.nonClean;
+      const pct = (n: number, d: number): string => (d === 0 ? "n/a" : ((100 * n) / d).toFixed(2));
+      const caught = f.escapes.clean.CAUGHT + f.escapes.forced.CAUGHT;
+      expect(g.sections.affected).toContain(
+        `E9 set 1 gen: against §4.6's upper bounds: restarts ${pct(f.restarts, clean)}% and plays with a bump ${pct(f.bumps.moves, clean)}% of ${String(clean)} clean dropbacks (bounds 15.0% and 2.9% of gen clean dropbacks); ` +
+          `caught ${String(caught)} of ${String(f.escapes.attempts)} escape attempts (${pct(caught, f.escapes.attempts)}%); coverage sacks ${pct(f.coverageSacks.n, f.coverageSacks.sacks)}% of sacks`,
+      );
+    }
     // AM-9 reportRows: the fit table is printed from the committed record when there is one (measurement M5 item 1).
     expect(g.sections.affected.some((l) => l.startsWith("the fit table (AM-9)"))).toBe(false);
     // R-6's third clause (measurement M6): with the fit record's confirm digest, E9's set-1 gen stream must equal it.
