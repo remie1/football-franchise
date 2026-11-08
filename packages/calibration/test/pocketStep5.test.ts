@@ -209,7 +209,7 @@ describe("step 5's visit and grading on a tiny corpus (scratch; nothing is recor
     expect(verdict("s5a.reset")).toBe("NOT PLAYED");
     expect(g.sections.guard.filter((r) => r.arm === "E9").map((r) => r.league)).toEqual(["flat", "gen"]);
     expect(g.sections.replay).toEqual(["E0 set 1, played fresh twice: identical (stream digests and records)", "E0 set 2, played fresh twice: identical (stream digests and records)"]);
-    expect(g.sections.proofs.map((p) => p.id)).toEqual(["S-1 proof:clean-expiry-bar", "S-2 proof:one-clean-move", "S-3", "S-6", "rows"]);
+    expect(g.sections.proofs.map((p) => p.id)).toEqual(["S-1 proof:clean-expiry-bar", "S-2 proof:one-clean-move", "S-3", "S-6", "rows", "picks:offered"]);
     expect(g.sections.outcome.structuralFailures).toEqual([]);
     // A fresh play that differs is a build fault (S-7).
     const moved = structuredClone(play("E0", 2));

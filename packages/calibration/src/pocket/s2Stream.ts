@@ -78,7 +78,7 @@
  *  - **`m2Stream`** (plan §1.6; O44): M2 on the arm's own stream (`m2ForcingSource.ts`'s
  *    `foldM2StreamGame`), with TM's (b) construct `b.tm-399` beside it.
  */
-import { getAttr, traitId, TRAIT_REGISTRY_V1, type MatchEventEnvelope, type PlayerId, type PlayerState, type PocketStatus, type Position, type RushAlignment, type ThreatOrigin } from "@ff/contracts";
+import { getAttr, traitId, TRAIT_REGISTRY_V1, type MatchEventEnvelope, type PlayerId, type PlayerState, type PocketStatus, type Position, type RushAlignment, type RushApproach, type ThreatOrigin } from "@ff/contracts";
 import type { GameSnapshot, Tunables } from "@ff/engine";
 import { floorFromArrival } from "../knownTruth/geometryTimeRetirement.js";
 import { positionsFromSnapshot } from "../knownTruth/pocketChannelShares.js";
@@ -165,6 +165,8 @@ export interface LiveThreat {
   readonly etaTick: number;
   /** His latest publication is ARRIVED. */
   readonly arrived: boolean;
+  /** His published approach (ADR-089 P4; every `pocket-1` threat carries one), which step 5a's climb lane reads. */
+  readonly approach?: Exclude<RushApproach, "BLOCKED">;
 }
 
 export interface StatusTick {
@@ -269,7 +271,7 @@ export function readS2Play(playId: string, events: readonly MatchEventEnvelope[]
         if (t.state === "RESET") live.delete(rusher);
         else {
           if (t.state === "ARRIVED" && t.etaTick > tick + TOLERANCE) liveFaults.push(`tick ${String(tick)}: ${rusher}'s ARRIVED is dated ${String(t.etaTick)}, after its own tick`);
-          live.set(rusher, { rusher, origin: t.origin, alignment: t.alignment, etaTick: t.etaTick, arrived: t.state === "ARRIVED" });
+          live.set(rusher, { rusher, origin: t.origin, alignment: t.alignment, etaTick: t.etaTick, arrived: t.state === "ARRIVED", ...(t.approach === undefined ? {} : { approach: t.approach }) });
         }
         return;
       }

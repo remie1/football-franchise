@@ -16,7 +16,17 @@
  *    today's path), a HOLD, a sack, or nothing the tick ended in.
  *  - **The pick and its band**: the `pocket_movement` CHECK whose roll label ends `:clean`, its
  *    `band`, and its option (MOVE when a `QB_DECISION` STEP_UP follows on its tick, ESCAPE when a
- *    `scramble` CHECK does).
+ *    `scramble` CHECK does). Its OFFERED set (contracts-guardian C4: with one option the band
+ *    decides nothing, so the band is read by option apart for one-option and two-option picks):
+ *    MOVE when the block's `move` is on, no clean move came before it in the play, the play's
+ *    STEP_UPs before its tick are under `stepUp.maxPerPlay` and the climb lane is open on the tick's
+ *    live threats by the arm's rule (`pocket.climbLane` FRONT: no threat whose approach and
+ *    alignment give the from-class FRONT; else no INTERIOR threat); ESCAPE when `breakOut` is on.
+ *    A chosen option outside the derived set is a fault. And **today's urgency** on its tick: the
+ *    urgency the forced pick's rule would give its nearest live threat (`urgencySteps`, restated),
+ *    which the clean pick does not read (it ranks at urgency 0 by definition; the Orchestrator's
+ *    ruling on D27). Picks where it is above 0 are counted, by option and by offered set: reported,
+ *    never graded, for step 7's sight work.
  *  - **Clean moves and restarts**: a clean pick answered by STEP_UP; a restart is a clean move after
  *    which he takes a progression read again.
  *  - **Bump receivers** (D25): at a clean move's tick, the read-order men past their break (their
@@ -41,9 +51,10 @@
  */
 import type { MatchEventEnvelope } from "@ff/contracts";
 import type { GameSnapshot, Tunables } from "@ff/engine";
+import { fromOfApproach } from "./approach.js";
 import { cleanPocketOf, isCleanPickLabel, isScreenRoute, restatedFloorSeconds } from "./cleanPick.js";
 import { BROKEN_PHASES } from "./m6Contact.js";
-import { cleanMoveTicksOf, mustActPartsOf, readS2Play, s2ContextOf, type S2Context, type S2Play } from "./s2Stream.js";
+import { cleanMoveTicksOf, mustActPartsOf, readS2Play, s2ContextOf, type LiveThreat, type S2Context, type S2Play } from "./s2Stream.js";
 import { playsOf, throwBarFor, type Dropback } from "./throwClass.js";
 
 const TOLERANCE = 1e-9;
@@ -67,10 +78,40 @@ export interface S5CleanExpiry {
   readonly belowBar: number;
 }
 
+export type CleanOption = "MOVE" | "ESCAPE";
+
 export interface S5Pick {
   readonly tick: number;
   readonly band: string | undefined;
-  readonly option: "MOVE" | "ESCAPE" | "UNKNOWN";
+  readonly option: CleanOption | "UNKNOWN";
+  /** The options the pick was offered, derived from the stream and the arm's rules (guardian C4). */
+  readonly offered: readonly CleanOption[];
+  /** The urgency the forced pick's rule would give the tick's nearest live threat; the clean pick reads 0. */
+  readonly todayUrgency: number;
+}
+
+/**
+ * The urgency the forced pick's rule gives a nearest time to arrival (the engine's `urgencySteps`,
+ * `resolve/rushThreat.ts`, restated): 0 with no live threat, else
+ * `max(0, round((urgencyHorizonSeconds - max(0, minTta)) / tickStepSeconds))`.
+ */
+export function todayUrgencyOf(tunables: Tunables, minTta: number | undefined): number {
+  if (minTta === undefined) return 0;
+  return Math.max(0, Math.round((tunables.pocketMovement.urgencyHorizonSeconds - Math.max(0, minTta)) / tunables.clock.tickStepSeconds));
+}
+
+/**
+ * Is the climb lane open on these live threats (the engine's `climbLaneOpen` on the threat half,
+ * restated)? Under `pocket.climbLane` FRONT: no threat whose from-class is FRONT (its published
+ * approach on its alignment, `approach.ts`'s `fromOfApproach`); a threat with no approach under
+ * FRONT is a fault (the engine refuses it). Otherwise: no INTERIOR threat.
+ */
+export function climbLaneOpenOn(tunables: Tunables, live: readonly LiveThreat[]): boolean {
+  if (tunables.pocket.climbLane === undefined) return !live.some((t) => t.alignment === "INTERIOR");
+  return !live.some((t) => {
+    if (t.approach === undefined) throw new Error(`s5Stream: the climb lane rule FRONT read ${t.rusher}'s threat with no approach`);
+    return fromOfApproach(t.approach, t.alignment) === "FRONT";
+  });
 }
 
 export interface S5Escape {
@@ -122,6 +163,7 @@ function poolAt(d: Dropback, tick: number): { readonly best: number | undefined;
   return { best: values.length === 0 ? undefined : Math.max(...values), values };
 }
 
+
 /** A man's contest position at `tick`, from his coverage CHECK's band (the arm's band table), or the uncovered cell's. */
 export function contestPositionAt(d: Dropback, tunables: Tunables, receiver: string, tick: number): ContestPositionName {
   const check = d.checks.find((c) => (c.checkKind === "man_coverage" || c.checkKind === "zone_coverage") && c.actors[0] === receiver && c.tick <= tick + TOLERANCE);
@@ -156,12 +198,25 @@ export function readS5Dropback(play: S2Play, readOrder: readonly string[], ctx: 
 
   // The picks and the escapes, in the pocket.
   const picks: S5Pick[] = [];
+  const movesBefore = cleanMoveTicksOf(play);
   for (const m of play.movements) {
     if (!m.clean || m.afterPursuit) continue;
     const check = cleanChecks.find((c) => same(c.tick, m.tick));
     const move = play.stepUps.some((u) => u.index > m.index && same(u.tick, m.tick));
     const escape = scrambleChecks.some((c) => same(c.tick, m.tick));
-    picks.push({ tick: m.tick, band: check?.band, option: move ? "MOVE" : escape ? "ESCAPE" : "UNKNOWN" });
+    const status = statusAt.get(m.tick);
+    const live = status?.live ?? [];
+    const offered: CleanOption[] = [];
+    if (
+      block?.move === true &&
+      !movesBefore.some((t) => t < m.tick - TOLERANCE) &&
+      play.stepUps.filter((u) => u.tick < m.tick - TOLERANCE).length < tunables.pocketMovement.stepUp.maxPerPlay &&
+      climbLaneOpenOn(tunables, live)
+    ) {
+      offered.push("MOVE");
+    }
+    if (block?.breakOut === true) offered.push("ESCAPE");
+    picks.push({ tick: m.tick, band: check?.band, option: move ? "MOVE" : escape ? "ESCAPE" : "UNKNOWN", offered, todayUrgency: todayUrgencyOf(tunables, status?.minTta) });
   }
   const escapes: S5Escape[] = [];
   for (const c of scrambleChecks) {
@@ -262,7 +317,24 @@ export interface S5Fold {
   cleanExpiries: { total: number; byTrigger: Record<CleanExpiryTrigger, number>; byOutcome: Record<CleanExpiryOutcome, number> };
   /** D23's pool on every clean expiry: expiries with nobody at the expiry bar, and the men removed. */
   d23: { expiries: number; emptyPool: number; removedMen: number; pooledMen: number };
-  picks: { total: number; byBand: Record<string, number>; byOption: Record<string, number> };
+  picks: {
+    total: number;
+    byBand: Record<string, number>;
+    byOption: Record<string, number>;
+    /**
+     * Guardian C4: the picks split by how many options were offered (with one, the band decides
+     * nothing), each by option and by band.
+     */
+    byOffered: Record<"one" | "two", { n: number; byOption: Record<string, number>; byBand: Record<string, number> }>;
+    /** Picks whose chosen option is not in the derived offered set (a reader or engine fault). */
+    offerFaults: number;
+    /**
+     * Picks on a tick where today's urgency (the forced pick's rule) would have been above 0: the
+     * clean pick ranks at urgency 0 by definition (the Orchestrator's ruling on D27). Reported,
+     * never graded (for step 7's sight work), by option and by offered set.
+     */
+    urgencyAbove0: { n: number; byOption: Record<string, number>; byOffered: Record<"one" | "two", number> };
+  };
   cleanMoves: number;
   restarts: number;
   bumps: { receivers: number; byContest: Record<"TRAILING" | "EVEN", number>; moves: number };
@@ -281,7 +353,14 @@ export function emptyS5Fold(): S5Fold {
     cleanExpiryDropbacks: 0,
     cleanExpiries: { total: 0, byTrigger: zeros(["reads", "count"] as const), byOutcome: zeros(CLEAN_EXPIRY_OUTCOMES) },
     d23: { expiries: 0, emptyPool: 0, removedMen: 0, pooledMen: 0 },
-    picks: { total: 0, byBand: {}, byOption: {} },
+    picks: {
+      total: 0,
+      byBand: {},
+      byOption: {},
+      byOffered: { one: { n: 0, byOption: {}, byBand: {} }, two: { n: 0, byOption: {}, byBand: {} } },
+      offerFaults: 0,
+      urgencyAbove0: { n: 0, byOption: {}, byOffered: { one: 0, two: 0 } },
+    },
     cleanMoves: 0,
     restarts: 0,
     bumps: { receivers: 0, byContest: zeros(["TRAILING", "EVEN"] as const), moves: 0 },
@@ -310,6 +389,18 @@ export function foldS5Dropback(fold: S5Fold, x: S5Dropback): void {
     const band = p.band ?? "NONE";
     fold.picks.byBand[band] = (fold.picks.byBand[band] ?? 0) + 1;
     fold.picks.byOption[p.option] = (fold.picks.byOption[p.option] ?? 0) + 1;
+    const count = p.offered.length >= 2 ? "two" : "one";
+    const cell = fold.picks.byOffered[count];
+    cell.n += 1;
+    cell.byOption[p.option] = (cell.byOption[p.option] ?? 0) + 1;
+    cell.byBand[band] = (cell.byBand[band] ?? 0) + 1;
+    if (p.option === "UNKNOWN" || !p.offered.includes(p.option)) fold.picks.offerFaults += 1;
+    if (p.todayUrgency > 0) {
+      const u = fold.picks.urgencyAbove0;
+      u.n += 1;
+      u.byOption[p.option] = (u.byOption[p.option] ?? 0) + 1;
+      u.byOffered[count] += 1;
+    }
   }
   fold.cleanMoves += x.cleanMoves.length;
   fold.restarts += x.restarts;

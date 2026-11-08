@@ -25,7 +25,9 @@ import {
   s5Summary,
   type S5Dropback,
 } from "../src/pocket/s5Stream.js";
-import { s2ContextOf } from "../src/pocket/s2Stream.js";
+import { POCKET_1_S5A_RULES, readSystemDeltaLeaves, step5Bundle } from "../src/pocket/rules.js";
+import { climbLaneOpenOn, todayUrgencyOf } from "../src/pocket/s5Stream.js";
+import { s2ContextOf, type LiveThreat } from "../src/pocket/s2Stream.js";
 import { STEP1_CALLER } from "../src/pocket/step1.js";
 import type { Dropback } from "../src/pocket/throwClass.js";
 
@@ -67,7 +69,7 @@ describe("s5Stream on the fixture play (clean MOVE, reading HOLD at 2.5 s, THROW
       { tick: 1.5, trigger: "count", outcome: "MOVE", best: 26, pool: 3, belowBar: 3 },
       { tick: 3, trigger: "reads", outcome: "THROW", best: 31, pool: 4, belowBar: 3 },
     ]);
-    expect(p!.picks).toEqual([{ tick: 1.5, band: "SOUND", option: "MOVE" }]);
+    expect(p!.picks).toEqual([{ tick: 1.5, band: "SOUND", option: "MOVE", offered: ["MOVE", "ESCAPE"], todayUrgency: 0 }]);
     expect(p!.bumps).toEqual([{ tick: 1.5, receiver: "p:t:31:WR1", contest: "EVEN" }]);
     // HOLDs before the floor (0.5 and 1.0 s); the HOLDs at 2.0 and 2.5 s are after it.
     expect(p!.floorWaits).toEqual([
@@ -110,6 +112,13 @@ describe("s5Stream on the s5 bench game (every part on)", () => {
     expect(again).toEqual(fold);
     process.stdout.write(`s5Stream, s5 bench game 1: ${JSON.stringify(s5Summary(fold))}\n`);
     expect(fold.dropbacks).toBe(x5.length);
+    // Guardian C4's split: every pick is in one of the two cells, its option in its offered set; the
+    // bench has no threat, so today's urgency is 0 on every pick.
+    expect(fold.picks.byOffered.one.n + fold.picks.byOffered.two.n).toBe(fold.picks.total);
+    expect(fold.picks.byOffered.one.n).toBeGreaterThan(0);
+    expect(fold.picks.byOffered.two.n).toBeGreaterThan(0);
+    expect(fold.picks.offerFaults).toBe(0);
+    expect(fold.picks.urgencyAbove0.n).toBe(0);
     expect(fold.picks.total).toBe(fold.cleanExpiries.byOutcome.MOVE + fold.cleanExpiries.byOutcome.ESCAPE);
     expect(fold.picks.byOption["MOVE"]).toBe(fold.cleanMoves);
     expect(fold.restarts).toBeLessThanOrEqual(fold.cleanMoves);
@@ -182,4 +191,67 @@ describe("the bump's stream facts, on constructed dropbacks", () => {
     foldS5Dropback(fold, x);
     expect(() => foldS5Dropback(fold, { ...x, readSystem: "HALF_FIELD" })).toThrow(/reads CONCEPT and HALF_FIELD/);
   });
+});
+
+describe("the clean pick's offered set and today's urgency (guardian C4; the ruling on D27)", () => {
+  const live = (alignment: "EDGE" | "INTERIOR", approach: LiveThreat["approach"], etaTick = 3): LiveThreat => ({ rusher: "r", origin: "WON_REP", alignment, etaTick, arrived: false, ...(approach === undefined ? {} : { approach }) }) as LiveThreat;
+
+  it("today's urgency is the forced pick's rule: 0 with no threat, 1 for a threat 1.0 to 1.25 s out, 0 past 1.25 s", () => {
+    expect(todayUrgencyOf(S5, undefined)).toBe(0);
+    expect(todayUrgencyOf(S5, 1.1)).toBe(1);
+    expect(todayUrgencyOf(S5, 1.2)).toBe(1);
+    expect(todayUrgencyOf(S5, 1.3)).toBe(0);
+    expect(todayUrgencyOf(S5, 0.5)).toBe(2);
+  });
+
+  it("the climb lane on the tick's live threats, by the arm's rule (FRONT: the approach's from-class; else INTERIOR)", () => {
+    expect(S5.pocket.climbLane).toBe("FRONT");
+    expect(climbLaneOpenOn(S5, [])).toBe(true);
+    expect(climbLaneOpenOn(S5, [live("EDGE", "ARC")])).toBe(true);
+    expect(climbLaneOpenOn(S5, [live("EDGE", "THROUGH")])).toBe(false);
+    expect(climbLaneOpenOn(S5, [live("INTERIOR", "FREE")])).toBe(false);
+    expect(climbLaneOpenOn(S5, [live("INTERIOR", "ARC")])).toBe(true);
+    expect(() => climbLaneOpenOn(S5, [live("EDGE", undefined)])).toThrow(/no approach/);
+    const interior = { ...S5, pocket: { ...S5.pocket, climbLane: undefined } } as unknown as Tunables;
+    expect(climbLaneOpenOn(interior, [live("EDGE", "THROUGH")])).toBe(true);
+    expect(climbLaneOpenOn(interior, [live("INTERIOR", "ARC")])).toBe(false);
+  });
+
+  it("the fold splits the picks one option from two, and counts those whose today's urgency is above 0 by option and offered set", () => {
+    const fold = emptyS5Fold();
+    const base = { playId: "p", call: "Mesh", readSystem: "CONCEPT", screen: false, floorSeconds: 1, cleanExpiries: [], cleanMoves: [], restarts: 0, bumps: [], escapes: [], floorWaits: [], coverageSack: false, sacked: false, sackTick: undefined };
+    foldS5Dropback(fold, {
+      ...base,
+      picks: [
+        { tick: 1, band: "SOUND", option: "MOVE", offered: ["MOVE", "ESCAPE"], todayUrgency: 1 },
+        { tick: 2, band: "RUSHED", option: "ESCAPE", offered: ["ESCAPE"], todayUrgency: 1 },
+        { tick: 3, band: "PANICKED", option: "ESCAPE", offered: ["MOVE", "ESCAPE"], todayUrgency: 0 },
+        { tick: 4, band: "SOUND", option: "MOVE", offered: ["ESCAPE"], todayUrgency: 0 },
+      ],
+    });
+    expect(fold.picks.byOffered.two).toEqual({ n: 2, byOption: { MOVE: 1, ESCAPE: 1 }, byBand: { SOUND: 1, PANICKED: 1 } });
+    expect(fold.picks.byOffered.one).toEqual({ n: 2, byOption: { ESCAPE: 1, MOVE: 1 }, byBand: { RUSHED: 1, SOUND: 1 } });
+    expect(fold.picks.offerFaults).toBe(1);
+    expect(fold.picks.urgencyAbove0).toEqual({ n: 2, byOption: { MOVE: 1, ESCAPE: 1 }, byOffered: { one: 1, two: 1 } });
+  });
+
+  it("on the league (s5a's block at a fitted-like offset, gen golden game 36): a pick on a CLEAN tick with a threat 1.0 to 1.25 s out is read with today's urgency 1, and every option is in its offered set", () => {
+    // The game the no-play-change review traced (gen 35, a BUBBLE_NOW screen, an INTERIOR FREE
+    // blitzer 1.1 s out at 0.5 s): before the ruling the engine threw here.
+    const t = step5Bundle(POCKET_1_S5A_RULES, readSystemDeltaLeaves({ HALF_FIELD: 0.5, FULL_FIELD: -0.25, CONCEPT: 1.0 }));
+    const fold = emptyS5Fold();
+    let picks = 0;
+    goldenGames("gen", (o, snapshot) => {
+      const ctx = s2ContextOf(t, snapshot);
+      for (const x of s5DropbacksOf(o.events, ctx)) {
+        foldS5Dropback(fold, x);
+        picks += x.picks.length;
+      }
+    }, { tunables: t, callerVersion: STEP1_CALLER, first: 36 });
+    process.stdout.write(`s5Stream, gen golden 36 at the offsets: picks ${JSON.stringify(fold.picks)}\n`);
+    expect(picks).toBeGreaterThan(100);
+    expect(fold.picks.offerFaults).toBe(0);
+    expect(fold.picks.urgencyAbove0.n).toBeGreaterThan(0);
+    expect(fold.picks.urgencyAbove0.byOffered.one + fold.picks.urgencyAbove0.byOffered.two).toBe(fold.picks.urgencyAbove0.n);
+  }, 300_000);
 });

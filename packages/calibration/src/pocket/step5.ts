@@ -566,6 +566,7 @@ export function gradeStep5(x: GradeStep5Inputs): Step5Grade {
   if (half === "5a") proof("S-6", "the bench is clean: no dropback's worst status above CLEAN", every((id) => step5ArmDef(id)?.step5.kind === "bench", (r, l) => (r.s5[l].extra.nonClean > 0 ? `${String(r.s5[l].extra.nonClean)} dropback(s) above CLEAN` : undefined)));
   if (half === "5b") proof("S-10", "no CLOCK_EXPIRED throwaway on an F arm comes from a dropback CLEAN through the throwaway", every((id) => STEP5_GRID[id] !== undefined || id === "F0", (r, l) => (r.s5[l].extra.cleanClockExpired > 0 ? `${String(r.s5[l].extra.cleanClockExpired)} clean CLOCK_EXPIRED throwaway(s)` : undefined)));
   proof("rows", "the clean-pocket rows' build check (no clean scramble without the block)", every(() => true, (r, l) => cleanPocketRowProblems(r.s5[l].rows)[0]), "fold");
+  proof("picks:offered", "every clean pick's option is in the offered set the stream and the arm's rules give (guardian C4)", every(() => true, (r, l) => (r.s5[l].s5.picks.offerFaults > 0 ? `${String(r.s5[l].s5.picks.offerFaults)} pick(s) outside their offered set` : undefined)), "fold");
   waits.push("S-4 (no aimed pocket THROW decided before its first read's floor), S-5 (the bump never writes contestPosition) and S-9 (the release mean equals the mean of THROW.releaseSeconds) are the engine's and the readers' unit proofs in this build; the harness does not re-read them");
 
   // The guard under AM-8 (S5 class view; equal dials skipped).
@@ -755,6 +756,14 @@ export function gradeStep5(x: GradeStep5Inputs): Step5Grade {
           `picks ${String(f.picks.total)} ${canonicalise(f.picks.byOption)}; clean moves ${String(f.cleanMoves)}; restarts ${String(f.restarts)} (${num(sum.restartPer100Dropbacks)} per 100); bump receivers ${String(f.bumps.receivers)}; ` +
           `floor waits ${String(f.floorWaits.holds)}; escapes ${String(f.escapes.attempts)} (repeated ${String(f.escapes.repeatedPlays)}); coverage sacks ${String(f.coverageSacks.n)} of ${String(f.coverageSacks.sacks)}`,
       );
+      if (f.picks.total > 0) {
+        const cell = (c: S5Fold["picks"]["byOffered"]["one"]): string => `${String(c.n)} (by option ${canonicalise(c.byOption)}; by band ${canonicalise(c.byBand)})`;
+        const u = f.picks.urgencyAbove0;
+        affected.push(
+          `${id} set ${String(s)} ${l}: the picks by offered set (guardian C4; with one option the band decides nothing): one option ${cell(f.picks.byOffered.one)}, two options ${cell(f.picks.byOffered.two)}; ` +
+            `picks on a tick where today's urgency would be above 0 (ranked at 0 by definition; reported, never graded, for step 7's sight work): ${String(u.n)} (by option ${canonicalise(u.byOption)}; one option ${String(u.byOffered.one)}, two options ${String(u.byOffered.two)})`,
+        );
+      }
     }
   }
 
