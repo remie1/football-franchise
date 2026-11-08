@@ -84,6 +84,7 @@
 import { applyTunablePatch, DEFAULT_TUNABLES, type Tunables } from "@ff/engine";
 import { stableDigest } from "../harness/digest.js";
 import type { SeedSet } from "./corpus.js";
+import { cleanBenchTunablesS5, CLEAN_BENCH_PARTS, type CleanBenchPart, type CleanBenchParts } from "./oneThreatBench.js";
 import {
   EngineRulesError,
   LEGACY_RULES,
@@ -99,8 +100,17 @@ import {
   POCKET_1_S4_CONTACT,
   POCKET_1_S4_MOTION,
   POCKET_1_S4_RULES,
+  POCKET_1_S5A_LEAVES,
+  POCKET_1_S5A_OVERLAY,
+  POCKET_1_S5A_RULES,
+  POCKET_1_S5B_OVERLAY,
+  POCKET_1_S5B_RULES,
+  READ_SYSTEMS,
   checkStamp,
   isStep5Rules,
+  readSystemDeltaLeaves,
+  step5Bundle,
+  step5OverlayAt,
   overlayDigestOf,
   step4PetitionsIn,
   rulesTunables,
@@ -117,7 +127,10 @@ import {
   type PocketLateBlock,
   type PocketMotion,
   type PocketOverlay,
+  type ReadSystemOffsets,
+  type StampedRules,
   type Step4Petitions,
+  type Step5Rules,
 } from "./rules.js";
 
 /** Freeze a plain-data tree in place, every depth, and return the same reference. */
@@ -441,19 +454,27 @@ export const STEP5_DEFINED_AT_FIT: readonly Step5aArmId[] = Object.freeze(["E1",
 export const STEP5_DEFINED_AT_SELECTION: readonly Step5bArmId[] = Object.freeze(["F0", "G1", "G2"] as const);
 
 /**
- * Why a step-5 arm id names no arm in this build, or `undefined` for any other id. Every step-5 id is
- * named and inert here: E1, E9 and E10 wait on the 5a fit's record (their deltas are the fit's), F0,
- * G1 and G2 on the 5b selection's (they are the winner's), and the others on the step-5 bundles.
+ * Why a step-5 arm id names no arm in this build, or `undefined` when it does (and for any other id).
+ * E0 and E2 to E8 are defined with the step-5 bundles (`STEP5_ARM_DEFS`); E1, E9, E10 and F1 to F14
+ * wait on the 5a fit's record (their deltas are the fit's: `POCKET_1_S5A_LEAVES`); F0, G1 and G2 on
+ * the 5b selection's (they are the winner's: `POCKET_1_S5B_OVERLAY`). When the fit lands on today's
+ * deltas, E1 is E0 and E9 is E8 (AM-9 `fit.record`, `e9IsE8`): neither is defined apart, and the
+ * refusal says so. `records` is a test's seam (default: this build's recorded literals).
  */
-export function step5ArmRefusal(id: string): string | undefined {
+export function step5ArmRefusal(id: string, records: Step5Records = recordedStep5()): string | undefined {
   if (!isStep5aArmId(id) && !isStep5bArmId(id)) return undefined;
   const half = isStep5aArmId(id) ? "5a" : "5b";
-  const when = (STEP5_DEFINED_AT_FIT as readonly string[]).includes(id)
-    ? "defined only once the 5a fit is recorded (its deltas are the fit's)"
-    : (STEP5_DEFINED_AT_SELECTION as readonly string[]).includes(id)
-      ? "defined only once the 5b selection is recorded (it is the winner's build)"
-      : "defined with the step-5 bundles";
-  return `${id} is one of step ${half}'s arms, named in this build but not yet defined (ADR-089 step 5, plan §5): ${when}`;
+  const def = STEP5_ARM_DEFS.find((d) => d.id === id)!;
+  const r = def.step5;
+  const needsFit = (r.kind === "bench" && r.fitted) || r.kind === "league";
+  const needsSelection = r.kind === "league" && r.at === "selection";
+  const named = (when: string): string => `${id} is one of step ${half}'s arms, named in this build but not yet defined (ADR-089 step 5, plan §5): ${when}`;
+  if (needsFit && records.fitted === undefined) return named("defined only once the 5a fit is recorded (its deltas are the fit's)");
+  if (needsSelection && records.selection === undefined) return named("defined only once the 5b selection is recorded (it is the winner's build)");
+  if (records.fitted !== undefined && READ_SYSTEMS.every((s) => records.fitted![s] === 0) && (id === "E1" || id === "E9")) {
+    return `${id} is ${id === "E1" ? "E0" : "E8"}: the 5a fit landed on today's deltas, so ${id}'s dials are ${id === "E1" ? "E0" : "E8"}'s and it is not defined apart (AM-9 fit.record, e9IsE8)`;
+  }
+  return undefined;
 }
 
 /**
@@ -910,7 +931,8 @@ export const STEP4_ARM_DEFS: readonly ArmDef[] = deepFreeze([
 /** An arm (or a proof overlay) with its tunables built. Plain data and frozen tunables. */
 export interface Arm extends Omit<ArmDef, "id" | "rules"> {
   readonly id: ArmId | ProofOverlayId;
-  readonly rules: EngineRules;
+  /** The stamp's rules name: an engine name, or (step 5's arms only) `pocket-1.s5a` or `pocket-1.s5b`. */
+  readonly rules: StampedRules;
   /** Deep-frozen; checked against `rules` by `checkStamp` when built. */
   readonly tunables: Tunables;
   /** `overlayDigestOf(tunables)`: the dials less the stamp (O28), distinct for every arm. */
@@ -1112,7 +1134,7 @@ export function step4ArmDef(id: ArmId): ArmDef | undefined {
   return STEP4_ARM_DEFS.find((d) => d.id === id);
 }
 
-let table: { readonly arms: ReadonlyMap<ArmId, Arm>; readonly proofs: ReadonlyMap<ProofOverlayId, Arm>; readonly byDigest: ReadonlyMap<string, Arm> } | undefined;
+let table: { readonly arms: ReadonlyMap<ArmId, Arm>; readonly proofs: ReadonlyMap<ProofOverlayId, Arm>; readonly byDigest: ReadonlyMap<string, readonly Arm[]> } | undefined;
 
 function armTable(): NonNullable<typeof table> {
   if (table !== undefined) return table;
@@ -1123,11 +1145,11 @@ function armTable(): NonNullable<typeof table> {
   }
   const proofs = new Map<ProofOverlayId, Arm>();
   for (const def of PROOF_DEFS) proofs.set(def.id, build(def));
-  const byDigest = new Map<string, Arm>();
+  const byDigest = new Map<string, Arm[]>();
   for (const arm of [...arms.values(), ...proofs.values()]) {
-    const seen = [...arms.values(), ...proofs.values()].find((a) => a !== arm && a.digest === arm.digest);
-    if (seen !== undefined) throw new Error(`arms: ${arm.id} and ${seen.id} have the same digest ${arm.digest}; every arm's dials are its own (O28)`);
-    if (arm.overlayDigest !== undefined) byDigest.set(arm.overlayDigest, arm);
+    const seen = [...arms.values(), ...proofs.values()].find((a) => a !== arm && a.digest === arm.digest && a.rules === arm.rules);
+    if (seen !== undefined) throw new Error(`arms: ${arm.id} and ${seen.id} have the same rules ${arm.rules} and the same dials ${arm.digest}; every arm is distinct by (rules name, dials) (O28 as amended at step 5)`);
+    if (arm.overlayDigest !== undefined) byDigest.set(arm.overlayDigest, [...(byDigest.get(arm.overlayDigest) ?? []), arm]);
   }
   table = { arms, proofs, byDigest };
   return table;
@@ -1162,7 +1184,7 @@ export function everyArm(): readonly Arm[] {
  * (`armRefusal`), and a step-5 id, which this build names but does not define (`step5ArmRefusal`).
  */
 export function armById(id: ArmId): Arm {
-  const arm = armTable().arms.get(id);
+  const arm = armTable().arms.get(id) ?? ((isStep5aArmId(id) || isStep5bArmId(id)) && step5ArmRefusal(id) === undefined ? step5Table().arms.get(id) : undefined);
   if (arm === undefined) {
     const inert = step5ArmRefusal(id);
     if (inert !== undefined) throw new Error(`arms: ${inert}: nothing plays it`);
@@ -1181,16 +1203,25 @@ export function proofOverlay(id: ProofOverlayId): Arm {
 }
 
 /**
- * The arm (or proof overlay) whose dials a stream's `PLAY_START.rules.overlayDigest` names (N9),
- * step 1's, step 2's and step 3's alike. Refused: a digest no arm of this build carries, since
- * nobody could rebuild that stream's margins.
+ * The arm (or proof overlay) whose dials a stream's `PLAY_START.rules` names (N9), step 1's to step
+ * 5's alike. O28 as amended at step 5: an arm is distinct by (rules name, dials), so the lookup is by
+ * both; F0 (the winner's dials restamped `pocket-1.s5b`, `restampOf`) shares its grid arm's dials
+ * under another name. With `rules` left out (a reader of steps 1 to 4, whose arms' dials are distinct
+ * on their own), the one arm with those dials; refused if two carry them. Refused: dials no arm of
+ * this build carries, since nobody could rebuild that stream's margins.
  */
-export function armOfDigest(overlayDigest: string): Arm {
-  const arm = armTable().byDigest.get(overlayDigest);
-  if (arm === undefined) {
-    throw new EngineRulesError(`a stream stamped with overlay ${overlayDigest}, which no step-1 arm of this build carries, nor any step-2 or step-3 arm: its dials cannot be named (N9)`);
+export function armOfDigest(overlayDigest: string, rules?: StampedRules): Arm {
+  const pick = (m: ReadonlyMap<string, readonly Arm[]>): readonly Arm[] => (m.get(overlayDigest) ?? []).filter((a) => rules === undefined || a.rules === rules);
+  // Steps 1 to 4's table first, so a reader of their streams never builds step 5's.
+  const early = rules !== undefined && isStep5Rules(rules) ? [] : pick(armTable().byDigest);
+  const found = early.length > 0 ? early : pick(step5Table().byDigest);
+  if (found.length === 0) {
+    throw new EngineRulesError(
+      `a stream stamped with overlay ${overlayDigest}${rules === undefined ? "" : ` under ${rules}`}, which no step-1 arm of this build carries, nor any step-2, step-3, step-4 or step-5 arm: its dials cannot be named (N9)`,
+    );
   }
-  return arm;
+  if (found.length > 1) throw new EngineRulesError(`overlay ${overlayDigest} is carried by ${found.map((a) => `${a.id} (${a.rules})`).join(" and ")}: name the rules as well (O28 as amended at step 5)`);
+  return found[0]!;
 }
 
 /**
@@ -1245,4 +1276,235 @@ export function exclusiveMechanisms(arm: Pick<ArmDef, "clock" | "patchSets" | "b
   if (arm.base === undefined) return own;
   const base = new Set(mechanismsOf(step4ArmDef(arm.base) ?? armById(arm.base)));
   return own.filter((m) => !base.has(m));
+}
+
+// --- step 5's arms (plan §5.1, §5.2; AM-8, AM-9, AM-10) ---------------------------------------------
+
+/** A grid point of the 5b block clock: S at theta (k 2, beta 0.5, the push window) or L at R. */
+export type Step5Grid = { readonly shape: "S"; readonly theta: number } | { readonly shape: "L"; readonly R: number };
+
+/**
+ * How a step-5 arm's tunables are built (plan §5.1, §5.2):
+ *  - `bench`: the clean bench (`cleanBenchTunablesS5`) with `parts` (none: step 4's bench, stamped
+ *    `pocket-1.s4`) and today's or the fitted deltas;
+ *  - `league`: `step5Bundle` with the fitted deltas, on `pocket-1.s5a`'s overlay at a grid point, or
+ *    at the selection's winner (`"selection"`), stamped `rules`; `extra` adds C15's band edges (G1)
+ *    or C11's reading (c) (G2).
+ */
+export type Step5Recipe =
+  | { readonly kind: "bench"; readonly parts?: CleanBenchParts; readonly fitted: boolean }
+  | { readonly kind: "league"; readonly at: Step5Grid | "selection"; readonly rules: Step5Rules; readonly extra?: "BAND_EDGES" | "READING_C" };
+
+export interface Step5ArmDef extends Omit<ArmDef, "id" | "rules"> {
+  readonly id: Step5aArmId | Step5bArmId;
+  readonly rules: OverlayRules | Step5Rules;
+  readonly step5: Step5Recipe;
+}
+
+/**
+ * The records the step-5 arms wait on: the fit's deltas (offsets from today's, `POCKET_1_S5A_LEAVES`)
+ * and the selection's winner (its grid point and the F arm it restamps, `POCKET_1_S5B_OVERLAY`).
+ */
+export interface Step5Records {
+  readonly fitted?: ReadSystemOffsets;
+  readonly selection?: { readonly at: Step5Grid; readonly restampOf: Step5bArmId };
+}
+
+/** The F arm at each grid point: F1 to F9 S theta 7 to 15, F10 to F14 L R 4 to 8. */
+export const STEP5_GRID: Readonly<Record<string, Step5Grid>> = Object.freeze({
+  F1: { shape: "S", theta: 7 }, F2: { shape: "S", theta: 8 }, F3: { shape: "S", theta: 9 }, F4: { shape: "S", theta: 10 }, F5: { shape: "S", theta: 11 },
+  F6: { shape: "S", theta: 12 }, F7: { shape: "S", theta: 13 }, F8: { shape: "S", theta: 14 }, F9: { shape: "S", theta: 15 },
+  F10: { shape: "L", R: 4 }, F11: { shape: "L", R: 5 }, F12: { shape: "L", R: 6 }, F13: { shape: "L", R: 7 }, F14: { shape: "L", R: 8 },
+});
+
+/** The F arm at a grid point. */
+export function gridArmOf(at: Step5Grid): Step5bArmId {
+  const hit = Object.entries(STEP5_GRID).find(([, g]) => (g.shape === "S" && at.shape === "S" ? g.theta === at.theta : g.shape === "L" && at.shape === "L" ? g.R === at.R : false));
+  if (hit === undefined) throw new RangeError(`arms: ${JSON.stringify(at)} is not a 5b grid point`);
+  return hit[0] as Step5bArmId;
+}
+
+/** The offsets a set of read-system leaf patches makes (proposed less current), 0 for a system with none. */
+export function offsetsOfLeaves(leaves: readonly TunablePatch[]): ReadSystemOffsets {
+  const out: Record<string, number> = { HALF_FIELD: 0, FULL_FIELD: 0, CONCEPT: 0 };
+  for (const l of leaves) {
+    const m = /^qb\.readSystem\.(HALF_FIELD|FULL_FIELD|CONCEPT)\.budgetDeltaSeconds$/.exec(l.tunableId);
+    if (m === null) throw new EngineRulesError(`arms: ${l.tunableId} is not one of the fit's three dials`);
+    out[m[1]!] = Number(l.proposedValue) - Number(l.currentValue);
+  }
+  return out as ReadSystemOffsets;
+}
+
+/** The grid point a step-5 overlay's block clock is at. */
+export function gridOfOverlay(o: PocketOverlay): Step5Grid {
+  if (o.beatClock !== undefined) return { shape: "S", theta: o.beatClock.thetaSeconds };
+  if (o.repClock !== undefined) return { shape: "L", R: o.repClock.fullExpressionSeconds };
+  throw new EngineRulesError("arms: a step-5 overlay with no block clock");
+}
+
+/** This build's recorded step-5 literals as the arms read them (none until the fit and the selection commits). */
+export function recordedStep5(): Step5Records {
+  const fitted = POCKET_1_S5A_LEAVES === undefined ? undefined : offsetsOfLeaves(POCKET_1_S5A_LEAVES);
+  if (fitted === undefined || POCKET_1_S5B_OVERLAY === undefined) return fitted === undefined ? {} : { fitted };
+  const at = gridOfOverlay(POCKET_1_S5B_OVERLAY);
+  return { fitted, selection: { at, restampOf: gridArmOf(at) } };
+}
+
+/** The bench parts of E2 to E8 and E9, E10 (plan §5.1's table). */
+const EP = (on: readonly CleanBenchPart[], resetSeconds?: number): CleanBenchParts => ({ on, ...(resetSeconds === undefined ? {} : { resetSeconds }) });
+const CHECKLIST: readonly CleanBenchPart[] = ["d23", "move", "bump", "breakOut", "d23OnRun"];
+const S5A_GRADED = ["s5a.cleanScramble", "s5a.completion", "s5a.int"] as const;
+const S5A_REPORTED = ["s5a.release", "s5a.under1", "s5a.over35", "s5a.cleanOuts", "s5a.checkdown", "s5a.laterRead", "s5a.nobodyOpen", "s5a.removedClass", "s5a.cleanThrowaway", "s5a.intLeague"] as const;
+const S5B_GRADED = ["s5b.sack", "s5b.hitOrSack", "s5b.release", "s5b.clockExpired", "s5b.pressure", "mr.bin20.raw", "mr.unblockedPressures", "mr.unblockedShare"] as const;
+const S5B_REPORTED = ["s5b.binsTwiceFtn", "s5b.quick", "s5b.standIn", "mr.unblockedMen"] as const;
+
+/** Every step-5 arm's shared league settings: step 4's design (S with the window, Half and Follows, must act per rusher, step 3's and step 4's blocks). */
+const S5_COMMON = { clock: S(true), patchSets: ["HALF", "FOLLOWS"] as PatchSetName[], forcing: "PER_RUSHER" as ForcingRule, step3: S3_BLOCKS, step4: S4_BLOCKS, seedSet: 1 as SeedSet, pricing: false };
+
+const bench = (id: Step5aArmId, what: string, role: string, rules: OverlayRules | Step5Rules, parts: CleanBenchParts | undefined, fitted: boolean, base: ArmId | undefined, graded: readonly string[] = [], reported: readonly string[] = []): Step5ArmDef => ({
+  ...S5_COMMON, id, what, role, rules, ...(base === undefined ? {} : { base }), graded: [...graded], reported: [...reported], step5: { kind: "bench", ...(parts === undefined ? {} : { parts }), fitted },
+});
+const grid = (id: Step5bArmId): Step5ArmDef => {
+  const at = STEP5_GRID[id]!;
+  const where = at.shape === "S" ? `S theta ${String(at.theta)}` : `L R ${String(at.R)}`;
+  return {
+    ...S5_COMMON, ...(at.shape === "L" ? { clock: L(at.R) } : {}), id, rules: POCKET_1_S5A_RULES,
+    what: id === "F5" ? `pocket-1.s5a itself (${where})` : `pocket-1.s5a at ${where}`,
+    role: "a 5b grid point (the first pass)", base: id === "F5" ? "D1" : "F5", graded: id === "F5" ? [...GUARD] : [], reported: [],
+    step5: { kind: "league", at, rules: POCKET_1_S5A_RULES },
+  };
+};
+
+/**
+ * Step 5's arms (plan §5.1, §5.2), row by row. E0 to E10 on the clean bench (both leagues, both seed
+ * sets); F1 to F14 the 5b grid on the league; F0 the winner restamped `pocket-1.s5b`; G1 and G2 F0
+ * with C15's band edges and with C11's reading (c). `base` is AM-8's map where it names one (E9 on
+ * E0, F5 on D1, F0 on F5) and otherwise the arm each alone arm is priced against (plan §5.1's role
+ * column). Built by `buildStep5Arm`, never by `build`; refused by name while its record is out
+ * (`step5ArmRefusal`).
+ */
+export const STEP5_ARM_DEFS: readonly Step5ArmDef[] = deepFreeze([
+  bench("E0", "step 4's build on the clean bench (cleanBenchTunablesS4)", "base; guard base; played fresh and twice", POCKET_1_S4_RULES, undefined, false, undefined),
+  bench("E1", "the fitted deltas alone (pocket-1.s4 with leaf patches)", "the count alone", POCKET_1_S4_RULES, undefined, true, "E0"),
+  bench("E2", "the drop floor alone", "the floor alone", POCKET_1_S5A_RULES, EP(["floor"]), false, "E0"),
+  bench("E3", "D23 alone", "item b alone", POCKET_1_S5A_RULES, EP(["d23"]), false, "E0"),
+  bench("E4", "the clean move alone (climb, restart, reset 1.0), no bump", "item d alone", POCKET_1_S5A_RULES, EP(["move"]), false, "E0"),
+  bench("E5", "E4 with the bump", "the bump's price (E5 - E4)", POCKET_1_S5A_RULES, EP(["move", "bump"]), false, "E4"),
+  bench("E6", "the break-out with D23 on the run; D23 in the pocket off", "item e alone", POCKET_1_S5A_RULES, EP(["breakOut", "d23OnRun"]), false, "E0"),
+  bench("E7", "the checklist joint, today's deltas, no floor", "checklist joint", POCKET_1_S5A_RULES, EP(CHECKLIST), false, "E0"),
+  bench("E8", "E7 with the floor", "the fit's base build", POCKET_1_S5A_RULES, EP(CLEAN_BENCH_PARTS), false, "E7"),
+  bench("E9", "E8 with the fitted deltas: pocket-1.s5a on the bench", "graded; guard pair with E0", POCKET_1_S5A_RULES, EP(CLEAN_BENCH_PARTS), true, "E0", [...S5A_GRADED, ...GUARD], S5A_REPORTED),
+  bench("E10", "E9 with no reset (resetSeconds 0)", "the reset alone (D33)", POCKET_1_S5A_RULES, EP(CLEAN_BENCH_PARTS, 0), true, "E9", [], ["s5a.reset"]),
+  {
+    ...S5_COMMON, id: "F0", rules: POCKET_1_S5B_RULES, what: "the selection's winner restamped pocket-1.s5b (b 5)", role: "graded (AM-10 s5b.arm)",
+    base: "F5", graded: [...S5B_GRADED, ...GUARD], reported: [...S5B_REPORTED], step5: { kind: "league", at: "selection", rules: POCKET_1_S5B_RULES },
+  },
+  ...(["F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12", "F13", "F14"] as const).map(grid),
+  {
+    ...S5_COMMON, id: "G1", rules: POCKET_1_S5B_RULES, patchSets: ["HALF", "FOLLOWS", "BAND_EDGES"], what: "F0 with C15's band edges", role: "information, prices the miss rule's option A; never graded",
+    base: "F0", graded: [], reported: [], step5: { kind: "league", at: "selection", rules: POCKET_1_S5B_RULES, extra: "BAND_EDGES" },
+  },
+  {
+    ...S5_COMMON, id: "G2", rules: POCKET_1_S5B_RULES, step3: { freeRun: freeRunWith({ reading: "C" }), climbLane: POCKET_1_S3_CLIMB_LANE }, what: "F0 with C11's reading (c)",
+    role: "information, prices the miss rule's option C; never graded", base: "F0", graded: [], reported: [], step5: { kind: "league", at: "selection", rules: POCKET_1_S5B_RULES, extra: "READING_C" },
+  },
+] satisfies readonly Step5ArmDef[]);
+
+/** Step 5's definition of an arm (built or not), or `undefined` for any other id. */
+export function step5ArmDef(id: ArmId): Step5ArmDef | undefined {
+  return STEP5_ARM_DEFS.find((d) => d.id === id);
+}
+
+/** The block clock's overlay at a grid point (`step5OverlayAt`; at S theta 11 it is `POCKET_1_S5A_OVERLAY`'s value). */
+export function step5OverlayOfGrid(at: Step5Grid): PocketOverlay {
+  if (at.shape === "S") return step5OverlayAt({ beatClock: { ...POCKET_1_S5A_OVERLAY.beatClock!, thetaSeconds: at.theta } });
+  return step5OverlayAt({ repClock: { fullExpressionSeconds: at.R } });
+}
+
+/**
+ * Builds one step-5 arm from its definition and the records it waits on (plan §5): a bench arm by
+ * `cleanBenchTunablesS5`, a league arm by `step5Bundle` with the fitted deltas as leaves on the base;
+ * checked by `checkStamp` under its own rules name. Refused (by `step5ArmRefusal`'s message) when a
+ * record it needs is not given. Exported as a test seam: a test builds the whole step-5 table with a
+ * fit and a selection of its own (`step5ArmsWith`); the build reads its recorded literals.
+ */
+export function buildStep5Arm(def: Step5ArmDef, records: Step5Records): Arm {
+  const refusal = step5ArmRefusal(def.id, records);
+  if (refusal !== undefined) throw new Error(`arms: ${refusal}: nothing plays it`);
+  const r = def.step5;
+  const offsets = records.fitted ?? { HALF_FIELD: 0, FULL_FIELD: 0, CONCEPT: 0 };
+  let tunables: Tunables;
+  let patches: readonly TunablePatch[];
+  if (r.kind === "bench") {
+    const used = r.fitted ? offsets : { HALF_FIELD: 0, FULL_FIELD: 0, CONCEPT: 0 };
+    tunables = cleanBenchTunablesS5(r.parts, used);
+    patches = readSystemDeltaLeaves(used, POCKET_1_S2_LEAVES.reduce(applyTunablePatch, DEFAULT_TUNABLES));
+  } else {
+    const at = r.at === "selection" ? records.selection!.at : r.at;
+    let overlay = step5OverlayOfGrid(at);
+    if (r.extra === "READING_C") {
+      const freeRun = def.step3?.freeRun;
+      if (freeRun === undefined || def.step3?.lateBlock !== undefined) throw new EngineRulesError(`arm ${def.id}: reading (c) carries the free-run block and no late block`);
+      overlay = deepFreeze({ ...overlay, blitzPickup: { freeRun } });
+    }
+    const leaves = [...readSystemDeltaLeaves(offsets), ...(r.extra === "BAND_EDGES" ? BAND_EDGES : [])];
+    tunables = step5Bundle(r.rules, leaves, overlay);
+    patches = leaves;
+  }
+  checkStamp(tunables, def.rules, `arm ${def.id}`);
+  const digest = overlayDigestOf(tunables);
+  const stamped = tunables.engineRules?.overlayDigest;
+  return Object.freeze({
+    ...def,
+    tunables,
+    digest,
+    ...(stamped === undefined ? {} : { overlayDigest: stamped }),
+    tunablesDigest: stableDigest(tunables),
+    patches: Object.freeze([...patches]),
+  });
+}
+
+/**
+ * The step-5 arms `records` define, in `STEP5_ARM_DEFS`' order, checked under O28 as amended at step
+ * 5: distinct by (rules name, dials) among themselves and against `others` (steps 1 to 4's), and F0's
+ * dials equal its grid arm's (`restampOf`, R-9), the one pair that shares dials. A test seam
+ * (`step5ArmsWith`); the build's table is `step5Table()`.
+ */
+export function step5ArmsWith(records: Step5Records, others: readonly Arm[] = []): { readonly arms: ReadonlyMap<ArmId, Arm>; readonly byDigest: ReadonlyMap<string, readonly Arm[]>; readonly restampOf?: Step5bArmId } {
+  const arms = new Map<ArmId, Arm>();
+  for (const def of STEP5_ARM_DEFS) if (step5ArmRefusal(def.id, records) === undefined) arms.set(def.id, buildStep5Arm(def, records));
+  const all = [...others, ...arms.values()];
+  for (const arm of arms.values()) {
+    const seen = all.find((a) => a !== arm && a.digest === arm.digest && a.rules === arm.rules);
+    if (seen !== undefined) throw new Error(`arms: ${arm.id} and ${seen.id} have the same rules ${arm.rules} and the same dials ${arm.digest}; every arm is distinct by (rules name, dials) (O28 as amended at step 5)`);
+  }
+  const restampOf = records.selection?.restampOf;
+  const f0 = arms.get("F0");
+  if (f0 !== undefined && restampOf !== undefined) {
+    const grid = arms.get(restampOf);
+    if (grid === undefined || grid.digest !== f0.digest) throw new Error(`arms: F0 restamps ${restampOf}, but its dials ${f0.digest} are not ${restampOf}'s ${String(grid?.digest)} (R-9)`);
+  }
+  const byDigest = new Map<string, Arm[]>();
+  for (const arm of arms.values()) if (arm.overlayDigest !== undefined) byDigest.set(arm.overlayDigest, [...(byDigest.get(arm.overlayDigest) ?? []), arm]);
+  return { arms, byDigest, ...(restampOf === undefined ? {} : { restampOf }) };
+}
+
+let fiveTable: ReturnType<typeof step5ArmsWith> | undefined;
+
+/** This build's step-5 arms (E0 and E2 to E8 until the fit is recorded), built once. */
+function step5Table(): ReturnType<typeof step5ArmsWith> {
+  if (fiveTable !== undefined) return fiveTable;
+  const t = armTable();
+  fiveTable = step5ArmsWith(recordedStep5(), [...t.arms.values(), ...t.proofs.values()]);
+  return fiveTable;
+}
+
+/** The grid arm F0 restamps (R-9), once the selection is recorded. */
+export function restampOf(id: ArmId): ArmId | undefined {
+  return id === "F0" ? step5Table().restampOf : undefined;
+}
+
+/** The step-5 arms this build defines, in `STEP5_ARM_DEFS`' order. */
+export function step5Arms(): readonly Arm[] {
+  return [...step5Table().arms.values()];
 }

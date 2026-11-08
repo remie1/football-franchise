@@ -64,9 +64,11 @@
  *     and `isRunIdOf("5a" | "5b", ...)` takes each half's run list (5a: E0 to E10; 5b: D1, F1 to
  *     F14, F0, G1, G2); steps 1 to 4's lists do not; `ALL_ARM_IDS` gains them after step 4's, and
  *     steps 1 to 4's lists, arms and digests are unchanged.
- * 23. Nothing defines or plays them: `armById` refuses each by name (E1, E9, E10 until the 5a fit;
- *     F0, G1, G2 until the 5b selection), `everyArm()` is steps 1 to 4's, `--step 5a` and
- *     `--step 5b` are refused.
+ * 23. E0 and E2 to E8 are defined (plan §5.1); `armById` refuses the rest by name (E1, E9, E10 and
+ *     F1 to F14 until the 5a fit; F0, G1, G2 until the 5b selection), `everyArm()` stays steps 1 to
+ *     4's. With a test's own fit and selection (`step5ArmsWith`) every arm builds: F0 restamps its
+ *     grid arm (R-9, `restampOf`), O28 is distinct (rules name, dials), and a fit on today's deltas
+ *     defines neither E1 nor E9 ("E9 is E8").
  * 24. AM-8's base maps (5a: E9 on E0; 5b: F5 on D1, F0 on F5) on a stand-in entry name arms of this
  *     build; an id past E10 or F14 does not. The committed amendments file is read, never written.
  */
@@ -131,6 +133,10 @@ import {
   isStep5aArmId,
   isStep5bArmId,
   step5ArmRefusal,
+  step5Arms,
+  step5ArmsWith,
+  offsetsOfLeaves,
+  gridArmOf,
   ARM_STEPS,
   AM2_REFERENCES,
   armRefusal,
@@ -142,6 +148,7 @@ import {
   type ArmStep,
 } from "../src/pocket/arms.js";
 import { FILED_PATH } from "../src/pocket/bands.js";
+import { CLEAN_BENCH_PARTS, cleanBenchTunablesS4, cleanBenchTunablesS5 } from "../src/pocket/oneThreatBench.js";
 import { loadFiled } from "../src/pocket/filed.js";
 import { parsePocketArgs } from "../src/pocket/step0.js";
 import {
@@ -159,6 +166,10 @@ import {
   POCKET_1_S3_OVERLAY,
   POCKET_1_S4_DIGEST,
   POCKET_1_S4_RULES,
+  POCKET_1_S5A_RULES,
+  POCKET_1_S5B_RULES,
+  readSystemDeltaLeaves,
+  step5Bundle,
   rulesTunables,
   STEP4_PETITIONS_GRANTED,
   withOverlay,
@@ -595,7 +606,7 @@ describe("step 2's built arms (plan §4.1, O28, C3-12, C3-14)", () => {
     expect(all.filter((a) => a.rules === "pocket-1.s2").map((a) => a.id)).toEqual([...STEP2_ARM_IDS]);
     expect(() => armOfDigest("fnv1a:00000000")).toThrow(EngineRulesError);
     expect(() => armOfDigest("fnv1a:00000000")).toThrow(
-      "a stream stamped with overlay fnv1a:00000000, which no step-1 arm of this build carries, nor any step-2 or step-3 arm: its dials cannot be named (N9)",
+      "a stream stamped with overlay fnv1a:00000000, which no step-1 arm of this build carries, nor any step-2, step-3, step-4 or step-5 arm: its dials cannot be named (N9)",
     );
   });
 
@@ -1115,7 +1126,8 @@ describe("step 4's arm ids, named and inert (plan §4, §5)", () => {
     const all = [...everyArm(), ...PROOF_OVERLAY_IDS.map((id) => proofOverlay(id))];
     expect(all).toHaveLength(17 + 7 + 16 + 17 + 2);
     expect(parsePocketArgs(["--step", "4"], "/")).toEqual({ step: 4 });
-    expect(() => parsePocketArgs(["--step", "5"], "/")).toThrow(/^ADR-089: steps 0, 1, 2, 3 and 4 are built .*; --step 5 is not$/);
+    expect(() => parsePocketArgs(["--step", "6"], "/")).toThrow(/^ADR-089: steps 0, 1, 2, 3, 4, 5a and 5b are built .*; --step 6 is not$/);
+    expect(() => parsePocketArgs(["--step", "5"], "/")).toThrow(/^ADR-089: step 5 is two halves, run apart/);
     expect(() => parsePocketArgs(["--step", "3", "--arms", "D1"], "/")).toThrow(/^--arms: D1 is not an arm \(step 3's: A0, A14, A1, A11, B3, B6, B5, C1 to C16\)$/);
   });
 
@@ -1225,24 +1237,101 @@ describe("step 5's arm ids, named and inert (ADR-089 step 5, plan §5.1, §5.2)"
     }
   });
 
-  it("nothing defines or plays them: armById refuses each by name, everyArm is steps 1 to 4's, --step 5a and 5b are refused", () => {
+  it("defines E0 and E2 to E8 now; E1, E9, E10 and F1 to F14 wait on the fit, F0, G1 and G2 on the selection; everyArm is steps 1 to 4's", () => {
+    const now = ["E0", "E2", "E3", "E4", "E5", "E6", "E7", "E8"];
     for (const id of [...STEP5A_ARM_IDS, ...STEP5B_ARM_IDS]) {
       const why = step5ArmRefusal(id);
-      expect(why, id).toBeDefined();
-      expect(() => armById(id), id).toThrow(`arms: ${why!}: nothing plays it`);
+      if (now.includes(id)) {
+        expect(why, id).toBeUndefined();
+        expect(armById(id).id, id).toBe(id);
+      } else {
+        expect(why, id).toBeDefined();
+        expect(() => armById(id), id).toThrow(`arms: ${why!}: nothing plays it`);
+      }
       // armRefusal names petitions only; a step-5 id waits on none.
       expect(armRefusal(id), id).toBeUndefined();
       expect(everyArm().some((a) => a.id === id), id).toBe(false);
     }
     expect(step5ArmRefusal("E1")).toMatch(/^E1 is one of step 5a's arms, named in this build but not yet defined \(ADR-089 step 5, plan §5\): defined only once the 5a fit is recorded/);
-    expect(step5ArmRefusal("E0")).toMatch(/: defined with the step-5 bundles$/);
-    expect(step5ArmRefusal("F0")).toMatch(/^F0 is one of step 5b's arms, .*: defined only once the 5b selection is recorded/);
-    expect(step5ArmRefusal("F5")).toMatch(/: defined with the step-5 bundles$/);
+    expect(step5ArmRefusal("F5")).toMatch(/: defined only once the 5a fit is recorded/);
+    expect(step5ArmRefusal("F0", { fitted: { HALF_FIELD: 0.5, FULL_FIELD: 0, CONCEPT: 0 } })).toMatch(/^F0 is one of step 5b's arms, .*: defined only once the 5b selection is recorded/);
+    expect(step5Arms().map((a) => a.id)).toEqual(now);
     expect(everyArm().map((a) => a.id)).toEqual([...ARM_IDS, ...STEP2_ARM_IDS, ...STEP3_ARM_IDS, ...STEP4_ARM_IDS]);
     const all = [...everyArm(), ...PROOF_OVERLAY_IDS.map((id) => proofOverlay(id))];
     expect(all).toHaveLength(17 + 7 + 16 + 17 + 2);
-    for (const step of ["5a", "5b", "5"]) expect(() => parsePocketArgs(["--step", step], "/"), step).toThrow(new RegExp(`--step ${step} is not$`));
     expect(() => parsePocketArgs(["--step", "4", "--arms", "E9"], "/")).toThrow(/^--arms: E9 is not an arm \(step 4's: /);
+  });
+
+  it("builds the bench arms as plan §5.1 says: E0 is step 4's clean bench (pocket-1.s4), E2 to E8 pocket-1.s5a with their parts", () => {
+    const e0 = armById("E0");
+    expect(e0.rules).toBe(POCKET_1_S4_RULES);
+    expect(e0.digest).toBe(overlayDigestOf(cleanBenchTunablesS4()));
+    expect(e0.digest).toBe("fnv1a:cd268010");
+    expect(e0.base).toBeUndefined();
+    expect(e0.tunables.pocket.cleanPocket).toBeUndefined();
+    const parts: Record<string, Record<string, unknown>> = {
+      E2: { d23: false, move: false, bump: false, breakOut: false, d23OnRun: false, floor: true },
+      E3: { d23: true, move: false, bump: false, breakOut: false, d23OnRun: false, floor: false },
+      E4: { d23: false, move: true, bump: false, breakOut: false, d23OnRun: false, floor: false },
+      E5: { d23: false, move: true, bump: true, breakOut: false, d23OnRun: false, floor: false },
+      E6: { d23: false, move: false, bump: false, breakOut: true, d23OnRun: true, floor: false },
+      E7: { d23: true, move: true, bump: true, breakOut: true, d23OnRun: true, floor: false },
+      E8: { d23: true, move: true, bump: true, breakOut: true, d23OnRun: true, floor: true },
+    };
+    for (const [id, want] of Object.entries(parts)) {
+      const a = armById(id as ArmId);
+      const cp = a.tunables.pocket.cleanPocket!;
+      expect(a.rules, id).toBe(POCKET_1_S5A_RULES);
+      expect({ d23: cp.d23, move: cp.move, bump: cp.bump, breakOut: cp.breakOut, d23OnRun: cp.d23OnRun, floor: cp.dropFloor !== undefined }, id).toEqual(want);
+      expect(cp.resetSeconds, id).toBe(1.0);
+      expect(a.tunables.qb.readSystem.HALF_FIELD.budgetDeltaSeconds, id).toBe(DEFAULT_TUNABLES.qb.readSystem.HALF_FIELD.budgetDeltaSeconds);
+      expect(armOfDigest(a.overlayDigest!, POCKET_1_S5A_RULES).id, id).toBe(id);
+    }
+    expect(armById("E8").digest).toBe(overlayDigestOf(cleanBenchTunablesS5({ on: CLEAN_BENCH_PARTS })));
+    expect(armById("E5").base).toBe("E4");
+    expect(armById("E8").base).toBe("E7");
+    expect(exclusiveMechanisms(armById("E5"))).toEqual([]);
+  });
+
+  it("with a fit and a selection (a test's own), builds every arm: E9 is E8 with the deltas, F5 is pocket-1.s5a's recipe at theta 11, F0 restamps the winner (R-9) and O28 is distinct (rules name, dials)", () => {
+    const fitted = { HALF_FIELD: 0.25, FULL_FIELD: -0.5, CONCEPT: 0 };
+    const t = step5ArmsWith({ fitted, selection: { at: { shape: "S", theta: 11 }, restampOf: "F5" } });
+    expect([...t.arms.keys()]).toEqual([...STEP5A_ARM_IDS, ...STEP5B_ARM_IDS]);
+    const a = (id: string) => t.arms.get(id as ArmId)!;
+    expect(a("E9").tunables.qb.readSystem.HALF_FIELD.budgetDeltaSeconds).toBe(-0.25);
+    expect(a("E9").tunables.qb.readSystem.FULL_FIELD.budgetDeltaSeconds).toBe(0.5);
+    expect(a("E9").tunables.qb.readSystem.CONCEPT.budgetDeltaSeconds).toBe(-1.0);
+    expect(a("E1").rules).toBe(POCKET_1_S4_RULES);
+    expect(a("E10").tunables.pocket.cleanPocket!.resetSeconds).toBe(0);
+    expect(a("F5").digest).toBe(overlayDigestOf(step5Bundle(POCKET_1_S5A_RULES, readSystemDeltaLeaves(fitted))));
+    expect(a("F1").tunables.passRush.beatClock!.thetaSeconds).toBe(7);
+    expect(a("F14").tunables.passRush.repClock!.fullExpressionSeconds).toBe(8);
+    expect(a("F14").tunables.passRush.beatClock).toBeUndefined();
+    expect(a("F0").rules).toBe(POCKET_1_S5B_RULES);
+    expect(a("F0").digest).toBe(a("F5").digest);
+    expect(t.restampOf).toBe("F5");
+    expect(t.byDigest.get(a("F5").overlayDigest!)!.map((x) => x.id)).toEqual(["F0", "F5"]);
+    expect(a("G1").patches.map((p) => p.tunableId)).toEqual([...readSystemDeltaLeaves(fitted).map((p) => p.tunableId), ...BAND_EDGES.map((p) => p.tunableId)]);
+    expect(a("G2").tunables.blitzPickup.freeRun!.reading).toBe("C");
+    expect(a("G2").tunables.blitzPickup.lateBlock).toBeUndefined();
+    // A winner at L R 6 restamps F12; a restamp that is not its grid arm's dials is refused.
+    const l = step5ArmsWith({ fitted, selection: { at: { shape: "L", R: 6 }, restampOf: "F12" } });
+    expect(l.arms.get("F0")!.digest).toBe(l.arms.get("F12")!.digest);
+    expect(() => step5ArmsWith({ fitted, selection: { at: { shape: "L", R: 6 }, restampOf: "F11" } })).toThrow(/F0 restamps F11, but its dials .* are not F11's/);
+    // Same rules and same dials anywhere in the table: refused (O28 as amended).
+    expect(() => step5ArmsWith({ fitted }, [armById("E2")])).toThrow(/E2 and E2 have the same rules pocket-1.s5a and the same dials/);
+  });
+
+  it("when the fit lands on today's deltas, E1 is E0 and E9 is E8: neither is defined apart", () => {
+    const t = step5ArmsWith({ fitted: { HALF_FIELD: 0, FULL_FIELD: 0, CONCEPT: 0 } });
+    expect(t.arms.has("E1")).toBe(false);
+    expect(t.arms.has("E9")).toBe(false);
+    expect(t.arms.has("E10")).toBe(true);
+    expect(step5ArmRefusal("E9", { fitted: { HALF_FIELD: 0, FULL_FIELD: 0, CONCEPT: 0 } })).toMatch(/^E9 is E8: the 5a fit landed on today's deltas/);
+    expect(step5ArmRefusal("E1", { fitted: { HALF_FIELD: 0, FULL_FIELD: 0, CONCEPT: 0 } })).toMatch(/^E1 is E0/);
+    expect(offsetsOfLeaves(readSystemDeltaLeaves({ HALF_FIELD: 1.25, FULL_FIELD: 0, CONCEPT: -0.5 }))).toEqual({ HALF_FIELD: 1.25, FULL_FIELD: 0, CONCEPT: -0.5 });
+    expect(gridArmOf({ shape: "S", theta: 11 })).toBe("F5");
+    expect(gridArmOf({ shape: "L", R: 4 })).toBe("F10");
   });
 
   it("AM-8's base maps on a stand-in entry name arms of this build; an id past E10 or F14 does not (the committed file is only read)", () => {

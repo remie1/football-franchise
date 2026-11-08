@@ -43,6 +43,7 @@
  */
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { MatchEventEnvelope } from "@ff/contracts";
 import type { GameSnapshot, Tunables } from "@ff/engine";
 import { DEFAULT_CACHE_DIR, fsCacheStore } from "../ingest/cache.js";
@@ -55,7 +56,7 @@ import { openRealForTuning, type TuningRealInput } from "../metrics/realInput.js
 import { getMetric } from "../metrics/registry.js";
 import { isInapplicable, pointEstimate, type MetricOutcome } from "../metrics/types.js";
 import { armRefusal, isRunIdOf, type ArmId, type ArmStep } from "./arms.js";
-import { BASE_ROW_IDS } from "./bands.js";
+import { BASE_ROW_IDS, FILED_PATH } from "./bands.js";
 import { constructById, M_IDS, NOBODY_OPEN_CLASSES, THROW_CLASSES, type MId, type ThrowClass } from "./constructs.js";
 import { ARM_S } from "./m2ForcingSource.js";
 import { renderStepReport, type ArmReport, type ClassIntRows, type IntGuardRows, type ReportRow, type StepReportInput } from "./report.js";
@@ -172,6 +173,179 @@ export interface Step4Args {
   readonly out?: string;
 }
 
+/**
+ * Step 5's arguments (`step5.ts`; ADR-089 step-5 plan §8). Paths are absolute. `--step 5a` plays E0 to
+ * E10 on the clean bench (or, with `--fit`, the 5a fit's 19 runs); `--step 5b` plays D1 and the grid
+ * (then F0, G1 and G2), with `--reselect --from <records>` (R-7) and `--digests --out <file>` (R-1).
+ * `--fit-replay` and `--fresh-base` are the second processes the operator runs in another shell when
+ * the harness prints them (the fit's fresh replay, R-6; E0's second fresh play, S-7: library code
+ * never starts a process); `--gen-through-week` shortens their corpus and the fit's, for smokes.
+ */
+export interface Step5Args {
+  readonly step: "5a" | "5b";
+  readonly arms?: readonly ArmId[];
+  readonly shard?: { readonly index: number; readonly count: number };
+  readonly cache?: string;
+  readonly seedSet?: SeedSet;
+  readonly report?: string;
+  readonly out?: string;
+  /** 5a: the fit (AM-9 item 9). */
+  readonly fit?: true;
+  /** 5a, hidden: the fit's fresh replay of these offsets. */
+  readonly fitReplay?: readonly number[];
+  /** 5a, hidden: E0's second fresh play on this seed set. */
+  readonly freshBase?: SeedSet;
+  /** Smokes only: stop the generated season after this week. */
+  readonly genThroughWeek?: number;
+  /** 5b: the owner's word to go on after a 5a breach or graded miss (the gate, plan §9 item 10). */
+  readonly afterOwner?: string;
+  /** 5b: R-1. */
+  readonly digests?: true;
+  /** 5b: R-7 on the records file `from`. */
+  readonly reselect?: true;
+  readonly from?: string;
+}
+
+const STEP5A_USAGE =
+  "pocket -- --step 5a [--arms E0,E2] [--shard i/n] [--cache <dir>] [--seed-set 1|2] [--report <file.md>] [--out <file.json>], or pocket -- --step 5a --fit [--shard i/n] [--cache <dir>] --out <file.json>";
+const STEP5B_USAGE =
+  "pocket -- --step 5b [--arms D1,F5] [--shard i/n] [--cache <dir>] [--seed-set 1|2] [--after-owner <ts>] [--report <file.md>] [--out <file.json>], pocket -- --step 5b --reselect --from <file.json>, or pocket -- --step 5b --digests --out <file.json>";
+
+/** `--step 5` names no step: step 5 is two halves. */
+export const STEP5_SPLIT_REFUSAL = "ADR-089: step 5 is two halves, run apart: --step 5a (his count, the drop floor and the clean-pocket checklist on the clean bench; --fit for the 5a fit) or --step 5b (the block clock's grid on the league); --step 5 is neither";
+
+/** Reads `--step 5a` and `--step 5b`'s arguments; throws `SyntaxError` on any flag of another step or half. */
+export function parseStep5Args(half: "5a" | "5b", argv: readonly string[], cwd: string = process.cwd()): Step5Args {
+  const usage = half === "5a" ? STEP5A_USAGE : STEP5B_USAGE;
+  const seen: string[] = [];
+  let arms: ArmId[] | undefined;
+  let shard: { index: number; count: number } | undefined;
+  let cache: string | undefined;
+  let seedSet: SeedSet | undefined;
+  let report: string | undefined;
+  let out: string | undefined;
+  let fitReplay: number[] | undefined;
+  let freshBase: SeedSet | undefined;
+  let genThroughWeek: number | undefined;
+  let afterOwner: string | undefined;
+  let from: string | undefined;
+  const only5a = new Set(["--fit", "--fit-replay", "--fresh-base"]);
+  const only5b = new Set(["--after-owner", "--digests", "--reselect", "--from"]);
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i] as string;
+    const value = (): string => {
+      const v = argv[i + 1];
+      if (v === undefined || v.startsWith("--")) throw new SyntaxError(`${arg} requires a value`);
+      i += 1;
+      return v;
+    };
+    if (arg === "--") continue;
+    if (half === "5a" && only5b.has(arg)) throw new SyntaxError(`${arg}: step 5b's flag, not step 5a's (${usage})`);
+    if (half === "5b" && only5a.has(arg)) throw new SyntaxError(`${arg}: step 5a's flag, not step 5b's (${usage})`);
+    if (arg !== "--step") seen.push(arg);
+    switch (arg) {
+      case "--step":
+        value();
+        break;
+      case "--arms": {
+        const list = value().split(",").map((a) => a.trim());
+        if (list.includes("")) throw new SyntaxError(`--arms: an empty arm is not an arm (${list.join(",")})`);
+        if (new Set(list).size !== list.length) throw new SyntaxError(`--arms names an arm twice: ${list.join(",")}`);
+        for (const a of list) if (!isRunIdOf(half, a)) throw new SyntaxError(`--arms: ${a} is not an arm (${ARMS_NAMED[half]})`);
+        arms = list as ArmId[];
+        break;
+      }
+      case "--shard": {
+        const v = value();
+        const m = /^([1-9][0-9]*)\/([1-9][0-9]*)$/.exec(v);
+        if (m === null || Number(m[1]) > Number(m[2])) throw new SyntaxError(`--shard takes i/n with 1 <= i <= n; ${v} is not`);
+        shard = { index: Number(m[1]), count: Number(m[2]) };
+        break;
+      }
+      case "--cache":
+        cache = resolve(cwd, value());
+        break;
+      case "--seed-set":
+      case "--fresh-base": {
+        const v = value();
+        if (v !== "1" && v !== "2") throw new SyntaxError(`${arg} takes 1 or 2; ${v} is not`);
+        if (arg === "--seed-set") seedSet = v === "1" ? 1 : 2;
+        else freshBase = v === "1" ? 1 : 2;
+        break;
+      }
+      case "--report":
+        report = resolve(cwd, value());
+        break;
+      case "--out":
+        out = resolve(cwd, value());
+        break;
+      case "--fit":
+      case "--digests":
+      case "--reselect":
+        break;
+      case "--fit-replay": {
+        const v = value();
+        const xs = v.split(",").map(Number);
+        if (xs.length === 0 || xs.length > 3 || xs.some((x) => !Number.isFinite(x))) throw new SyntaxError(`--fit-replay takes one to three offsets, comma-separated; ${v} is not`);
+        fitReplay = xs;
+        break;
+      }
+      case "--gen-through-week": {
+        const v = value();
+        if (!/^[1-9][0-9]*$/.test(v)) throw new SyntaxError(`--gen-through-week takes a week number; ${v} is not`);
+        genThroughWeek = Number(v);
+        break;
+      }
+      case "--after-owner":
+        afterOwner = value();
+        break;
+      case "--from":
+        from = resolve(cwd, value());
+        break;
+      default:
+        throw new SyntaxError(`unknown argument ${arg} (${usage})`);
+    }
+  }
+  const mode = ["--fit", "--fit-replay", "--fresh-base", "--digests", "--reselect"].filter((f) => seen.includes(f));
+  if (mode.length > 1) throw new SyntaxError(`${mode.join(" and ")} are separate runs (${usage})`);
+  const allowed = (m: string, ok: readonly string[], what: string): void => {
+    const others = [...new Set(seen.filter((f) => f !== m && !ok.includes(f)))];
+    if (others.length > 0) throw new SyntaxError(`${m} ${what}; it takes ${ok.length === 0 ? "nothing else" : ok.join(", ")} (not ${others.join(", ")})`);
+  };
+  if (genThroughWeek !== undefined && !["--fit", "--fit-replay", "--fresh-base"].some((f) => seen.includes(f)) && seen.includes("--digests")) throw new SyntaxError("--gen-through-week shortens a 5a corpus, not --digests");
+  if (mode[0] === "--fit") {
+    allowed("--fit", ["--shard", "--cache", "--out", "--gen-through-week"], "plays the 5a fit's 19 runs and writes its record once");
+    return { step: half, fit: true, ...(shard === undefined ? {} : { shard }), ...(cache === undefined ? {} : { cache }), ...(out === undefined ? {} : { out }), ...(genThroughWeek === undefined ? {} : { genThroughWeek }) };
+  }
+  if (mode[0] === "--fit-replay" || mode[0] === "--fresh-base") {
+    allowed(mode[0], ["--out", "--gen-through-week"], "is a fresh second process the harness asks for");
+    if (out === undefined) throw new SyntaxError(`${mode[0]} writes to --out <file>`);
+    return { step: half, out, ...(fitReplay === undefined ? {} : { fitReplay }), ...(freshBase === undefined ? {} : { freshBase }), ...(genThroughWeek === undefined ? {} : { genThroughWeek }) };
+  }
+  if (mode[0] === "--digests") {
+    allowed("--digests", ["--out"], "plays only the golden 50 a league under the step-5 arms (R-1)");
+    if (out === undefined) throw new SyntaxError("--digests writes its folds to --out <file>");
+    return { step: half, digests: true, out };
+  }
+  if (mode[0] === "--reselect") {
+    allowed("--reselect", ["--from"], "recomputes the selection from the filed words (R-7)");
+    if (from === undefined) throw new SyntaxError("--reselect reads the 5b records: --from <file.json>");
+    return { step: half, reselect: true, from };
+  }
+  if (from !== undefined) throw new SyntaxError("--from goes with --reselect");
+  if (genThroughWeek !== undefined) throw new SyntaxError("--gen-through-week goes with --fit, --fit-replay or --fresh-base");
+  return {
+    step: half,
+    ...(arms === undefined ? {} : { arms }),
+    ...(shard === undefined ? {} : { shard }),
+    ...(cache === undefined ? {} : { cache }),
+    ...(seedSet === undefined ? {} : { seedSet }),
+    ...(report === undefined ? {} : { report }),
+    ...(out === undefined ? {} : { out }),
+    ...(afterOwner === undefined ? {} : { afterOwner }),
+  };
+}
+
 const STEP0_USAGE = "pocket -- --step 0 [--write-filed <path>] [--out <path>]";
 const STEP1_USAGE = "pocket -- --step 1 [--arms A1,A2] [--shard i/n] [--cache <dir>] [--seed-set 1|2] [--report <file.md>] [--out <file.json>], or pocket -- --step 1 --digests --out <file.json>";
 const STEP2_USAGE =
@@ -210,7 +384,11 @@ function usageOf(step: 0 | 1 | 2 | 3 | 4 | undefined): string {
  * refused with its reason (`armRefusal`: none at step 3 since P17, E4b; every D arm at step 4 until
  * P6, P7 and P8 are in contracts). `--part1` is step 3's and step 4's flag.
  */
-export function parsePocketArgs(argv: readonly string[], cwd: string = process.cwd()): PocketArgs | Step1Args | Step2Args | Step3Args | Step4Args {
+export function parsePocketArgs(argv: readonly string[], cwd: string = process.cwd()): PocketArgs | Step1Args | Step2Args | Step3Args | Step4Args | Step5Args {
+  const stepAt = argv.indexOf("--step");
+  const stepValue = stepAt < 0 ? undefined : argv[stepAt + 1];
+  if (stepValue === "5") throw new SyntaxError(STEP5_SPLIT_REFUSAL);
+  if (stepValue === "5a" || stepValue === "5b") return parseStep5Args(stepValue, argv, cwd);
   let step: 0 | 1 | 2 | 3 | 4 | undefined;
   let writeFiled: string | undefined;
   let out: string | undefined;
@@ -241,7 +419,7 @@ export function parsePocketArgs(argv: readonly string[], cwd: string = process.c
       case "--step": {
         const v = value();
         if (v !== "0" && v !== "1" && v !== "2" && v !== "3" && v !== "4") {
-          throw new SyntaxError(`ADR-089: steps 0, 1, 2, 3 and 4 are built (step 0's measurements and filing, step 1's arms, step 2's arms, step 3's arms, step 4's arms); --step ${v} is not`);
+          throw new SyntaxError(`ADR-089: steps 0, 1, 2, 3, 4, 5a and 5b are built (step 0's measurements and filing, step 1's to step 4's arms, step 5a's and step 5b's); --step ${v} is not`);
         }
         step = v === "0" ? 0 : v === "1" ? 1 : v === "2" ? 2 : v === "3" ? 3 : 4;
         break;
@@ -1009,6 +1187,20 @@ export async function pocketCommand(argv: readonly string[]): Promise<void> {
   const log = (line: string): void => {
     process.stderr.write(`${line}\n`);
   };
+  if (typeof args.step === "string") {
+    if (args.reselect === true) {
+      // R-7's second process loads only the recomputation (reselectCommand.ts), never selection.ts.
+      const { reselectFromFile } = await import("./reselectCommand.js");
+      const { AMENDMENTS_PATH } = await import("./amendments.js");
+      const pkg = fileURLToPath(new URL("../..", import.meta.url));
+      process.stdout.write(`${reselectFromFile(args.from!, resolve(pkg, FILED_PATH), resolve(pkg, AMENDMENTS_PATH)).join("\n")}\n`);
+      return;
+    }
+    // Step 5's harness (step5.ts, which loads step4.ts) is loaded only for step 5.
+    const { step5Command } = await import("./step5.js");
+    await step5Command(args, log);
+    return;
+  }
   if (args.step === 1) {
     // Step 1's harness (step1.ts) is loaded only for step 1. Step 0 does load arms.ts (isRunIdOf,
     // for --arms), but the arm table and the design bundle are built only on first use (review NPC-5).

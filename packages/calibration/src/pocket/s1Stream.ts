@@ -74,7 +74,7 @@ import {
 } from "./clocks.js";
 import { cleanPocketOf, isCleanPickLabel } from "./cleanPick.js";
 import { centerOfEvents, clockKeyOf, onClockUnder, touchOfCheck, type Touch } from "./freeRunKey.js";
-import { overlayDigestOf, readsStep3Facts, rulesOnPlayStart, type PlayStartRules } from "./rules.js";
+import { isStampedRules, overlayDigestOf, readsStep3Facts, rulesOnPlayStart, type PlayStartRules } from "./rules.js";
 import { readS2Play, threatPartAt } from "./s2Stream.js";
 import { playsOf } from "./throwClass.js";
 
@@ -564,7 +564,7 @@ export function reproduceMargins(fold: ReproduceFold, play: S1Play, d: Dials): v
       fail(fold, at(play), `the stream's stamp ${JSON.stringify(play.rules)} is not the bundle's ${JSON.stringify(d.stamp ?? null)}`);
       return;
     }
-    const arm = armOfDigest(play.rules.overlayDigest);
+    const arm = armOfDigest(play.rules.overlayDigest, isStampedRules(play.rules.name) ? play.rules.name : undefined);
     if (overlayDigestOf(d.tunables) !== arm.digest) {
       fail(fold, at(play), `the bundle's dials digest to ${overlayDigestOf(d.tunables)}, not to ${arm.digest}, the dials its stamp names`);
       return;

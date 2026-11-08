@@ -265,6 +265,135 @@ export function selectBlockClock(arms: readonly GridArm[]): SelectionVerdict {
   return { winner: fallback.winner, curve: fallback.curve, fallbackUsed: true, primary, fallback, says };
 }
 
+// --- step 5b's reading of the rule (AM-10) ---------------------------------------------------------
+
+/** AM-10 `selectionCurve`: the curve the selection is forced onto. Only the pressured curve is read at 5b. */
+export interface SelectWithOptions {
+  readonly curve: "pressured";
+}
+
+/** One point on one curve under AM-10 `scorable`: its losses, or why it cannot be scored. */
+export interface ScoredPoint {
+  readonly point: string;
+  readonly shape: Shape;
+  /** Attempts by bin on each seed set (printed for every point, scorable or not). */
+  readonly attempts: Readonly<Record<SeedSet, readonly number[]>>;
+  readonly scorable: boolean;
+  /** Bins with no attempt, by seed set (empty when scorable). */
+  readonly emptyBins: readonly { readonly set: SeedSet; readonly bin: string }[];
+  /** A curve with attempts in every bin but no events at all has no shape (its mean is 0). */
+  readonly noShape: boolean;
+  readonly set1?: number;
+  readonly set2?: number;
+  readonly spread?: number;
+}
+
+/** One curve read under AM-10: the filed loss, separation and winner rule over the scorable points. */
+export interface Am10Curve {
+  readonly curve: SelectionCurve;
+  readonly points: readonly ScoredPoint[];
+  readonly scorable: readonly string[];
+  readonly unscorable: readonly string[];
+  /** Over the scorable points; undefined when none is scorable. */
+  readonly best?: number;
+  readonly worst?: number;
+  readonly maxSpread?: number;
+  readonly separated?: boolean;
+  /** The least set-1 loss among the scorable points (ties to the earlier filed point). */
+  readonly winner?: string;
+  /** Points other than the winner within twice their own spread of the best: printed, deciding nothing. */
+  readonly withinTwiceSpread: readonly string[];
+}
+
+export type Am10Stop = "no point is scorable on the pressured curve" | "a shape-L point wins";
+
+export interface Am10Verdict {
+  /** The pressured curve's winner; undefined when no point is scorable (the step stops). */
+  readonly winner?: string;
+  readonly winnerShape?: Shape;
+  readonly curve: "pressured_share_by_release_bin";
+  /** The selecting curve. */
+  readonly pressured: Am10Curve;
+  /** The hit curve, printed beside; it decides nothing and never stops the run. */
+  readonly hit: Am10Curve;
+  /** Where the step stops after the first pass (AM-10 `scorable`, `ifL`); undefined when it carries on to F0. */
+  readonly stop?: Am10Stop;
+  readonly says: readonly string[];
+}
+
+function am10Curve(curve: SelectionCurve, arms: readonly GridArm[]): Am10Curve {
+  const real = curve === "hit_rate_by_release_bin" ? REAL.hitRaw : REAL.pressuredRaw;
+  const points: ScoredPoint[] = arms.map((arm) => {
+    const pick = curve === "hit_rate_by_release_bin" ? arm.hit : arm.pressured;
+    checkLength(`selectWith ${gridPointId(arm.point)} set 1`, pick[1]);
+    checkLength(`selectWith ${gridPointId(arm.point)} set 2`, pick[2]);
+    const attempts = { 1: pick[1].map((b) => b.attempts), 2: pick[2].map((b) => b.attempts) } as Record<SeedSet, readonly number[]>;
+    const emptyBins = ([1, 2] as const).flatMap((set) => pick[set].flatMap((b, i) => (b.attempts > 0 ? [] : [{ set, bin: RELEASE_BINS[i]! }])));
+    const base = { point: gridPointId(arm.point), shape: arm.point.shape, attempts, emptyBins };
+    if (emptyBins.length > 0) return { ...base, scorable: false, noShape: false };
+    const r1 = binRates(pick[1]);
+    const r2 = binRates(pick[2]);
+    if (!(mean(r1) > 0) || !(mean(r2) > 0)) return { ...base, scorable: false, noShape: true };
+    const set1 = shapeLoss(r1, real);
+    const set2 = shapeLoss(r2, real);
+    return { ...base, scorable: true, noShape: false, set1, set2, spread: Math.abs(set1 - set2) };
+  });
+  const scored = points.filter((p) => p.scorable);
+  const scorable = scored.map((p) => p.point);
+  const unscorable = points.filter((p) => !p.scorable).map((p) => p.point);
+  if (scored.length === 0) return { curve, points, scorable, unscorable, withinTwiceSpread: [] };
+  let win = scored[0]!;
+  for (const p of scored) if (p.set1! < win.set1!) win = p;
+  const best = win.set1!;
+  const worst = Math.max(...scored.map((p) => p.set1!));
+  const maxSpread = Math.max(...scored.map((p) => p.spread!));
+  const withinTwiceSpread = scored.filter((p) => p !== win && p.set1! - best <= 2 * p.spread!).map((p) => p.point);
+  return { curve, points, scorable, unscorable, best, worst, maxSpread, separated: worst - best > 2 * maxSpread, winner: win.point, withinTwiceSpread };
+}
+
+/**
+ * The selection at step 5b as AM-10 reads it (filing §2): the pressured-by-release curve selects by
+ * the owner's word (I.9 item 1), whatever the hit curve's separation; the hit curve is scored beside
+ * and decides nothing. A point is scorable on a curve when every bin has an attempt on both seed
+ * sets; the winner is the least set-1 loss among scorable points (ties to the earlier filed point);
+ * separation is read over the scorable points and, if absent, the minimum stands and is reported.
+ * No scorable point on the pressured curve, or a shape-L winner, stops the step after the first pass.
+ * `FILED_SELECTION_RULE` and `selectBlockClock` are untouched: step 10 reads them unless an entry
+ * filed before step 10 says otherwise.
+ */
+export function selectWith(arms: readonly GridArm[], opts: SelectWithOptions): Am10Verdict {
+  if (opts.curve !== "pressured") throw new Error(`selectWith: AM-10 reads the pressured curve only (got ${String(opts.curve)})`);
+  const byId = new Map(arms.map((a) => [gridPointId(a.point), a]));
+  if (byId.size !== arms.length) throw new Error("selectWith: a grid point is given twice");
+  const expected = GRID_POINTS.map(gridPointId);
+  const missing = expected.filter((id) => !byId.has(id));
+  const extra = [...byId.keys()].filter((id) => !expected.includes(id));
+  if (missing.length > 0 || extra.length > 0) {
+    throw new Error(`selectWith: the arms must be exactly the filed grid (missing ${missing.join(", ") || "none"}; not filed ${extra.join(", ") || "none"})`);
+  }
+  const ordered = expected.map((id) => byId.get(id)!);
+  const pressured = am10Curve("pressured_share_by_release_bin", ordered);
+  const hit = am10Curve("hit_rate_by_release_bin", ordered);
+  const says: string[] = ["the pressured-by-release curve selects at 5b by the owner's word (AM-10 selectionCurve, I.9 item 1); the hit curve is printed beside and decides nothing"];
+  if (hit.winner === undefined) says.push("the hit curve cannot be scored at any point; it is printed as such and does not stop the run");
+  else says.push(`the hit curve would pick ${hit.winner} (${hit.separated === true ? "separated" : "not separated"}); it decides nothing`);
+  if (pressured.unscorable.length > 0) says.push(`unscorable on the pressured curve: ${pressured.unscorable.join(", ")}`);
+  if (pressured.winner === undefined) {
+    says.push("no point is scorable on the pressured curve: the step stops and goes to the owner (AM-10 scorable)");
+    return { curve: "pressured_share_by_release_bin", pressured, hit, stop: "no point is scorable on the pressured curve", says };
+  }
+  const winnerShape = byId.get(pressured.winner)!.point.shape;
+  says.push(`${pressured.winner} wins on the pressured-by-release curve`);
+  if (pressured.separated !== true) says.push("the pressured loss does not separate the scorable points; its minimum stands and the separation is reported (the filed ifNotSeparatedEither)");
+  if (pressured.withinTwiceSpread.length > 0) says.push(`within twice their own spread of the best (printed, deciding nothing): ${pressured.withinTwiceSpread.join(", ")}`);
+  says.push("the pressured-by-release curve moves out of the falsifiers and into the fitted ledger");
+  if (winnerShape === "L") {
+    says.push("a shape-L point wins: the step stops after the first pass; the winner is not restamped and F0, G1 and G2 do not run (AM-10 ifL)");
+    return { winner: pressured.winner, winnerShape, curve: "pressured_share_by_release_bin", pressured, hit, stop: "a shape-L point wins", says };
+  }
+  return { winner: pressured.winner, winnerShape, curve: "pressured_share_by_release_bin", pressured, hit, says };
+}
+
 // --- the filed blocks -----------------------------------------------------------------------------
 
 export const FILED_SELECTION_RULE: FiledSelectionRule = {
