@@ -5,7 +5,7 @@
  * checks run on them) read through a stand-in reader of made-up rows (`projecting`). Nothing here reads
  * the network, a real sealed table or a real snapshot.
  */
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { mkdir, mkdtemp, readdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
@@ -14,7 +14,7 @@ import { compareStamps, teamId, type CalendarStamp, type PlayerState, type Team 
 import {
   buildRealLeague, copiedPastInjuries, fetchInjuriesSnapshot, fetchSnapshot, importRealFile, importRealWrites, injuryHistoryFiles,
   injuriesSnapshotDir, INJURY_HISTORY_FIRST_SEASON, latestSnapshot, officiatingWrites, pastInjuriesOfSnapshot, pastInjuriesWrites, readLeagueText,
-  REAL_INJURY_KINDS, REAL_TEAM_SLOTS, runStandinInjuries, serializeLeagueFile, STARTING_DEVELOPMENT_VERSION, withoutPastInjuries, withStartingDevelopment,
+  printoutLeaks, REAL_INJURY_KINDS, REAL_TEAM_SLOTS, runStandinInjuries, serializeLeagueFile, STARTING_DEVELOPMENT_VERSION, withoutPastInjuries, withStartingDevelopment,
   type Download, type LeagueFileLike, type PastInjuriesBlock, type RosterRow, type SealedTable,
 } from "../src/importer/real/index.js";
 import { INJURY_REPORT_COLUMNS, INJURY_ROSTER_COLUMNS, INJURY_SCHEDULE_COLUMNS, INJURY_SNAP_COLUMNS } from "../src/importer/real/injuryRows.js";
@@ -349,6 +349,73 @@ describe("standin-injuries' refusals", () => {
     expect(readFileSync(s.league, "utf8")).toBe(s.text);
   });
 
+  it("refuses a --league that is not JSON or not a league file without quoting it (review finding 3)", async () => {
+    const s = await setup();
+    const cases: [string, string, string][] = [
+      ["rows.csv", `${nameOf(1)},g:01,T1,Left Knee\n`, "is not valid JSON, so it is not a stand-in league file; nothing written"],
+      ["other.json", JSON.stringify({ format: `${nameOf(1)} g:01 T1` }), "(another format, expected \"ff-standin-league/1\")"],
+      ["list.json", JSON.stringify([nameOf(1)]), "(no format, expected"],
+      ["text.json", JSON.stringify(nameOf(1)), "(no format: the file is not a JSON object, expected"],
+    ];
+    for (const [name, text, want] of cases) {
+      const path = join(s.pkg, "leagues", name);
+      await writeFile(path, text);
+      const m = await refusal(run(s, ["--league", relative(s.pkg, path)]));
+      expect(m, name).toContain(want);
+      expect(m, name).toContain(path);
+      expect(leaks(m), name).toEqual(NONE);
+      expect(readFileSync(path, "utf8"), name).toBe(text);
+    }
+  });
+
+  it("refuses the file's season with a game whose date is not YYYY-MM-DD, or with no game before the cut (review finding 9)", async () => {
+    const s = await setup();
+    const rows = snapshotRows();
+    const of2026 = (f: (g: Raw) => Raw) => ({ ...rows, schedules: rows.schedules!.map((g) => (g.season === SEASON ? f(g) : g)) });
+    const cases: [string, Record<string, Raw[]>, string][] = [
+      ["no dates", of2026((g) => ({ ...g, gameday: null })), "schedules.parquet: 18 regular-season games of 2026 have no gameday written YYYY-MM-DD: a misread"],
+      ["one date in another shape", of2026((g) => (g.week === 3 && g.game_type === "REG" ? { ...g, gameday: "09/24/2026" } : g)),
+        "schedules.parquet: 1 regular-season games of 2026 have no gameday written YYYY-MM-DD: a misread"],
+      ["every game after the cut", of2026((g) => ({ ...g, gameday: "2026-11-01" })), `the injuries snapshot has no regular-season game of 2026 before the cut ${CUT}: a misread`],
+    ];
+    for (const [what, files, want] of cases) {
+      const m = await refusal(run(s, [], { read: projecting(files) }));
+      expect(m, what).toBe(want);
+      expect(leaks(m), what).toEqual(NONE);
+    }
+    // A preseason game with no date is not read, so it is no misread.
+    const pre = of2026((g) => (g.game_type === "PRE" ? { ...g, gameday: null } : g));
+    await run(s, ["--dry-run"], { read: projecting(pre) });
+    expect(readFileSync(s.league, "utf8")).toBe(s.text);
+  });
+
+  it("refuses a printout or block holding a value the run read, printing and writing nothing (review finding 2)", async () => {
+    const s = await setup();
+    // A made-up real id, a row's team code and a row's name, each planted in the printout through the league file's path.
+    const cases: [string, string][] = [["g:01", "real ids 1"], ["T1", "team codes 2"], [nameOf(1), "names 2"]];
+    for (const [folder, want] of cases) {
+      const path = join(s.pkg, "leagues", folder, `standin-${CUT}.json`);
+      await mkdir(join(s.pkg, "leagues", folder), { recursive: true });
+      await writeFile(path, s.text);
+      const lines: string[] = [];
+      const m = await refusal(run(s, ["--league", relative(s.pkg, path)], { log: (l) => lines.push(l) }));
+      expect(m, folder).toBe(`the printout or the block would hold real values (${want}): nothing printed or written`);
+      expect(lines, folder).toEqual([]);
+      expect(readFileSync(path, "utf8"), folder).toBe(s.text);
+    }
+  });
+
+  it("counts every kind of real value the run holds, and only those (printoutLeaks)", () => {
+    const held = { ids: ["g:01", "g:02"], teams: new Set(["T1", "T2"]), names: new Set(["made up player one", "made up player two"]) };
+    const none = { "real ids": 0, "team codes": 0, names: 0, "gsis-like ids": 0, "pfr-like ids": 0 };
+    expect(printoutLeaks(["  records: 7 men, 7 records; by kind real:knee 1", "T12 T3 made up player three", "{\"kind\":\"real:ankle\"}"], held)).toEqual(none);
+    expect(printoutLeaks(["at g:01 and g:01, and g:02x"], held)).toEqual({ ...none, "real ids": 2 });
+    expect(printoutLeaks(["T1, (T2) and T1"], held)).toEqual({ ...none, "team codes": 3 });
+    expect(printoutLeaks(["MADE-UP player  ONE", "Madé Úp Player" + " Two."], held)).toEqual({ ...none, names: 2 });
+    // The id shapes, built here so this file holds none.
+    expect(printoutLeaks([["12", "3456789"].join("-"), ["Made", "Up", "07"].join("")], held)).toEqual({ ...none, "gsis-like ids": 1, "pfr-like ids": 1 });
+  });
+
   it("refuses a missing column and a season with no rows or no spell among the file's men (test 9)", async () => {
     const s = await setup();
     const lacking: ColumnsOf = async (dir, key) => ((await allColumns(dir, key)).filter((c) => !(key === "rosters2024" && c === "gsis_id")));
@@ -362,6 +429,21 @@ describe("standin-injuries' refusals", () => {
     const moved = rows.injuries2023!.map((r) => ({ ...r, week: 30 }));
     expect(await refusal(run(s, [], { read: projecting({ ...rows, injuries2023: moved }) }))).toBe("the injuries snapshot gives the file's men no spell in 2023: a misread");
     expect(readFileSync(s.league, "utf8")).toBe(s.text);
+  });
+});
+
+describe("every importer entry point prints a refusal's message alone (critic 3; review finding 5)", () => {
+  it("has one catch, printing e.message or a fixed word, and prints no error object, stack or String(e) (counted)", () => {
+    const dir = join(__dirname, "..", "src", "importer", "real");
+    const entries = readdirSync(dir).filter((f) => f === "main.ts" || /Main\.ts$/.test(f)).sort();
+    expect(entries).toEqual(["contractsMain.ts", "developMain.ts", "injuriesMain.ts", "main.ts", "officialsMain.ts"]);
+    for (const f of entries) {
+      const t = readFileSync(join(dir, f), "utf8");
+      const messageOnly = leakCount(t, /console\.error\(e instanceof Error \? e\.message : "[a-z-]+ stopped"\)/);
+      expect(messageOnly, `message-only refusals in ${f}`).toBe(1);
+      expect(leakCount(t, /console\.error\(/) - messageOnly, `other console.error calls in ${f}`).toBe(0);
+      expect(leakCount(t, /\.stack\b|String\(e\)|\$\{e\}|console\.(log|warn|info|debug)\(e\b/), `error objects printed in ${f}`).toBe(0);
+    }
   });
 });
 

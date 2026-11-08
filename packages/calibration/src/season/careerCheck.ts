@@ -2348,6 +2348,16 @@ export interface CareerCheckOptions {
 }
 
 /**
+ * The reader's `injuryRisk` for a walk's switches (ADR-087 AB7, ruling D5): `"spot"` only when injuries are
+ * on and played on the spot path, where franchise seeds the past injuries, so only then does the reader
+ * seed its concussion counts and its rows carry `p8`; undefined otherwise (the group path, injuries off,
+ * the defaults), so those rows are as before.
+ */
+export function readerInjuryRisk(players: CapCheckInput["players"]): "spot" | undefined {
+  return players?.injuries === true && players.injuryRisk === "spot" ? "spot" : undefined;
+}
+
+/**
  * One seed of the 20-season check: the cap check's walk (`runCapCheck`) with the D5b reader and the
  * draft check's reader (`draftReader`) watching the same walk. The walk takes the input as given
  * (seed, league file, seasons, switches, staff transform, caller, `onYear`); only the watchers are
@@ -2355,10 +2365,11 @@ export interface CareerCheckOptions {
  * walk gives.
  */
 export function runCareerCheck(input: Omit<CapCheckInput, "onRun" | "onDay" | "onEvent" | "resume" | "onSeasonEnd">, options: CareerCheckOptions = {}): CareerCheckResult {
+  const injuryRisk = readerInjuryRisk(input.players);
   const reader = careerReader({
     seed: input.seed, firstSeason: input.file.season, seasons: input.seasons,
     switches: { development: input.players?.development === true, injuries: input.players?.injuries === true },
-    ...(input.players?.injuries === true && input.players.injuryRisk === "spot" ? { injuryRisk: "spot" as const } : {}),
+    ...(injuryRisk === undefined ? {} : { injuryRisk }),
   });
   const draft = draftReader();
   const { resume, onCheckpoint } = options;

@@ -115,10 +115,22 @@ export function withoutPastInjuries<F extends LeagueFileLike>(file: F): F {
 /**
  * A stand-in league file's text, read (ADR-093 step 1b): refused when it is no stand-in league file, or when
  * it does not read back as `serializeLeagueFile` writes it, since a rewrite would then move other bytes.
+ * The text is whatever file `--league` named, so no refusal quotes it (ADR-087 AB7 review, finding 3): not
+ * JSON's parse error, which shows the text's first characters, and not the `format` value (only whether it
+ * is missing, another string or of another type).
  */
 export function readLeagueText(text: string, path: string): LeagueFileLike {
-  const file = JSON.parse(text) as LeagueFileLike;
-  if (file.format !== LEAGUE_FILE_FORMAT) throw new Error(`not a stand-in league file (format "${String(file.format)}", expected "${LEAGUE_FILE_FORMAT}")`);
+  let file: LeagueFileLike;
+  try {
+    file = JSON.parse(text) as LeagueFileLike;
+  } catch {
+    throw new Error(`${path} is not valid JSON, so it is not a stand-in league file; nothing written`);
+  }
+  if (file === null || typeof file !== "object" || file.format !== LEAGUE_FILE_FORMAT) {
+    const format = file === null || typeof file !== "object" ? "no format: the file is not a JSON object"
+      : file.format === undefined ? "no format" : typeof file.format === "string" ? "another format" : `a format of type ${typeof file.format}`;
+    throw new Error(`not a stand-in league file (${format}, expected "${LEAGUE_FILE_FORMAT}"): ${path}; nothing written`);
+  }
   if (serializeLeagueFile(file) !== text) {
     throw new Error(`${path} is not as the league file's serializer writes it, so a rewrite would move other bytes: nothing written`);
   }

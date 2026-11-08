@@ -40,7 +40,11 @@ export const KEPT_CLASSES: readonly MissClass[] = ["FOOTBALL", "ILLNESS"];
 export const WEEKS_MEASURE: "weeksOut" | "gamesMissed" = "weeksOut";
 /** The file's own season's spells (ruling D1): left out, since the sim plays that season again from camp. */
 export const SNAPSHOT_SEASON_SPELLS = "drop" as const;
-/** A spell that ends with him off the roster chains into his next only when it starts within this many calendar weeks (ruling D4, CHOSEN). */
+/**
+ * A spell that ends with him off the roster chains into his next, with the same team or another, only when
+ * it starts within this many calendar weeks of his last missed week (ruling D4, CHOSEN; the window holds
+ * for a same-team spell too, as the build spec's chain rule has no team test).
+ */
 export const CHAIN_LEFT_WEEKS = 4;
 /** The entries that show him well between two spells: either one stops a chain. */
 const HEALTHY: readonly EntryState[] = ["PLAYED", "HEALTHY_DNP"];
@@ -55,11 +59,11 @@ export function pastInjuriesMethod(season: number) {
     snapshotSeasonSpells: SNAPSHOT_SEASON_SPELLS,
     chain: {
       seasonEnd: "a spell running at a season's end continues into his next only when that starts at his first game of the next season",
-      left: "a spell he left the roster in continues into his next spell of that season only when it starts within leftWithinWeeks calendar weeks",
+      left: "a spell he left the roster in continues into his next spell of that season, with the same team or another, only when it starts within leftWithinWeeks calendar weeks of his last missed week",
       leftWithinWeeks: CHAIN_LEFT_WEEKS,
       brokenBy: HEALTHY,
     },
-    overlap: "two spells of one man on two teams that overlap in time are one: the longer by weeksOut is kept",
+    overlap: "two spells of one man on two teams that overlap in time are one: the longer by weeksOut is kept whole, its start and its weeks; the shorter's weeks outside it are lost",
     kind: "real: and the first link's body-part class, \"/\" written \"-\"; the first known later link's when the first is other or unknown",
     franchiseKind: "on the spot path franchise reads each class as the game's kind of that body part (REAL_PART_KINDS); knee as knee-mcl (CHOSEN), so a real knee history is a prior for knee-mcl draws only, never acl; other and unknown as \"other\", never drawn and never a repeat",
     weeks: WEEKS_MEASURE,
@@ -138,7 +142,8 @@ export interface SeasonSpells {
 /**
  * One season's spells for the file's men (`keep`, real ids). `cutBefore`: in the file's season, a game
  * counts only when its `gameday` is before it (critic 12: the copied injuries were read on that date,
- * before that day's games were final); a game with no date is left out too.
+ * before that day's games were final); a game with no date is left out too (`readInjurySnapshot` refuses
+ * such a game, and a file's season with no game before the cut, before it gets here).
  */
 export function seasonSpells(input: {
   readonly season: number;
@@ -301,7 +306,8 @@ export function buildPastInjuries(input: {
     const tls = tlsOf.get(real) ?? [];
     const sorted = [...(spellsOf_.get(real) ?? [])].sort(bySpellOrder);
 
-    // Two spells of his on two teams that overlap in time (a trade week's rows on both): one, the longer.
+    // Two spells of his on two teams that overlap in time (a trade week's rows on both): one, the longer, kept whole;
+    // the shorter's weeks outside it are lost, so its start can move later (the spec's rule, kept by ruling D4).
     const spells: Spell[] = [];
     for (const sp of sorted) {
       const prev = spells[spells.length - 1];

@@ -16,13 +16,20 @@ import {
 import { drawInjury, gameInjuries, healWeek, makeInjury, bandFor, seedPastInjuries } from "../src/players/injuries.js";
 import { priorOfKind, realKindOf } from "../src/players/injurySpot.js";
 import { CONCUSSION_MARK, INJURY_KINDS, REAL_OTHER_KIND, REAL_PART_KINDS, REPEAT_DURABILITY } from "../src/players/injuryTables.js";
-import { REAL_PART_KEYWORDS, realBodyPart } from "../src/players/realParts.js";
+import { COVID, ILLNESS, NON_INJURY, REAL_PART_KEYWORDS, realBodyPart } from "../src/players/realParts.js";
 import type { PastInjury, PlayerMemory } from "../src/players/types.js";
 import { buildStaff, makeSave, readSave, runSeason, PLAYER_STEP_PREFIX, type LeaguePeople } from "../src/index.js";
 import { SEASON, league, resolve, startingPeople } from "./playersWorld.js";
 
 /** The `parts` vectors' sha256 (canonical JSON): the same value in attributes' `injurySpellRules.test.ts`, which holds its own copy. */
 const PARTS_VECTORS_SHA256 = "b71e54786cc48840f96d251e7d50b315895d6ce680e8415991cc5b72ed1f85b3";
+/**
+ * The keyword tables' sha256 (review finding 15): `NON_INJURY`, `COVID`, `ILLNESS` and `REAL_PART_KEYWORDS`,
+ * each regex as its source and flags, in order. The same value in calibration's `injurySpellRules.test.ts`
+ * (the originals) and attributes' (the importer's copy), so a keyword added or dropped here alone fails,
+ * even where no vector holds the word.
+ */
+const KEYWORD_TABLES_SHA256 = "90ed3cdf4d9af6e409f51ccf7c1b8b8aa30429f58999b685ea0b891c14e961d9";
 
 /** This side's own copy of the importer's `parts` vectors (ruling on critic 14). */
 const PARTS: readonly { readonly text: string; readonly slug: string; readonly part: string }[] = [
@@ -133,13 +140,24 @@ describe("the mapping table and realKindOf (§5.1)", () => {
     expect(realKindOf("real:")).toBe(REAL_OTHER_KIND);
   });
 
-  it("holds no capitalised run outside a short list in its copied keywords, and nothing shaped like an id (counted, never shown)", () => {
-    const t = readFileSync(join(__dirname, "..", "src/players/realParts.ts"), "utf8");
+  it("has the keyword tables the originals and the importer's copy have, word for word (review finding 15)", () => {
+    const re = (r: RegExp) => [r.source, r.flags];
+    const tables = JSON.stringify({ nonInjury: re(NON_INJURY), covid: re(COVID), illness: re(ILLNESS), parts: REAL_PART_KEYWORDS.map(([part, r]) => [part, ...re(r)]) });
+    expect(sha256(tables)).toBe(KEYWORD_TABLES_SHA256);
+  });
+
+  it("holds no capitalised run outside a short list in its copied keywords or this test, and nothing shaped like an id (counted, never shown)", () => {
     const RUN = /\p{Lu}(?=[\p{L}'.-]*\p{Ll})[\p{L}'.-]+(?: \p{Lu}(?=[\p{L}'.-]*\p{Ll})[\p{L}'.-]+)+/gu;
-    const allowed = new Set(["Iron Rule"]);
-    expect((t.match(RUN) ?? []).filter((r) => !allowed.has(r)).length, "capitalised runs outside the list").toBe(0);
-    expect((t.match(/\d{2}-\d{7}/g) ?? []).length, "gsis-like ids").toBe(0);
-    expect((t.match(/[A-Z][A-Za-z.']{3}[A-Z][A-Za-z.']\d{2}/g) ?? []).length, "pfr-like ids").toBe(0);
+    const CAPS = /(?<![\p{L}\d_])\p{Lu}{2,}(?: \p{Lu}{2,})+(?![\p{L}\d_])/gu;
+    // The parts vectors' report texts and one rule's name, exactly (review findings 4 and 6).
+    const allowed = new Set(["Iron Rule", "Left Knee", "Reserve Injured Reserve", "Reserve Physically Unable"]);
+    for (const f of ["src/players/realParts.ts", "test/players.pastInjuries.test.ts"]) {
+      const t = readFileSync(join(__dirname, "..", f), "utf8");
+      expect((t.match(RUN) ?? []).filter((r) => !allowed.has(r)).length, `capitalised runs outside the list in ${f}`).toBe(0);
+      expect((t.match(CAPS) ?? []).length, `capitals-only runs in ${f}`).toBe(0);
+      expect((t.match(/\d{2}-\d{7}/g) ?? []).length, `gsis-like ids in ${f}`).toBe(0);
+      expect((t.match(/[A-Z][A-Za-z.']{3}[A-Z][A-Za-z.']\d{2}/g) ?? []).length, `pfr-like ids in ${f}`).toBe(0);
+    }
   });
 });
 

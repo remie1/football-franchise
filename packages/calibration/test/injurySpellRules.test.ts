@@ -13,7 +13,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { normaliseName } from "../src/ingest/availability.js";
 import { normaliseGameStatus, normalisePracticeStatus } from "../src/ingest/sources/injuries.js";
-import { bodyPart } from "../src/injuries/classify.js";
+import { BODY_KEYWORDS, bodyPart, COVID, ILLNESS, NON_INJURY } from "../src/injuries/classify.js";
 import { parseGames, parseReports, parseRosters, parseSnaps } from "../src/injuries/rows.js";
 import { spellsOf } from "../src/injuries/spells.js";
 import { buildTimelines } from "../src/injuries/timeline.js";
@@ -21,6 +21,13 @@ import { REAL_INJURY_KINDS } from "../src/season/standInLeague.js";
 
 /** The fixture's sha256: the same value in attributes' `injurySpellRules.test.ts`. */
 const FIXTURE_SHA256 = "6c3bd75a32bfa55e989568ea5da4e14fdae007670eb91c51e04c5d9847104869";
+/**
+ * The keyword tables' sha256 (ADR-087 AB7 review, finding 15): `NON_INJURY`, `COVID`, `ILLNESS` and
+ * `BODY_KEYWORDS` of `classify.ts`, each regex as its source and flags, in order. The same value in
+ * attributes' `injurySpellRules.test.ts` and franchise's `players.pastInjuries.test.ts`, whose copies must
+ * match these originals word for word, even where no vector or fixture text holds the word.
+ */
+const KEYWORD_TABLES_SHA256 = "90ed3cdf4d9af6e409f51ccf7c1b8b8aa30429f58999b685ea0b891c14e961d9";
 const FIXTURE = join(__dirname, "..", "..", "attributes", "test", "fixtures", "injury-spell-rules.json");
 
 type Row = Record<string, unknown>;
@@ -91,9 +98,36 @@ describe("calibration's spell rules on the shared made-up fixture (ADR-087 AB7, 
     }
   });
 
+  it("has the keyword tables both copies pin (review finding 15)", () => {
+    const re = (r: RegExp) => [r.source, r.flags];
+    const tables = JSON.stringify({ nonInjury: re(NON_INJURY), covid: re(COVID), illness: re(ILLNESS), parts: BODY_KEYWORDS.map(([part, r]) => [part, ...re(r)]) });
+    expect(createHash("sha256").update(tables).digest("hex")).toBe(KEYWORD_TABLES_SHA256);
+  });
+
   it("has the 17 kinds the loader's copy knows", () => {
     expect([...REAL_INJURY_KINDS]).toEqual(fixture.kinds);
     expect(new Set(fixture.parts.map((p) => `real:${p.part.replace(/\//g, "-")}`)).size).toBe(17);
     for (const p of fixture.parts) expect(fixture.kinds).toContain(`real:${p.part.replace(/\//g, "-")}`);
+  });
+});
+
+describe("no named cases in AB7's calibration files (review finding 6; counted, never shown)", () => {
+  /** Runs of two or more capitalised words (each with a lower-case letter), and of two or more words in capitals alone. */
+  const RUN = /\p{Lu}(?=[\p{L}'.-]*\p{Ll})[\p{L}'.-]+(?: \p{Lu}(?=[\p{L}'.-]*\p{Ll})[\p{L}'.-]+)+/gu;
+  const CAPS = /(?<![\p{L}\d_])\p{Lu}{2,}(?: \p{Lu}{2,})+(?![\p{L}\d_])/gu;
+  /** The runs these two files hold today, exactly: two of the reader's sentences and its heading. */
+  const ALLOWED = new Set(["Season S's", "Kept. That"]);
+  const CAPS_ALLOWED = new Set(["THE AGING REDESIGN"]);
+  /** This test and the reader file AB7 edited; `classify.ts` and the other originals are not scanned (their comments are not AB7's). */
+  const FILES = ["test/injurySpellRules.test.ts", "src/season/careerAging.ts"];
+
+  it("holds no capitalised or capitals-only run outside the list, and nothing shaped like an id", () => {
+    for (const f of FILES) {
+      const t = readFileSync(join(__dirname, "..", f), "utf8");
+      expect((t.match(RUN) ?? []).filter((r) => !ALLOWED.has(r)).length, `capitalised runs outside the list in ${f}`).toBe(0);
+      expect((t.match(CAPS) ?? []).filter((r) => !CAPS_ALLOWED.has(r)).length, `capitals-only runs outside the list in ${f}`).toBe(0);
+      expect((t.match(/\d{2}-\d{7}/g) ?? []).length, `gsis-like ids in ${f}`).toBe(0);
+      expect((t.match(/[A-Z][A-Za-z.']{3}[A-Z][A-Za-z.']\d{2}/g) ?? []).length, `pfr-like ids in ${f}`).toBe(0);
+    }
   });
 });

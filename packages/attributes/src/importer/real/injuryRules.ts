@@ -119,9 +119,10 @@ export function onRoster(kind: RosterKind): boolean {
 
 export type ReportTextKind = "FOOTBALL" | "ILLNESS" | "NON_INJURY" | "COVID" | "NONE";
 
-const NON_INJURY = /not injury|non-injury|non injury|\brest\b|\bresting\b|personal|coach|team decision|did not travel|suspen|load management|family|birth|bereavement|ramp up|no game status|expected to (be available|play)/;
-const COVID = /covid/;
-const ILLNESS = /illness|\bill\b|\bsick|\bflu\b/;
+/** The keyword tables are exported for one pin: each copy's test hashes them to `KEYWORD_TABLES_SHA256`, one value on all three sides. */
+export const NON_INJURY = /not injury|non-injury|non injury|\brest\b|\bresting\b|personal|coach|team decision|did not travel|suspen|load management|family|birth|bereavement|ramp up|no game status|expected to (be available|play)/;
+export const COVID = /covid/;
+export const ILLNESS = /illness|\bill\b|\bsick|\bflu\b/;
 
 /** classify.ts `reportTextKind`. */
 export function reportTextKind(text: string | null): ReportTextKind {
@@ -141,7 +142,7 @@ export const BODY_PARTS = [
 ] as const;
 export type BodyPart = (typeof BODY_PARTS)[number];
 
-const BODY_KEYWORDS: readonly (readonly [Exclude<BodyPart, "illness" | "other" | "unknown">, RegExp])[] = [
+export const BODY_KEYWORDS: readonly (readonly [Exclude<BodyPart, "illness" | "other" | "unknown">, RegExp])[] = [
   ["achilles", /achilles/],
   ["concussion/head", /concussion|\bhead\b/],
   ["hamstring", /hamstring/],

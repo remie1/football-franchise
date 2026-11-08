@@ -5,7 +5,8 @@
  * `bodyPart`, the class whose keyword matches earliest in the text), COPIED, since franchise imports no
  * other domain (Iron Rule 1). The copy is pinned by its own literal vectors in
  * `test/players.pastInjuries.test.ts`, whose sha256 is the one the importer's copy pins too
- * (`PARTS_VECTORS_SHA256`), so the two cannot drift apart unseen.
+ * (`PARTS_VECTORS_SHA256`), and the tables themselves by `KEYWORD_TABLES_SHA256`, the value calibration's
+ * and the importer's tests pin for their copies, so the three cannot drift apart unseen.
  */
 
 /** The 17 classes, as calibration names them ("/" between parts). */
@@ -13,9 +14,10 @@ export type RealBodyPart =
   | "knee" | "ankle" | "hamstring" | "concussion/head" | "shoulder" | "groin/hip" | "foot/toe" | "calf/shin" | "achilles" | "quad/thigh"
   | "back/neck" | "hand/wrist" | "elbow/arm" | "chest/ribs/abdomen" | "illness" | "other" | "unknown";
 
-const NON_INJURY = /not injury|non-injury|non injury|\brest\b|\bresting\b|personal|coach|team decision|did not travel|suspen|load management|family|birth|bereavement|ramp up|no game status|expected to (be available|play)/;
-const COVID = /covid/;
-const ILLNESS = /illness|\bill\b|\bsick|\bflu\b/;
+/** Exported for one pin: the test hashes these and `REAL_PART_KEYWORDS` to `KEYWORD_TABLES_SHA256`, the value the other two copies' tests pin. */
+export const NON_INJURY = /not injury|non-injury|non injury|\brest\b|\bresting\b|personal|coach|team decision|did not travel|suspen|load management|family|birth|bereavement|ramp up|no game status|expected to (be available|play)/;
+export const COVID = /covid/;
+export const ILLNESS = /illness|\bill\b|\bsick|\bflu\b/;
 
 /** Each class's keywords, in calibration's order (the earliest match in the text wins, not the first listed). */
 export const REAL_PART_KEYWORDS: readonly (readonly [Exclude<RealBodyPart, "illness" | "other" | "unknown">, RegExp])[] = [

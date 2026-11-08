@@ -845,8 +845,10 @@ describe("the block and the league file (ADR-093 step 1b)", () => {
     expect(refused(text.slice(0, -1))).toThrow(notAsWritten);
     expect(() => readLeagueText(JSON.stringify(JSON.parse(text), null, 1) + "\n", path)).toThrow(notAsWritten);
     const other = serializeLeagueFile({ ...(JSON.parse(text) as object), format: "made-up/1" });
-    expect(refused(other)).toThrow(/^not a stand-in league file \(format "made-up\/1"/);
+    // Its format is not echoed (ADR-087 AB7 review, finding 3): only that it is another one.
+    expect(refused(other)).toThrow(`not a stand-in league file (another format, expected "ff-standin-league/1"): ${path}; nothing written`);
     expect(() => readLeagueText(other, path)).toThrow(/^not a stand-in league file/);
+    expect(() => readLeagueText(other, path)).not.toThrow(/made-up\/1/);
     // A key after startingDevelopment reads back as written, but withOfficiating would put the block after it
     // and the key before startingDevelopment: the input the guard on the bytes outside the block refuses.
     const later = serializeLeagueFile({ ...(JSON.parse(text) as object), laterKey: "made up" });

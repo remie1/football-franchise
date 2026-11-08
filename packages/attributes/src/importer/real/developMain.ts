@@ -31,7 +31,10 @@ function main(argv: readonly string[]) {
   const path = typed === undefined ? newest() : resolve(process.env.INIT_CWD ?? process.cwd(), typed);
 
   const before = readFileSync(path, "utf8");
-  const file = withStartingDevelopment(JSON.parse(before) as LeagueFileLike);
+  let read: LeagueFileLike;
+  // A file that is not JSON is refused by its path alone: the parse error would quote its first characters.
+  try { read = JSON.parse(before) as LeagueFileLike; } catch { throw new Error(`${path} is not valid JSON, so it is not a stand-in league file; nothing written`); }
+  const file = withStartingDevelopment(read);
   const after = serializeLeagueFile(file);
 
   const players = file.league.players;
@@ -54,4 +57,10 @@ function main(argv: readonly string[]) {
   }
 }
 
-main(process.argv.slice(2).filter((a) => a !== "--"));
+// A refusal prints its message alone, never the error object or its stack (ADR-087 AB7 review, finding 5).
+try {
+  main(process.argv.slice(2).filter((a) => a !== "--"));
+} catch (e: unknown) {
+  console.error(e instanceof Error ? e.message : "standin-development stopped");
+  process.exit(1);
+}

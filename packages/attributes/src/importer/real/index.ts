@@ -32,7 +32,7 @@ export {
   type PastInjuriesReport, type InjurySeasonCounts, type SeasonSpells, type StandInJoin, type WeekStates,
 } from "./injurySpells.js";
 export {
-  copiedPastInjuries, fetchInjuriesSnapshot, injuriesSnapshotDir, parquetColumns, pastInjuriesOfSnapshot, readInjurySnapshot,
+  copiedPastInjuries, fetchInjuriesSnapshot, injuriesSnapshotDir, nameWords, parquetColumns, pastInjuriesOfSnapshot, readInjurySnapshot,
   type ColumnsOf, type CopiedPastInjuries, type InjurySnapshot, type PastInjuriesBuilt,
 } from "./injurySnapshot.js";
-export { runStandinInjuries, type StandinInjuriesDeps } from "./injuriesCommand.js";
+export { printoutLeaks, runStandinInjuries, type HeldValues, type LeakCounts, type StandinInjuriesDeps } from "./injuriesCommand.js";

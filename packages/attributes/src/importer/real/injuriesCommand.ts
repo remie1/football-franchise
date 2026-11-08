@@ -19,12 +19,14 @@
  *
  * Reads the snapshot (real ids and names, read only inside `importer/real/`) and the players' sealed table
  * `<cache>/sealed.json` (read only, never written here; required). Prints counts, file hashes and paths
- * only: no name, no real id, no team, no row value, and no error carries one.
+ * only: no name, no real id, no team, no row value, and no error carries one. The printout and the block are
+ * made in full first and checked against the real values the run holds (`printoutLeaks`, review finding
+ * 2); if either would hold one, nothing is printed or written and the refusal gives the counts alone.
  */
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { pastInjuriesOfSnapshot, injuriesSnapshotDir, type ColumnsOf } from "./injurySnapshot.js";
+import { nameWords, pastInjuriesOfSnapshot, injuriesSnapshotDir, type ColumnsOf } from "./injurySnapshot.js";
 import { CHAIN_LEFT_WEEKS, SNAPSHOT_SEASON_SPELLS } from "./injurySpells.js";
 import { pastInjuriesWrites, readLeagueText } from "./leagueFile.js";
 import type { ReadRows } from "./rows.js";
@@ -67,10 +69,51 @@ function parseArgs(raw: readonly string[]): { opt: (name: (typeof VALUE_FLAGS)[n
   return { opt: (name) => values.get(name), has: (name) => on.has(name) };
 }
 
+/** What the run holds that its printout and block must not show: real ids, team codes, names (as `nameWords` writes them). */
+export interface HeldValues {
+  readonly ids: Iterable<string>;
+  readonly teams: ReadonlySet<string>;
+  readonly names: ReadonlySet<string>;
+}
+
+/** What `printoutLeaks` counts, each a count only. */
+export interface LeakCounts {
+  readonly "real ids": number;
+  readonly "team codes": number;
+  readonly names: number;
+  readonly "gsis-like ids": number;
+  readonly "pfr-like ids": number;
+}
+
+const GSIS_LIKE = /\d{2}-\d{7}/g;
+const PFR_LIKE = /[A-Z][A-Za-z.']{3}[A-Z][A-Za-z.']\d{2}/g;
+
+/**
+ * The command's last check (review finding 2): how many of the run's real values `texts` hold. Real ids
+ * anywhere in a text (each id counted once); team codes as whole words, case kept; names as runs of whole
+ * words, case and marks ignored; and anything shaped like a gsis or pfr id. Counts only, never a value.
+ */
+export function printoutLeaks(texts: readonly string[], held: HeldValues): LeakCounts {
+  const all = texts.join("\n");
+  let ids = 0;
+  for (const id of held.ids) if (id.length > 0 && all.includes(id)) ids++;
+  const teams = (all.match(/[A-Za-z0-9]+/g) ?? []).filter((w) => held.teams.has(w)).length;
+  let most = 0;
+  for (const n of held.names) most = Math.max(most, Math.min(6, n.split(" ").length));
+  let names = 0;
+  for (const t of texts) {
+    const w = nameWords(t);
+    for (let i = 0; i < w.length; i++) for (let n = 2; n <= most && i + n <= w.length; n++) if (held.names.has(w.slice(i, i + n).join(" "))) names++;
+  }
+  return {
+    "real ids": ids, "team codes": teams, names,
+    "gsis-like ids": (all.match(GSIS_LIKE) ?? []).length, "pfr-like ids": (all.match(PFR_LIKE) ?? []).length,
+  };
+}
+
 /** The command, on injectable seams, so a test runs it whole on made-up folders. */
 export async function runStandinInjuries(argv: readonly string[], deps: StandinInjuriesDeps): Promise<void> {
   const { opt, has } = parseArgs(argv);
-  const log = deps.log;
   const pkg = deps.pkg ?? fileURLToPath(new URL("../../../", import.meta.url));
   const leagues = join(pkg, "leagues");
   const newest = () => {
@@ -104,6 +147,9 @@ export async function runStandinInjuries(argv: readonly string[], deps: StandinI
   const built = await pastInjuriesOfSnapshot(dir, file, sealed, deps.read, deps.columnsOf);
   const { snapshot: snap, join: joined, block, report } = built;
   const c = block.counts;
+  // The printout is made in full first, and printed only once it and the block pass the last check.
+  const lines: string[] = [];
+  const log = (line: string) => lines.push(line);
 
   log(`standin-injuries ${relative(pkg, path)}: season ${file.season}, cut ${file.snapshotDate}`);
   log(`  injuries snapshot ${basename(dir)} (${relative(pkg, dir)}): season ${snap.manifest.season}, fetched ${snap.manifest.fetchedAt}; ` +
@@ -125,10 +171,14 @@ export async function runStandinInjuries(argv: readonly string[], deps: StandinI
     `by band SHORT ${report.byBand.SHORT}, LONG ${report.byBand.LONG}, MAJOR ${report.byBand.MAJOR}`);
 
   const writes = pastInjuriesWrites({ path, text: before, block });
-  if (has("--dry-run")) log(`  dry run, nothing written: ${relative(pkg, path)}`);
-  else if (writes === null) log(`  unchanged: ${relative(pkg, path)}`);
-  else {
-    writeFileSync(path, writes);
-    log(`  wrote ${relative(pkg, path)}`);
+  const write = !has("--dry-run") && writes !== null;
+  log(has("--dry-run") ? `  dry run, nothing written: ${relative(pkg, path)}` : write ? `  wrote ${relative(pkg, path)}` : `  unchanged: ${relative(pkg, path)}`);
+
+  const leaks = printoutLeaks([...lines, JSON.stringify(block)], { ids: joined.realOf.values(), ...snap.held });
+  const found = Object.entries(leaks).filter(([, n]) => n > 0);
+  if (found.length > 0) {
+    throw new Error(`the printout or the block would hold real values (${found.map(([k, n]) => `${k} ${n}`).join(", ")}): nothing printed or written`);
   }
+  if (write) writeFileSync(path, writes!);
+  for (const line of lines) deps.log(line);
 }

@@ -118,4 +118,5 @@ async function main(argv: readonly string[]) {
   console.log(`  wrote ${out}; sealed table ${sealedPath}`);
 }
 
+// A refusal prints its message alone, never the error object or its stack (critic 3; review finding 5).
 main(process.argv.slice(2)).catch((e: unknown) => { console.error(e instanceof Error ? e.message : "import-real stopped"); process.exit(1); });

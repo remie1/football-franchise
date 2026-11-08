@@ -21,7 +21,7 @@ import {
   teamStarters, unsignedWaits, usagePeak, waitClass, type BusiestSnaps, type CareerCheckpoint, type SideSnaps, type UsageCell,
   addAvailability, apyOfDeal, backOnA53, cutFileDeal, EXPIRY_MIN_CAP_SHARE, expiryWindow, followExpiries, leagueYearOf, liveAt, nflCount, nflRosterIds,
   openExpiries, outFourWeeksBand, outFourWeeksLeft, retiredNextYear, retirementsOf, STARTER_SHARE, startersGone, type AgeCounts, type CareerReaderState,
-  draftByAge, RETIREMENT_MOMENTS, retiredHow, teamOverallRow, teamOveralls, type RetirementRead, type SeasonRow,
+  draftByAge, RETIREMENT_MOMENTS, retiredHow, teamOverallRow, teamOveralls, type RetirementRead, type SeasonRow, readerInjuryRisk,
 } from "../src/season/careerCheck.js";
 import { OTC_SIGNED_AGAIN, STARTER_MIN_SHARE } from "../src/careers/nflCareers.js";
 import { careerValues } from "../src/careers/measure.js";
@@ -1401,6 +1401,33 @@ describe("runCareerCheck: one walk, both readers", () => {
     expect(JSON.stringify(resumed)).toBe(JSON.stringify(straight));
     // The draft reader carried on too: one draft a season, three in all.
     expect(resumed.draft.drafts).toBe(3);
+  }, 300_000);
+
+  it("hands the reader the spot path only with injuries on and played on it: p8 in those rows alone (ADR-087 AB7 review, finding 13)", () => {
+    expect(readerInjuryRisk({ development: true, injuries: true })).toBeUndefined();
+    expect(readerInjuryRisk({ development: true, injuries: true, injuryRisk: "group" })).toBeUndefined();
+    expect(readerInjuryRisk({ development: true, injuries: true, injuryRisk: "spot" })).toBe("spot");
+    expect(readerInjuryRisk({ development: true, injuryRisk: "spot" })).toBeUndefined();
+    expect(readerInjuryRisk(undefined)).toBeUndefined();
+    // Through runCareerCheck: each made-up season walks its first camp day and week 1's first day (the reader's
+    // first day is where it seeds), with no games; the file's copied injuries are there on every path with injuries on.
+    const twoDays = (i: SeasonInput): SeasonRun => {
+      for (const at of [{ phase: "TRAINING_CAMP", week: 1 }, { phase: "REGULAR_SEASON", week: 1 }] as const) {
+        for (const step of i.daySteps ?? []) step.run(i.people!, { day: { season: i.season, phase: at.phase, week: at.week, day: 1 }, games: [] } as never);
+      }
+      return madeUp(i);
+    };
+    const rowsUnder = (players: CapCheckInput["players"]) => {
+      hook.runSeason = twoDays as never;
+      try { return runCareerCheck({ seed: "career-check-p8", file, seasons: 1, ...(players === undefined ? {} : { players }) }); } finally { hook.runSeason = undefined; }
+    };
+    // (Counts that hold before and after the custody run gives the file its histories: the copied injuries stay.)
+    const spot = rowsUnder({ development: true, injuries: true, injuryRisk: "spot" });
+    expect(spot.p8).toBeDefined();
+    expect(spot.p8!.copiedMapped).toBeGreaterThan(0);
+    for (const players of [{ development: true, injuries: true }, { development: true, injuries: true, injuryRisk: "group" }, { development: true, injuryRisk: "spot" }] as const) {
+      expect("p8" in rowsUnder(players), JSON.stringify(players)).toBe(false);
+    }
   }, 300_000);
 });
 

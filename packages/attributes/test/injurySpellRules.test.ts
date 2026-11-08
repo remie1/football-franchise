@@ -9,7 +9,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
-  BODY_PARTS, bodyPart, buildTimelines, normaliseGameStatus, normaliseName, normalisePracticeStatus, reportTextKind, spellsOf,
+  BODY_KEYWORDS, BODY_PARTS, bodyPart, buildTimelines, COVID, ILLNESS, NON_INJURY, normaliseGameStatus, normaliseName, normalisePracticeStatus,
+  reportTextKind, spellsOf,
 } from "../src/importer/real/injuryRules.js";
 import {
   gameRows, INJURY_REPORT_COLUMNS, INJURY_ROSTER_COLUMNS, INJURY_SCHEDULE_COLUMNS, INJURY_SNAP_COLUMNS, loadInjuryScheduleRows,
@@ -24,6 +25,13 @@ const text = readFileSync(FIXTURE, "utf8");
 const FIXTURE_SHA256 = "6c3bd75a32bfa55e989568ea5da4e14fdae007670eb91c51e04c5d9847104869";
 /** The `parts` vectors' sha256 (canonical JSON): the same value in franchise's `players.pastInjuries.test.ts`, which holds its own copy. */
 const PARTS_VECTORS_SHA256 = "b71e54786cc48840f96d251e7d50b315895d6ce680e8415991cc5b72ed1f85b3";
+/**
+ * The keyword tables' sha256 (review finding 15): `NON_INJURY`, `COVID`, `ILLNESS` and `BODY_KEYWORDS`, each
+ * regex as its source and flags, in order. The same value in calibration's `injurySpellRules.test.ts` (its
+ * originals) and franchise's `players.pastInjuries.test.ts` (its copy), so a keyword added to or dropped from
+ * any one copy fails that side, even when no vector holds the word.
+ */
+const KEYWORD_TABLES_SHA256 = "90ed3cdf4d9af6e409f51ccf7c1b8b8aa30429f58999b685ea0b891c14e961d9";
 
 type Row = Record<string, unknown>;
 interface Fixture {
@@ -142,32 +150,63 @@ describe("the copied spell rules on the shared made-up fixture (ADR-087 AB7)", (
     }
   });
 
+  it("have the keyword tables the other two copies have, word for word (review finding 15)", () => {
+    const re = (r: RegExp) => [r.source, r.flags];
+    const tables = JSON.stringify({ nonInjury: re(NON_INJURY), covid: re(COVID), illness: re(ILLNESS), parts: BODY_KEYWORDS.map(([part, r]) => [part, ...re(r)]) });
+    expect(sha256(tables)).toBe(KEYWORD_TABLES_SHA256);
+  });
+
   it("have the 17 kinds the block may carry: real: and each class, \"/\" written \"-\"", () => {
     expect(fixture.kinds).toEqual(BODY_PARTS.map((p) => `real:${p.replace(/\//g, "-")}`));
     expect([...REAL_INJURY_KINDS]).toEqual(fixture.kinds);
   });
 });
 
-describe("no named cases in the copy, the new importer files or the fixture (§3.3; critic 2)", () => {
+describe("no named cases in the copy, the new importer files, their tests or the fixture (§3.3; critic 2; review findings 4 and 6)", () => {
   /** Runs of two or more capitalised words (each with a lower-case letter, so codes like ACL do not count). */
   const RUN = /\p{Lu}(?=[\p{L}'.-]*\p{Ll})[\p{L}'.-]+(?: \p{Lu}(?=[\p{L}'.-]*\p{Ll})[\p{L}'.-]+)+/gu;
-  /** The runs these files may hold: made-up names, report and practice texts, and one rule's name. */
+  /** Runs of two or more words in capitals alone (a name written in capitals; RUN does not see these). */
+  const CAPS = /(?<![\p{L}\d_])\p{Lu}{2,}(?: \p{Lu}{2,})+(?![\p{L}\d_])/gu;
+  /** The runs these files may hold: report and practice texts, one rule's name, and the made-up names' spellings. */
   const ALLOWED = new Set([
     "Did Not Participate In Practice", "Full Participation", "Limited Participation", "Iron Rule", "Left Foot", "Left Knee",
-    "Reserve Injured Reserve", "Reserve Physically Unable", "Made-Up Player", "Madé Úp Player",
+    "Reserve Injured Reserve", "Reserve Physically Unable", "Made-Up Player", "Madé Úp Player", "Some Other Made Up Name",
   ]);
+  /** The made-up names the files use, whole (review finding 4: an exact list, not a prefix, so nothing can follow one unseen). */
+  const MADE_UP = /^Made Up(?: Player(?: (?:Seventeen(?: Jr\.)?|Eighteen|TwentyThree|TwentyFour|Other))?)?$/;
+  /** The capitals-only runs these files may hold: the files' own headings. */
+  const CAPS_ALLOWED = new Set(["THE SPELL RULES", "THE INJURIES SNAPSHOT", "THE STAND", "PAST INJURIES"]);
+  /**
+   * The importer's new files, the fixture, and the tests that hold rows written as the snapshot's columns
+   * (review finding 6). Franchise's `realParts.ts` is scanned by franchise's own test, and calibration's two
+   * files by calibration's: no package reads another's sources.
+   */
   const FILES = [
     "src/importer/real/injuryRules.ts", "src/importer/real/injuryRows.ts", "src/importer/real/injurySpells.ts", "src/importer/real/injurySnapshot.ts",
     "src/importer/real/injuriesMain.ts", "src/importer/real/injuriesCommand.ts", "src/importer/real/pastInjuries.ts", "test/fixtures/injury-spell-rules.json",
+    "test/helpers.ts", "test/injurySpells.test.ts", "test/standinInjuries.test.ts", "test/injurySpellRules.test.ts",
   ];
   it("holds no capitalised run outside the allowlist, and nothing shaped like a named case (counted, never shown)", () => {
     for (const f of FILES) {
       const t = readFileSync(join(__dirname, "..", f), "utf8");
-      const outside = (t.match(RUN) ?? []).filter((r) => !ALLOWED.has(r) && !r.startsWith("Made Up Player")).length;
+      const outside = (t.match(RUN) ?? []).filter((r) => !ALLOWED.has(r) && !MADE_UP.test(r)).length;
       expect(outside, `capitalised runs outside the allowlist in ${f}`).toBe(0);
+      expect((t.match(CAPS) ?? []).filter((r) => !CAPS_ALLOWED.has(r)).length, `capitals-only runs outside the allowlist in ${f}`).toBe(0);
       expect(leakCount(t, /[A-Z][a-z]+ [A-Z][a-z'.-]+ \(?[A-Z]{2,3} (19|20)\d\d/), `named cases in ${f}`).toBe(0);
       expect(leakCount(t, /\d{2}-\d{7}/), `gsis-like ids in ${f}`).toBe(0);
       expect(leakCount(t, /[A-Z][A-Za-z.']{3}[A-Z][A-Za-z.']\d{2}/), `pfr-like ids in ${f}`).toBe(0);
     }
+  });
+
+  it("sees a name after the made-up prefix, and a name in capitals (made-up planted texts)", () => {
+    const count = (t: string) => ({
+      runs: (t.match(RUN) ?? []).filter((r) => !ALLOWED.has(r) && !MADE_UP.test(r)).length,
+      caps: (t.match(CAPS) ?? []).filter((r) => !CAPS_ALLOWED.has(r)).length,
+    });
+    // Joined at run time, so this file's own scan does not see them.
+    const words = (...w: string[]) => w.join(" ");
+    expect(count("// Made Up Player Seventeen Jr. and Made Up Player")).toEqual({ runs: 0, caps: 0 });
+    expect(count(`// ${words("Made Up Player", "Pretend", "Surname")}`)).toEqual({ runs: 1, caps: 0 });
+    expect(count(`// ${words("PRETEND", "SURNAME")}`)).toEqual({ runs: 0, caps: 1 });
   });
 });

@@ -46,7 +46,10 @@ interface Man { readonly n: number; readonly copied?: boolean; readonly stints: 
 const gsis = (n: number) => `g:${String(n).padStart(2, "0")}`;
 const pfr = (n: number) => `p:${String(n).padStart(2, "0")}`;
 const standIn = (n: number) => `s:${String(n).padStart(2, "0")}`;
-const WORDS = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen"];
+const WORDS = [
+  "Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen",
+  "Seventeen", "Eighteen", "Nineteen", "Twenty", "TwentyOne",
+];
 const nameOf = (n: number) => `Made Up Player ${WORDS[n]}`;
 const P18 = "P".repeat(18);
 /** A season's letters: `at` (1-based week) onward replaced by `s`, the rest played. */
@@ -108,6 +111,16 @@ const MEN: readonly Man[] = [
   { n: 15, copied: true, stints: [{ season: 2024, team: "T1", weeks: P18 }, { season: S, team: "T1", weeks: P18 }] },
   // 16: a toe at 2024's end, off T3's roster for 2025's first three weeks (nothing well), out weeks 4-5: two records (a season-end link chains only into his first week).
   { n: 16, stints: [{ season: 2024, team: "T3", weeks: weeks("XX", 17), text: "Toe" }, { season: 2025, team: "T3", weeks: "---XX" + "P".repeat(13), text: "Toe" }] },
+  // 17: a wrist on T1 in 2025's weeks 3-4, gone, out on T2 from week 8 (4 weeks on, the window's edge): chained after leaving (review finding 14).
+  { n: 17, stints: [{ season: 2025, team: "T1", weeks: "PPXX" + "-".repeat(14), text: "Wrist" }, { season: 2025, team: "T2", weeks: "-------XXPPPPPPPPP", text: "Wrist" }] },
+  // 18: the same with T2's spell from week 9 (5 weeks on, past the window): two records.
+  { n: 18, stints: [{ season: 2025, team: "T1", weeks: "PPXX" + "-".repeat(14), text: "Neck" }, { season: 2025, team: "T2", weeks: "--------XXPPPPPPPP", text: "Neck" }] },
+  // 19: a hip on T3 in weeks 3-4, off T3's roster weeks 5-7, out for T3 again from week 8 (4 weeks on): the same team chains too (review finding 11).
+  { n: 19, stints: [{ season: 2025, team: "T3", weeks: "PPXX---XXPPPPPPPPP", text: "Hip" }] },
+  // 20: the same team with the next spell from week 9 (5 weeks on): two records.
+  { n: 20, stints: [{ season: 2025, team: "T3", weeks: "PPXX----XXPPPPPPPP", text: "Thigh" }] },
+  // 21: a trade mid-injury (review finding 10): out for T1 weeks 6-8 and gone, out for T2 weeks 8-12 with week-8 rows on both: one, T2's, the longer, kept whole.
+  { n: 21, stints: [{ season: 2025, team: "T1", weeks: "PPPPPXXX" + "-".repeat(10), text: "Foot" }, { season: 2025, team: "T2", weeks: "-------XXXXXPPPPPP", text: "Foot" }] },
 ];
 const KEEP = new Set(MEN.map((m) => gsis(m.n)));
 
@@ -229,14 +242,30 @@ describe("tests 13-15: the records", () => {
         { kind: "real:quad-thigh", weeks: 2, since: rs(2025, 6), healed: rs(2025, 8) },
       ]);
     }
-    // Men 2 (into the cut), 5 and 14 across a season end; man 8 after leaving.
+    // The window's edge, both ways (review finding 14): 4 calendar weeks on chains, 5 does not.
+    expect(of(17)).toEqual([{ kind: "real:hand-wrist", weeks: 2 + 2, since: rs(2025, 3), healed: rs(2025, 10) }]);
+    expect(of(18)).toEqual([
+      { kind: "real:back-neck", weeks: 2, since: rs(2025, 3), healed: rs(2025, 5) },
+      { kind: "real:back-neck", weeks: 2, since: rs(2025, 9), healed: rs(2025, 11) },
+    ]);
+    // The same team, both ways (review finding 11; CHOSEN: the window holds whatever the team).
+    expect(of(19)).toEqual([{ kind: "real:groin-hip", weeks: 2 + 2, since: rs(2025, 3), healed: rs(2025, 10) }]);
+    expect(of(20)).toEqual([
+      { kind: "real:quad-thigh", weeks: 2, since: rs(2025, 3), healed: rs(2025, 5) },
+      { kind: "real:quad-thigh", weeks: 2, since: rs(2025, 9), healed: rs(2025, 11) },
+    ]);
+    expect(pastInjuriesMethod(S).chain.left).toMatch(/with the same team or another/);
+    // Men 2 (into the cut), 5 and 14 across a season end; men 8, 17 and 19 after leaving.
     expect(block.counts.chainedAcrossSeasonEnd).toBe(3);
-    expect(block.counts.chainedAfterLeaving).toBe(1);
+    expect(block.counts.chainedAfterLeaving).toBe(3);
   });
 
-  it("merges two spells on two teams that overlap in time, keeping the longer", () => {
+  it("merges two spells on two teams that overlap in time, keeping the longer whole", () => {
     expect(of(12)).toEqual([{ kind: "real:back-neck", weeks: 4, since: rs(2025, 5), healed: rs(2025, 9) }]);
-    expect(block.counts.merged).toBe(1);
+    // A trade week's rows on both teams (review finding 10): T2's spell is kept, its start and weeks; T1's weeks 6-7 are lost.
+    expect(of(21)).toEqual([{ kind: "real:foot-toe", weeks: 5, since: rs(2025, 8), healed: rs(2025, 13) }]);
+    expect(pastInjuriesMethod(S).overlap).toMatch(/the shorter's weeks outside it are lost/);
+    expect(block.counts.merged).toBe(2);
   });
 
   it("sums calendar weeks out, byes counted, not games missed (ruling D3)", () => {
