@@ -168,7 +168,10 @@ const ageSpread = (rng: Rng): number => Math.floor(Math.abs(gauss(rng)) * 4.5);
  * With `aging` at `"ability"`: a rookie-to-be's age is his draft-day age (`drawRookieAge`) plus this
  * many years. CHOSEN: the league is made for its season's first day, camp (franchise's `seasonStart`),
  * and a drafted class turns a year older between draft day and its first camp (`turnYear`), so a
- * made-up rookie stands where a drafted one does at his first camp, on the REAL week-8 shares (§12.5).
+ * made-up rookie stands where a drafted man of his talent does at his first camp. The draw is the
+ * class's (§12.5): a latent fitted (AB4b) so that the rookies a made-up class puts on the week-8 53s
+ * land on REAL's. The league's rookies-to-be are not cut down from a class (every one starts on a 53),
+ * so they run older than REAL's week-8 rookies; MEASURED in §12.9's AB4b note.
  */
 export const ROOKIE_YEARS_PAST_DRAFT = 1;
 

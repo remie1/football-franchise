@@ -146,26 +146,32 @@ export function drawFadeShift(rng: Rng): Record<AbilityGroup, number> {
 }
 
 /**
- * A made-up rookie's age (ADR-087 §12.5, AB4; the `aging` option at `"ability"` with growth on).
- *   - `draftDay`: the share of a class at each whole age on draft day, computed from REAL (rookies on
- *     week-8 53s, 2018-24: 20 and under 0.2%, 21 12.8%, 22 31.5%, 23 35.4%, 24 16.6%, 25 2.9%, 26 and
- *     over 0.6%; mean 22.67). Sim ages go up one at the year turn before his first camp (franchise's
- *     `turnYear`), so draft day is a year younger, and the 20-and-under sliver is folded into 20. The
- *     shares' mean is 21.667, a year under the REAL week-8 mean.
- *   - `rho`: how strongly age runs against talent, so the less talented, who go undrafted, run older
- *     (REAL: with fractional ages, drafted rookies on week-8 53s average 23.01 and undrafted 23.63, 0.62
- *     older). A Gaussian copula: `z_age = −rho·z_talent + √(1−rho²)·e`, read through `draftDay`. CHOSEN
- *     (fitted): from §12.5's starting GUESS 0.3, set once by a calibration run of the walk's first draft
- *     (the stand-in league, 10 seeds, every game a seeded coin) so that the undrafted signees average
- *     0.62 years older than the men drafted: 0.616 expected at 0.57, with each man's own age draw
- *     integrated out (MEASURED; 0.329 at the GUESS). ADR-087 §12.9, the AB4 note.
+ * A made-up rookie's age (ADR-087 §12.5, AB4, fitted by AB4b; the `aging` option at `"ability"` with
+ * growth on). Both numbers are CHOSEN (fitted), a latent the fit sets, not REAL numbers: REAL counts
+ * rookies still on a 53 at week 8 (2018-24: 20 and under 0.2%, 21 12.8%, 22 31.5%, 23 35.4%, 24 16.6%,
+ * 25 2.9%, 26 and over 0.6%, mean 22.67; with fractional ages the drafted average 23.01 and the
+ * undrafted 23.63, 0.62 older), most of them drafted, so the class is fitted on that same basis (the
+ * orchestrator's ruling on §12.5, 2026-11-08).
+ *   - `draftDay`: the share of a class at each whole age on draft day. Sim ages go up one at the year
+ *     turn before his first camp (franchise's `turnYear`), so draft day is a year under week 8.
+ *   - `rho`: how strongly age runs against talent, so the less talented, who go undrafted, run older.
+ *     A Gaussian copula: `z_age = −rho·z_talent + √(1−rho²)·e`, read through `draftDay`.
+ * Fitted together (ADR-087 §12.9, the AB4b note) so that the rookies of the walk's first made-up class
+ * on the week-8 53s counted like the NFL (the career check's walk on the stand-in league, growth and
+ * injuries on, the real engine) land on REAL's whole-year shares, the 20-and-under sliver folded into
+ * 21, and on its 0.62 gap: on 24 seeds the drafted and undrafted men's own talent and age draws were
+ * replayed, keeping was modelled against talent, status and age (a younger man is kept a little more
+ * often), and the six shares and rho solved; confirmed by runs at the rounded values (MEASURED there).
+ * The shares' mean is 22.506 on draft day, against 21.67 (REAL's week-8 mean less the year): a class
+ * runs older than the rookies it puts on the 53s, since the drafted, who make most of them, are its
+ * younger men.
  */
 export const ROOKIE_AGE = {
   draftDay: [
-    { age: 20, share: 0.13 }, { age: 21, share: 0.315 }, { age: 22, share: 0.354 },
-    { age: 23, share: 0.166 }, { age: 24, share: 0.029 }, { age: 25, share: 0.006 },
+    { age: 20, share: 0.049 }, { age: 21, share: 0.161 }, { age: 22, share: 0.3 },
+    { age: 23, share: 0.292 }, { age: 24, share: 0.121 }, { age: 25, share: 0.077 },
   ],
-  rho: 0.57,
+  rho: 0.7,
 } as const satisfies { draftDay: readonly { age: number; share: number }[]; rho: number };
 
 /**

@@ -77,6 +77,10 @@
  *    the walk's own entrants in the later window). The roster way's retired-within-a-year cohorts are
  *    also read by years in the league (`exits.retiredNextYearByYears`).
  *
+ * Added for the made-up rookies' ages (ADR-087 §12.5, AB4b; rows version 7): each week-8 picture's
+ * rookies by draft status, drafted and undrafted (`rookieAgeByDraft`), so the undrafted rookies' extra
+ * age is read on the 53s, where the real side counts it.
+ *
  * Ages. A man's age is his `bio.age` during the season (as read at week 8); the year turn at the end
  * of each walk adds one, so an age read after it (in `onRun`'s people) is next season's (`seasonAge`).
  *
@@ -279,8 +283,17 @@ export interface RosterPicture {
   /** Share whose draft line is UDFA. */
   readonly undraftedShare: number;
   /** The rookies (as `rookieShare` reads them): how many, their mean age, men by age (whole years, as read). Rows version 5. */
-  readonly rookieAge: { readonly n: number; readonly mean: number; readonly histogram: Record<string, number> };
+  readonly rookieAge: RookieAgeTally;
+  /**
+   * The same rookies by draft status (rows version 7; ADR-087 §12.5, AB4b): drafted (a draft line)
+   * and undrafted (any other), each as `rookieAge` is read. The real side gives the gap on fractional
+   * ages (drafted 23.01, undrafted 23.63); the grader sets the whole-year means' gap beside it.
+   */
+  readonly rookieAgeByDraft: { readonly drafted: RookieAgeTally; readonly undrafted: RookieAgeTally };
 }
+
+/** Rookies' ages as read (whole years): how many, their mean, men by age. */
+export interface RookieAgeTally { readonly n: number; readonly mean: number; readonly histogram: Record<string, number> }
 
 /**
  * A team's starters as the engine fields them (`fieldedStarters`). In season the depth chart leaves
@@ -386,9 +399,13 @@ export function rosterPicture(
     const first = rookies?.firstSeasonOf(String(r.p.bio.id));
     return first === undefined ? (r.p.bio.creditedSeasons ?? 0) === 0 : first === rookies!.season;
   };
-  const rookieAges = rows.filter(isRookie).map((r) => r.p.bio.age);
-  const rookieHistogram: Record<string, number> = {};
-  for (const a of [...rookieAges].sort((x, y) => x - y)) bump(rookieHistogram, String(a));
+  const tallyOf = (ages: readonly number[]): RookieAgeTally => {
+    const histogram: Record<string, number> = {};
+    for (const a of [...ages].sort((x, y) => x - y)) bump(histogram, String(a));
+    return { n: ages.length, mean: mean(ages), histogram };
+  };
+  const rookieRows = rows.filter(isRookie);
+  const drafted = (r: (typeof rows)[number]) => typeof r.p.bio.draft === "object";
   return {
     players: rows.length,
     overall: {
@@ -409,7 +426,11 @@ export function rosterPicture(
     rookieShare: share(isRookie),
     noCreditShare: share((r) => (r.p.bio.creditedSeasons ?? 0) === 0),
     undraftedShare: share((r) => r.p.bio.draft === "UDFA"),
-    rookieAge: { n: rookieAges.length, mean: mean(rookieAges), histogram: rookieHistogram },
+    rookieAge: tallyOf(rookieRows.map((r) => r.p.bio.age)),
+    rookieAgeByDraft: {
+      drafted: tallyOf(rookieRows.filter(drafted).map((r) => r.p.bio.age)),
+      undrafted: tallyOf(rookieRows.filter((r) => !drafted(r)).map((r) => r.p.bio.age)),
+    },
   };
 }
 
@@ -1631,8 +1652,11 @@ export interface SeasonRow {
   readonly rookieCut: RookieCut | null;
 }
 
-/** What the rows hold and the reader saves: a change to either starts a fresh version. */
-export const CAREER_ROWS_VERSION = 6;
+/**
+ * What the rows hold and the reader saves: a change to either starts a fresh version. 7: the week-8
+ * pictures' rookies by draft status (`RosterPicture.rookieAgeByDraft`, ADR-087 §12.5, AB4b).
+ */
+export const CAREER_ROWS_VERSION = 7;
 
 export interface CareerCheckRows {
   readonly version: typeof CAREER_ROWS_VERSION;

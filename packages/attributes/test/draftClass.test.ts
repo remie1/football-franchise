@@ -84,16 +84,17 @@ const abilityClasses = SEEDS.map((s) => generateDraftClass({ ...s, development: 
 const positionClasses = SEEDS.map((s) => generateDraftClass({ ...s, development: true, aging: "position" }));
 
 describe("rookie ages for made-up classes (ADR-087 §12.5, AB4)", () => {
-  it("hold the CHOSEN table: the draft-day shares computed from REAL, folded at 20, and the fitted ρ 0.57", () => {
+  it("hold the CHOSEN table: the draft-day shares and ρ fitted together to REAL's week-8 53s (AB4b)", () => {
+    // CHOSEN (fitted, ADR-087 §12.9's AB4b note): the walk's first made-up class on the week-8 53s counted
+    // like the NFL lands on REAL's whole-year shares and its 0.62 gap. A latent the fit sets, not REAL's own.
     expect(ROOKIE_AGE.draftDay).toEqual([
-      { age: 20, share: 0.13 }, { age: 21, share: 0.315 }, { age: 22, share: 0.354 },
-      { age: 23, share: 0.166 }, { age: 24, share: 0.029 }, { age: 25, share: 0.006 },
+      { age: 20, share: 0.049 }, { age: 21, share: 0.161 }, { age: 22, share: 0.3 },
+      { age: 23, share: 0.292 }, { age: 24, share: 0.121 }, { age: 25, share: 0.077 },
     ]);
-    // REAL (week-8 53s, 2018-24) a year on: 20 and under 0.2% + 21 12.8% → 20; 22-26+ → 21-25.
     expect(ROOKIE_AGE.draftDay.reduce((s, x) => s + x.share, 0)).toBeCloseTo(1, 12);
-    expect(ROOKIE_AGE.draftDay.reduce((s, x) => s + x.age * x.share, 0)).toBeCloseTo(22.667 - 1, 3);
-    // CHOSEN (fitted) by the AB4 calibration run (the walk's first draft, 10 seeds): undrafted 0.62 older.
-    expect(ROOKIE_AGE.rho).toBe(0.57);
+    // The class's draft-day mean, 22.506 (COMPUTED): older than the 53's rookies a year on less one (REAL 22.67 - 1).
+    expect(ROOKIE_AGE.draftDay.reduce((s, x) => s + x.age * x.share, 0)).toBeCloseTo(22.506, 12);
+    expect(ROOKIE_AGE.rho).toBe(0.7);
   });
 
   it("over 20 classes of DRAFT_CLASS_SIZE, sit within ±1 pt of each draft-day share", () => {
@@ -142,13 +143,14 @@ describe("rookie ages for made-up classes (ADR-087 §12.5, AB4)", () => {
     expect(small.players.map((p) => p.bio.age)).toEqual(abilityClasses[0]!.players.slice(0, 120).map((p) => p.bio.age));
   });
 
-  it("run the less talented older, with no draft: below the round-7 talent cut, about 0.9 years older (the copula at ρ 0.57)", () => {
+  it("run the less talented older, with no draft: below the round-7 talent cut, the gap the fitted table gives (1.43 years)", () => {
     // The cut: the class's top 7 × 32 by talent, as the draft's regular rounds take that many. Below it are
-    // the undrafted, both those a team signs and those who go home, so the gap is wider than the 0.62 the
-    // signees are fitted to after the draft (calibration's `rookieAges.test.ts`): 0.933 (MEASURED, by
-    // numerical integration of the copula at ρ 0.57 against the shares), and 0.939 (MEASURED over these 20
-    // classes). The band is ADR-087 §12.5's amendment AM-AB4-1, for the orchestrator to ratify (the plan's
-    // text said "about 0.6"). At "position", ages do not follow talent.
+    // the undrafted, both those a team signs and those who go home. No REAL number stands here (AM-AB4-1 is
+    // superseded, ADR-087 §12.5): the check pins what the fitted shares and ρ give, 1.430 (COMPUTED, by
+    // numerical integration of the copula at ρ 0.7 against the shares, the cut at the top 224/900 of a
+    // standard normal), and 1.440 (MEASURED over these 20 classes). The band (CHOSEN) is ±0.06, about 2.8
+    // standard errors of the 20 classes' mean gap (0.022, MEASURED). AB4's table read 0.933 here. At "position", ages do
+    // not follow talent.
     const gapBelowCut = (classes: typeof abilityClasses) => {
       const gaps = classes.map((c, k) => {
         const { seed, draft } = SEEDS[k]!;
@@ -158,8 +160,8 @@ describe("rookie ages for made-up classes (ADR-087 §12.5, AB4)", () => {
       return mean(gaps);
     };
     const ability = gapBelowCut(abilityClasses);
-    expect(ability).toBeGreaterThan(0.85);
-    expect(ability).toBeLessThan(1.02);
+    expect(ability).toBeGreaterThan(1.43 - 0.06);
+    expect(ability).toBeLessThan(1.43 + 0.06);
     expect(Math.abs(gapBelowCut(positionClasses))).toBeLessThan(0.06);
   });
 
@@ -168,10 +170,11 @@ describe("rookie ages for made-up classes (ADR-087 §12.5, AB4)", () => {
     expect(draws(0).every((a) => Number.isInteger(a) && a >= 20 && a <= 25)).toBe(true);
     // ρ 0: the same e gives the same age whatever his talent.
     expect(draws(2, 0)).toEqual(draws(-2, 0));
-    // The default ρ is ROOKIE_AGE.rho; a man two sd above runs younger than one two below, by about 2.3 years at 0.57.
+    // The default ρ is ROOKIE_AGE.rho; a man two sd above runs younger than one two below, by 3.37 years at the
+    // fitted table (COMPUTED, his age draw integrated out; 3.364 over these 4,000 draws each, MEASURED).
     expect(draws(1)).toEqual(draws(1, ROOKIE_AGE.rho));
-    expect(mean(draws(-2)) - mean(draws(2))).toBeGreaterThan(1.9);
-    expect(mean(draws(-2)) - mean(draws(2))).toBeLessThan(2.7);
+    expect(mean(draws(-2)) - mean(draws(2))).toBeGreaterThan(3.37 - 0.2);
+    expect(mean(draws(-2)) - mean(draws(2))).toBeLessThan(3.37 + 0.2);
     expect(mean(draws(1))).toBeLessThan(mean(draws(0)));
   });
 

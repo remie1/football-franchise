@@ -56,11 +56,13 @@ import type { SeasonPeople } from "./realSeason.js";
 
 /**
  * This check's own version: a change to what a record holds starts a fresh cache. 6: the aging
- * redesign's measure-only rows (ADR-087 §12, AB1; `CAREER_ROWS_VERSION` 6). A record of another
- * version, or whose rows are of another rows version, is never read beside these
- * (`checkRecordVersion`): the fingerprint already holds this number, and the loader refuses too.
+ * redesign's measure-only rows (ADR-087 §12, AB1; `CAREER_ROWS_VERSION` 6). 7: the week-8 rookies by
+ * draft status (ADR-087 §12.5, AB4b; `CAREER_ROWS_VERSION` 7). A record of another version, or whose
+ * rows are of another rows version, is never read beside these (`checkRecordVersion`): the
+ * fingerprint already holds this number, and the loader refuses too. So the v6 baseline (AB1, build
+ * 6b118e35f8d06440) is graded from a tree of version 6, as its own record.
  */
-export const CAREER_CHECK_VERSION = 6;
+export const CAREER_CHECK_VERSION = 7;
 
 /** The engine rules the walk plays (`runCapCheck` plays the default, `legacy`). */
 export const CAREER_ENGINE_RULES = "legacy";
