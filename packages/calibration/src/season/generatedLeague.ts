@@ -23,8 +23,9 @@ export interface GeneratedLeagueOptions {
   readonly development?: boolean;
   /**
    * ADR-087 §12.1 (AB3): with `development` and `"ability"`, each player's fade shifts too, on the
-   * generator's own `"aging"` fork (attributes' `aging` option; nothing else moves). Absent or
-   * `"position"`, none, as before.
+   * generator's own `"aging"` fork (attributes' `aging` option), and from AB4 §12.5's ages: no
+   * specialists' two years, and the rookies-to-be at the draft class's rookie ages (names, ratings and
+   * depth charts do not move). Absent or `"position"`, neither, as before.
    */
   readonly aging?: "position" | "ability";
 }

@@ -301,7 +301,8 @@ export function transformStaff(people: SeasonPeople, transform: NonNullable<CapC
  * What the walk asks the generator for when it makes a draft class (`runCapCheck`'s `makeClass`): with
  * development on, the prospects' growth records; with development on and aging "ability" (ADR-087
  * §12.1, AB3), their fade shifts too, on the generator's own `"aging"` fork, or every man drafted in a
- * 20-season check would read shifts of 0. Neither key at the defaults, so a default class is as before.
+ * 20-season check would read shifts of 0, and from AB4 their §12.5 rookie ages (the undrafted older).
+ * Neither key at the defaults, so a default class is as before.
  */
 export function draftClassOptions(input: Pick<CapCheckInput, "seed" | "players">, draft: number, usedNames: ReadonlySet<string>): Parameters<typeof generateDraftClass>[0] {
   const development = input.players?.development === true;
@@ -353,7 +354,7 @@ export function runCapCheck(input: CapCheckInput): CapYear[] {
     ...coaches,
   };
   // With development on, each class comes with growth records, or the players drafted in the walk
-  // would never grow or age; with aging "ability" too, each prospect's fade shifts (`draftClassOptions`).
+  // would never grow or age; with aging "ability" too, each prospect's fade shifts and rookie age (`draftClassOptions`).
   const makeClass = (draft: number, usedNames: ReadonlySet<string>) => {
     const made = generateDraftClass(draftClassOptions(input, draft, usedNames));
     return { draftClass: made.draftClass, players: made.players };

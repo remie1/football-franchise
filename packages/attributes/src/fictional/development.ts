@@ -12,13 +12,16 @@
  *   - for a prospect, `bio.combine` (P2, public): his combine drills, frozen from draft day;
  *   - with the `aging` option at `"ability"` (ADR-087 §12.1, §12.2.3, P7): `development.fadeShift`,
  *     how many years earlier or later than usual each of his 12 ability groups starts to fade
- *     (`drawFadeShift`). At `"position"`, the default, it stays absent.
+ *     (`drawFadeShift`). At `"position"`, the default, it stays absent;
+ *   - with the `aging` option at `"ability"` (ADR-087 §12.5, AB4): a rookie's age (`drawRookieAge`), on
+ *     his development stream's `"age"` fork, which the generator and the class maker put on his bio.
+ *     At `"position"`, today's ages.
  *
  * Every draw comes from the player's own stream (the caller forks it by player id), split again by
  * what it is for, so switching development on moves no name, rating, age or depth chart, and adding
  * one draw here never moves another. A fork is made by its label alone and takes nothing from the
- * stream it is forked from (contracts' `createRng`), so the `"aging"` fork moves none of the
- * `"growth"`, `"snaps"` and `"patience"` draws.
+ * stream it is forked from (contracts' `createRng`), so the `"aging"` and `"age"` forks move none of
+ * the `"growth"`, `"snaps"` and `"patience"` draws.
  */
 import { ABILITY_GROUPS, type AbilityGroup, type PlayerBio, type PlayerDevelopment, type PlayerState, type Rng } from "@ff/contracts";
 import type { Measurements } from "./derive.js";
@@ -140,6 +143,59 @@ export function drawFadeShift(rng: Rng): Record<AbilityGroup, number> {
     out[g] = shift === 0 ? 0 : shift;
   }
   return out;
+}
+
+/**
+ * A made-up rookie's age (ADR-087 §12.5, AB4; the `aging` option at `"ability"` with growth on).
+ *   - `draftDay`: the share of a class at each whole age on draft day, computed from REAL (rookies on
+ *     week-8 53s, 2018-24: 20 and under 0.2%, 21 12.8%, 22 31.5%, 23 35.4%, 24 16.6%, 25 2.9%, 26 and
+ *     over 0.6%; mean 22.67). Sim ages go up one at the year turn before his first camp (franchise's
+ *     `turnYear`), so draft day is a year younger, and the 20-and-under sliver is folded into 20. The
+ *     shares' mean is 21.667, a year under the REAL week-8 mean.
+ *   - `rho`: how strongly age runs against talent, so the less talented, who go undrafted, run older
+ *     (REAL: with fractional ages, drafted rookies on week-8 53s average 23.01 and undrafted 23.63, 0.62
+ *     older). A Gaussian copula: `z_age = −rho·z_talent + √(1−rho²)·e`, read through `draftDay`. CHOSEN
+ *     (fitted): from §12.5's starting GUESS 0.3, set once by a calibration run of the walk's first draft
+ *     (the stand-in league, 10 seeds, every game a seeded coin) so that the undrafted signees average
+ *     0.62 years older than the men drafted: 0.616 expected at 0.57, with each man's own age draw
+ *     integrated out (MEASURED; 0.311 at the GUESS). ADR-087 §12.9, the AB4 note.
+ */
+export const ROOKIE_AGE = {
+  draftDay: [
+    { age: 20, share: 0.13 }, { age: 21, share: 0.315 }, { age: 22, share: 0.354 },
+    { age: 23, share: 0.166 }, { age: 24, share: 0.029 }, { age: 25, share: 0.006 },
+  ],
+  rho: 0.57,
+} as const satisfies { draftDay: readonly { age: number; share: number }[]; rho: number };
+
+/**
+ * The standard normal's cumulative distribution, Φ(x), from the complementary error function's
+ * Chebyshev fit (Numerical Recipes' `erfcc`: fractional error under 1.2e-7 everywhere). Only places a
+ * draw against `ROOKIE_AGE.draftDay`'s cumulative shares, so that error moves no age but at a boundary.
+ */
+export function normalCdf(x: number): number {
+  const z = Math.abs(x) / Math.SQRT2;
+  const t = 1 / (1 + 0.5 * z);
+  const erfc = t * Math.exp(-z * z - 1.26551223 + t * (1.00002368 + t * (0.37409196 + t * (0.09678418
+    + t * (-0.18628806 + t * (0.27886807 + t * (-1.13520398 + t * (1.48851587 + t * (-0.82215223 + t * 0.17087277)))))))));
+  return x >= 0 ? 1 - 0.5 * erfc : 0.5 * erfc;
+}
+
+/**
+ * His draft-day age (§12.5): his talent's own standard score `talentZ` (the draw his talent is made
+ * from, before his class's year and depth are added, so no position is read) linked to a fresh draw
+ * from `rng`, his own `"age"` stream, through `ROOKIE_AGE`. A whole year, 20 to 25. The same stream and
+ * talent give the same age whoever he is.
+ */
+export function drawRookieAge(rng: Rng, talentZ: number, rho: number = ROOKIE_AGE.rho): number {
+  const z = -rho * talentZ + Math.sqrt(1 - rho * rho) * normal(rng);
+  const u = normalCdf(z);
+  let below = 0;
+  for (const { age, share } of ROOKIE_AGE.draftDay) {
+    below += share;
+    if (u < below) return age;
+  }
+  return ROOKIE_AGE.draftDay[ROOKIE_AGE.draftDay.length - 1]!.age;
 }
 
 /**
