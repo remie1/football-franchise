@@ -7,7 +7,7 @@
  * holds equal to `STEP5B_AMENDMENTS_PIN`), recomputes the selection with `reselect.ts` and compares.
  * Neither this module nor anything it imports reaches `selection.ts` (a test walks the graph).
  */
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { amendmentsAtStep, amendmentsDigest, entryOf, loadAmendments } from "./amendments.js";
 import { loadFiled } from "./filed.js";
 import { reselect, reselectionProblems, type RePoint, type Reselection } from "./reselect.js";
@@ -35,6 +35,7 @@ export function reselectFromFile(from: string, filedPath: string, amendmentsPath
   const view = amendmentsAtStep(loadAmendments(amendmentsPath, loadFiled(filedPath)), "5b");
   const digest = amendmentsDigest(view);
   if (digest !== pin) throw new Error(`reselect: the amendments file's 5b view digests to ${digest}, not the pin ${pin}`);
+  if (!existsSync(from)) throw new Error(`ADR-089 step 5b R-7: refused: there is no records file at ${from} (the 5b measures file --out writes, holding the selection)`);
   const input = reselectInputOf(JSON.parse(readFileSync(from, "utf8")));
   const again = reselect(filedJson, entryOf(view, "AM-10"), input.points);
   const problems = reselectionProblems(input.recorded, again);

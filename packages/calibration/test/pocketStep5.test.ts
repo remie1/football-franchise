@@ -20,6 +20,7 @@ import {
   binsAboveTwiceFtn,
   bin20RawOf,
   cleanScrambleOf,
+  fitCorpusProblemOf,
   freshBaseProblems,
   gradeStep5,
   planStep5,
@@ -31,6 +32,7 @@ import {
   rePointsOf,
   step5AliasesOf,
   runStep5,
+  s5aRecordProblemOf,
   step5GateRefusal,
   step5GateState,
   step5MeasuresOf,
@@ -113,6 +115,20 @@ describe("step 5's pins, preflight and gate", () => {
     const miss = { ...OPEN, s5aOutcome: { faults: [], breaches: [], misses: ["s5a.cleanScramble"] } };
     expect(step5GateRefusal("5b", miss)).toMatch(/a graded miss \(s5a\.cleanScramble\)/);
     expect(step5GateRefusal("5b", miss, "2026-11-07T00:00Z")).toBeUndefined();
+    // Code-tests F6, F7 and F14: a smoke-corpus fit record, 5a records of another half, of one set or with a malformed outcome, and an --after-owner that names no time.
+    expect(step5GateRefusal("5b", miss, "yes")).toMatch(/--after-owner "yes" is not a timestamp/);
+    expect(fitCorpusProblemOf({ flatFirst: null, genThroughWeek: null })).toBeUndefined();
+    expect(fitCorpusProblemOf({ flatFirst: null, genThroughWeek: 2 })).toMatch(/a smoke corpus/);
+    expect(fitCorpusProblemOf(undefined)).toMatch(/names no corpus/);
+    expect(step5GateRefusal("5a", { ...OPEN, fitCorpusProblem: "the fit record was made on a smoke corpus" })).toMatch(/smoke corpus/);
+    expect(s5aRecordProblemOf({ half: "5a", outcome: { faults: [], breaches: [], misses: [] } })).toBeUndefined();
+    expect(s5aRecordProblemOf({ half: "5b", outcome: { faults: [], breaches: [], misses: [] } })).toMatch(/not 5a's/);
+    expect(s5aRecordProblemOf({ half: "5a", oneSet: 1, outcome: { faults: [], breaches: [], misses: [] } })).toMatch(/one seed set/);
+    expect(s5aRecordProblemOf({ half: "5a", outcome: { faults: [] } })).toMatch(/missing or malformed/);
+    expect(s5aRecordProblemOf({ half: "5a" })).toMatch(/missing or malformed/);
+    expect(step5GateRefusal("5b", { ...OPEN, s5aRecordProblem: "the 5a records were graded on one seed set (1)" })).toMatch(/one seed set/);
+    // Fidelity F-15: R-7 with no records file is a named refusal.
+    expect(() => reselectFromFile(join(scratch, "absent.json"), FILED, AMEND)).toThrow(/refused: there is no records file at/);
   });
 
   it("runStep5 is refused before anything plays and no cache is made; a dirty tree is refused once the gate opens", () => {
@@ -146,7 +162,12 @@ describe("step 5's plan and parser", () => {
     expect(parsePocketArgs(["--step", "5a", "--fit", "--shard", "2/3", "--out", "f.json"], "/")).toEqual({ step: "5a", fit: true, shard: { index: 2, count: 3 }, out: "/f.json" });
     expect(parsePocketArgs(["--step", "5a", "--fit-replay", "0.5,-1", "--gen-through-week", "2", "--out", "x.json"], "/")).toEqual({ step: "5a", fitReplay: [0.5, -1], genThroughWeek: 2, out: "/x.json" });
     expect(parsePocketArgs(["--step", "5a", "--fresh-base", "2", "--out", "x.json"], "/")).toEqual({ step: "5a", freshBase: 2, out: "/x.json" });
-    expect(parsePocketArgs(["--arms", "D1", "--step", "5b", "--after-owner", "ts1"], "/")).toEqual({ step: "5b", arms: ["D1"], afterOwner: "ts1" });
+    expect(parsePocketArgs(["--arms", "D1", "--step", "5b", "--after-owner", "2026-11-08T14:30Z"], "/")).toEqual({ step: "5b", arms: ["D1"], afterOwner: "2026-11-08T14:30Z" });
+    // Code-tests F14: --after-owner is a timestamp; --fit-replay refuses an empty or repeated offset; --step once.
+    expect(() => parsePocketArgs(["--step", "5b", "--after-owner", "ts1"], "/")).toThrow(/^--after-owner takes the time of the owner's word/);
+    expect(() => parsePocketArgs(["--step", "5a", "--fit-replay", "0,,0.5", "--out", "x.json"], "/")).toThrow(/^--fit-replay takes one to three offsets/);
+    expect(() => parsePocketArgs(["--step", "5a", "--fit-replay", "0.5,0.5", "--out", "x.json"], "/")).toThrow(/^--fit-replay names an offset twice/);
+    expect(() => parsePocketArgs(["--step", "5a", "--step", "5b"], "/")).toThrow(/^--step is given twice/);
     expect(parsePocketArgs(["--step", "5b", "--reselect", "--from", "r.json"], "/")).toEqual({ step: "5b", reselect: true, from: "/r.json" });
     expect(parsePocketArgs(["--step", "5b", "--digests", "--out", "d.json"], "/")).toEqual({ step: "5b", digests: true, out: "/d.json" });
     expect(() => parsePocketArgs(["--step", "5"], "/")).toThrow(STEP5_SPLIT_REFUSAL);

@@ -245,6 +245,7 @@ export function parseStep5Args(half: "5a" | "5b", argv: readonly string[], cwd: 
     if (arg !== "--step") seen.push(arg);
     switch (arg) {
       case "--step":
+        if (argv.indexOf("--step") !== i) throw new SyntaxError("--step is given twice");
         value();
         break;
       case "--arms": {
@@ -285,8 +286,10 @@ export function parseStep5Args(half: "5a" | "5b", argv: readonly string[], cwd: 
         break;
       case "--fit-replay": {
         const v = value();
-        const xs = v.split(",").map(Number);
-        if (xs.length === 0 || xs.length > 3 || xs.some((x) => !Number.isFinite(x))) throw new SyntaxError(`--fit-replay takes one to three offsets, comma-separated; ${v} is not`);
+        const items = v.split(",");
+        const xs = items.map(Number);
+        if (items.some((x) => x.trim() === "") || xs.length > 3 || xs.some((x) => !Number.isFinite(x))) throw new SyntaxError(`--fit-replay takes one to three offsets, comma-separated; ${v} is not`);
+        if (new Set(xs).size !== xs.length) throw new SyntaxError(`--fit-replay names an offset twice: ${v}`);
         fitReplay = xs;
         break;
       }
@@ -298,6 +301,7 @@ export function parseStep5Args(half: "5a" | "5b", argv: readonly string[], cwd: 
       }
       case "--after-owner":
         afterOwner = value();
+        if (!AFTER_OWNER_FORM.test(afterOwner)) throw new SyntaxError(`--after-owner takes the time of the owner's word, ISO 8601 UTC (for example 2026-11-08T14:30Z); ${afterOwner} is not`);
         break;
       case "--from":
         from = resolve(cwd, value());
@@ -825,6 +829,9 @@ export function baseArm(input: BaseArmInput): ArmReport {
 export const PR33_STATE = "OPEN" as const;
 
 /** A JSON round trip: plain data only (a Map or an undefined field cannot reach the filing). */
+/** `--after-owner` names the owner's word by its time: an ISO 8601 UTC timestamp (code-tests F14, fidelity F-14). */
+export const AFTER_OWNER_FORM = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?Z$/;
+
 export function sanitize(value: unknown): JsonValue {
   return JSON.parse(JSON.stringify(value)) as JsonValue;
 }

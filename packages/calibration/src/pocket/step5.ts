@@ -57,7 +57,7 @@ import { POCKET_1_S5A_DIGEST, POCKET_1_S5A_FIT_DIGEST, readsStep3Facts } from ".
 import { s2ContextOf } from "./s2Stream.js";
 import { emptyS5Fold, foldS5Dropback, s5DropbacksOf, s5Summary, type S5Fold } from "./s5Stream.js";
 import { gridPointId, REAL, RELEASE_BINS, selectWith, type Am10Verdict, type BinCount, type GridArm } from "./selection.js";
-import { emptyGuardFold, openFiling, PR33_STATE, sanitize, type GuardFold, type Step5Args } from "./step0.js";
+import { AFTER_OWNER_FORM, emptyGuardFold, openFiling, PR33_STATE, sanitize, type GuardFold, type Step5Args } from "./step0.js";
 import { armFileOf, FULL_CORPUS, isUnder, jsonText, realOf, STEP1_CALLER, STEP1_CLOSED_RECORDS, step1Env, stampProblems, writeAtomic, type Step1Corpus, type Step1Env } from "./step1.js";
 import { rowValueOf, STEP2_CLOSED_RECORDS, STEP3_RECORDS, step3StampOf, timesFromPicture, unmadeChoicesOf, type Step3Stamp } from "./step3.js";
 import { playStep4Arm, STEP4_AMENDMENTS_PIN, STEP4_RECORDS, step4FoldsOf, type PlayStep4Options, type Step4Record } from "./step4.js";
@@ -196,29 +196,67 @@ export interface Step5GateState {
   readonly s5aFinal: boolean;
   /** The committed 5a records' outcome (`reports/adr-089-step5a.json`), when they exist. */
   readonly s5aOutcome?: { readonly faults: readonly string[]; readonly breaches: readonly string[]; readonly misses: readonly string[] };
+  /** Why the committed 5a records cannot open 5b (another half, one seed set, a missing or malformed outcome), when so. */
+  readonly s5aRecordProblem?: string;
+  /** Why the committed fit record is not the full corpus's (a smoke fit: `bench.corpus` not the full corpus), when so. */
+  readonly fitCorpusProblem?: string;
+}
+
+const isStringList = (v: unknown): v is readonly string[] => Array.isArray(v) && v.every((x) => typeof x === "string");
+
+/** Why a committed 5a measures file cannot open 5b's gate, or undefined (code-tests F7). */
+export function s5aRecordProblemOf(parsed: unknown): string | undefined {
+  const r = (typeof parsed === "object" && parsed !== null ? parsed : {}) as { readonly half?: unknown; readonly oneSet?: unknown; readonly outcome?: unknown };
+  if (r.half !== "5a") return `the 5a records file is not 5a's (half ${JSON.stringify(r.half ?? null)})`;
+  if (r.oneSet !== undefined) return `the 5a records were graded on one seed set (${JSON.stringify(r.oneSet)}); only a two-set grade opens 5b`;
+  const o = (typeof r.outcome === "object" && r.outcome !== null ? r.outcome : undefined) as { readonly faults?: unknown; readonly breaches?: unknown; readonly misses?: unknown } | undefined;
+  if (o === undefined || !isStringList(o.faults) || !isStringList(o.breaches) || !isStringList(o.misses)) return "the 5a records' outcome is missing or malformed (faults, breaches and misses must each be a list)";
+  return undefined;
+}
+
+/** Why a committed fit record's corpus is not the full one AM-9 fits on, or undefined (code-tests F6). */
+export function fitCorpusProblemOf(corpus: { readonly flatFirst: number | null; readonly genThroughWeek: number | null } | undefined): string | undefined {
+  if (corpus === undefined) return "the fit record names no corpus";
+  if (corpus.genThroughWeek !== FULL_CORPUS.genThroughWeek || corpus.flatFirst !== FULL_CORPUS.flatFirst) return `the fit record was made on a smoke corpus (${canonicalise(corpus)}), not the full one`;
+  return undefined;
 }
 
 /** The gate state of this build, read from the package. */
 export function step5GateState(pkgRoot: string = PKG_ROOT): Step5GateState {
   const fitPath = join(pkgRoot, FIT5A_RECORD);
-  const fitRecord = existsSync(fitPath) ? fitRecordDigest(readFitRecord(fitPath)) : undefined;
+  const fit = existsSync(fitPath) ? readFitRecord(fitPath) : undefined;
+  const fitRecord = fit === undefined ? undefined : fitRecordDigest(fit);
+  const fitCorpusProblem = fit === undefined ? undefined : fitCorpusProblemOf(fit.bench?.corpus);
   const aPath = join(pkgRoot, STEP5A_RECORDS[1]);
   let s5aOutcome: Step5GateState["s5aOutcome"];
+  let s5aRecordProblem: string | undefined;
   if (existsSync(aPath)) {
-    const o = (JSON.parse(readFileSync(aPath, "utf8")) as { readonly outcome?: Step5GateState["s5aOutcome"] }).outcome;
-    if (o !== undefined) s5aOutcome = o;
+    const parsed: unknown = JSON.parse(readFileSync(aPath, "utf8"));
+    s5aRecordProblem = s5aRecordProblemOf(parsed);
+    if (s5aRecordProblem === undefined) s5aOutcome = (parsed as { readonly outcome: NonNullable<Step5GateState["s5aOutcome"]> }).outcome;
   }
-  return { fitPin: POCKET_1_S5A_FIT_DIGEST, fitRecord, s5aDigest: POCKET_1_S5A_DIGEST, s5aFinal: STEP5A_RECORDS_FINAL, ...(s5aOutcome === undefined ? {} : { s5aOutcome }) };
+  return {
+    fitPin: POCKET_1_S5A_FIT_DIGEST,
+    fitRecord,
+    s5aDigest: POCKET_1_S5A_DIGEST,
+    s5aFinal: STEP5A_RECORDS_FINAL,
+    ...(s5aOutcome === undefined ? {} : { s5aOutcome }),
+    ...(s5aRecordProblem === undefined ? {} : { s5aRecordProblem }),
+    ...(fitCorpusProblem === undefined ? {} : { fitCorpusProblem }),
+  };
 }
 
 /** The gate's refusal for `half`, or undefined when the half may play. `afterOwner` lifts a 5a breach or graded miss, never a build fault. */
 export function step5GateRefusal(half: Step5Half, st: Step5GateState, afterOwner?: string): string | undefined {
   const refused = (why: string): string => `ADR-089 step ${half}: refused before anything plays (the gate, plan §9 item 10): ${why}. Nothing has played and no cache was made`;
+  if (afterOwner !== undefined && !AFTER_OWNER_FORM.test(afterOwner)) return refused(`--after-owner ${JSON.stringify(afterOwner)} is not a timestamp of the owner's word (ISO 8601 UTC, for example 2026-11-08T14:30Z)`);
   if (st.fitPin === undefined) return refused("the 5a fit is not recorded (POCKET_1_S5A_FIT_DIGEST is unset): run `--step 5a --fit` and commit its record, the literal leaves and the digests first");
   if (st.fitRecord === undefined) return refused(`the fit record ${FIT5A_RECORD} is not committed`);
   if (st.fitRecord !== st.fitPin) return refused(`the committed fit record digests to ${st.fitRecord}, not POCKET_1_S5A_FIT_DIGEST ${st.fitPin}`);
+  if (st.fitCorpusProblem !== undefined) return refused(st.fitCorpusProblem);
   if (st.s5aDigest === undefined) return refused("pocket-1.s5a's literal is not recorded (POCKET_1_S5A_DIGEST is unset)");
   if (half === "5a") return undefined;
+  if (st.s5aRecordProblem !== undefined) return refused(st.s5aRecordProblem);
   if (!st.s5aFinal || st.s5aOutcome === undefined) return refused("the 5a records are not final (STEP5A_RECORDS_FINAL, reports/adr-089-step5a.json): 5b's grids are built on the fitted count and the checklist and wait for them");
   const o = st.s5aOutcome;
   if (o.faults.length > 0) return refused(`the 5a records hold a build fault (${o.faults[0] ?? ""}); a build fault is fixed, never waived`);
