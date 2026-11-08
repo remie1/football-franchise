@@ -182,6 +182,16 @@ describe("ADR-089 step 5a: the block's dials", () => {
     }
   });
 
+  it("a key the block does not have is refused by name (code-tests F13)", () => {
+    expect(refusal({ ...CLEAN_POCKET_FILED, dropfloor: DROP_FLOOR_FILED })).toBe(
+      "@ff/engine: pocket.cleanPocket.dropfloor is not a key of the clean-pocket block (d23, move, bump, breakOut, d23OnRun, expiryBar, resetSeconds, dropFloor)",
+    );
+    expect(refusal({ ...CLEAN_POCKET_FILED, d23onRun: true })).toMatch(/pocket\.cleanPocket\.d23onRun is not a key of the clean-pocket block/);
+    // The filed block, with and without its floor, is accepted.
+    expect(() => pocketRulesOf(withCleanPocket(S4S_TUNABLES, CLEAN_POCKET_FILED))).not.toThrow();
+    expect(() => pocketRulesOf(withCleanPocket(S4S_TUNABLES, { ...CLEAN_POCKET_FILED, dropFloor: DROP_FLOOR_FILED }))).not.toThrow();
+  });
+
   it("D23's bar is 30 and nothing else", () => {
     for (const bar of [25, 31, "30", undefined]) {
       expect(refusal({ ...CLEAN_POCKET_FILED, expiryBar: bar })).toBe(`@ff/engine: pocket.cleanPocket.expiryBar must be 30 (D23's bar), got ${String(bar)}`);

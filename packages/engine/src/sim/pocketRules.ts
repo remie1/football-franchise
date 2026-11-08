@@ -524,6 +524,8 @@ const EXPIRY_BAR = 30;
 const DROP_FLOOR: DropFloorTunables = Object.freeze({ QUICK: 1.0, SHORT: 1.5, INTERMEDIATE: 2.0, DEEP: 2.0 });
 /** The clean-pocket block's switches, in plan §1.2's order. */
 const CLEAN_POCKET_SWITCHES = ["d23", "move", "bump", "breakOut", "d23OnRun"] as const;
+/** Every key `pocket.cleanPocket` may carry: the five switches, the bar, the reset and the optional floor. */
+const CLEAN_POCKET_KEYS = [...CLEAN_POCKET_SWITCHES, "expiryBar", "resetSeconds", "dropFloor"] as const;
 
 function onTheTenth(value: number, what: string): void {
   const tenths = value / DELAY_ROUNDING_SECONDS;
@@ -592,13 +594,23 @@ function checkContact(block: unknown): ContactTunables {
 /**
  * ADR-089 step 5a: the clean-pocket block's dials (plan §1.2). Each part's switch true or false;
  * D23's bar exactly 30; the reset 0 or more and a whole number of tenths of a second (a restated
- * budget is rounded to the tenth, `toFixed(1)`, so any other reset would be rounded silently);
- * and the drop floor, when present, exactly the four CHOSEN values by depth class. A block with
+ * budget is rounded to the tenth, `toFixed(1)`, so any other reset would be rounded silently; a
+ * reset that is not a whole number of tick steps acts on the next tick at or past the restated
+ * budget, as any count does, so 0.3 acts where 0.5 does; the filed 1.0 and E10's 0 are both on the
+ * grid); the drop floor, when present, exactly the four CHOSEN values by depth class. A block with
  * every part off and no floor is accepted (it plays today's count, the all-off proof's case).
  */
 function checkCleanPocket(block: unknown): CleanPocketTunables {
   if (!isObject(block)) throw new PocketRulesError(`${CLEAN_POCKET_BLOCK} must be an object, got ${String(block)}`);
   const leaf = (name: string): string => `pocket.cleanPocket.${name}`;
+  // A key the block does not have is refused by name: a misspelled optional key (a `dropfloor`)
+  // would otherwise leave its part silently off (code-tests F13). The five switches, the bar and the
+  // reset are required, so a misspelling of one of them is already refused as missing.
+  for (const name of Object.keys(block)) {
+    if (!(CLEAN_POCKET_KEYS as readonly string[]).includes(name)) {
+      throw new PocketRulesError(`${leaf(name)} is not a key of the clean-pocket block (${CLEAN_POCKET_KEYS.join(", ")})`);
+    }
+  }
   for (const name of CLEAN_POCKET_SWITCHES) isBoolean(block[name], leaf(name));
   if (block.expiryBar !== EXPIRY_BAR) {
     throw new PocketRulesError(`${leaf("expiryBar")} must be ${String(EXPIRY_BAR)} (D23's bar), got ${String(block.expiryBar)}`);
