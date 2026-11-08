@@ -244,6 +244,7 @@ describe("step 5's visit and grading on a tiny corpus (scratch; nothing is recor
     const ids = g.sections.clauses.map((c) => c.id);
     for (const id of ["s5a.cleanScramble", "s5a.completion", "s5a.int", "s5a.release", "s5a.cleanOuts", "s5a.removedClass", "s5a.cleanExpiryBar", "s5a.oneCleanMove"]) expect(ids, id).toContain(id);
     const verdict = (id: string): string => g.sections.clauses.find((c) => c.id === id)!.verdict;
+    expect(g.sections.clauses.find((c) => c.id === "s5a.cleanScramble")!.note).toMatch(/break-outs may run up to about 0\.5 in 100 high/);
     expect(["PASS", "FAIL"]).toContain(verdict("s5a.cleanScramble"));
     expect(["PASS", "FAIL"]).toContain(verdict("s5a.completion"));
     expect(["PASS", "FAIL"]).toContain(verdict("s5a.int"));
@@ -251,6 +252,10 @@ describe("step 5's visit and grading on a tiny corpus (scratch; nothing is recor
     expect(g.sections.guard.filter((r) => r.arm === "E9").map((r) => r.league)).toEqual(["flat", "gen"]);
     expect(g.sections.replay).toEqual(["E0 set 1, played fresh twice: identical (stream digests and records)", "E0 set 2, played fresh twice: identical (stream digests and records)"]);
     expect(g.sections.proofs.map((p) => p.id)).toEqual(["S-1 proof:clean-expiry-bar", "S-2 proof:one-clean-move", "S-3", "S-6", "rows", "picks:offered", "rows:recomputed", "S-4", "S-9"]);
+    // Plan §7.3 (fidelity F-8): time to throw beside the hit and sack figures, the pressured sacks apart.
+    const k = play("E8", 1).report.sacks.gen;
+    expect(g.sections.affected).toContainEqual(expect.stringContaining(`gen set 1 time to throw ${play("E8", 1).report.timeToThrow.gen.toFixed(2)} s, sacks ${String(k.sacks)} of ${String(k.dropbacks)} dropbacks, pressured sacks ${String(k.pressuredSacks)} of ${String(k.pressuredDropbacks)} pressured dropbacks`));
+    expect(g.sections.affected.some((l) => l.startsWith("beside the hit and sack figures, E9: flat set 1 time to throw "))).toBe(true);
     // R-6's third clause (measurement M6): with the fit record's confirm digest, E9's set-1 gen stream must equal it.
     expect(g.sections.proofs.some((p) => p.id === "R-6 confirm")).toBe(false);
     const e9Digest = foldDigests(play("E8", 1).s5.gen.fit.games);
@@ -440,6 +445,10 @@ describe("step 5's visit and grading on a tiny corpus (scratch; nothing is recor
     } else {
       throw new Error("the fixture's F0 should miss a covered row on the tiny corpus");
     }
+    // Flat's direction against D1 (plan §7.3; fidelity F-8): F0 and D1 are the same record here, so every row is level.
+    expect(g.sections.affected).toContain(`flat's direction against D1 (F0 minus D1, flat, set 1): ${["sack_rate", "hit_or_sack_rate", "release_distribution", "threat_creation_rate", "unblocked_pressures_per_100", "unblocked_share_of_hit_or_sack", "quick_pressure_share_by_origin"].map((row) => `${row} ${rowValueOf(play("E0", 1), row, "flat") === null ? "n/a" : "+0.00 (level)"}`).join("; ")}`);
+    expect(g.sections.affected.some((l) => l.startsWith("beside the hit and sack figures, F0: flat set 1 time to throw "))).toBe(true);
+    expect(g.sections.affected.some((l) => /^live-WON_REP CLEAN ticks on F0 \(set 1\): flat dropbacks with exactly one \S+%, PUSH ticks \S+; gen /.test(l))).toBe(true);
     // A guard clause the filing does not hold is refused by name, never skipped (measurement M7).
     const a = preflightStep5("5a", FILED, AMEND);
     const without = { ...a.file, bands: { ...a.file.bands, clauses: a.file.bands.clauses.filter((c) => c.id !== "s5a.int") } };

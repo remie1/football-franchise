@@ -765,6 +765,18 @@ export function gradeStep5(x: GradeStep5Inputs): Step5Grade {
   if (half === "5b") proof("S-10", "no CLOCK_EXPIRED throwaway on an F arm comes from a dropback CLEAN through the throwaway", every((id) => STEP5_GRID[id] !== undefined || id === "F0", (r, l) => (r.s5[l].extra.cleanClockExpired > 0 ? `${String(r.s5[l].extra.cleanClockExpired)} clean CLOCK_EXPIRED throwaway(s)` : undefined)));
   proof("rows", "the clean-pocket rows' build check (no clean scramble without the block)", every(() => true, (r, l) => cleanPocketRowProblems(r.s5[l].rows)[0]), "fold");
   proof("picks:offered", "every clean pick's option is in the offered set the stream and the arm's rules give (guardian C4)", every(() => true, (r, l) => (r.s5[l].s5.picks.offerFaults > 0 ? `${String(r.s5[l].s5.picks.offerFaults)} pick(s) outside their offered set` : undefined)), "fold");
+  // Plan §7.3 and ADR-089:927, :935 (fidelity F-8): time to throw beside every hit and sack figure, and
+  // the pressured sacks and the pressured count apart, on the arms the half grades.
+  for (const id of (half === "5a" ? ["E0", "E9"] : ["D1", "F0"]) as ArmId[]) {
+    const cells = sets.flatMap((s) => {
+      const r = at(id, s);
+      return r === undefined ? [] : LEAGUES.map((l) => {
+        const k = r.report.sacks[l];
+        return `${l} set ${String(s)} time to throw ${num(r.report.timeToThrow[l])} s, sacks ${String(k.sacks)} of ${String(k.dropbacks)} dropbacks, pressured sacks ${String(k.pressuredSacks)} of ${String(k.pressuredDropbacks)} pressured dropbacks`;
+      });
+    });
+    if (cells.length > 0) affected.push(`beside the hit and sack figures, ${id}: ${cells.join("; ")}`);
+  }
   // s5b.clockExpired has no registered row in the arm records (their report carries the pocket rows,
   // not tier 1's throwaway_rate_clock_expired), so only mr.bin20.raw is held to its row here.
   if (half === "5a" && x.fitConfirmDigest !== undefined && at("E9", 1) !== undefined) {
@@ -850,7 +862,7 @@ export function gradeStep5(x: GradeStep5Inputs): Step5Grade {
   };
 
   if (half === "5a") {
-    banded("s5a.cleanScramble", "E9", undefined, (r, l) => cleanScrambleOf(r.s5[l]), LEAGUES, "flat and gen each graded");
+    banded("s5a.cleanScramble", "E9", undefined, (r, l) => cleanScrambleOf(r.s5[l]), LEAGUES, "flat and gen each graded; until step 6 a clean break-out must end in a run, so break-outs may run up to about 0.5 in 100 high (ADR-089 §4.6, §6.5), the break-outs printed beside");
     banded("s5a.completion", "E9", "E0", (r, l) => rowValueOf(r, "completion_per_aimed_throw", l), LEAGUES, "E9 minus E0, flat and gen each graded");
     guardClause("s5a.int", "E9");
     banded("s5a.release", "E9", undefined, (r, l) => rowValueOf(r, "release_distribution", l), [], "the raw mean");
@@ -973,6 +985,22 @@ export function gradeStep5(x: GradeStep5Inputs): Step5Grade {
     banded("s5b.quick", "F0", undefined, (r, l) => rowValueOf(r, "quick_pressure_share_by_origin", l), []);
     banded("s5b.standIn", "F0", undefined, (r, l) => rowValueOf(r, "sack_rate", l), []);
     banded("mr.unblockedMen", "F0", undefined, (r, l) => rowValueOf(r, "unblocked_men_per_100", l), []);
+    // Plan §7.3 (fidelity F-8): flat's direction against D1 on the rows F0's clauses read, F0 minus D1 at the graded set.
+    {
+      const f = at("F0", graded);
+      const d = at("D1", graded);
+      if (f !== undefined && d !== undefined) {
+        const dirs = ["sack_rate", "hit_or_sack_rate", "release_distribution", "threat_creation_rate", "unblocked_pressures_per_100", "unblocked_share_of_hit_or_sack", "quick_pressure_share_by_origin"].map((row) => {
+          const a = rowValueOf(f, row, "flat");
+          const b = rowValueOf(d, row, "flat");
+          const delta = a === null || b === null ? null : a - b;
+          return `${row} ${delta === null ? "n/a" : `${delta >= 0 ? "+" : ""}${num(delta)} (${delta > 0 ? "up" : delta < 0 ? "down" : "level"})`}`;
+        });
+        affected.push(`flat's direction against D1 (F0 minus D1, flat, set ${String(graded)}): ${dirs.join("; ")}`);
+        // Plan §7.3: live-WON_REP CLEAN ticks with their dropbacks, PUSH apart (acc.liveWonRep's rows), on F0.
+        affected.push(`live-WON_REP CLEAN ticks on F0 (set ${String(graded)}): ${LEAGUES.map((l) => `${l} dropbacks with exactly one ${num(rowValueOf(f, "clean_with_live_won_rep_dropbacks", l))}%, PUSH ticks ${num(rowValueOf(f, "clean_with_live_won_rep_push_ticks", l), 0)}`).join("; ")}`);
+      }
+    }
     // F0 against F5 is AM-8's guard row on its own (no filed s5b clause carries it); a breach there is in guardBreaches.
     // The miss rule on F0 (AM-10's split), when a covered row missed.
     const f0 = at("F0", graded);
