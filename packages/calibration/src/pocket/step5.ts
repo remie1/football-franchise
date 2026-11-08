@@ -288,6 +288,16 @@ export interface Step5Extra {
   releases: number;
   rawAtOrUnder1: number;
   rawAtOrOver35: number;
+  /**
+   * S-4: aimed THROWs decided in the pocket (before any escape) earlier than the play's drop floor,
+   * on a non-screen dropback (the floor is 0 on a screen and on an arm with no floor); and beside it,
+   * every aimed pocket THROW decided at or under 0.5 s (the table's wording, plan C1-S9).
+   */
+  earlyFloorThrows: number;
+  pocketThrowsAtHalf: number;
+  /** S-9: the attempts' release (a THROW's raw `releaseSeconds`, else its tick; a throwaway's tick), summed and counted. */
+  attemptReleaseSum: number;
+  attemptReleases: number;
   /** S-2: dropbacks with more than one clean move. */
   twoCleanMoves: number;
   /** S-3: a HOLD, or a throwaway, on a clean-expiry tick. */
@@ -336,7 +346,7 @@ export function emptyStep5LeagueFolds(): Step5LeagueFolds {
     rows: emptyCleanPocketRowsFold(),
     guard: emptyGuardFold(),
     curve: Object.fromEntries(RELEASE_BINS.map((b) => [b, { attempts: 0, pressured: 0 }])),
-    extra: { dropbacks: 0, nonClean: 0, clockExpired: 0, cleanClockExpired: 0, emptyPoolThrows: 0, belowBarTargetThrows: 0, rankPushedExpiryThrows: 0, breakOutThrows: 0, onRunDesperation: 0, releases: 0, rawAtOrUnder1: 0, rawAtOrOver35: 0, twoCleanMoves: 0, expiryHolds: 0, expiryThrowaways: 0 },
+    extra: { dropbacks: 0, nonClean: 0, clockExpired: 0, cleanClockExpired: 0, emptyPoolThrows: 0, belowBarTargetThrows: 0, rankPushedExpiryThrows: 0, breakOutThrows: 0, onRunDesperation: 0, releases: 0, rawAtOrUnder1: 0, rawAtOrOver35: 0, earlyFloorThrows: 0, pocketThrowsAtHalf: 0, attemptReleaseSum: 0, attemptReleases: 0, twoCleanMoves: 0, expiryHolds: 0, expiryThrowaways: 0 },
     fit: emptyFitFold(),
   };
 }
@@ -424,6 +434,15 @@ export function foldStep5Game(L: Step5LeagueFolds, events: readonly MatchEventEn
       if (clean) L.extra.cleanClockExpired += 1;
     }
     const release = d.throwTick !== undefined ? (releaseSecondsOf(slice.events) ?? d.throwTick) : d.throwawayTick;
+    if (release !== undefined) {
+      L.extra.attemptReleaseSum += release;
+      L.extra.attemptReleases += 1;
+    }
+    if (d.throwTick !== undefined && (d.pursuitTick === undefined || d.throwTick < d.pursuitTick - 1e-9)) {
+      const x = byPlay.get(d.playId);
+      if (x !== undefined && !x.screen && d.throwTick < x.floorSeconds - 1e-9) L.extra.earlyFloorThrows += 1;
+      if (d.throwTick <= 0.5 + 1e-9) L.extra.pocketThrowsAtHalf += 1;
+    }
     if (d.throwTick !== undefined && release !== undefined) {
       L.extra.releases += 1;
       if (release <= 1.0 + 1e-9) L.extra.rawAtOrUnder1 += 1;
@@ -724,7 +743,19 @@ export function gradeStep5(x: GradeStep5Inputs): Step5Grade {
   if (half === "5b") proof("S-10", "no CLOCK_EXPIRED throwaway on an F arm comes from a dropback CLEAN through the throwaway", every((id) => STEP5_GRID[id] !== undefined || id === "F0", (r, l) => (r.s5[l].extra.cleanClockExpired > 0 ? `${String(r.s5[l].extra.cleanClockExpired)} clean CLOCK_EXPIRED throwaway(s)` : undefined)));
   proof("rows", "the clean-pocket rows' build check (no clean scramble without the block)", every(() => true, (r, l) => cleanPocketRowProblems(r.s5[l].rows)[0]), "fold");
   proof("picks:offered", "every clean pick's option is in the offered set the stream and the arm's rules give (guardian C4)", every(() => true, (r, l) => (r.s5[l].s5.picks.offerFaults > 0 ? `${String(r.s5[l].s5.picks.offerFaults)} pick(s) outside their offered set` : undefined)), "fold");
-  waits.push("S-4 (no aimed pocket THROW decided before its first read's floor), S-5 (the bump never writes contestPosition) and S-9 (the release mean equals the mean of THROW.releaseSeconds) are the engine's and the readers' unit proofs in this build; the harness does not re-read them");
+  proof("S-4", "no non-screen aimed pocket THROW decided before its first read's floor (arms with a floor; vacuous without one)", [
+    ...every((id) => partsOfArm(id).includes("floor"), (r, l) => (r.s5[l].extra.earlyFloorThrows > 0 ? `${String(r.s5[l].extra.earlyFloorThrows)} aimed pocket THROW(s) before the floor` : undefined)),
+  ]);
+  affected.push(`beside S-4, aimed pocket THROWs decided at or under 0.5 s: ${every(() => true, (r, l) => String(r.s5[l].extra.pocketThrowsAtHalf)).join("; ")}`);
+  proof("S-9", "the release mean collect.ts reports (time_to_throw) equals the mean of the attempts' THROW.releaseSeconds (the tick where absent; a throwaway's tick), on every arm played (the plan names E9 and F5)", every(() => true, (r, l) => {
+    const row = rowValueOf(r, "time_to_throw", l);
+    const e = r.s5[l].extra;
+    const mean = e.attemptReleases > 0 ? e.attemptReleaseSum / e.attemptReleases : null;
+    if (row === null && mean === null) return undefined;
+    if (row === null || mean === null) return `time_to_throw ${num(row)} against the stream's ${num(mean)}`;
+    return Math.abs(row - mean) <= 1e-9 * Math.max(1, Math.abs(mean)) ? undefined : `time_to_throw ${String(row)} against the stream's ${String(mean)}`;
+  }));
+  waits.push("S-5 (the bump never writes contestPosition) is the engine's unit proof in this build (the contest position is not in the stream); the harness does not re-read it");
 
   // The guard under AM-8 (S5 class view; equal dials skipped).
   const guardRows: Step4GuardRow[] = [];

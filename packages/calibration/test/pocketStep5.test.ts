@@ -15,7 +15,7 @@ import type { SeedSet } from "../src/pocket/corpus.js";
 import { loadFiled } from "../src/pocket/filed.js";
 import { RESELECT_VIEW_PIN, reselectFromFile, reselectInputOf } from "../src/pocket/reselectCommand.js";
 import { parsePocketArgs, STEP5_SPLIT_REFUSAL } from "../src/pocket/step0.js";
-import { step3StampOf } from "../src/pocket/step3.js";
+import { rowValueOf, step3StampOf } from "../src/pocket/step3.js";
 import {
   binsAboveTwiceFtn,
   bin20RawOf,
@@ -247,7 +247,7 @@ describe("step 5's visit and grading on a tiny corpus (scratch; nothing is recor
     expect(verdict("s5a.reset")).toBe("NOT PLAYED");
     expect(g.sections.guard.filter((r) => r.arm === "E9").map((r) => r.league)).toEqual(["flat", "gen"]);
     expect(g.sections.replay).toEqual(["E0 set 1, played fresh twice: identical (stream digests and records)", "E0 set 2, played fresh twice: identical (stream digests and records)"]);
-    expect(g.sections.proofs.map((p) => p.id)).toEqual(["S-1 proof:clean-expiry-bar", "S-2 proof:one-clean-move", "S-3", "S-6", "rows", "picks:offered"]);
+    expect(g.sections.proofs.map((p) => p.id)).toEqual(["S-1 proof:clean-expiry-bar", "S-2 proof:one-clean-move", "S-3", "S-6", "rows", "picks:offered", "S-4", "S-9"]);
     expect(g.sections.outcome.structuralFailures).toEqual([]);
     // A fresh play that differs is a build fault (S-7).
     const moved = structuredClone(play("E0", 2));
@@ -325,6 +325,18 @@ describe("step 5's visit and grading on a tiny corpus (scratch; nothing is recor
       r.set("E9", { 1: doctored, 2: play("E8", 2) });
       const gg = gradeStep5({ half: "5a", records: r, file, guard, fresh: { 1: play("E0", 1), 2: play("E0", 2) } });
       expect(gg.sections.outcome.structuralFailures, field).toEqual([expect.stringMatching(/^S-1 proof:clean-expiry-bar: 1 failing, first: E9 set 1 gen: /)]);
+    }
+    // S-4 and S-9 (fidelity F-3): stream checks on every record; a doctored record fails them.
+    expect(play("E8", 1).s5.gen.extra.attemptReleases).toBeGreaterThan(0);
+    expect(play("E8", 1).s5.gen.extra.attemptReleaseSum / play("E8", 1).s5.gen.extra.attemptReleases).toBeCloseTo(rowValueOf(play("E8", 1), "time_to_throw", "gen")!, 9);
+    expect(g.sections.affected.some((l) => /^beside S-4, aimed pocket THROWs decided at or under 0\.5 s: E0 set 1 flat: \d+/.test(l))).toBe(true);
+    for (const [field, proofId] of [["earlyFloorThrows", "S-4"], ["attemptReleaseSum", "S-9"]] as const) {
+      const doctored = structuredClone(play("E8", 1));
+      doctored.s5.gen.extra[field] += 1;
+      const r = new Map(records);
+      r.set("E9", { 1: doctored, 2: play("E8", 2) });
+      const gg = gradeStep5({ half: "5a", records: r, file, guard, fresh: { 1: play("E0", 1), 2: play("E0", 2) } });
+      expect(gg.sections.outcome.structuralFailures, field).toEqual([expect.stringMatching(new RegExp(`^${proofId}: 1 failing, first: E9 set 1 gen: `))]);
     }
     expect(g.sections.affected.some((l) => /beside S-1: clean-expiry throws rank-pushed inside the cut pool \d+, to a man below 30 0; throws after a clean break-out \d+, of them desperation 0/.test(l))).toBe(true);
     const m = step5MeasuresOf(records, g, guard, ENV.fingerprint, [{ id: "E0", seedSet: 1 }]) as { outcome: { faults: string[]; breaches: string[]; misses: string[] } };
