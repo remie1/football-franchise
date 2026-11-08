@@ -76,8 +76,8 @@ export type Step5Half = "5a" | "5b";
 /** The committed records of each half, written once by the graded run; `--report`/`--out` never write over them once final. */
 export const STEP5A_RECORDS = ["reports/adr-089-step5a.md", "reports/adr-089-step5a.json"] as const;
 export const STEP5B_RECORDS = ["reports/adr-089-step5b.md", "reports/adr-089-step5b.json"] as const;
-/** False until each half's records are committed (plan §9 items 9 and 13). */
-export const STEP5A_RECORDS_FINAL: boolean = false;
+/** False until each half's records are committed (plan §9 items 9 and 13). 5a's are committed (05849dc) and final. */
+export const STEP5A_RECORDS_FINAL: boolean = true;
 export const STEP5B_RECORDS_FINAL: boolean = false;
 
 /**

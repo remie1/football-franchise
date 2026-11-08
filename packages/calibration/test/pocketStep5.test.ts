@@ -21,6 +21,7 @@ import {
   binsAboveTwiceFtn,
   bin20RawOf,
   cleanScrambleOf,
+  closedStep5Writes,
   fitCorpusProblemOf,
   freshBaseProblems,
   gradeStep5,
@@ -82,14 +83,18 @@ afterAll(() => {
 });
 
 describe("step 5's pins, preflight and gate", () => {
-  it("pins each half's view of the committed amendments file; the records are not final; R-7's view pin is 5b's", () => {
+  it("pins each half's view of the committed amendments file; 5a's records are final, 5b's are not; R-7's view pin is 5b's", () => {
     const whole = loadAmendments(AMEND, loadFiled(FILED));
     expect(amendmentsDigest(amendmentsAtStep(whole, "5a"))).toBe(STEP5A_AMENDMENTS_PIN);
     expect(amendmentsDigest(amendmentsAtStep(whole, "5b"))).toBe(STEP5B_AMENDMENTS_PIN);
     expect(STEP5A_AMENDMENTS_PIN).toBe("fnv1a:3f9478eb");
     expect(RESELECT_VIEW_PIN).toBe(STEP5B_AMENDMENTS_PIN);
-    expect(STEP5A_RECORDS_FINAL).toBe(false);
+    expect(STEP5A_RECORDS_FINAL).toBe(true);
     expect(STEP5B_RECORDS_FINAL).toBe(false);
+    // 5a's records are final (committed at 05849dc): the graded command refuses them by default; 5b's are still open.
+    expect(closedStep5Writes({ report: "reports/adr-089-step5a.md", out: "reports/adr-089-step5a.json" }, PKG)).toEqual(["--report reports/adr-089-step5a.md", "--out reports/adr-089-step5a.json"]);
+    expect(closedStep5Writes({ report: "reports/adr-089-step5a.md" }, PKG, PKG, { a: false, b: false })).toEqual([]);
+    expect(closedStep5Writes({ report: "reports/adr-089-step5b.md", out: "reports/adr-089-step5b.json" }, PKG)).toEqual([]);
   });
 
   it("the preflight reads AM-8 on the S5 view with E0 fresh, and AM-9 or AM-10; a wrong pin is refused", () => {
@@ -106,16 +111,20 @@ describe("step 5's pins, preflight and gate", () => {
     expect(() => preflightStep5("5b", FILED, AMEND, { pin: null })).toThrow(/is not pinned/);
   });
 
-  it("this build's gate: the fit is recorded and recomputes, so 5a may play; 5b is refused until the 5a records are final", () => {
+  it("this build's gate: the fit is recorded and recomputes, so 5a may play; the 5a records are final and hold a graded miss, so 5b is refused without the owner's word", () => {
     const st = step5GateState();
     expect(st.fitPin).toBe("fnv1a:2874e804");
     expect(st.fitRecord).toBe(st.fitPin);
     expect(st.fitCorpusProblem).toBeUndefined();
     expect(st.fitVerifyProblem).toBeUndefined();
     expect(st.s5aDigest).toBe("fnv1a:972b8b3b");
-    expect(st.s5aFinal).toBe(false);
+    expect(st.s5aFinal).toBe(true);
+    expect(st.s5aRecordProblem).toBeUndefined();
+    expect(st.s5aOutcome).toEqual({ faults: [], breaches: [], misses: ["s5a.cleanScramble: flat 12.96, gen 6.89 against 2 to 6"] });
     expect(step5GateRefusal("5a", st)).toBeUndefined();
-    expect(step5GateRefusal("5b", st)).toMatch(/^ADR-089 step 5b: refused before anything plays \(the gate, plan §9 item 10\): the 5a records are not final/);
+    expect(step5GateRefusal("5b", st)).toMatch(/^ADR-089 step 5b: refused before anything plays \(the gate, plan §9 item 10\): the 5a records hold a graded miss \(s5a\.cleanScramble/);
+    // Before the 5a records were final, 5b was refused by that name.
+    expect(step5GateRefusal("5b", { ...st, s5aFinal: false })).toMatch(/the 5a records are not final/);
     // Before the fit commit (no pin, no record, no literal) both halves were refused by name.
     const before: Step5GateState = { fitPin: undefined, fitRecord: undefined, s5aDigest: undefined, s5aFinal: false };
     expect(step5GateRefusal("5a", before)).toMatch(/^ADR-089 step 5a: refused before anything plays \(the gate, plan §9 item 10\): the 5a fit is not recorded/);
@@ -160,8 +169,8 @@ describe("step 5's pins, preflight and gate", () => {
     for (const half of ["5a", "5b"] as const) {
       expect(() => runStep5({ half, cacheParent: parent, filedPath: FILED, amendmentsPath: AMEND, env: ENV, gate: before })).toThrow(/the 5a fit is not recorded/);
     }
-    // This build's own gate: 5b waits on the 5a records.
-    expect(() => runStep5({ half: "5b", cacheParent: parent, filedPath: FILED, amendmentsPath: AMEND, env: ENV })).toThrow(/the 5a records are not final/);
+    // This build's own gate: 5b waits on the owner's word for 5a's graded miss.
+    expect(() => runStep5({ half: "5b", cacheParent: parent, filedPath: FILED, amendmentsPath: AMEND, env: ENV })).toThrow(/the 5a records hold a graded miss/);
     expect(existsSync(parent)).toBe(false);
     expect(() => runStep5({ half: "5a", cacheParent: parent, filedPath: FILED, amendmentsPath: AMEND, env: { ...ENV, dirty: true }, gate: OPEN })).toThrow(STEP5_DIRTY_REFUSAL);
     expect(existsSync(parent)).toBe(false);
