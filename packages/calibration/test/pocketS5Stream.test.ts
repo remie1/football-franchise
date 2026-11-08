@@ -100,6 +100,9 @@ describe("s5Stream on the s5 bench game (every part on)", () => {
       expect(x.escapes.map((e) => e.tick)).toEqual(x.picks.filter((p) => p.option === "ESCAPE").map((p) => p.tick));
       for (const b of x.bumps) expect(x.cleanMoves).toContain(b.tick);
       if (x.screen) expect(x.floorSeconds).toBe(0);
+      // A floor wait is a hold strictly before the floor; a hold at the floor tick itself is not one
+      // (code-tests F12 c).
+      for (const w of x.floorWaits) expect(w.tick, `${x.playId} t${String(w.tick)}`).toBeLessThan(x.floorSeconds);
     }
     expect(expiries).toBeGreaterThan(20);
   });

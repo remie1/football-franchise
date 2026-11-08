@@ -116,6 +116,42 @@ describe("R-7: the recomputation from the filed words", () => {
     expect(reselectionProblems({ ...rec, curve: "hit_rate_by_release_bin" as "pressured_share_by_release_bin" }, again)[0]).toMatch(/the curve used/);
   });
 
+  it("breaks an exact tie to the earlier filed point, in selectWith and in the recomputation (code-tests F12 a)", () => {
+    const { arms } = fixture();
+    const byId = new Map(arms.map((a) => [gridPointId(a.point), a]));
+    const best = byId.get("S:theta=12")!.pressured;
+    const worse = byId.get("S:theta=7")!.pressured;
+    const tied = arms.map((a) => {
+      const id = gridPointId(a.point);
+      return id === "S:theta=11" || id === "S:theta=13" ? { ...a, pressured: best } : id === "S:theta=12" ? { ...a, pressured: worse } : a;
+    });
+    const v = selectWith(tied, { curve: "pressured" });
+    const l11 = v.pressured.points.find((x) => x.point === "S:theta=11")!.set1;
+    expect(v.pressured.points.find((x) => x.point === "S:theta=13")!.set1).toBe(l11);
+    expect(v.winner).toBe("S:theta=11");
+    const again = reselect(filedJson, am10, tied.map((a) => ({ point: gridPointId(a.point), hit: { "1": a.hit[1], "2": a.hit[2] }, pressured: { "1": a.pressured[1], "2": a.pressured[2] } })));
+    expect(again.winner).toBe("S:theta=11");
+    expect(reselectionProblems(asRecorded(tied), again)).toEqual([]);
+  });
+
+  it("is not separated when the worst minus the best is exactly twice the largest spread (code-tests F12 b)", () => {
+    // Every point the same curve on both sets: every loss equal, every spread 0, so worst minus best
+    // (0) equals twice the largest spread (0). The filed test is "more than", so no separation, and
+    // the tie goes to the first filed point.
+    const { arms } = fixture();
+    const one = arms.find((a) => gridPointId(a.point) === "S:theta=12")!;
+    const flat = arms.map((a) => ({ ...a, hit: { 1: one.hit[1], 2: one.hit[1] }, pressured: { 1: one.pressured[1], 2: one.pressured[1] } }));
+    const v = selectWith(flat, { curve: "pressured" });
+    expect(v.pressured.worst! - v.pressured.best!).toBe(2 * v.pressured.maxSpread!);
+    expect(v.pressured.separated).toBe(false);
+    expect(v.hit.separated).toBe(false);
+    expect(v.winner).toBe(gridPointId(GRID_POINTS[0]!));
+    const again = reselect(filedJson, am10, flat.map((a) => ({ point: gridPointId(a.point), hit: { "1": a.hit[1], "2": a.hit[2] }, pressured: { "1": a.pressured[1], "2": a.pressured[2] } })));
+    expect(again.pressured.separated).toBe(false);
+    expect(again.hit.separated).toBe(false);
+    expect(again.winner).toBe(gridPointId(GRID_POINTS[0]!));
+  });
+
   it("refuses a grid that is not the filed one and a filing without the block", () => {
     const { points } = fixture();
     expect(() => reselect(filedJson, am10, points.slice(1))).toThrow(/exactly the filed grid/);
