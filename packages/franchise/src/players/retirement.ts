@@ -18,7 +18,8 @@
  * - **The yearly chance** (§12.4.3, `retirementChance`): logit p = a(age) + the terms, with a floor;
  *   the start values are `RETIREMENT_CHANCE` (GUESS, but a(age), REAL). The year a moment belongs to
  *   (`reviewSeason`) is the regular season that ended before it: IMMEDIATE and SLOW in its own
- *   calendar season, LATE the season before.
+ *   calendar season, LATE the season before. Every input is that year's: his age in it (so all three
+ *   moments read one age band), an injury in its league year, its review and its starts.
  * - **The review** (`reviewOf`), at each IMMEDIATE moment: his overall at the profile his team charted
  *   him at most that regular season (`PlayerMemory.starts`), else his best profile, kept in
  *   `PlayerMemory.lastReview` with the fall since the review before, judged at that review's profile
@@ -40,7 +41,7 @@ import {
   type CalendarStamp, type DeadMoneyCharge, type FranchiseEvent, type GameParticipation, type InjuryBand, type LeagueRules,
   type PlayerContract, type PlayerId, type PlayerState, type Position, type Team, type TeamId,
 } from "@ff/contracts";
-import { transactionYear } from "../cap/money.js";
+import { leagueYear, transactionYear } from "../cap/money.js";
 import { seasonsIn } from "../draft/cutdown.js";
 import { retire, type CapForSeason } from "../draft/money.js";
 import type { LeaguePeople } from "../season/people.js";
@@ -152,9 +153,9 @@ export const STARTER_SHARE = 0.5;
 
 /** One man's inputs to the yearly chance, each from his own record (never his listed position). */
 export interface RetirementInputs {
-  /** His age (`bio.age`). */
+  /** His age in the season reviewed (`bio.age`, less the year `turnYear` added at LATE). */
   readonly age: number;
-  /** He had a LONG or MAJOR injury this league year (his public injury report and history). */
+  /** He had a LONG or MAJOR injury in the league year of the season reviewed (his public injury report and history). */
   readonly longInjury: boolean;
   /** Points of overall lost since his last review, at that review's profile (true ratings: NEW-1); 0 or more. */
   readonly ratingFall: number;
@@ -306,10 +307,14 @@ export function reviewOf(player: PlayerState, season: number, starts: SeasonStar
   return { season, profile, overall: overallWithCarryAt(player, profile), fall };
 }
 
-/** A LONG or MAJOR injury dated in [from, to] (public: his injury report and history). */
-function longInjurySince(history: readonly PastInjury[] | undefined, current: PlayerState["condition"]["injury"], from: CalendarStamp, to: CalendarStamp): boolean {
+/**
+ * A LONG or MAJOR injury dated in the league year `season` (`leagueYear`: from its opening, OFF_RESET_FA
+ * of the calendar season before, to the end of `season`'s OFF_EVAL) and no later than `to` (public:
+ * his injury report and history).
+ */
+function longInjuryIn(history: readonly PastInjury[] | undefined, current: PlayerState["condition"]["injury"], season: number, to: CalendarStamp): boolean {
   const long = (band: InjuryBand) => band === "LONG" || band === "MAJOR";
-  const inside = (s: CalendarStamp) => compareStamps(s, from) >= 0 && compareStamps(s, to) <= 0;
+  const inside = (s: CalendarStamp) => leagueYear(s) === season && compareStamps(s, to) <= 0;
   if (current !== undefined && long(current.band) && inside(current.since)) return true;
   return (history ?? []).some((h) => long(h.band) && inside(h.at));
 }
@@ -339,14 +344,18 @@ export function retirementInputs(o: {
 }): RetirementInputs {
   const { player: p, memory, at, season } = o;
   const id = String(p.bio.id);
-  // "This league year": from the opening of the league year of the season reviewed, up to today (CHOSEN).
-  const from: CalendarStamp = { season: season - 1, phase: "OFF_RESET_FA", week: 1, day: 1 };
   const review = memory.lastReview?.[id];
   const starts = memory.starts?.[id];
   const owed = p.teamId === undefined ? 0 : cashOwed(o.contracts, p.bio.id, p.teamId, at) / o.cap(transactionYear(at));
   return {
-    age: p.bio.age,
-    longInjury: longInjurySince(memory.injuries[id], p.condition.injury, from, at),
+    // His age in the season reviewed, as the REAL a(age) table and the reader band him: everyone turns
+    // a year older between the summer and camp (`turnYear`), so at LATE (the next season's camp) that
+    // is one less than `bio.age`, and each of a year's three moments reads the same band.
+    age: p.bio.age - (at.season - season),
+    // "This league year" (CHOSEN): the league year the season reviewed was played in (`leagueYear`),
+    // up to today. One window a reviewed year, so the next year's does not overlap it: an injury
+    // between the new league year and camp counts in the next year's review, not at LATE.
+    longInjury: longInjuryIn(memory.injuries[id], p.condition.injury, season, at),
     ratingFall: review !== undefined && review.season === season ? review.fall : 0,
     credited: seasonsIn(p, season),
     lostJob: startedIn(starts, season - 1) && !startedIn(starts, season),

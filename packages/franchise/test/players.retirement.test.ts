@@ -11,7 +11,7 @@ import { emptyMemory, type PlayerMemory, type RetirementReview, type SeasonStart
 import {
   OWN_MOMENTS, RETIREMENT_CHANCE, RETIREMENT_STREAM, STARTER_SHARE, ageRate, bestProfile, cashOwed, chanceByAgeBand, countStarts, flatCap,
   forget, makeSave, momentChance, ownMoment, ownRetirements, readSave, retirementChance, retirementInputs, retirementRule, reviewOf, reviewSeason,
-  capForecast, minimumSalary, runSeason, startedIn, transactionYear, veteranContract,
+  capForecast, minimumSalary, runSeason, startedIn, transactionYear, turnYear, veteranContract,
   type DayStepContext, type LeaguePeople, type OwnTiming, type RetirementChanceModel, type RetirementInputs,
 } from "../src/index.js";
 import { SEASON as WORLD_SEASON, league, makeClass, rate, resolve, startingPeople } from "./playersWorld.js";
@@ -239,6 +239,49 @@ describe("his record (§12.4.3)", () => {
     expect(inputs(emptyMemory(), hurt).longInjury).toBe(true);
   });
 
+  it("reads one league year a reviewed season at every moment, so the next year's window does not overlap it", () => {
+    // The league year Y runs from OFF_RESET_FA of Y - 1 to the end of Y's OFF_EVAL (`leagueYear`).
+    const p = man("W", "CB", { age: 30 });
+    const hurtAt = (at: CalendarStamp): PlayerMemory => ({ ...emptyMemory(), injuries: { W: [{ kind: "knee", band: "MAJOR", at }] } });
+    const long = (m: PlayerMemory, t: OwnTiming, year = Y) => {
+      const at = momentDay(t, year);
+      return retirementInputs({ player: p, memory: m, at, season: reviewSeason(at, t), cap: CAP }).longInjury;
+    };
+    // Hurt in Y's season, or in its OFF_EVAL after the IMMEDIATE day: Y's year at SLOW and LATE, never Y + 1's.
+    for (const at of [{ season: Y, phase: "REGULAR_SEASON", week: 6, day: 7 }, { season: Y, phase: "OFF_EVAL", week: 3, day: 1 }] as CalendarStamp[]) {
+      expect(long(hurtAt(at), "SLOW")).toBe(true);
+      expect(long(hurtAt(at), "LATE")).toBe(true);
+      for (const t of ["IMMEDIATE", "SLOW", "LATE"] as const) expect(long(hurtAt(at), t, Y + 1)).toBe(false);
+    }
+    // Hurt between the new league year (Y + 1's) and camp: not at Y's LATE (camp Y + 1), but at every moment of Y + 1's year.
+    for (const at of [{ season: Y, phase: "OFF_RESET_FA", week: 1, day: 1 }, { season: Y, phase: "OFF_ROOKIES_OTAS", week: 2, day: 3 }, { season: Y, phase: "OFF_SUMMER", week: 1, day: 1 }] as CalendarStamp[]) {
+      for (const t of ["IMMEDIATE", "SLOW", "LATE"] as const) expect(long(hurtAt(at), t)).toBe(false);
+      for (const t of ["IMMEDIATE", "SLOW", "LATE"] as const) expect(long(hurtAt(at), t, Y + 1)).toBe(true);
+    }
+    // His report counts by the same window.
+    const since: CalendarStamp = { season: Y, phase: "OFF_DRAFT", week: 1, day: 1 };
+    const out: PlayerState = { ...p, condition: { ...p.condition, injury: { kind: "acl", weeksRemaining: 30, playable: false, setting: "AWAY", band: "MAJOR", since } } };
+    const lateY = momentDay("LATE");
+    expect(retirementInputs({ player: out, memory: emptyMemory(), at: lateY, season: Y, cap: CAP }).longInjury).toBe(false);
+    expect(retirementInputs({ player: out, memory: emptyMemory(), at: momentDay("IMMEDIATE", Y + 1), season: Y + 1, cap: CAP }).longInjury).toBe(true);
+  });
+
+  it("reads his age in the season reviewed, so one man takes the same band at all three moments of a year", () => {
+    // 25 in Y: IMMEDIATE and SLOW fall in Y; the year turns (`turnYear`, everyone a year older) before Y + 1's camp, the LATE moment.
+    const p = man("A", "WR", { age: 25 });
+    const people = world({ players: [p], roster: [p], chart: { WR: [p] } });
+    const older = turnYear(people).people.players[0]!;
+    expect(older.bio.age).toBe(26);
+    const ages = (["IMMEDIATE", "SLOW", "LATE"] as const).map((t) => {
+      const at = momentDay(t);
+      const player = t === "LATE" ? older : p;
+      return retirementInputs({ player, memory: emptyMemory(), at, season: reviewSeason(at, t), cap: CAP }).age;
+    });
+    expect(ages).toEqual([25, 25, 25]);
+    expect(new Set(ages.map((a) => ageRate(a))).size).toBe(1);
+    expect(ageRate(ages[2]!)).toBe(0.002);
+  });
+
   it("reads a lost job from his starts: started the season before, not the one reviewed", () => {
     const starter = (season: number, started: number[] = []): SeasonStarts => ({ season, snaps: 600, sideSnaps: 1000, charted: { RB: 17 }, started });
     const bench = (season: number, started: number[] = []): SeasonStarts => ({ season, snaps: 100, sideSnaps: 1000, charted: { RB: 17 }, started });
@@ -302,6 +345,38 @@ describe("test 3: same seed (§12.4.6)", () => {
     // Each moment draws on its own fork.
     expect(JSON.stringify(run(startingPeople(), SEED, "IMMEDIATE").events)).not.toBe(JSON.stringify(a.events));
     expect(RETIREMENT_STREAM).toBe("franchise:retirement");
+  });
+
+  it("draws each man on his own fork by id: the moment's draw is createRng(seed, stream).fork(retire/<season>/<timing>).fork(id)", () => {
+    const people = startingPeople();
+    for (const timing of ["SLOW", "LATE"] as const) {
+      const at = momentDay(timing, WORLD_SEASON);
+      const r = run(people, SEED, timing);
+      const root = createRng(SEED, RETIREMENT_STREAM).fork(`retire/${at.season}/${timing}`);
+      const memory = people.playerMemory ?? emptyMemory();
+      const free = new Set(people.freeAgents.map(String));
+      const expected = people.players
+        .filter((p) => p.teamId !== undefined || free.has(String(p.bio.id)))
+        .filter((p) => {
+          const yearly = retirementChance(retirementInputs({ player: p, memory, at, season: reviewSeason(at, timing), cap: CAP }), loud);
+          return root.fork(String(p.bio.id)).next() < momentChance(yearly, timing);
+        })
+        .map((p) => String(p.bio.id)).sort();
+      expect(retiredBy(r.events).map((e) => String(e.player))).toEqual(expected);
+      expect(expected.length).toBeGreaterThan(5);
+    }
+  });
+
+  it("keeps every other man's draw when one more candidate joins, even one whose id sorts first", () => {
+    const people = startingPeople();
+    const extra = man("0-first", "WR", { age: 30, team: null });
+    const crowd: LeaguePeople = { ...people, players: [extra, ...people.players], freeAgents: [extra.bio.id, ...people.freeAgents] };
+    for (const timing of ["IMMEDIATE", "SLOW", "LATE"] as const) {
+      const a = retiredBy(run(people, SEED, timing).events).map((e) => String(e.player));
+      const b = retiredBy(run(crowd, SEED, timing).events).map((e) => String(e.player)).filter((id) => id !== "0-first");
+      expect(b).toEqual(a);
+      expect(a.length).toBeGreaterThan(5);
+    }
   });
 
   it("changes nothing when the roster order is shuffled", () => {
@@ -457,11 +532,12 @@ describe("test 5: signed vs free agent (§12.4.6)", () => {
     expect(r.people.teams[1]).toBe(before.teams[1]);
   });
 
-  it("books a signed man's money through retire(): his deal ends RETIRED and its proration is dead money; a free agent's costs nothing", () => {
+  it("books a signed man's money through retire(): his deal ends RETIRED, its proration and earned bonus are dead money; a free agent's costs nothing", () => {
     const book = r.people.contracts!;
     expect(book.map((c) => [String(c.player), c.ended?.reason])).toEqual([["s-signed", "RETIRED"], ["s-squad", "RETIRED"], ["s-other", undefined]]);
-    // SLOW counts in Y + 1, before June 1: the 3 million a year left for Y + 1 to Y + 3.
-    const want: DeadMoneyCharge[] = ["s-signed", "s-squad"].map((id) => ({ team: T1, player: playerId(id), reason: "RETIRED", season: Y + 1, amount: 9e6 }));
+    // SLOW counts in Y + 1, before June 1: the 3 million a year left for Y + 1 to Y + 3, and Y + 1's
+    // 1 million roster bonus, earned when that league year opened the day before.
+    const want: DeadMoneyCharge[] = ["s-signed", "s-squad"].map((id) => ({ team: T1, player: playerId(id), reason: "RETIRED", season: Y + 1, amount: 9e6 + 1e6 }));
     expect(r.charges).toEqual(want);
     expect(r.people.deadMoney).toEqual(want);
   });
@@ -608,7 +684,7 @@ describe("retirement by choice beside the league year and the draft (§12.4.2, �
     for (const e of slow) expect(e.seq).toBeLessThan(signings[0]!.seq);
   });
 
-  it("ends each signed man's deals RETIRED at his moment, books only proration as dead money, and never releases or signs him after", () => {
+  it("ends each signed man's deals RETIRED at his moment, books proration and earned bonuses as dead money, and never releases, signs or expires him after", () => {
     const end = r.people!;
     const signed = own.filter((e) => e.team !== undefined);
     expect(signed.length).toBeGreaterThan(3);
@@ -619,12 +695,17 @@ describe("retirement by choice beside the league year and the draft (§12.4.2, �
       const retired = deals.filter((c) => c.ended!.reason === "RETIRED");
       expect(retired.length, id).toBeGreaterThan(0);
       for (const c of retired) expect(compareStamps(c.ended!.at, e.at), id).toBe(0);
+      // No deal of his outlives his moment (an expiring one included): nothing ends after it.
+      expect(deals.filter((c) => compareStamps(c.ended!.at, e.at) > 0), id).toEqual([]);
       const charges = end.deadMoney!.filter((d) => String(d.player) === id && d.reason === "RETIRED");
       const year = transactionYear(e.at);
       for (const d of charges) expect([year, year + 1]).toContain(d.season);
       const proration = retired.flatMap((c) => c.years.filter((y) => y.season >= year)).reduce((n, y) => n + y.signingBonusProration + (y.optionBonusProration ?? 0), 0);
-      expect(charges.reduce((n, d) => n + d.amount, 0), id).toBe(proration);
-      const later = r.events.filter((x) => x.seq > e.seq && (x.event.type === "PLAYER_RELEASED" || x.event.type === "CONTRACT_SIGNED") && String(x.event.payload.player) === id);
+      // The bonuses this league year had earned by his moment (none at IMMEDIATE): the roster bonus from SLOW, the workout bonus by camp.
+      const earned = retired.flatMap((c) => c.years.filter((y) => y.season === year))
+        .reduce((n, y) => n + (e.timing === "IMMEDIATE" ? 0 : (y.rosterBonus ?? 0)) + (e.timing === "LATE" ? (y.workoutBonus ?? 0) : 0), 0);
+      expect(charges.reduce((n, d) => n + d.amount, 0), id).toBe(proration + earned);
+      const later = r.events.filter((x) => x.seq > e.seq && (x.event.type === "PLAYER_RELEASED" || x.event.type === "CONTRACT_SIGNED" || x.event.type === "CONTRACT_EXPIRED") && String(x.event.payload.player) === id);
       expect(later, id).toEqual([]);
     }
   });
@@ -641,7 +722,7 @@ describe("retirement by choice beside the league year and the draft (§12.4.2, �
 });
 
 describe("retirement by choice reads no listed position (the owner's rule, R1)", () => {
-  it("has no bio.position, no position group and no listed side in retirement.ts, the retire step, countStarts' call or forget", () => {
+  it("has no bio.position, no position group and no listed side in retirement.ts, the retire step, countStarts' call, forget or the money", () => {
     // The code without its comments and string literals: no identifier `position` at all (bio.position,
     // bio["position"], a destructured { position }), no POSITION_GROUP, no sideOf.
     const code = (text: string) => text
@@ -676,6 +757,7 @@ describe("retirement by choice reads no listed position (the owner's rule, R1)",
     check("forget", slice(unsigned, "export function forget(", "\n}\n"));
     check("the money", slice(read("draft/money.ts"), "export function retire(", "\n}\n"));
     check("a retirement's charges", slice(read("cap/money.ts"), "function retiredFrom(", "\n}\n"));
+    check("a retirement's earned bonuses", slice(read("cap/money.ts"), "function earnedBonuses(", "\n}\n"));
     // The test itself bites: a planted read is caught.
     expect(() => check("planted", "const { position } = p.bio;")).toThrow();
     expect(() => check("planted", "p.bio[\"position\"]")).toThrow();

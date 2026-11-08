@@ -100,11 +100,13 @@ export interface ReleaseResult {
  * the designation) this year keeps only its own share and the rest lands next year.
  *
  * A retirement (`reason: "RETIRED"`; ADR-087 §12.4.4, the money thread's answer to M1): he forfeits
- * his salary, guaranteed or not, and every bonus not yet earned (roster, workout, per game). Only the
- * proration not yet counted accelerates (the signing bonus's and any option bonus's, void years'
- * included), split at June 1 by the date alone (the post-June-1 designation is a release's, so it is
- * not read), and nothing is clawed back (`springBonus.clawbackOnRetirement` is not modeled). It sends
- * no `PLAYER_RELEASED`.
+ * his salary, guaranteed or not, and every bonus not yet earned (roster, workout, per game). A bonus
+ * this league year has already earned stays charged, as a release charges it: the roster bonus once
+ * the league year has opened, the workout bonus from the summer on. Only the proration not yet
+ * counted accelerates (the signing bonus's and any option bonus's, void years' included), split at
+ * June 1 by the date alone (the post-June-1 designation is a release's, so it is not read), and
+ * nothing is clawed back (`springBonus.clawbackOnRetirement` is not modeled). It sends no
+ * `PLAYER_RELEASED`.
  *
  * Simplification (ADR-085 §2): a player cut in season costs his whole season's cap number; the real
  * league pays non-vested players only for weeks already played.
@@ -140,16 +142,33 @@ export function releasePlayer(c: PlayerContract, at: CalendarStamp, opts: Releas
 }
 
 /**
+ * The bonuses of this league year's `y` already earned at `at`, which a retirement does not give back:
+ * the roster bonus once the league year has opened (not in OFF_EVAL, which counts in the coming year
+ * and is processed when it opens), the workout bonus from the summer on. These are a release's rules
+ * (`releasePlayer`'s offseason branch), so a retiring team saves no cap room on money already paid.
+ * No moment falls in the regular season or the playoffs (ADR-087 §12.4.2), where the weeks already
+ * paid would count too; there both bonuses count as earned and nothing else does.
+ */
+function earnedBonuses(y: ContractYear, at: CalendarStamp): number {
+  const roster = at.phase === "OFF_EVAL" ? 0 : (y.rosterBonus ?? 0);
+  const workout = WORKOUT_EARNED.has(at.phase) ? (y.workoutBonus ?? 0) : 0;
+  return roster + workout;
+}
+/** Phases by which this league year's workout bonus has been earned. */
+const WORKOUT_EARNED: ReadonlySet<CalendarPhase> = new Set(["OFF_SUMMER", "TRAINING_CAMP", "PRESEASON", "REGULAR_SEASON", "PLAYOFFS"]);
+
+/**
  * A retirement's money (ADR-087 §12.4.4; `releasePlayer` with `reason: "RETIRED"`): this league year's
- * proration and every later year's (void years' too) become dead money, all in this league year
- * before June 1, and this year's share now with the rest next year from June 1 on. No salary, no
- * guarantee and no unearned bonus is charged: he forfeits them.
+ * proration and every later year's (void years' too) become dead money, with this year's bonuses
+ * already earned (`earnedBonuses`), all in this league year before June 1, and this year's part now
+ * with the rest next year from June 1 on. No salary, no guarantee and no unearned bonus is charged:
+ * he forfeits them.
  */
 function retiredFrom(c: PlayerContract, at: CalendarStamp): ReleaseResult {
   const year = transactionYear(at);
   const postJune1 = isAfterJune1(at);
   const thisYear = c.years.find((y) => y.season === year);
-  const now = thisYear ? proration(thisYear) : 0;
+  const now = thisYear ? proration(thisYear) + earnedBonuses(thisYear, at) : 0;
   const later = c.years.filter((y) => y.season > year).reduce((s, y) => s + proration(y), 0);
   const charges = [
     { season: year, amount: postJune1 ? now : now + later },

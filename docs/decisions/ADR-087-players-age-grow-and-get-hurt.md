@@ -2321,8 +2321,8 @@ The choices it fixed (CHOSEN unless marked):
       - The terms and the floor are §12.4.3's start values (GUESS).
       - `ageRate` gives a man's band rate. `chanceByAgeBand` is §12.4.6 test 7's tuning helper: the mean chance by band over a roster.
     - **His record.** `retirementInputs` builds each input from his own record:
-      - Age: `bio.age`.
-      - A LONG or MAJOR injury this league year: his public injury report (`condition.injury`, by `since`) and the steps' history (`PlayerMemory.injuries`, by `at`).
+      - Age: his age in the season reviewed, as the REAL table and the reader band him: `bio.age`, less one at LATE, since `turnYear` makes everyone a year older before camp. So a year's three moments read one band. (As first built, LATE read `bio.age`, the next band up for a man at a band's edge; the review fixes, below.)
+      - A LONG or MAJOR injury in the league year of the season reviewed (`cap/money.ts` `leagueYear`, up to the moment): his public injury report (`condition.injury`, by `since`) and the steps' history (`PlayerMemory.injuries`, by `at`).
       - Rating fall: from `PlayerMemory.lastReview`.
       - Credited seasons: `draft/cutdown.ts` `seasonsIn`.
       - A lost job: from `PlayerMemory.starts`.
@@ -2348,13 +2348,14 @@ The choices it fixed (CHOSEN unless marked):
     - With choice, the steps are `players:week`, then `players:retire`, then `players:unsigned`. The retire step runs on the three days only, priced with the steps' cap (`config.cap`, else flat at the rules' cap; `runSeason` gives the steps the year's).
     - On the LATE day the unsigned rule's step still runs after it, on whoever is left.
   - **The money** (the money thread's answer, §12.11 M1).
-    - `draft/money.ts` `retire(book, dead, player, team, at)`, modeled on `release`, ends his live deal and any later deal with the same team through `releasePlayer(c, at, { reason: "RETIRED" })`. It books the charges and sends no `PLAYER_RELEASED`.
+    - `draft/money.ts` `retire(book, dead, player, team, at)`, modeled on `release`, ends his live deal and every other open deal he holds with the same team through `releasePlayer(c, at, { reason: "RETIRED" })`: an extension not started, and at IMMEDIATE also the deal whose last year was the season just played, which stays open until the new league year. So no open deal of a retired man is left on the book. It books the charges and sends no `PLAYER_RELEASED`. (As first built it ended only deals with a year after the moment's transaction year, which at IMMEDIATE left an expiring deal open beside an early extension; the review fixes, below.)
     - `cap/money.ts` `releasePlayer` with `reason: "RETIRED"` (`retiredFrom`):
       - He forfeits his salary, guaranteed or not, and every bonus not yet earned (roster, workout, per game).
+      - A bonus this league year has already earned stays charged, by a release's rules: the roster bonus once the league year has opened (SLOW and LATE), the workout bonus from the summer on (LATE). So a retiring team gets back no cap room for money already paid. (As first built it charged proration only, which dropped earned bonuses too; the review fixes, below.)
       - Only the proration not yet counted accelerates, option bonus and void years included.
       - It splits at June 1 by the date alone; a release's post-June-1 designation is not read.
       - Nothing is clawed back.
-      - So IMMEDIATE and SLOW book everything into the next league year, before June 1. LATE books this year's share now and the rest next year.
+      - So IMMEDIATE books into the coming league year and SLOW into the one just opened, all before June 1. LATE books this year's part now and the rest next year.
       - Every other call to `releasePlayer` takes the old path, and every existing release test passes unchanged.
   - **`index.ts`** exports `retire`, `forget` and the retirement API.
 - **Calibration.**
@@ -2407,7 +2408,7 @@ The choices it fixed (CHOSEN unless marked):
 
 The choices it fixed (CHOSEN unless marked):
 - **The year a moment decides on.** IMMEDIATE and SLOW decide on the regular season just ended; LATE decides on the season before the camp. So the three moments split one year's chance, and their inputs are that year's.
-- **"This league year"** for the injury term runs from the opening of the league year the season reviewed was played in (OFF_RESET_FA week 1 day 1 of the season before) up to the moment. P8's pre-league history (`condition.injuryHistory`) is not read.
+- **"This league year"** for the injury term is the league year the season reviewed was played in (`leagueYear`: from OFF_RESET_FA week 1 day 1 of the season before to the end of that season's OFF_EVAL), up to the moment. That is one window a reviewed year, and the next year's does not overlap it: an injury between the new league year and camp counts in the next year's review, not at LATE. P8's pre-league history (`condition.injuryHistory`) is not read. (As first built the window ran from the same opening to the moment, so at LATE it was about 17 months and overlapped the next year's; the review fixes, below.)
 - **The review's profile** is the chart key he was counted at most in that regular season's games, with ties going to the first in `SPOT_ORDER`. With no key it is his best profile over `SPOT_ORDER`, at his carried overall. The first year of a walk has no review before it, so no fall.
 - **A start** is counted from the regular season's games while he is on a 53. A game he sat out on no key and with no snap (hurt and off the chart, say) counts nothing either way. A game on a key with no snap counts against his share. The denominator is the side's busiest man's snaps in that game.
 - **Money ahead** is the whole year's base, roster, workout and per-game bonus over every open deal with his team, from the moment's transaction year on (an extension not started counts), ÷ that year's cap. A free agent takes 0.
@@ -2416,25 +2417,26 @@ The choices it fixed (CHOSEN unless marked):
 - **Chart keys** that lose their last man stay as empty lists, and the next week's rebuild fills them.
 - **The label** puts `choice` after `spot`, so AB5's names (`spot`, `ability-spot`) are unchanged and their caches still read.
 
-**Smokes** (MEASURED, 2026-11-08; one seed each, so these show that it runs, not what it does to the league).
+**Smokes** (MEASURED, 2026-11-08; one seed each, so these show that it runs, not what it does to the league). Each was played again after the review fixes (below); where a number moved, the first-built one follows in brackets.
 - **Season** (`season --seed homie-1`):
   - `--development --injuries --retirement choice` gives 5 own-choice retirements (IMMEDIATE 2, SLOW 1, LATE 2, all signed). Beside them are the unsigned rule's 19, as at the default.
-  - A second run is the same file to the byte.
-  - A week-9 save carried on ends with the same players, season and rosters as the straight run.
-  - On the stand-in league, choice gives 19 (9 / 5 / 5) beside 27 unsigned. `--ability-rules` gives the same counts and records `{ aging: "ability", injuryRisk: "spot", retirement: "choice" }`.
+  - A second run is the same file to the byte (sha256 `3ebc0981…`, the same file as first built: the generated league's deals carry no roster or workout bonus, and no draw there moved with the LATE age).
+  - A week-9 save carried on ends with the same players, season and rosters as the straight run (the league and coaching parts differ, as they do on the default path).
+  - On the stand-in league, choice gives 17 (IMMEDIATE 9, SLOW 5, LATE 3) [19: 9 / 5 / 5] beside 27 unsigned. The LATE moment is the 2027 camp, where the men now read their 2026 age. `--ability-rules` gives the same counts and records `{ aging: "ability", injuryRisk: "spot", retirement: "choice" }`.
+  - No own-choice retiree has a `CONTRACT_EXPIRED`, `CONTRACT_SIGNED` or `PLAYER_RELEASED` after his retirement (READ, every smoke above).
   - No signing falls on the SLOW day in the season command. The franchise test with the market on books puts the SLOW retirements before that day's 137 signings.
   - The four refusals exit 1.
-- **Career-check** (3 seasons, d5b-t1, arm `both`, graded with `--smoke`; the tables are in `scratchpad/ab8/inertness.md`, and the cache folders were deleted after).
-  - **retired-signed** by age (choice / `--ability-rules` / REAL): 0.00 / 0.00 / 0.20%, 0.46 / 0.46 / 0.50%, 0.93 / 1.27 / 1.28%, 3.02 / 2.94 / 2.32%, 8.40 / 7.52 / 2.95%.
+- **Career-check** (3 seasons, d5b-t1, arm `both`, graded with `--smoke`; the tables are in `scratchpad/ab8/inertness.md`, and the cache folders were deleted after). Played again on the review-fix tree (builds `a8ef1ab1310d716c` for choice and `1093f44a47be3618` for `--ability-rules`); the default column is the first-built run's, whose path the fixes do not touch (the 2-season rows below are unchanged).
+  - **retired-signed** by age (choice / `--ability-rules` / REAL): 0.00 / 0.00 / 0.20%, 0.34 / 0.34 / 0.50% [0.46 / 0.46], 0.94 / 0.95 / 1.28% [0.93 / 1.27], 2.99 / 2.87 / 2.32% [3.02 / 2.94], 7.58 / 8.09 / 2.95% [8.40 / 7.52]; every age 0.74 / 0.77 / 0.63% [0.81 / 0.81].
     - The young bands sit at or under REAL.
-    - 33 and over is nearly three times REAL. The years term stacks on an age table that already holds the age. That is for AB9.
-  - **Retirements a season** under choice: 18.7 by own choice while signed and 11.7 unsigned. The unsigned rule's count falls from 363.7 to 345.3.
-  - **Against the default run, at every age:** back-on-53 is .7071 against .7064 and starters-gone .1650 against .1687, which is noise on one seed. At 33 and over the change goes the expected way: back-on-53 −.058 and starters-gone +.073.
-  - **By moment** (own choice while signed, a season): IMMEDIATE 11.0, SLOW 2.67, LATE 5.0, SEASON_END 0.
-  - **By years in the league:** 1.0 / 2.0 / 2.33 / 4.67 / 8.67 a season (0, 1-2, 3-5, 6-9, 10+). The final-week cohort by years is at or under REAL until 10+, which is 8.6% against 3.5%.
+    - 33 and over is still more than twice REAL. The fixes moved it within one-seed noise (down under choice, up under `--ability-rules`); the years term (+0.15 a credited season past 6) still stacks on an age table that already holds the age. That is for AB9.
+  - **Retirements a season** under choice: 19.0 [18.7] by own choice while signed and 10.3 [11.7] unsigned. The unsigned rule's count falls from 363.7 to 341.7 [345.3].
+  - **Against the default run, at every age:** back-on-53 is .7051 [.7071] against .7064 and starters-gone .1650 [.1650] against .1687, which is noise on one seed. At 33 and over the change goes the expected way: back-on-53 −.071 [−.058] and starters-gone +.073 [+.073].
+  - **By moment** (own choice while signed, a season): IMMEDIATE 12.3 [11.0], SLOW 2.33 [2.67], LATE 4.33 [5.0], SEASON_END 0.
+  - **By years in the league:** 1.0 / 2.0 / 2.67 / 5.0 / 8.33 a season [1.0 / 2.0 / 2.33 / 4.67 / 8.67] (0, 1-2, 3-5, 6-9, 10+). The final-week cohort by years is at or under REAL until 10+, which is 8.0% [8.6%] against 3.5%.
   - At the default every own-choice row is 0.
 
-**Inertness** (MEASURED, against 46e8c44 in a separate worktree, `scratchpad/ab8/base-wt`, since removed; the same commands).
+**Inertness** (MEASURED, against 46e8c44; the same commands). As first recorded, the base side ran in a separate worktree (`scratchpad/ab8/base-wt`, since removed), but the AB8 side's nine runs (13:50-13:58Z) were started before the last source edit (`retirement.ts` and `index.ts` at 13:55), so runs A to E did not play the committed source. The review re-ran all nine on 85066be (15:18-15:27Z), and every hash matched. They were run again on the review-fix tree, after its last source edit and against a fresh copy of 46e8c44 (`git archive`, in `scratchpad/ab8/fix/base`, since removed), 16:20-16:34Z; the review fixes' note (below) has that record. The hashes are the same each time.
 - **The nine season runs are byte-identical.** The sha256 of each out or save file:
   - A, growth off: `63febe8b…`
   - B, `--stop-after 9 --save`: `66108c69…`
@@ -2445,8 +2447,8 @@ The choices it fixed (CHOSEN unless marked):
   - F, growth on, `--save`: `e1dafb12…`
   - F, growth on, `--load`: `329818b2…`
   - G, `--development` alone: `4a51db00…`
-- **The 2-season career-check** of d5b-t1 (arm `both`) gives rows sha256 `6aecb0bc…` on both trees: builds `e4be89df45616e34` and `84f789f5d324fbb6`, with no `aging` key in either record. The records are equal but for `fingerprint` and `seconds`.
-- **`pnpm verify`** exits 0 on the AB8 tree (franchise 853 tests in 57 files, calibration 2,555 passed and 111 skipped in 184 files). No file in `packages/contracts`, `engine`, `attributes`, `narrative` or `apps/game` changed, and the league file is unchanged. The record is `scratchpad/ab8/inertness.md`.
+- **The 2-season career-check** of d5b-t1 (arm `both`) gives rows sha256 `6aecb0bc…` on both trees: builds `e4be89df45616e34` and `84f789f5d324fbb6` (the review-fix tree: `63f1074615d94d4a`), with no `aging` key in either record. The records are equal but for `fingerprint` and `seconds`.
+- **`pnpm verify`** exits 0 on the AB8 tree (franchise 853 tests in 57 files, calibration 2,555 passed and 111 skipped in 184 files; for the review-fix tree, see its note). No file in `packages/contracts`, `engine`, `attributes`, `narrative` or `apps/game` changed, and the league file is unchanged. The record is `scratchpad/ab8/inertness.md`.
 
 **For the Orchestrator's CLAUDE.md lines** (no code change). The new flag is `--retirement unsigned|choice`, on:
 - `season`, which needs `--development` or `--injuries`;
@@ -2454,6 +2456,35 @@ The choices it fixed (CHOSEN unless marked):
 - `player-checks`.
 
 `--ability-rules` now sets `--retirement choice` too, so its set is named `ability-spot-choice`. What AB5 wrote under `--ability-rules` was named `ability-spot`. A re-run of the same command line now reads and writes `ability-spot-choice`, and AB5's set is typed `--aging ability --injury-risk spot`. Stacked on AB6 (aging-m7), `--ability-rules` with AB6's two knobs is named `ability-spot-healflat-wear<n>-choice`, and the switches are recorded in the order AB5's, AB6's, AB8's (`injuryRisk`, `healingByAge`, `perContact`, `retirement`).
+
+**AB8 review fixes (2026-11-08).** The review's confirmed findings, applied in `ADR-087 AB8: review fixes`. Every change is on the `retirement: "choice"` path, so the default path does not move (the proofs at the end). The AB8 note above is corrected in place, each change marked "as first built".
+- **Every open deal with his team ends** (`draft/money.ts` `retire()`). At IMMEDIATE (OFF_EVAL, which counts in the coming league year), take a man whose deal's last year was the season just played and who also holds an early extension. `liveIndex` picked the extension, and the loop ended only deals with a year after the transaction year. So his expiring deal stayed open, and the new league year expired it and sent `CONTRACT_EXPIRED` for a retired man. The money was the same. Now every other open deal he holds with the team ends RETIRED (a void year left on the expiring deal accelerates with it).
+- **Earned bonuses stay charged** (`cap/money.ts` `retiredFrom`, new private `earnedBonuses`). As first built, a retirement charged proration only, so it also wiped the bonuses a release treats as earned: at SLOW the roster bonus, at LATE the roster and workout bonus. The team got back cap room for money already paid, against the note's own "every bonus not yet earned". Now this league year's earned bonuses are charged by a release's offseason rules: the roster bonus outside OFF_EVAL, the workout bonus from OFF_SUMMER on. On the test deal SLOW books $17M (it was $15M) and LATE $7.5M and $10M (it was $5M and $10M), each a release's figure less the salary and guarantees. This is CHOSEN, read from the money thread's answer: "only the proration accelerates" is about money moved from later years, and a paid bonus is this year's money already spent. `scratchpad/ab8/money-review.md` asks the money thread to confirm or reverse it. It also notes that the money-ahead term (`cashOwed`) still counts those paid bonuses as owed at SLOW and LATE.
+- **His age in the season reviewed** (`retirement.ts` `retirementInputs`). The REAL a(age) table is by age in the season reviewed (Y-1 in `nfl-careers.md`), and so is the reader's retired-signed row. `turnYear` makes everyone a year older before camp, so the LATE moment (camp S+1, reviewing S) read one band up for a man at a band's edge: 25 at 0.50% instead of 0.20%, 32 at 2.95% instead of 2.32%. The age is now `bio.age - (at.season - season)`, so all three moments of a year read one band.
+- **One injury window a reviewed year** (`longInjuryIn`). The window ran from OFF_RESET_FA of the season before up to the moment. At LATE that was about 17 months (about 11 at IMMEDIATE), and it overlapped the next year's window, so an offseason LONG or MAJOR injury raised his chance at LATE for S and again at all three moments for S+1. Now it is the league year of the season reviewed (`cap/money.ts` `leagueYear(stamp) === season`), up to the moment. An injury between the new league year and camp counts in the next year's review only.
+- **The note's wording.** SLOW books into the league year just opened, not the next one (§12.4.4 had it right). The money bullet now says IMMEDIATE books into the coming league year and SLOW into the one just opened, all before June 1.
+- **The inertness record's provenance.** The inertness paragraph above now says the first AB8-side runs began before the last source edit, and that the review and these fixes re-ran them.
+- **Tests.**
+  - Franchise `players.retirement.test.ts` has 38 tests, 4 of them new:
+    - The injury window at every moment, against the next year's, from his history and his report.
+    - One man's age band at all three moments, through `turnYear`.
+    - Each moment's draws pinned to `createRng(seed, RETIREMENT_STREAM).fork("retire/<season>/<timing>").fork(<id>)` against the chance.
+    - A crowd with one more candidate whose id sorts first keeps every other man's outcome at all three moments.
+  - In the same file, test 5's money and the market-year test now count the earned bonus, and the market-year test also checks that no deal of his ends after his moment and no `CONTRACT_EXPIRED` follows. The R1 grep also reads `earnedBonuses`.
+  - Franchise `money.retire.test.ts` has 14 tests, 2 of them new: the coming year's bonuses forfeited at IMMEDIATE (and the per-game bonus never earned at a moment), and an expiring deal plus an early extension ending RETIRED at IMMEDIATE in either book order, with nothing left for the new league year to expire. The SLOW, LATE, option-bonus, no-proration and later-deal tests now hold the earned bonuses.
+  - Each new guard was shown to bite (MEASURED). One defect was planted at a time in the source, and each made the test meant for it fail:
+    - the old loop: 1 failed;
+    - a draw in sequence (`root.next()`) in place of the man's own fork: 2 failed;
+    - `bio.age` at LATE: 1 failed;
+    - the old window: 1 failed;
+    - no earned bonuses: 6 failed.
+- **Proofs** (MEASURED, 2026-11-08, after the last source edit: the src diff's sha256 was the same at the start and end of the runs).
+  - **The nine season runs are byte-identical** to a fresh copy of 46e8c44, with the same hashes as above. The base side was 16:20-16:26Z and the review-fix side 16:26-16:34Z. Run C typed with `--retirement unsigned` is also C's file.
+  - **The 2-season career-check** rows are `6aecb0bc…` on both trees, built `e4be89df45616e34` and `63f1074615d94d4a`. Neither record has an `aging` key, and the records differ only in `fingerprint` and `seconds`.
+  - **The smokes** above were played again on this tree.
+  - **`pnpm verify`** exits 0 on the review-fix tree (16:56-17:17Z, `scratchpad/ab8/fix/verify.log`). Build, test and typecheck each exit 0: franchise 859 tests in 57 files, calibration 2,555 passed and 111 skipped in 184 files, engine 1,633 passed and 2 skipped in 84. No file in `packages/contracts`, `engine`, `attributes`, `narrative` or `apps/game` changed, and the league file is unchanged.
+  - The records are `scratchpad/ab8/inertness.md` §6 and `scratchpad/ab8/fix/`. The cache folders were deleted after.
+- **NEW-1 is still pending**, as above: its reader-comment line in contracts `players.ts` lands with the owner's typed "yes on NEW-1", before AB8 merges. The fixes change no contracts file.
 
 ### 12.10 NEW contracts edits (not approved; each needs the owner's typed yes)
 

@@ -89,12 +89,15 @@ export function release(book: PlayerContract[], dead: DeadMoneyCharge[], player:
 
 /**
  * ADR-087 §12.4.4 (AB8): book a retirement's money, modeled on `release`: his live deal ends RETIRED
- * (`releasePlayer(c, at, { reason: "RETIRED" })`: he forfeits his salary, guaranteed or not, and only
- * the proration not yet counted accelerates, split at June 1), its charges go to `dead`, and any later
- * deal he holds with the same team (an extension not started) ends the same way. Only the money: it
- * sends no `PLAYER_RELEASED` (`releasePlayer` sends none for a retirement), and taking him off the
- * team and sending `PLAYER_RETIRED` are `retirement.ts`'s. A player with no deal on the book costs
- * nothing. Returns the charges booked and the events (none today).
+ * (`releasePlayer(c, at, { reason: "RETIRED" })`: he forfeits his salary, guaranteed or not, and every
+ * bonus not yet earned; only the proration not yet counted accelerates, split at June 1), its charges
+ * go to `dead`, and every other open deal he holds with the same team ends the same way. That is an
+ * extension not started yet, and at IMMEDIATE (OFF_EVAL, which counts in the coming league year) also
+ * the deal whose last year was the season just played, which stays open until the new league year: a
+ * retired man keeps no open deal on the book. Only the money: it sends no `PLAYER_RELEASED`
+ * (`releasePlayer` sends none for a retirement), and taking him off the team and sending
+ * `PLAYER_RETIRED` are `retirement.ts`'s. A player with no deal on the book costs nothing. Returns the
+ * charges booked and the events (none today).
  */
 export function retire(
   book: PlayerContract[], dead: DeadMoneyCharge[], player: PlayerId, team: TeamId, at: CalendarStamp,
@@ -107,10 +110,9 @@ export function retire(
   book[i] = r.contract;
   charges.push(...r.charges);
   events.push(...r.events);
-  const year = transactionYear(at);
   for (let j = 0; j < book.length; j++) {
     const c = book[j]!;
-    if (j === i || c.ended || String(c.player) !== String(player) || c.team !== team || !c.years.some((y) => y.season > year)) continue;
+    if (j === i || c.ended || String(c.player) !== String(player) || c.team !== team) continue;
     const later = releasePlayer(c, at, { reason: "RETIRED" });
     book[j] = later.contract;
     charges.push(...later.charges);
