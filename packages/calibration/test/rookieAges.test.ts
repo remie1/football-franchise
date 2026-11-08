@@ -137,8 +137,12 @@ describe("rookie ages of made-up classes (ADR-087 §12.5, AB4 and AB4b)", () => 
       expect(Object.keys(r.rookieAge.histogram).every((a) => Number(a) >= 21 && Number(a) <= 26)).toBe(true);
     }
     const all = (d.n * d.mean + u.n * u.mean) / (d.n + u.n);
-    // MEASURED on these two seeds: 477 rookies (340 drafted, mean 22.43; 137 undrafted, 23.31), mean
-    // 22.68, the undrafted 0.88 older (1.01 and 0.79 by seed). The bands are not REAL's: this is the 2027
+    // MEASURED on these two seeds, on 2241964's league file: 486 rookies (326 drafted, mean 22.45; 160
+    // undrafted, 23.23), mean 22.71, the undrafted 0.78 older (0.91 and 0.71 by seed). On the old base
+    // (d8ad413), before PR #86's real deal lengths moved whom the walk keeps, they read 477 rookies (340
+    // drafted, 22.43; 137 undrafted, 23.31), 22.68 and 0.88 (1.01 and 0.79 by seed). The confirming run's 24
+    // seeds (below) read 22.682 and 0.742 on 2241964, against 22.679 and 0.725 there (0.25 and 0.71 SEs apart,
+    // paired by seed), so the bands were not moved. The bands are not REAL's: this is the 2027
     // class, the first draft's known exception (no compensatory picks, so more of its rookies on the 53s
     // are undrafted, and older). They are the table's MEASURED 2027 values from the refit's confirming run (24 seeds
     // ab4r-conf-1 to -24: mean 22.679, gap 0.725; REAL 22.67 and 0.62) ± 3 standard errors of a two-seed

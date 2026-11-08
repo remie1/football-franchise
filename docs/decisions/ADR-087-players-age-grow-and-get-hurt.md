@@ -1645,6 +1645,11 @@ Every PR follows these rules:
   - At 2027 week 8 the mean overall is 66.62 (old base 66.67), the pooled sd 7.90 (7.88), the mean age 26.20 (26.26) and the win spread 2.96 (2.69).
   - The reader is still inert on the new base: AB1's rows with its own paths taken off are 2241964's v5 rows to the byte, and AB5's rows with the split taken off and the version set back are AB1's.
   - So the v6 baseline (4 tune seeds × 20 seasons, build `6b118e35f8d06440`, on the old file) no longer stands for the new base, as the earlier note said it did for d8ad413. AB9's grade needs a baseline played on the new base: on main's file (`c58c68ba…`) at AB1, or on its `/2` regeneration (`e9852a70…`) from AB2 on. At the default aging the two give the same rows (the line above: AB5's rows, played on `/2`, are AB1's, played on main's file, once the split and the version are set aside).
+- **At AB4: the fitted table's classes did not move.** The refit's 24 confirm seeds (`ab4r-conf-1` to `-24`, 3-season walks under `aging: "ability"`, the code's table) were played again on 2241964's file and read beside the confirm, paired by seed. Every row is within 2 SEs of the confirm's, so there was no refit.
+  - 2028: rookie-age 22.672 (confirm 22.670), the gap 0.651 (0.682) and the drafted share 72.4% (72.8%).
+  - 2027: 22.682 (22.679), 0.742 (0.725) and 65.7% (66.4%).
+  - `rookieAges.test.ts`'s two seeds read 22.71 and a gap of 0.78 (old base: 22.68 and 0.88). That is inside its bands, which stand, since their centers are the confirm's 2027 values.
+  - `leagueRookieAges.test.ts` plays made-up leagues, which neither PR reaches. It reads what it read on the old base: 2,078 rookies, 22.68 and 0.60.
 
 | Step | What | Where | Off / inert by | Rows it should move (when switched on) |
 |---|---|---|---|---|
