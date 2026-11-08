@@ -5,6 +5,7 @@ import {
   type AttributeMap, type CalendarStamp, type ContractYear, type DeadMoneyCharge, type FranchiseEvent, type GameParticipation,
   type PlayerContract, type PlayerState, type Position, type Team,
 } from "@ff/contracts";
+import { earnedBonuses } from "../src/cap/money.js";
 import { overallWithCarryAt } from "../src/players/development.js";
 import { playerSteps, PLAYER_STEP_PREFIX } from "../src/players/steps.js";
 import { emptyMemory, type PlayerMemory, type RetirementReview, type SeasonStarts } from "../src/players/types.js";
@@ -318,16 +319,76 @@ describe("his record (§12.4.3)", () => {
     expect(m.starts!["O"]).toBeUndefined();
   });
 
-  it("owes him the cash left on his open deals with his team, from the league year the moment counts in", () => {
+  it("owes him the cash left on his open deals with his team, from the league year the moment counts in, less the bonuses already earned", () => {
     const p = man("M", "QB", { age: 33 });
-    const book = [dealFor(p), { ...dealFor(p), team: T2 }, { ...dealFor(p), ended: { at: momentDay("IMMEDIATE"), reason: "RELEASED" as const } }];
-    // IMMEDIATE counts in Y + 1: 6 + 1 + 7 + 8 million.
-    expect(cashOwed(book, p.bio.id, T1, momentDay("IMMEDIATE"))).toBe(22e6);
-    expect(cashOwed(book, p.bio.id, T1, momentDay("LATE"))).toBe(22e6);
+    // Y + 1 (the year all three moments count in) carries a $1M roster bonus, a $0.5M workout bonus and a $0.25M per-game bonus.
+    const deal: PlayerContract = { ...dealFor(p), years: dealFor(p).years.map((y) => (y.season === Y + 1 ? { ...y, workoutBonus: 0.5e6, perGameRosterBonus: 0.25e6 } : y)) };
+    const book = [deal, { ...deal, team: T2 }, { ...deal, ended: { at: momentDay("IMMEDIATE"), reason: "RELEASED" as const } }];
+    // The whole years from Y + 1 on: 6 + 1 + 0.5 + 0.25 + 7 + 8 million.
+    // IMMEDIATE (OFF_EVAL, counted in Y + 1 before it opens): nothing earned yet.
+    expect(cashOwed(book, p.bio.id, T1, momentDay("IMMEDIATE"))).toBe(22.75e6);
+    // SLOW (the day after Y + 1 opens): the roster bonus is earned, so it is not money ahead.
+    expect(cashOwed(book, p.bio.id, T1, momentDay("SLOW"))).toBe(21.75e6);
+    // LATE (Y + 1's camp): the roster and workout bonus are earned; the per-game bonus is still ahead.
+    expect(cashOwed(book, p.bio.id, T1, momentDay("LATE"))).toBe(21.25e6);
     const owed = retirementInputs({ player: p, memory: emptyMemory(), at: momentDay("SLOW"), season: Y, contracts: book, cap: CAP }).owed;
-    expect(owed).toBeCloseTo(22e6 / CAP(Y + 1), 12);
+    expect(owed).toBeCloseTo(21.75e6 / CAP(Y + 1), 12);
     const { teamId: _team, ...unsigned } = p;
     expect(retirementInputs({ player: unsigned, memory: emptyMemory(), at: momentDay("SLOW"), season: Y, contracts: book, cap: CAP }).owed).toBe(0);
+  });
+
+  it("leaves out of money ahead exactly the bonuses the money path charges as earned, at every moment", () => {
+    const p = man("E", "WR", { age: 31 });
+    const bonuses = { rosterBonus: 2e6, workoutBonus: 0.4e6, perGameRosterBonus: 0.3e6 };
+    // His deal with bonuses in every year, an extension not started yet, and a void year.
+    const deal: PlayerContract = {
+      ...dealFor(p),
+      years: [yr(Y, 5e6, 3e6, bonuses), yr(Y + 1, 6e6, 3e6, bonuses), yr(Y + 2, 7e6, 3e6, { rosterBonus: 1e6 }), yr(Y + 3, 0, 3e6, { voidYear: true })],
+    };
+    const extension: PlayerContract = { ...dealFor(p), years: [yr(Y + 3, 9e6, 2e6, bonuses)] };
+    const book = [deal, extension];
+    // The old rule, kept here only to compare: the whole of every real year from the moment's year on.
+    const whole = (at: CalendarStamp) => book.flatMap((c) => c.years)
+      .filter((y) => y.season >= transactionYear(at) && !y.voidYear)
+      .reduce((s, y) => s + y.baseSalary + (y.rosterBonus ?? 0) + (y.workoutBonus ?? 0) + (y.perGameRosterBonus ?? 0), 0);
+    const thatYear = (at: CalendarStamp) => deal.years.find((y) => y.season === transactionYear(at))!;
+    for (const t of ["IMMEDIATE", "SLOW", "LATE"] as const) {
+      for (const year of [Y, Y + 1]) {
+        const at = momentDay(t, year);
+        expect(cashOwed(book, p.bio.id, T1, at), `${t} ${year}`).toBe(whole(at) - earnedBonuses(thatYear(at), at));
+      }
+    }
+    // IMMEDIATE is unchanged (nothing of the coming year is earned); SLOW drops the roster bonus, LATE the roster and workout bonus.
+    expect(earnedBonuses(thatYear(momentDay("IMMEDIATE")), momentDay("IMMEDIATE"))).toBe(0);
+    expect(earnedBonuses(thatYear(momentDay("SLOW")), momentDay("SLOW"))).toBe(2e6);
+    expect(earnedBonuses(thatYear(momentDay("LATE")), momentDay("LATE"))).toBe(2.4e6);
+  });
+
+  it("takes the earned bonuses from the money path's one rule, never a copy of it", () => {
+    const read = (file: string) => readFileSync(new URL(`../src/${file}`, import.meta.url), "utf8");
+    const body = (text: string, from: string) => {
+      const i = text.indexOf(from);
+      expect(i, from).toBeGreaterThanOrEqual(0);
+      const j = text.indexOf("\n}\n", i);
+      expect(j, from).toBeGreaterThan(i);
+      return text.slice(i, j);
+    };
+    // The bonus rule reads the calendar phase; a reader of the shared helper names no phase of its own.
+    const shares = (what: string, text: string) => {
+      expect(text, what).toMatch(/\bearnedBonuses\s*\(/);
+      expect(text, what).not.toMatch(/\.phase\b|OFF_EVAL|OFF_RESET_FA|OFF_SUMMER|TRAINING_CAMP|PRESEASON|WORKOUT_EARNED/);
+    };
+    const money = read("cap/money.ts");
+    shares("cashOwed", body(read("players/retirement.ts"), "export function cashOwed("));
+    shares("retiredFrom", body(money, "function retiredFrom("));
+    // One definition of the rule.
+    expect(money.match(/function earnedBonuses\s*\(/g)).toHaveLength(1);
+    expect(read("players/retirement.ts")).not.toMatch(/function earnedBonuses\s*\(/);
+    // The test bites: a second copy of the rule, or a reader that skips the helper, is caught.
+    expect(() => shares("planted copy", "owed -= at.phase === \"OFF_EVAL\" ? 0 : (y.rosterBonus ?? 0);")).toThrow();
+    expect(() => shares("planted copy beside the call", "owed -= earnedBonuses(y, at);\nif (WORKOUT_EARNED.has(at.phase)) owed -= y.workoutBonus ?? 0;")).toThrow();
+    expect(() => shares("no call", "owed += y.baseSalary;")).toThrow();
+    expect(() => shares("ok", "if (y.season === year) owed -= earnedBonuses(y, at);")).not.toThrow();
   });
 });
 

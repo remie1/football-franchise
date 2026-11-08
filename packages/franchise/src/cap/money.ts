@@ -145,11 +145,13 @@ export function releasePlayer(c: PlayerContract, at: CalendarStamp, opts: Releas
  * The bonuses of this league year's `y` already earned at `at`, which a retirement does not give back:
  * the roster bonus once the league year has opened (not in OFF_EVAL, which counts in the coming year
  * and is processed when it opens), the workout bonus from the summer on. These are a release's rules
- * (`releasePlayer`'s offseason branch), so a retiring team saves no cap room on money already paid.
- * No moment falls in the regular season or the playoffs (ADR-087 §12.4.2), where the weeks already
- * paid would count too; there both bonuses count as earned and nothing else does.
+ * (`releasePlayer`'s offseason branch), so a retiring team saves no cap room on money already paid
+ * (confirmed by the money thread, ADR-087 §12.9's AB8 note). No moment falls in the regular season or
+ * the playoffs (ADR-087 §12.4.2), where the weeks already paid would count too; there both bonuses
+ * count as earned and nothing else does. The one definition: `retiredFrom` charges these, and
+ * retirement's money ahead (`players/retirement.ts` `cashOwed`) leaves them out, so the two agree.
  */
-function earnedBonuses(y: ContractYear, at: CalendarStamp): number {
+export function earnedBonuses(y: ContractYear, at: CalendarStamp): number {
   const roster = at.phase === "OFF_EVAL" ? 0 : (y.rosterBonus ?? 0);
   const workout = WORKOUT_EARNED.has(at.phase) ? (y.workoutBonus ?? 0) : 0;
   return roster + workout;

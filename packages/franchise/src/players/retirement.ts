@@ -41,7 +41,7 @@ import {
   type CalendarStamp, type DeadMoneyCharge, type FranchiseEvent, type GameParticipation, type InjuryBand, type LeagueRules,
   type PlayerContract, type PlayerId, type PlayerState, type Position, type Team, type TeamId,
 } from "@ff/contracts";
-import { leagueYear, transactionYear } from "../cap/money.js";
+import { earnedBonuses, leagueYear, transactionYear } from "../cap/money.js";
 import { seasonsIn } from "../draft/cutdown.js";
 import { retire, type CapForSeason } from "../draft/money.js";
 import type { LeaguePeople } from "../season/people.js";
@@ -322,7 +322,10 @@ function longInjuryIn(history: readonly PastInjury[] | undefined, current: Playe
 /**
  * The cash still owed on his deals with `team` from the league year `at` counts in (`transactionYear`):
  * each open deal's real years from then on, base salary and roster, workout and per-game bonuses
- * (CHOSEN: the whole year's; the signing bonus was paid when he signed).
+ * (CHOSEN: the whole year's; the signing bonus was paid when he signed), less that year's bonuses
+ * already earned at `at` (`earnedBonuses`, the money path's own rule: at SLOW the roster bonus, at LATE
+ * the roster and workout bonus). Money ahead is what he gives up by retiring, and a bonus already paid
+ * is his either way (no clawback; the money thread, ADR-087 §12.9's AB8 note).
  */
 export function cashOwed(contracts: readonly PlayerContract[] | undefined, player: PlayerId, team: TeamId, at: CalendarStamp): number {
   const year = transactionYear(at);
@@ -332,6 +335,7 @@ export function cashOwed(contracts: readonly PlayerContract[] | undefined, playe
     for (const y of c.years) {
       if (y.season < year || y.voidYear) continue;
       owed += y.baseSalary + (y.rosterBonus ?? 0) + (y.workoutBonus ?? 0) + (y.perGameRosterBonus ?? 0);
+      if (y.season === year) owed -= earnedBonuses(y, at);
     }
   }
   return owed;
