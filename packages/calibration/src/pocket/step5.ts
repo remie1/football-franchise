@@ -1265,7 +1265,7 @@ export interface Step5DigestsResult {
   readonly arms: Readonly<Record<string, Readonly<Record<string, { readonly games: number; readonly events: number; readonly canonicalFold: string; readonly byteFold: string }>>>>;
 }
 
-/** R-1: the golden 50 a league under F5, every F grid point and F0, and E0 and E9's bench tunables; refused by the gate until the 5b literal exists. */
+/** R-1: the golden 50 a league under F5, every F grid point and F0, and E0 and E9's bench tunables; refused by the 5b preflight until the 5b amendments literal (`STEP5B_AMENDMENTS_PIN`) exists, and by the 5a gate until the fit is recorded. */
 export function runStep5Digests(opts: { readonly filedPath: string; readonly amendmentsPath: string; readonly node: string; readonly first?: number; readonly arms?: readonly ArmId[]; readonly log?: (line: string) => void; readonly gate?: Step5GateState; readonly records?: Step5Records }): Step5DigestsResult {
   const { guard } = preflightStep5("5b", opts.filedPath, opts.amendmentsPath);
   const gate = step5GateRefusal("5a", opts.gate ?? step5GateState());

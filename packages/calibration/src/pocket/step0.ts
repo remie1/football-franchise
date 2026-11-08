@@ -204,12 +204,14 @@ export interface Step5Args {
   /** 5b: R-7 on the records file `from`. */
   readonly reselect?: true;
   readonly from?: string;
+  /** 5b R-7 (a): the first pass's records, whose bin counts the fresh pass's must equal. */
+  readonly firstPass?: string;
 }
 
 const STEP5A_USAGE =
   "pocket -- --step 5a [--arms E0,E2] [--shard i/n] [--cache <dir>] [--seed-set 1|2] [--report <file.md>] [--out <file.json>], or pocket -- --step 5a --fit [--shard i/n] [--cache <dir>] --out <file.json>";
 const STEP5B_USAGE =
-  "pocket -- --step 5b [--arms D1,F5] [--shard i/n] [--cache <dir>] [--seed-set 1|2] [--after-owner <ts>] [--report <file.md>] [--out <file.json>], pocket -- --step 5b --reselect --from <file.json>, or pocket -- --step 5b --digests --out <file.json>";
+  "pocket -- --step 5b [--arms D1,F5] [--shard i/n] [--cache <dir>] [--seed-set 1|2] [--after-owner <ts>] [--report <file.md>] [--out <file.json>], pocket -- --step 5b --reselect --from <file.json> [--first-pass <file.json>], or pocket -- --step 5b --digests --out <file.json>";
 
 /** `--step 5` names no step: step 5 is two halves. */
 export const STEP5_SPLIT_REFUSAL = "ADR-089: step 5 is two halves, run apart: --step 5a (his count, the drop floor and the clean-pocket checklist on the clean bench; --fit for the 5a fit) or --step 5b (the block clock's grid on the league); --step 5 is neither";
@@ -229,8 +231,9 @@ export function parseStep5Args(half: "5a" | "5b", argv: readonly string[], cwd: 
   let genThroughWeek: number | undefined;
   let afterOwner: string | undefined;
   let from: string | undefined;
+  let firstPass: string | undefined;
   const only5a = new Set(["--fit", "--fit-replay", "--fresh-base"]);
-  const only5b = new Set(["--after-owner", "--digests", "--reselect", "--from"]);
+  const only5b = new Set(["--after-owner", "--digests", "--reselect", "--from", "--first-pass"]);
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i] as string;
     const value = (): string => {
@@ -306,6 +309,9 @@ export function parseStep5Args(half: "5a" | "5b", argv: readonly string[], cwd: 
       case "--from":
         from = resolve(cwd, value());
         break;
+      case "--first-pass":
+        firstPass = resolve(cwd, value());
+        break;
       default:
         throw new SyntaxError(`unknown argument ${arg} (${usage})`);
     }
@@ -332,11 +338,12 @@ export function parseStep5Args(half: "5a" | "5b", argv: readonly string[], cwd: 
     return { step: half, digests: true, out };
   }
   if (mode[0] === "--reselect") {
-    allowed("--reselect", ["--from"], "recomputes the selection from the filed words (R-7)");
+    allowed("--reselect", ["--from", "--first-pass"], "recomputes the selection from the filed words (R-7)");
     if (from === undefined) throw new SyntaxError("--reselect reads the 5b records: --from <file.json>");
-    return { step: half, reselect: true, from };
+    return { step: half, reselect: true, from, ...(firstPass === undefined ? {} : { firstPass }) };
   }
   if (from !== undefined) throw new SyntaxError("--from goes with --reselect");
+  if (firstPass !== undefined) throw new SyntaxError("--first-pass goes with --reselect");
   if (genThroughWeek !== undefined) throw new SyntaxError("--gen-through-week goes with --fit, --fit-replay or --fresh-base");
   return {
     step: half,
@@ -1200,7 +1207,7 @@ export async function pocketCommand(argv: readonly string[]): Promise<void> {
       const { reselectFromFile } = await import("./reselectCommand.js");
       const { AMENDMENTS_PATH } = await import("./amendments.js");
       const pkg = fileURLToPath(new URL("../..", import.meta.url));
-      process.stdout.write(`${reselectFromFile(args.from!, resolve(pkg, FILED_PATH), resolve(pkg, AMENDMENTS_PATH)).join("\n")}\n`);
+      process.stdout.write(`${reselectFromFile(args.from!, resolve(pkg, FILED_PATH), resolve(pkg, AMENDMENTS_PATH), undefined, args.firstPass).join("\n")}\n`);
       return;
     }
     // Step 5's harness (step5.ts, which loads step4.ts) is loaded only for step 5.

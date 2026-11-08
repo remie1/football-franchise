@@ -182,12 +182,14 @@ describe("step 5's plan and parser", () => {
     expect(() => parsePocketArgs(["--step", "5a", "--fit-replay", "0.5,0.5", "--out", "x.json"], "/")).toThrow(/^--fit-replay names an offset twice/);
     expect(() => parsePocketArgs(["--step", "5a", "--step", "5b"], "/")).toThrow(/^--step is given twice/);
     expect(parsePocketArgs(["--step", "5b", "--reselect", "--from", "r.json"], "/")).toEqual({ step: "5b", reselect: true, from: "/r.json" });
+    expect(parsePocketArgs(["--step", "5b", "--reselect", "--from", "r.json", "--first-pass", "f.json"], "/")).toEqual({ step: "5b", reselect: true, from: "/r.json", firstPass: "/f.json" });
+    expect(() => parsePocketArgs(["--step", "5b", "--first-pass", "f.json"], "/")).toThrow(/--first-pass goes with --reselect/);
     expect(parsePocketArgs(["--step", "5b", "--digests", "--out", "d.json"], "/")).toEqual({ step: "5b", digests: true, out: "/d.json" });
     expect(() => parsePocketArgs(["--step", "5"], "/")).toThrow(STEP5_SPLIT_REFUSAL);
     expect(() => parsePocketArgs(["--step", "5a", "--after-owner", "x"], "/")).toThrow(/^--after-owner: step 5b's flag, not step 5a's/);
     expect(() => parsePocketArgs(["--step", "5b", "--fit"], "/")).toThrow(/^--fit: step 5a's flag, not step 5b's/);
     expect(() => parsePocketArgs(["--step", "5b", "--reselect"], "/")).toThrow(/--from <file\.json>/);
-    expect(() => parsePocketArgs(["--step", "5b", "--reselect", "--from", "r", "--arms", "D1"], "/")).toThrow(/takes --from \(not --arms\)/);
+    expect(() => parsePocketArgs(["--step", "5b", "--reselect", "--from", "r", "--arms", "D1"], "/")).toThrow(/takes --from, --first-pass \(not --arms\)/);
     expect(() => parsePocketArgs(["--step", "5a", "--fit", "--arms", "E0"], "/")).toThrow(/--fit plays the 5a fit's 19 runs .*\(not --arms\)/);
     expect(() => parsePocketArgs(["--step", "5a", "--arms", "F1"], "/")).toThrow(/^--arms: F1 is not an arm \(step 5a's: E0 to E10\)$/);
     expect(() => parsePocketArgs(["--step", "5b", "--digests"], "/")).toThrow(/--digests writes its folds to --out/);
@@ -378,6 +380,16 @@ describe("step 5's visit and grading on a tiny corpus (scratch; nothing is recor
     const path = join(scratch, "step5b.json");
     writeFileSync(path, JSON.stringify(step5MeasuresOf(records, g, guard, ENV.fingerprint, [])));
     expect(reselectFromFile(path, FILED, AMEND)[0]).toMatch(/agrees with the record/);
+    // R-7 (a) and the near-tie listing (fidelity F-4, code-tests F5): the fresh pass's bin counts against the first pass's.
+    const lines = reselectFromFile(path, FILED, AMEND, RESELECT_VIEW_PIN, path);
+    expect(lines).toContain(`  bin counts identical to the first pass's (${path}), 14 points on both curves and both sets`);
+    expect(lines.at(-1)).toMatch(/^ {2}(no two scorable points within 1e-9 on set 1|within 1e-9: )/);
+    const firstPath = join(scratch, "step5b-first.json");
+    const first = JSON.parse(readFileSync(path, "utf8")) as { selection: { points: { point: string; pressured: Record<"1" | "2", { events: number; attempts: number }[]> }[] } };
+    first.selection.points[2]!.pressured["2"][4]!.events += 1;
+    writeFileSync(firstPath, JSON.stringify(first));
+    expect(() => reselectFromFile(path, FILED, AMEND, RESELECT_VIEW_PIN, firstPath)).toThrow(new RegExp(`the fresh pass's bin counts differ from the first pass's: ${first.selection.points[2]!.point}'s pressured curve on set 2`));
+    expect(() => reselectFromFile(path, FILED, AMEND, RESELECT_VIEW_PIN, join(scratch, "no-first.json"))).toThrow(/there is no first-pass records file/);
     const measures = JSON.parse(readFileSync(path, "utf8")) as { selection: { recorded: { pressured: { losses: { set1: number }[] } } } };
     measures.selection.recorded.pressured.losses[0]!.set1 += 1e-6;
     writeFileSync(path, JSON.stringify(measures));

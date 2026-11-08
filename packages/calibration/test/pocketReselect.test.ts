@@ -15,7 +15,7 @@ import { describe, expect, it } from "vitest";
 import { entryOf, loadAmendments, AMENDMENTS_PATH } from "../src/pocket/amendments.js";
 import { FILED_PATH } from "../src/pocket/bands.js";
 import { loadFiled } from "../src/pocket/filed.js";
-import { am10WordsProblems, filedBlockOf, reselect, reselectionProblems, RESELECT_TOLERANCE, type RePoint, type Reselection } from "../src/pocket/reselect.js";
+import { am10WordsProblems, binCountProblems, filedBlockOf, nearTiesOf, reselect, reselectionProblems, RESELECT_TOLERANCE, type RePoint, type Reselection } from "../src/pocket/reselect.js";
 import { GRID_POINTS, gridPointId, selectWith, type BinCount, type GridArm } from "../src/pocket/selection.js";
 
 const PKG = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -132,6 +132,24 @@ describe("R-7: the recomputation from the filed words", () => {
     const again = reselect(filedJson, am10, tied.map((a) => ({ point: gridPointId(a.point), hit: { "1": a.hit[1], "2": a.hit[2] }, pressured: { "1": a.pressured[1], "2": a.pressured[2] } })));
     expect(again.winner).toBe("S:theta=11");
     expect(reselectionProblems(asRecorded(tied), again)).toEqual([]);
+    // R-7 lists them (fidelity F-4 b): the two tied points, and none on the fixture as built.
+    // The fixture's curves lean on |theta - 12|, so its mirror points (11 and 13, 10 and 14, 9 and 15)
+    // already tie on set 1 on both curves; every listed pair is a true tie, and the swap adds 7 and 12.
+    const listed = nearTiesOf(again);
+    expect(listed).toContain("the pressured curve's S:theta=11 and S:theta=13 lie within 1e-9 on set 1 (0)");
+    expect(listed).toContain("the pressured curve's S:theta=7 and S:theta=12 lie within 1e-9 on set 1 (0)");
+    const base = nearTiesOf(reselect(filedJson, am10, fixture().points));
+    expect(base).toContain("the pressured curve's S:theta=10 and S:theta=14 lie within 1e-9 on set 1 (0)");
+    expect(base).not.toContain("the pressured curve's S:theta=7 and S:theta=12 lie within 1e-9 on set 1 (0)");
+    for (const t of [...listed, ...base]) expect(t).toMatch(/ \(0\)$/);
+  });
+
+  it("compares the fresh pass's bin counts with the first pass's exactly (fidelity F-4 a)", () => {
+    const { points } = fixture();
+    expect(binCountProblems(points, [...points].reverse())).toEqual([]);
+    const moved = points.map((p, i) => (i === 0 ? { ...p, hit: { ...p.hit, "1": p.hit["1"].map((b, j) => (j === 3 ? { ...b, attempts: b.attempts + 1 } : b)) } } : p));
+    expect(binCountProblems(points, moved)).toEqual([expect.stringMatching(new RegExp(`^${points[0]!.point}'s hit curve on set 1: `))]);
+    expect(binCountProblems(points, points.slice(1))).toEqual([`${points[0]!.point} is in the first pass and not the fresh one`]);
   });
 
   it("is not separated when the worst minus the best is exactly twice the largest spread (code-tests F12 b)", () => {

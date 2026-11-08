@@ -5,10 +5,12 @@
  * Written from the filed `selectionRule` block (`reports/adr-089-step0.filed.json`) and AM-10's text,
  * and on purpose NOT importing `selection.ts` or anything that does: the bins, the two real curves,
  * the weights, the grid and its order are read from the filed JSON at run time, and the loss, the
- * scorable test, the winner, the separation and the near-best list are written again here from the
- * words. `--step 5b --reselect --from <records>` runs it in a fresh process on the records' bin
- * counts and compares: the same winner exactly, every loss on both curves to 1e-12, both separation
- * flags and the curve used.
+ * scorable test, the winner and the separation are written again here from the words.
+ * `--step 5b --reselect --from <records>` runs it in a fresh process on the records' bin counts and
+ * compares: the same winner exactly, every loss on both curves to 1e-12, both separation flags and
+ * the curve used; it lists any two scorable points within 1e-9 of each other (`nearTiesOf`), and with
+ * `--first-pass <records>` it checks the fresh pass's bin counts equal the first pass's
+ * (`binCountProblems`).
  *
  * The words it is written from:
  *  - loss: "sum_i w_i (s_i / mean(s) - r_i / mean(r))^2 / sum_i w_i", each curve "divided by its own
@@ -198,4 +200,46 @@ export function reselectionProblems(recorded: Reselection, again: Reselection): 
     if (bm.size !== a.losses.length) out.push(`the ${key} curve: ${String(a.losses.length)} points recorded, ${String(bm.size)} recomputed`);
   }
   return out;
+}
+
+/** R-7: two scorable points closer than this on set 1 are listed (plan §7.2). */
+export const NEAR_TIE = 1e-9;
+
+/** R-7: every pair of scorable points whose set-1 losses lie within `NEAR_TIE` of each other, on each curve, in the filed order. */
+export function nearTiesOf(r: Reselection): readonly string[] {
+  const out: string[] = [];
+  for (const [name, c] of [["pressured", r.pressured], ["hit", r.hit]] as const) {
+    const sc = c.losses.filter((l) => l.scorable && l.set1 !== null);
+    for (let i = 0; i < sc.length; i += 1) {
+      for (let j = i + 1; j < sc.length; j += 1) {
+        const d = Math.abs(sc[i]!.set1! - sc[j]!.set1!);
+        if (d <= NEAR_TIE) out.push(`the ${name} curve's ${sc[i]!.point} and ${sc[j]!.point} lie within 1e-9 on set 1 (${String(d)})`);
+      }
+    }
+  }
+  return out;
+}
+
+/** R-7 (a): the fresh pass's bin counts against the first pass's, exactly, point by point; empty when identical. */
+export function binCountProblems(first: readonly RePoint[], fresh: readonly RePoint[]): readonly string[] {
+  const problems: string[] = [];
+  const byId = new Map(first.map((p) => [p.point, p]));
+  const freshIds = new Set(fresh.map((p) => p.point));
+  for (const p of first) if (!freshIds.has(p.point)) problems.push(`${p.point} is in the first pass and not the fresh one`);
+  for (const p of fresh) {
+    const f = byId.get(p.point);
+    if (f === undefined) {
+      problems.push(`${p.point} is in the fresh pass and not the first one`);
+      continue;
+    }
+    for (const key of ["pressured", "hit"] as const) {
+      for (const set of ["1", "2"] as const) {
+        const a = f[key][set];
+        const b = p[key][set];
+        const same = a.length === b.length && a.every((x, i) => x.events === b[i]!.events && x.attempts === b[i]!.attempts);
+        if (!same) problems.push(`${p.point}'s ${key} curve on set ${set}: ${JSON.stringify(a)} first, ${JSON.stringify(b)} fresh`);
+      }
+    }
+  }
+  return problems;
 }
