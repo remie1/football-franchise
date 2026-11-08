@@ -16,6 +16,7 @@ import { loadFiled } from "../src/pocket/filed.js";
 import { RESELECT_VIEW_PIN, reselectFromFile, reselectInputOf } from "../src/pocket/reselectCommand.js";
 import { parsePocketArgs, STEP5_SPLIT_REFUSAL } from "../src/pocket/step0.js";
 import { rowValueOf, step3StampOf } from "../src/pocket/step3.js";
+import { foldDigests } from "../src/pocket/golden.js";
 import {
   binsAboveTwiceFtn,
   bin20RawOf,
@@ -250,6 +251,13 @@ describe("step 5's visit and grading on a tiny corpus (scratch; nothing is recor
     expect(g.sections.guard.filter((r) => r.arm === "E9").map((r) => r.league)).toEqual(["flat", "gen"]);
     expect(g.sections.replay).toEqual(["E0 set 1, played fresh twice: identical (stream digests and records)", "E0 set 2, played fresh twice: identical (stream digests and records)"]);
     expect(g.sections.proofs.map((p) => p.id)).toEqual(["S-1 proof:clean-expiry-bar", "S-2 proof:one-clean-move", "S-3", "S-6", "rows", "picks:offered", "rows:recomputed", "S-4", "S-9"]);
+    // R-6's third clause (measurement M6): with the fit record's confirm digest, E9's set-1 gen stream must equal it.
+    expect(g.sections.proofs.some((p) => p.id === "R-6 confirm")).toBe(false);
+    const e9Digest = foldDigests(play("E8", 1).s5.gen.fit.games);
+    const confirmed = gradeStep5({ half: "5a", records, file, guard, fresh: { 1: play("E0", 1), 2: play("E0", 2) }, fitConfirmDigest: e9Digest });
+    expect(confirmed.sections.proofs.find((p) => p.id === "R-6 confirm")).toMatchObject({ verdict: "PASS" });
+    const unconfirmed = gradeStep5({ half: "5a", records, file, guard, fresh: { 1: play("E0", 1), 2: play("E0", 2) }, fitConfirmDigest: "fnv1a:00000000" });
+    expect(unconfirmed.sections.outcome.structuralFailures).toEqual([`R-6 confirm: 1 failing, first: E9 set 1 gen folds to ${e9Digest}, the fit record's confirm run to fnv1a:00000000`]);
     // Fidelity F-10: the two recomputed clauses equal collect's registered rows on every record.
     expect(g.sections.proofs.find((p) => p.id === "rows:recomputed")).toMatchObject({ verdict: "PASS", detail: "clean" });
     expect(rowValueOf(play("E8", 1), "pressured_share_by_release_bin", "gen")).not.toBeNull();

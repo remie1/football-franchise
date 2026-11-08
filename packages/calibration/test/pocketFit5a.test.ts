@@ -9,7 +9,7 @@
  * a stand-in fresh replay: the cache, the shards, the refusals, the replay mismatch (a build fault,
  * nothing written) and the confirm run. The committed record's check waits by name until it exists.
  */
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { MatchEventEnvelope } from "@ff/contracts";
@@ -59,6 +59,7 @@ import {
   type FitRun,
   type SystemCounts,
 } from "../src/pocket/fit5a.js";
+import { step5GateRefusal, step5GateState } from "../src/pocket/step5.js";
 import { CLEAN_BENCH_PARTS, cleanBenchTunablesS5 } from "../src/pocket/oneThreatBench.js";
 import { overlayDigestOf, POCKET_1_S5A_FIT_DIGEST, READ_SYSTEMS, type ReadSystem, type ReadSystemOffsets } from "../src/pocket/rules.js";
 import { STEP1_CALLER, type Step1Corpus, type Step1Env } from "../src/pocket/step1.js";
@@ -406,6 +407,30 @@ describe("the record (filing §4.3)", () => {
     expect(readFileSync(path, "utf8")).toBe(before);
     writeFileSync(join(d, "other.json"), JSON.stringify({ format: "x" }));
     expect(() => readFitRecord(join(d, "other.json"))).toThrow(/not a step-5a fit record/);
+  });
+});
+
+describe("the gate recomputes the committed record (measurement M6)", () => {
+  it("every step-5 run after the writing process recomputes the committed record, and refuses one that does not recompute", () => {
+    const d = scratch();
+    mkdirSync(join(d, "reports"), { recursive: true });
+    const r = syntheticRecord();
+    writeFitRecordOnce(join(d, FIT5A_RECORD), r);
+    expect(step5GateState(d).fitVerifyProblem).toBeUndefined();
+    const e = scratch();
+    mkdirSync(join(e, "reports"), { recursive: true });
+    const values = [...r.losses.values];
+    values[7] = values[7]! + 1e-9;
+    writeFitRecordOnce(join(e, FIT5A_RECORD), { ...r, losses: { ...r.losses, values } });
+    const st = step5GateState(e);
+    expect(st.fitVerifyProblem).toMatch(/^the committed fit record does not recompute: 1 loss\(es\) differ, first at index 7/);
+    // (The synthetic record is on a short corpus; the corpus refusal comes first, so it is set aside here.)
+    const { fitCorpusProblem: _corpus, ...rest } = st;
+    void _corpus;
+    expect(step5GateRefusal("5a", { ...rest, fitPin: st.fitRecord, s5aDigest: "fnv1a:00000001" })).toMatch(/does not recompute: 1 loss\(es\) differ/);
+    const { fitVerifyProblem: _verify, ...clean } = rest;
+    void _verify;
+    expect(step5GateRefusal("5a", { ...clean, fitPin: st.fitRecord, s5aDigest: "fnv1a:00000001" })).toBeUndefined();
   });
 });
 

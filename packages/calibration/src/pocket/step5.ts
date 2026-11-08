@@ -43,7 +43,7 @@ import { AMENDMENTS_PATH, amendmentsAtStep, amendmentsDigest, entryOf, loadAmend
 import { armById, recordedStep5, step5ArmDef, step5ArmRefusal, STEP5A_RUN_IDS, STEP5B_RUN_IDS, STEP5_GRID, type ArmId, type Step5Records } from "./arms.js";
 import { FILED_PATH, type GuardClock, type IntMix } from "./bands.js";
 import { goldenGames, type SeedSet } from "./corpus.js";
-import { emptyFitFold, FIT5A_RECORD, fitRecordDigest, fitReplay, foldFitGame, readFitRecord, releaseSecondsOf, runFit5a, type FitFold } from "./fit5a.js";
+import { emptyFitFold, FIT5A_RECORD, fitRecordDigest, fitReplay, foldFitGame, readFitRecord, releaseSecondsOf, runFit5a, verifyFitRecord, type FitFold } from "./fit5a.js";
 import { filedDigest, STEP0_FILED_DIGEST, type BandClause, type FiledFile, type JsonValue } from "./filed.js";
 import { foldDigests, gameBytesDigest, gameDigest, GOLDEN_LEAGUES } from "./golden.js";
 import { am1ArmReading, guardWithView, skipsEqualDials, SEED_SETS, type Am1Lines, type GuardSide } from "./guardAm1.js";
@@ -200,6 +200,12 @@ export interface Step5GateState {
   readonly s5aRecordProblem?: string;
   /** Why the committed fit record is not the full corpus's (a smoke fit: `bench.corpus` not the full corpus), when so. */
   readonly fitCorpusProblem?: string;
+  /**
+   * The committed fit record recomputed in this process (`verifyFitRecord`: every loss from its runs'
+   * counts and the winner), when it does not recompute: AM-9's second-process recompute, which every
+   * step-5 run after the writing process repeats (measurement M6).
+   */
+  readonly fitVerifyProblem?: string;
 }
 
 const isStringList = (v: unknown): v is readonly string[] => Array.isArray(v) && v.every((x) => typeof x === "string");
@@ -227,6 +233,8 @@ export function step5GateState(pkgRoot: string = PKG_ROOT): Step5GateState {
   const fit = existsSync(fitPath) ? readFitRecord(fitPath) : undefined;
   const fitRecord = fit === undefined ? undefined : fitRecordDigest(fit);
   const fitCorpusProblem = fit === undefined ? undefined : fitCorpusProblemOf(fit.bench?.corpus);
+  const verify = fit === undefined ? [] : verifyFitRecord(fit);
+  const fitVerifyProblem = verify.length === 0 ? undefined : `the committed fit record does not recompute: ${verify.join("; ")}`;
   const aPath = join(pkgRoot, STEP5A_RECORDS[1]);
   let s5aOutcome: Step5GateState["s5aOutcome"];
   let s5aRecordProblem: string | undefined;
@@ -243,6 +251,7 @@ export function step5GateState(pkgRoot: string = PKG_ROOT): Step5GateState {
     ...(s5aOutcome === undefined ? {} : { s5aOutcome }),
     ...(s5aRecordProblem === undefined ? {} : { s5aRecordProblem }),
     ...(fitCorpusProblem === undefined ? {} : { fitCorpusProblem }),
+    ...(fitVerifyProblem === undefined ? {} : { fitVerifyProblem }),
   };
 }
 
@@ -254,6 +263,7 @@ export function step5GateRefusal(half: Step5Half, st: Step5GateState, afterOwner
   if (st.fitRecord === undefined) return refused(`the fit record ${FIT5A_RECORD} is not committed`);
   if (st.fitRecord !== st.fitPin) return refused(`the committed fit record digests to ${st.fitRecord}, not POCKET_1_S5A_FIT_DIGEST ${st.fitPin}`);
   if (st.fitCorpusProblem !== undefined) return refused(st.fitCorpusProblem);
+  if (st.fitVerifyProblem !== undefined) return refused(st.fitVerifyProblem);
   if (st.s5aDigest === undefined) return refused("pocket-1.s5a's literal is not recorded (POCKET_1_S5A_DIGEST is unset)");
   if (half === "5a") return undefined;
   if (st.s5aRecordProblem !== undefined) return refused(st.s5aRecordProblem);
@@ -659,6 +669,18 @@ export interface GradeStep5Inputs {
    * the arm they are: `{ E9: "E8", E1: "E0" }` (`step5AliasesOf`).
    */
   readonly aliases?: Readonly<Partial<Record<ArmId, ArmId>>>;
+  /**
+   * R-6's third clause (plan §7.2; measurement M6): the committed fit record's confirm-run stream
+   * digest. E9's set-1 gen corpus is the fit's (the gate holds the fit to the full corpus), at the
+   * same dials and seeds, so its game digests fold to this digest. Absent before the fit is recorded.
+   */
+  readonly fitConfirmDigest?: string;
+}
+
+/** The committed fit record's confirm-run stream digest, or undefined when no record is committed. */
+export function fitConfirmDigestOf(pkgRoot: string = PKG_ROOT): string | undefined {
+  const fitPath = join(pkgRoot, FIT5A_RECORD);
+  return existsSync(fitPath) ? readFitRecord(fitPath).confirm.streamDigest : undefined;
 }
 
 /** AM-9's `e9IsE8`: with the fit recorded on today's deltas (all three offsets 0), E9 reads E8's record and E1 E0's; else none. */
@@ -745,6 +767,10 @@ export function gradeStep5(x: GradeStep5Inputs): Step5Grade {
   proof("picks:offered", "every clean pick's option is in the offered set the stream and the arm's rules give (guardian C4)", every(() => true, (r, l) => (r.s5[l].s5.picks.offerFaults > 0 ? `${String(r.s5[l].s5.picks.offerFaults)} pick(s) outside their offered set` : undefined)), "fold");
   // s5b.clockExpired has no registered row in the arm records (their report carries the pocket rows,
   // not tier 1's throwaway_rate_clock_expired), so only mr.bin20.raw is held to its row here.
+  if (half === "5a" && x.fitConfirmDigest !== undefined && at("E9", 1) !== undefined) {
+    const e9 = foldDigests(at("E9", 1)!.s5.gen.fit.games);
+    proof("R-6 confirm", "E9's set-1 gen stream equals the fit's confirm run (same dials, same seeds)", e9 === x.fitConfirmDigest ? [] : [`E9 set 1 gen folds to ${e9}, the fit record's confirm run to ${x.fitConfirmDigest}`]);
+  }
   proof("rows:recomputed", "mr.bin20.raw, recomputed from the stream, equals collect's registered row (pressured_share_by_release_bin) on every record", every(() => true, (r, l) => {
     const pairs: readonly (readonly [string, number | null, number | null])[] = [
       ["pressured_share_by_release_bin", bin20RawOf(r.s5[l]), rowValueOf(r, "pressured_share_by_release_bin", l)],
@@ -1251,7 +1277,7 @@ export function runStep5(opts: Step5Options): Step5RunResult {
     if (problems.length > 0) throw new Error(`ADR-089 step ${half}: refused to grade: E0 set ${String(s)}'s second fresh play at ${path} is not this build's: ${problems.join("; ")}. Delete it and run the fresh process again`);
     fresh[s] = record;
   }
-  const grade = gradeStep5({ half, records, file, guard, fresh, step4: opts.step4 ?? loadStep4References(), aliases: step5AliasesOf(opts.step5Records), ...(plan.oneSet === undefined ? {} : { oneSet: plan.oneSet }) });
+  const grade = gradeStep5({ half, records, file, guard, fresh, step4: opts.step4 ?? loadStep4References(), aliases: step5AliasesOf(opts.step5Records), ...(half === "5a" ? ((d) => (d === undefined ? {} : { fitConfirmDigest: d }))(fitConfirmDigestOf()) : {}), ...(plan.oneSet === undefined ? {} : { oneSet: plan.oneSet }) });
   if (opts.report !== undefined) {
     writeAtomic(opts.report, renderStep5Report(grade, records));
     wrote.push(opts.report);
