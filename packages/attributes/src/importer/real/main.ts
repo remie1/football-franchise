@@ -18,13 +18,20 @@
  * referees' sealed table `<cache>/sealed-officials.json` is written when it changes. Otherwise the file
  * has no copies, and `standin-officials` adds them. Either way no new stand-in takes a name in that
  * table.
+ *
+ * The past injuries (ADR-087 AB7, §12.3.7): when the newest injuries snapshot (`<cache>/injuries/`, fetched
+ * by `standin-injuries -- --fetch`) is of this season and on or after the file's date, the file also gets
+ * its `pastInjuries` block and each man's `condition.injuryHistory`, made exactly as `standin-injuries`
+ * (`injuriesCommand.ts`) makes them, from the sealed table after this run. Otherwise it has none, and
+ * `standin-injuries` adds them.
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { teamId, type Team } from "@ff/contracts";
 import { buildDeadMoney, fetchOtcPages, otcDownload, readOtcRows } from "./deadMoney.js";
 import { buildRealLeague } from "./league.js";
-import { importRealWrites, LEAGUE_FILE_FORMAT } from "./leagueFile.js";
+import { copiedPastInjuries } from "./injurySnapshot.js";
+import { importRealFile, importRealWrites, LEAGUE_FILE_FORMAT } from "./leagueFile.js";
 import { STANDIN_SPREAD } from "./officials.js";
 import { copiedCrews } from "./officialsSnapshot.js";
 import { PICKS_SOURCE, tradedPicks } from "./picks.js";
@@ -78,13 +85,16 @@ async function main(argv: readonly string[]) {
 
   const out = opt("--out") ?? `leagues/standin-${manifest.date}.json`;
   mkdirSync(dirname(out), { recursive: true });
-  const file = { format: LEAGUE_FILE_FORMAT, season, snapshotDate: manifest.date, league: built.league, contracts: built.contracts,
-    deadMoney: dead.charges, picks: tradedPicks(built.league.teams), picksSource: PICKS_SOURCE,
-    // ADR-087 §2.5: how the growth records were made (`development.ts`); last, as `standin-development` writes it.
-    startingDevelopment: built.startingDevelopment };
+  const picks = tradedPicks(built.league.teams);
+  // ADR-087 §2.5: how the growth records were made (`development.ts`); last, as `standin-development` writes it.
+  const file = importRealFile({ season, snapshotDate: manifest.date, league: built.league, contracts: built.contracts,
+    deadMoney: dead.charges, picks, picksSource: PICKS_SOURCE, startingDevelopment: built.startingDevelopment });
+  // ADR-087 AB7: the past injuries (`copiedPastInjuries`), from the sealed table after this run, as `standin-injuries` makes them.
+  const injuries = await copiedPastInjuries(cache, file, built.sealed);
   // ADR-093 step 1b: the 17 copied crews (`copiedCrews`), just before `startingDevelopment`, as `standin-officials` puts them.
   const copied = await copiedCrews(cache, file, { players: built.sealed, referees });
-  const writes = importRealWrites(file, copied.kind === "copied" ? copied.crews : null, refereesText);
+  const writes = importRealWrites(file, copied.kind === "copied" ? copied.crews : null, refereesText,
+    injuries.kind === "copied" ? injuries.built.block : null);
   writeFileSync(out, writes.league);
   writeFileSync(sealedPath, JSON.stringify(built.sealed, null, 1) + "\n");
   if (writes.referees !== null) writeFileSync(refereesPath, writes.referees);
@@ -97,7 +107,10 @@ async function main(argv: readonly string[]) {
   console.log(`  contracts: ${built.contracts.length} (${est} estimated at their yearly average), ${built.league.provenance.noContract.length} players without one`);
   const dm = dead.charges.filter((c) => c.season === season).reduce((a, c) => a + c.amount, 0);
   console.log(`  dead money: ${dead.charges.length} charges, $${(dm / 1e6).toFixed(1)}M in ${season}; ${dead.matched} on today's rosters, ${dead.placeholders} players gone`);
-  console.log(`  traded picks: ${file.picks.length} (rounds 1-3, as of ${PICKS_SOURCE.published})`);
+  console.log(`  traded picks: ${picks.length} (rounds 1-3, as of ${PICKS_SOURCE.published})`);
+  console.log(injuries.kind === "none"
+    ? `  ${injuries.why}`
+    : `  past injuries: ${injuries.built.block.counts.men} men, ${injuries.built.block.counts.records} records, from the injuries snapshot ${injuries.built.block.asOf}`);
   console.log(copied.kind === "none"
     ? `  ${copied.why}`
     : `  officials: ${copied.crews.officiating.crews.length} copied crews (${STANDIN_SPREAD}) from the officials snapshot ${copied.crews.officiating.asOf}, ` +
@@ -105,4 +118,4 @@ async function main(argv: readonly string[]) {
   console.log(`  wrote ${out}; sealed table ${sealedPath}`);
 }
 
-main(process.argv.slice(2)).catch((e: unknown) => { console.error(e); process.exit(1); });
+main(process.argv.slice(2)).catch((e: unknown) => { console.error(e instanceof Error ? e.message : "import-real stopped"); process.exit(1); });

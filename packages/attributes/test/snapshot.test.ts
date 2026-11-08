@@ -3,7 +3,7 @@ import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  fetchSnapshot, latestSnapshot, loadOfficialRows, loadPlayerNames, loadPlayRows, loadScheduleRows, NFLVERSE, officialsFiles,
+  fetchSnapshot, INJURY_HISTORY_FIRST_SEASON, injuryHistoryFiles, latestSnapshot, loadOfficialRows, loadPlayerNames, loadPlayRows, loadScheduleRows, NFLVERSE, officialsFiles,
   OFFICIALS_SEASONS, readManifest, snapshotFiles, verifySnapshot,
 } from "../src/importer/real/index.js";
 import type { ReadRows } from "../src/importer/real/rows.js";
@@ -28,6 +28,23 @@ describe("snapshot (ADR-088 R1)", () => {
     expect(await readFile(join(dir, "rosters.parquet"), "utf8")).toBe(manifest.files.rosters!.url);
     expect(await latestSnapshot(root)).toBe(dir);
     expect(await latestSnapshot(join(root, "missing"))).toBeNull();
+  });
+});
+
+describe("the injuries snapshot (ADR-087 AB7)", () => {
+  it("names the schedules and each season's injury reports, weekly rosters and snap counts from 2019 to the file's season", () => {
+    expect(INJURY_HISTORY_FIRST_SEASON).toBe(2019);
+    const f = injuryHistoryFiles(2026);
+    expect(Object.keys(f)).toHaveLength(1 + 3 * 8);
+    expect(f.schedules).toBe("schedules/games.parquet");
+    for (let y = 2019; y <= 2026; y++) {
+      expect(f[`injuries${y}`]).toBe(`injuries/injuries_${y}.parquet`);
+      expect(f[`rosters${y}`]).toBe(`weekly_rosters/roster_weekly_${y}.parquet`);
+      expect(f[`snaps${y}`]).toBe(`snap_counts/snap_counts_${y}.parquet`);
+    }
+    expect(f.rosters2018).toBeUndefined();
+    expect(f.rosters2027).toBeUndefined();
+    expect(Object.keys(injuryHistoryFiles(2025))).toHaveLength(1 + 3 * 7);
   });
 });
 

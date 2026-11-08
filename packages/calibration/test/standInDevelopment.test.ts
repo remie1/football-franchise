@@ -11,12 +11,16 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
-import { ABILITY_GROUPS, compareStamps, teamId, type CalendarStamp, type PlayerState } from "@ff/contracts";
+import { ABILITY_GROUPS, compareStamps, teamId, type CalendarStamp, type InjuryRecord, type PlayerState } from "@ff/contracts";
 import { buildLeague, type SeasonRun } from "@ff/franchise";
 import { fieldedStarters } from "../src/season/playerChecks.js";
 import { rosterGroups } from "../src/season/playerChecksRun.js";
 import { DEFAULT_SEASON, runRealSeason, seasonToPlay } from "../src/season/realSeason.js";
-import { assertAging, buildStandInLeague, forSwitches, readStandInFile, STAND_IN_AGING, standInPracticeSquads, standInSeason } from "../src/season/standInLeague.js";
+import {
+  assertAging, assertInjuryHistory, assertInjuryRisk, buildStandInLeague, forSwitches, KNOWN_STARTING_DEVELOPMENT, pastInjuriesLine, readStandInFile, readsPastInjuries,
+  REAL_INJURY_KINDS, STAND_IN_AGING, STAND_IN_INJURY_RISK, standInPracticeSquads, standInSeason,
+} from "../src/season/standInLeague.js";
+import { bodyPart } from "../src/injuries/classify.js";
 
 const FILE = join(__dirname, "..", "..", "attributes", "leagues", "standin-2026-10-23.json");
 const text = readFileSync(FILE, "utf8");
@@ -54,14 +58,18 @@ describe("the stand-in league file's records, read by switch", () => {
   });
 
   it("refuses records of a version the loader does not know, which could reach a switched-off run", () => {
-    // ADR-087 §12.2.3: AB2 taught the loader /2, so the unknown version is one no step writes.
-    const later = text.replace('"version":"standin-development/2"', '"version":"standin-development/99"');
+    // ADR-087 §12.2.3, AB7: the file's own version (whichever it is now) for one no step writes.
+    const own = file.startingDevelopment!.version;
+    const later = text.replace(`"version":"${own}"`, '"version":"standin-development/99"');
     expect(later).not.toBe(text);
     expect(() => readStandInFile(later)).toThrow(/forSwitches does not know these records/);
   });
 
-  it("is at standin-development/2 (ADR-087 AB2), and still reads a /1 file, which has no fade shifts", () => {
-    expect(text).toContain('"version":"standin-development/2"');
+  it("is at standin-development/2 or /3 (ADR-087 AB2, AB7), and still reads a /1 or /2 file", () => {
+    // /3 only when the file has a pastInjuries block (AB7 ruling B); the committed file has none yet.
+    expect(file.startingDevelopment!.version).toBe((file as { pastInjuries?: unknown }).pastInjuries === undefined ? "standin-development/2" : "standin-development/3");
+    expect([...KNOWN_STARTING_DEVELOPMENT]).toEqual(["standin-development/1", "standin-development/2", "standin-development/3"]);
+    expect(readStandInFile(text.replace(`"version":"${file.startingDevelopment!.version}"`, '"version":"standin-development/2"')).season).toBe(2026);
     const one = { ...file.startingDevelopment!, version: "standin-development/1" };
     const asOne = JSON.stringify({
       ...JSON.parse(text) as object, startingDevelopment: one,
@@ -381,5 +389,128 @@ describe("the stand-ins' practice squads (ADR-087 §11)", () => {
       const was = [...t.roster, ...t.practiceSquad!, ...street.filter((s) => s.team === t.id).map((s) => s.player)].map(String).sort();
       expect([...now.roster, ...(now.practiceSquad ?? [])].map(String).sort()).toEqual(was);
     }
+  });
+});
+
+describe("each man's past injuries (P8), read by switch (ADR-087 AB7)", () => {
+  type StandInFile = ReturnType<typeof readStandInFile>;
+  /** The committed file with no man's history: today's file, and still a file without one once the custody run gives it real ones. */
+  const plain: StandInFile = {
+    ...file, league: { ...file.league, players: file.league.players.map((p) => { const { injuryHistory: _h, ...condition } = p.condition; return { ...p, condition }; }) },
+  };
+  const stamp = (season: number, week: number): CalendarStamp => ({ season, phase: "REGULAR_SEASON", week, day: 1 });
+  /** Made-up records for every other man of the first `n`: one or two, kinds of the 17 in turn, in 2023-2025. */
+  function patched(n = 400): StandInFile {
+    const records = (i: number): InjuryRecord[] => {
+      const one = (j: number): InjuryRecord => {
+        const y = 2023 + ((i + j) % 3), w = 1 + ((i + 3 * j) % 10), weeks = 1 + ((i + j) % 6);
+        return { kind: REAL_INJURY_KINDS[(i + j) % REAL_INJURY_KINDS.length]!, weeks, since: stamp(y, w), healed: stamp(y, w + weeks) };
+      };
+      return (i % 4 === 0 ? [one(0), one(1)] : [one(0)]).sort((a, b) => compareStamps(a.since, b.since) || compareStamps(a.healed, b.healed) || (a.kind < b.kind ? -1 : 1));
+    };
+    return { ...plain, league: { ...plain.league, players: plain.league.players.map((p, i) => (i < n && i % 2 === 0 ? { ...p, condition: { ...p.condition, injuryHistory: records(i) } } : p)) } };
+  }
+  const SPOT = { injuries: true, injuryRisk: "spot" } as const;
+  const hasHistory = (ps: readonly PlayerState[]) => has(ps, (p) => p.condition.injuryHistory);
+
+  it("keeps them only with injuries on and injuryRisk \"spot\", and is otherwise the group read (test 4)", () => {
+    const withRecords = patched();
+    const man = withRecords.league.players[0]!;
+    expect(man.condition.injuryHistory!.length).toBeGreaterThan(0);
+    for (const sw of [undefined, { injuries: true }, { injuries: true, injuryRisk: "group" as const }, { development: true, injuryRisk: "spot" as const }, { development: true, injuries: false, injuryRisk: "spot" as const }]) {
+      expect(forSwitches(man, sw).condition.injuryHistory, JSON.stringify(sw)).toBeUndefined();
+      expect(readsPastInjuries(sw), JSON.stringify(sw)).toBe(false);
+    }
+    expect(readsPastInjuries(SPOT)).toBe(true);
+    for (const sw of [SPOT, { ...SPOT, development: true }]) {
+      const kept = forSwitches(man, sw);
+      expect(kept.condition.injuryHistory).toEqual(man.condition.injuryHistory);
+      const { injuryHistory: _h, ...condition } = kept.condition;
+      expect({ ...kept, condition }).toEqual(forSwitches(man, { ...sw, injuryRisk: "group" }));
+    }
+    // Whole leagues: the group read of the patched file is the committed file's, to the byte.
+    for (const sw of [undefined, { injuries: true }, { development: true, injuries: true }, { development: true, injuries: true, injuryRisk: "group" as const }]) {
+      expect(json(buildStandInLeague(base, withRecords, sw)), JSON.stringify(sw)).toBe(json(buildStandInLeague(base, plain, sw)));
+      expect(json(buildStandInLeague(base, file, sw)), JSON.stringify(sw)).toBe(json(buildStandInLeague(base, plain, sw)));
+    }
+    expect(hasHistory(buildStandInLeague(base, withRecords, SPOT).rated.league.players)).toBe(200);
+    expect(hasHistory(buildStandInLeague(base, plain, SPOT).rated.league.players)).toBe(0);
+  });
+
+  it("refuses an injuryRisk that is neither \"group\" nor \"spot\", which would play the group path silently", () => {
+    expect([...STAND_IN_INJURY_RISK]).toEqual(["group", "spot"]);
+    for (const v of [undefined, "group", "spot"]) expect(() => assertInjuryRisk(v)).not.toThrow();
+    for (const v of ["Spot", "spots", "", null, 1]) {
+      expect(() => assertInjuryRisk(v), String(v)).toThrow(/injuryRisk is "group" or "spot"/);
+      expect(() => buildStandInLeague(base, file, { injuries: true, injuryRisk: v as never }), String(v)).toThrow(/injuryRisk is "group" or "spot"/);
+    }
+  });
+
+  it("refuses a bad record on the spot path alone, one check at a time, naming the check and the man, never a value", () => {
+    const good = patched(2);
+    expect(() => assertInjuryHistory(good.league.players, 2026)).not.toThrow();
+    const id = String(good.league.players[0]!.bio.id);
+    const r0 = good.league.players[0]!.condition.injuryHistory![0]!;
+    const breaks: [string, RegExp, (rs: InjuryRecord[]) => unknown][] = [
+      ["empty", /not a non-empty list/, () => []],
+      ["not a list", /not a non-empty list/, () => ({ 0: r0 })],
+      ["a fifth key", /exactly kind, weeks, since and healed/, (rs) => [{ ...rs[0]!, team: "T1" }]],
+      ["no healed", /exactly kind, weeks, since and healed/, (rs) => { const { healed: _h, ...r } = rs[0]!; return [r]; }],
+      ["a kind outside the 17", /not one of the 17 classes/, (rs) => [{ ...rs[0]!, kind: "real:left-knee" }]],
+      ["a game kind", /not one of the 17 classes/, (rs) => [{ ...rs[0]!, kind: "knee-mcl" }]],
+      ["weeks 0", /whole number of 1 or more/, (rs) => [{ ...rs[0]!, weeks: 0 }]],
+      ["weeks 1.5", /whole number of 1 or more/, (rs) => [{ ...rs[0]!, weeks: 1.5 }]],
+      ["a phase unknown", /invalid stamp/, (rs) => [{ ...rs[0]!, since: { ...rs[0]!.since, phase: "WINTER" } }]],
+      ["day 8", /invalid stamp/, (rs) => [{ ...rs[0]!, healed: { ...rs[0]!.healed, day: 8 } }]],
+      ["a stamp key more", /invalid stamp/, (rs) => [{ ...rs[0]!, since: { ...rs[0]!.since, hour: 1 } }]],
+      ["healed before it began", /healed before it began/, (rs) => [{ ...rs[0]!, since: rs[0]!.healed, healed: rs[0]!.since }]],
+      ["healed on the first day", /on or after the league's first day/, (rs) => [{ ...rs[0]!, healed: { season: 2026, phase: "TRAINING_CAMP", week: 1, day: 1 } }]],
+      ["in the league's season", /on or after the league's first day/, (rs) => [{ ...rs[0]!, since: stamp(2026, 2), healed: stamp(2026, 4) }]],
+      ["the copied injury's stamp", /stamped as the copied injury is/, (rs) => [{ ...rs[0]!, since: { season: 2025, phase: "OFF_SUMMER", week: 1, day: 1 }, healed: { season: 2025, phase: "OFF_SUMMER", week: 3, day: 1 } }]],
+      ["not oldest first", /records not oldest first/, (rs) => [{ ...rs[0]!, since: stamp(2025, 9), healed: stamp(2025, 10) }, { ...rs[0]!, since: stamp(2024, 1), healed: stamp(2024, 2) }]],
+    ];
+    for (const [what, why, brk] of breaks) {
+      const broken = { ...good, league: { ...good.league, players: good.league.players.map((p, i) => (i === 0 ? { ...p, condition: { ...p.condition, injuryHistory: brk(p.condition.injuryHistory!) as InjuryRecord[] } } : p)) } };
+      let message = "";
+      try { buildStandInLeague(base, broken, SPOT); } catch (e) { message = (e as Error).message; }
+      expect(message, what).toMatch(why);
+      expect(message, what).toContain(`of ${id}:`);
+      expect(message, what).toMatch(/re-run attributes' standin-injuries on this file$/);
+      // No value of the record in the message: no kind, no week number, no stamp.
+      expect((message.match(/real:|knee|T1|20\d\d|WINTER/g) ?? []).length, `${what}: values in the message`).toBe(0);
+      expect(() => buildStandInLeague(base, broken, { injuries: true }), what).not.toThrow();
+      expect(() => buildStandInLeague(base, broken, { ...SPOT, injuryRisk: "group" }), what).not.toThrow();
+    }
+  });
+
+  it("prints one line on the spot path: the men seeded, or that the file has none", () => {
+    expect(pastInjuriesLine(patched(), SPOT)).toBe("Past injuries (P8): 200 men's histories, seeded into injury memory once");
+    expect(pastInjuriesLine(plain, SPOT)).toBe(`Past injuries (P8): none in this league file (${plain.startingDevelopment!.version})`);
+    for (const sw of [undefined, { injuries: true }, { injuries: true, injuryRisk: "group" as const }, { development: true, injuryRisk: "spot" as const }]) {
+      expect(pastInjuriesLine(patched(), sw), JSON.stringify(sw)).toBeUndefined();
+    }
+    expect(pastInjuriesLine(undefined, SPOT)).toBeUndefined();
+  });
+
+  it("plays the same group-path weeks with made-up records patched in as on the committed file (test 4)", () => {
+    const stop: CalendarStamp = { season: 2026, phase: "REGULAR_SEASON", week: 2, day: 7 };
+    for (const players of [{ injuries: true }, { development: true, injuries: true, injuryRisk: "group" as const }]) {
+      const on = (standIn: StandInFile) => json(runRealSeason({ seed: "standin-p8-group", rosters: "standin", standIn, players, stopAfter: stop }).run.events);
+      expect(on(patched()), JSON.stringify(players)).toBe(on(plain));
+    }
+  }, 300_000);
+
+  it("holds the copied injuries critic 10 counted: 205 list kinds, 122 report-text kinds that each hit a body keyword, 2 of them concussions", () => {
+    const kinds = file.league.players.flatMap((p) => (p.condition.injury ? [p.condition.injury.kind] : []));
+    expect(kinds).toHaveLength(327);
+    expect(kinds.every((k) => k.startsWith("real:"))).toBe(true);
+    const list = kinds.filter((k) => k.startsWith("real:reserve-"));
+    const reportText = kinds.filter((k) => !k.startsWith("real:reserve-"));
+    const part = (k: string) => bodyPart(k.slice("real:".length).replace(/-/g, " "));
+    expect(list).toHaveLength(205);
+    expect(list.every((k) => part(k) === "other")).toBe(true);
+    expect(reportText).toHaveLength(122);
+    expect(reportText.filter((k) => ["other", "unknown", "illness"].includes(part(k)))).toHaveLength(0);
+    expect(reportText.filter((k) => part(k) === "concussion/head")).toHaveLength(2);
   });
 });

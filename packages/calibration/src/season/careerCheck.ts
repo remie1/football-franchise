@@ -111,9 +111,9 @@ import { MIN_PAIRS_PER_AGE } from "../careers/usage.js";
 import { lastTeams, limboPlayers, runCapCheck, VETERAN_DEAL_KINDS, type CapCheckDayGames, type CapCheckInput, type CapCheckRun } from "./capCheck.js";
 import { draftReader, STARTING, type DraftCheckResult, type DraftReaderState } from "./draftCheck.js";
 import {
-  abilityPicture, addGameWeeks, chartSpots, concussionLengths, contactOf, durabilityByConcussions, injuryExposure, injuryReads, readPicks, rookieCutOf,
-  rookieWeekOne, sortNumericKeys, SPOT_ORDER, type AbilityPicture, type ConcussionTally, type ExposureCells, type PendingPick, type PlayedGame, type RookieCut,
-  type WeekOneRead,
+  abilityPicture, addGameWeeks, chartSpots, concussionLengths, contactOf, durabilityByConcussions, injuryExposure, injuryReads, pastInjurySeed, readPicks,
+  rookieCutOf, rookieWeekOne, sortNumericKeys, SPOT_ORDER, type AbilityPicture, type ConcussionTally, type ExposureCells, type P8Seed, type PendingPick,
+  type PlayedGame, type RookieCut, type WeekOneRead,
 } from "./careerAging.js";
 import { fieldedStarters } from "./playerChecks.js";
 import type { SeasonPeople } from "./realSeason.js";
@@ -1674,6 +1674,12 @@ export interface CareerCheckRows {
   readonly firstSeason: number;
   readonly seasons: number;
   readonly switches: { readonly development: boolean; readonly injuries: boolean };
+  /**
+   * ADR-087 AB7 (ruling D5, no version bump): on a spot-path walk only, what its first day seeded from the
+   * file's past injuries (P8) and copied injuries, so rows from before and after AB7 cannot be pooled
+   * unseen; absent on the group path and at the defaults, so their rows are as before.
+   */
+  readonly p8?: P8Seed;
   /** The league file as loaded (its 53s; ages as of the file's 23 October), the cross-check beside year 0. */
   readonly file: RosterPicture | null;
   /** One row a season; index 0 is year 0 (the walk's own first week-8 picture). */
@@ -1739,6 +1745,12 @@ export interface CareerReaderInput {
   readonly firstSeason: number;
   readonly seasons: number;
   readonly switches: { readonly development: boolean; readonly injuries: boolean };
+  /**
+   * ADR-087 AB7: `"spot"` when the walk plays injuries on the spot path, where franchise seeds each man's
+   * past injuries (P8): the reader then seeds its concussion counts from the file at the first day
+   * (`pastInjurySeed`) and its rows carry `p8`. Absent on the group path and with injuries off.
+   */
+  readonly injuryRisk?: "spot";
 }
 
 /** One man's season of snaps as the usage pairs read it: share, group and age in that season. */
@@ -1781,6 +1793,8 @@ export interface CareerReaderState {
   readonly concussionsSeen: [string, number][];
   readonly contactCareer: [string, number][];
   readonly pendingPicks: [string, PendingPick][];
+  /** ADR-087 AB7: what the first day seeded on the spot path; absent otherwise. */
+  readonly p8?: P8Seed;
 }
 
 /** The reader's watchers and what they wrote down; `rows` takes the draft check's rows to put beside its own. */
@@ -1885,6 +1899,8 @@ export function careerReader(input: CareerReaderInput): CareerReader {
   let concussionCounts = new Map<string, number>();
   let concussionsSeen = new Map<string, number>();
   let contactCareer = new Map<string, number>();
+  /** ADR-087 AB7: what the first day seeded on the spot path. */
+  let p8: P8Seed | undefined;
   /** The salary-cap thread's measure: the new picks waiting for their first week 1. */
   let pendingPicks = new Map<string, PendingPick>();
   /** The cap by league year, as the walk's own (`capForecast` of the same seed: real history, then the seed's projection). */
@@ -1972,6 +1988,13 @@ export function careerReader(input: CareerReaderInput): CareerReader {
       // The first day of the walk: the people it starts with, the league file as loaded.
       file = rosterPicture(people);
       ledger.start(people.players, season);
+      // ADR-087 AB7: on the spot path, the real concussions the file holds are each man's priors from the start.
+      if (input.injuryRisk === "spot") {
+        const seeded = pastInjurySeed(people.players);
+        concussionCounts = seeded.counts;
+        concussionsSeen = seeded.seen;
+        p8 = seeded.p8;
+      }
     }
     const waitsToday = () => tally.waits.set(stampToString(day), unsignedWaits(people, today, (s) => dayNumber.get(stampToString(s))));
     if (isDay(day, CAMP_OPENS)) { tally.faCamp = people.freeAgents.length; waitsToday(); }
@@ -2211,6 +2234,7 @@ export function careerReader(input: CareerReaderInput): CareerReader {
       firstSeason: input.firstSeason,
       seasons: input.seasons,
       switches: input.switches,
+      ...(p8 === undefined ? {} : { p8 }),
       file,
       perSeason: rows,
       careers: {
@@ -2261,6 +2285,7 @@ export function careerReader(input: CareerReaderInput): CareerReader {
       concussionsSeen: [...concussionsSeen],
       contactCareer: [...contactCareer],
       pendingPicks: [...pendingPicks],
+      ...(p8 === undefined ? {} : { p8 }),
     })) as CareerReaderState;
   };
 
@@ -2292,6 +2317,7 @@ export function careerReader(input: CareerReaderInput): CareerReader {
     concussionsSeen = new Map(copy.concussionsSeen);
     contactCareer = new Map(copy.contactCareer);
     pendingPicks = new Map(copy.pendingPicks);
+    p8 = copy.p8;
   };
 
   return { onDay, onRun, rows: rowsOf, save, restore };
@@ -2332,6 +2358,7 @@ export function runCareerCheck(input: Omit<CapCheckInput, "onRun" | "onDay" | "o
   const reader = careerReader({
     seed: input.seed, firstSeason: input.file.season, seasons: input.seasons,
     switches: { development: input.players?.development === true, injuries: input.players?.injuries === true },
+    ...(input.players?.injuries === true && input.players.injuryRisk === "spot" ? { injuryRisk: "spot" as const } : {}),
   });
   const draft = draftReader();
   const { resume, onCheckpoint } = options;

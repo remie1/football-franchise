@@ -12,7 +12,7 @@ import { describe, expect, it } from "vitest";
 import { FIRST_NAMES, LAST_NAMES } from "../src/fictional/names.js";
 import {
   CREW_COUNT, CREW_FAMILIES, STANDIN_OFFICIALS_VERSION, STANDIN_SPREAD,
-  crewsProblem, officiatingMethod, serializeLeagueFile,
+  crewsProblem, officiatingMethod, serializeLeagueFile, withoutPastInjuries,
   type LeagueFileLike, type StandInOfficiating,
 } from "../src/importer/real/index.js";
 
@@ -27,7 +27,8 @@ const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
  * 2026-11-07), by its sha256: only a new snapshot of the league, a refresh of its contracts, or new
  * growth records (`standin-development`) may change this. ADR-087 AB2's new growth records did: at
  * `standin-development/2` every man has his fade shifts, so the file without its block moved from
- * main's d9102480… to e5cd6230…, and the block itself is main's to the byte.
+ * main's d9102480… to e5cd6230…, and the block itself is main's to the byte. ADR-087 AB7: read with AB7's
+ * additions taken off (`withoutPastInjuries`), so it holds before and after the custody run puts them in.
  */
 const FILE_BEFORE_OFFICIALS_SHA256 = "e5cd62309b8186fe6607d25292df3945c081abdc8c2f8d26c234c9cc7474c2d5";
 
@@ -59,14 +60,15 @@ describe("the committed league file's copied crews (ADR-093 step 1b)", () => {
     expect(JSON.parse(JSON.stringify(block.method)), msg).toEqual(JSON.parse(JSON.stringify(officiatingMethod(file.season, STANDIN_SPREAD))));
   });
 
-  it("sit in their place: after picksSource and just before startingDevelopment, which stays last", () => {
+  it("sit in their place: after picksSource (and pastInjuries, when the file has it) and just before startingDevelopment, which stays last", () => {
     expect(Object.keys(file)).toEqual([
-      "format", "season", "snapshotDate", "league", "contracts", "deadMoney", "picks", "picksSource", "officiating", "startingDevelopment",
+      "format", "season", "snapshotDate", "league", "contracts", "deadMoney", "picks", "picksSource",
+      ...(file.pastInjuries === undefined ? [] : ["pastInjuries"]), "officiating", "startingDevelopment",
     ]);
   });
 
   it("are all the step added: taking the block off gives back the file before it, to the byte", () => {
-    const { officiating: _o, ...before } = JSON.parse(text) as LeagueFileLike;
+    const { officiating: _o, ...before } = withoutPastInjuries(JSON.parse(text) as LeagueFileLike);
     expect(sha256(serializeLeagueFile(before))).toBe(FILE_BEFORE_OFFICIALS_SHA256);
   });
 

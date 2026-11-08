@@ -12,10 +12,13 @@ import {
 } from "@ff/contracts";
 import { drawFadeShift, drawGrowth, drawPatience, FADE_SHIFT, GROWTH } from "../src/fictional/development.js";
 import {
-  COPIED_REPORT, COPIED_RESERVE, DEVELOPMENT_STREAM, INJURY_WEEKS, REAL_TEAM_SLOTS, SEED_LABEL, STARTING_DEVELOPMENT_VERSION,
-  bandOf, buildRealLeague, copiedSince, serializeLeagueFile, standInDevelopment, startingConstants, stripStartingDevelopment,
-  withStartingDevelopment, type CareerHistory, type LeagueFileLike, type RosterRow, type RosterStatus, type StartingDevelopment,
+  COPIED_REPORT, COPIED_RESERVE, DEVELOPMENT_STREAM, INJURY_WEEKS, NO_PAST_INJURIES_VERSION, REAL_INJURY_KINDS, REAL_TEAM_SLOTS, SEED_LABEL,
+  STANDIN_INJURIES_VERSION, STARTING_DEVELOPMENT_VERSION, bandOf, buildRealLeague, copiedSince, pastInjuriesMethod, pastInjuriesProblem,
+  serializeLeagueFile, standInDevelopment, startingConstants, startingDevelopmentVersion, stripStartingDevelopment, withPastInjuries,
+  withoutPastInjuries, withStartingDevelopment, type CareerHistory, type LeagueFileLike, type PastInjuriesBlock, type RosterRow, type RosterStatus,
+  type StartingDevelopment,
 } from "../src/importer/real/index.js";
+import { leakCount, LEAK_PATTERNS, madeUpBlock } from "./helpers.js";
 
 const FILE = join(__dirname, "..", "leagues", "standin-2026-10-23.json");
 const text = readFileSync(FILE, "utf8");
@@ -42,16 +45,30 @@ const FILE_BEFORE_RECORDS_SHA256 = "ffdd05762bae1b197794cb0099c8c0dd8f37a1767bd9
  * the file was regenerated from main's with `standin-development`, not merged.
  */
 const FILE_AT_V1_SHA256 = "c58c68ba3b4859a4060cfd5819343189758b87928bc4c436d2a768ef27a910f3";
+/**
+ * The committed league file at `standin-development/2`, before ADR-087 AB7's custody run puts in its
+ * `pastInjuries` block (MEASURED at aging-m7, 9b13f88): taking AB7's additions off (`withoutPastInjuries`)
+ * gives these bytes back, before and after that run.
+ */
+const FILE_AT_V2_SHA256 = "e9852a70facb1c20cfdb951fc09f9706cd515ebde2eda1dde588aef5387c0608";
+/** The file without AB7's additions (`withoutPastInjuries`): the `/2` file, before and after the custody run. */
+const atV2 = (): LeagueFileLike => withoutPastInjuries(JSON.parse(text) as LeagueFileLike);
 
-/** The file as it was before the step: every record and the extras key taken off. */
+/** The file as it was before the step: AB7's block, every record and the extras key taken off. */
 function stripped(): LeagueFileLike {
-  const { startingDevelopment: _s, ...rest } = JSON.parse(text) as LeagueFileLike;
+  const { startingDevelopment: _s, pastInjuries: _p, ...rest } = atV2();
   return { ...rest, league: { ...rest.league, players: rest.league.players.map(stripStartingDevelopment) } } as LeagueFileLike;
 }
 
 describe("the committed league file's growth records", () => {
   it("are what the step makes from the file: re-run standin-development if this fails", () => {
-    expect(serializeLeagueFile(withStartingDevelopment(stripped())) === text, "the league file's records are stale: re-run standin-development").toBe(true);
+    const f = JSON.parse(text) as LeagueFileLike;
+    const remade = withStartingDevelopment(f.pastInjuries === undefined ? stripped() : withPastInjuries(stripped(), f.pastInjuries));
+    expect(serializeLeagueFile(remade) === text, "the league file's records are stale: re-run standin-development").toBe(true);
+  });
+
+  it("are the /2 file's with AB7's additions alone: taking them off gives back the /2 file, to the byte (ADR-087 AB7)", () => {
+    expect(sha256(serializeLeagueFile(atV2()))).toBe(FILE_AT_V2_SHA256);
   });
 
   it("are all the step added: taking them off gives back the file before them, to the byte", () => {
@@ -62,7 +79,7 @@ describe("the committed league file's growth records", () => {
   it("were made with today's constants (re-run standin-development if this fails)", () => {
     const sd = file.startingDevelopment;
     const msg = "the league file's growth records were made with other constants: re-run standin-development";
-    expect(sd.version, msg).toBe(STARTING_DEVELOPMENT_VERSION);
+    expect(sd.version, msg).toBe(startingDevelopmentVersion(file.pastInjuries !== undefined));
     expect([sd.seedLabel, sd.stream], msg).toEqual([SEED_LABEL, DEVELOPMENT_STREAM]);
     expect(JSON.parse(JSON.stringify(sd.constants)), msg).toEqual(JSON.parse(JSON.stringify(startingConstants())));
   });
@@ -106,9 +123,10 @@ describe("the committed league file's growth records", () => {
     }
   });
 
-  it("draw every player's 12 fade shifts on his own \"aging\" fork, at standin-development/2 (ADR-087 §12.2.3, AB2)", () => {
-    expect(STARTING_DEVELOPMENT_VERSION).toBe("standin-development/2");
-    expect(file.startingDevelopment.version).toBe("standin-development/2");
+  it("draw every player's 12 fade shifts on his own \"aging\" fork, at standin-development/2 or /3 (ADR-087 §12.2.3, AB2; AB7)", () => {
+    expect(STARTING_DEVELOPMENT_VERSION).toBe("standin-development/3");
+    expect(NO_PAST_INJURIES_VERSION).toBe("standin-development/2");
+    expect(file.startingDevelopment.version).toBe(file.pastInjuries === undefined ? "standin-development/2" : "standin-development/3");
     for (const p of players) {
       const shift = p.attributes.development!.fadeShift!;
       expect(Object.keys(shift)).toEqual([...ABILITY_GROUPS]);
@@ -124,7 +142,7 @@ describe("the committed league file's growth records", () => {
     // AB2's data diff, pinned: the version set back to /1, `basis.fadeShift`, `constants.fadeShift` and every
     // man's `development.fadeShift` taken off. A regeneration that moved any growth, patience, snaps, body or
     // injury record (or anything else in the file) fails here.
-    const f = JSON.parse(text) as LeagueFileLike & { startingDevelopment: StartingDevelopment };
+    const f = atV2() as LeagueFileLike & { startingDevelopment: StartingDevelopment };
     const { fadeShift: _b, ...basis } = f.startingDevelopment.basis;
     const { fadeShift: _c, ...constants } = f.startingDevelopment.constants;
     const one = {
@@ -192,13 +210,32 @@ describe("the committed league file's growth records", () => {
   });
 
   it("holds no real-player ids: only stand-in ids and made-up text", () => {
+    // Counted, never matched: a failing check prints a number, not the text it found (critic 1).
     const added = JSON.stringify({
       extras: file.startingDevelopment,
-      records: players.map((p) => [p.attributes.development, p.bio.combine, p.personality.patience, p.condition.injury]),
+      block: file.pastInjuries ?? null,
+      records: players.map((p) => [p.attributes.development, p.bio.combine, p.personality.patience, p.condition.injury, p.condition.injuryHistory]),
     });
-    expect(added).not.toMatch(/\d{2}-\d{7}/); // gsis-like
-    expect(added).not.toMatch(/[A-Z][A-Za-z.']{3}[A-Z][A-Za-z.']\d{2}/); // pfr-like (McCoLe00 too)
-    for (const id of Object.keys(file.startingDevelopment.players)) expect(id).toMatch(/^r:\d+$/);
+    for (const [name, re] of Object.entries(LEAK_PATTERNS)) expect(leakCount(added, re), `${name} in the added records`).toBe(0);
+    const ids = [...Object.keys(file.startingDevelopment.players), ...Object.keys(file.pastInjuries?.players ?? {})];
+    expect(ids.filter((id) => !/^r:\d+$/.test(id)).length, "ids that are not stand-in ids").toBe(0);
+  });
+
+  it("copy each man's past injuries from the file's pastInjuries block when it has one (ADR-087 AB7, P8)", () => {
+    const block = file.pastInjuries;
+    if (block === undefined) {
+      // At /2: no man has a history, and nothing names one.
+      expect(players.filter((p) => p.condition.injuryHistory !== undefined).length).toBe(0);
+      expect(file.startingDevelopment.basis.injuryHistory).toBeUndefined();
+      return;
+    }
+    expect(block.version).toBe(STANDIN_INJURIES_VERSION);
+    expect(block.method).toEqual(JSON.parse(JSON.stringify(pastInjuriesMethod(file.season))));
+    expect(pastInjuriesProblem(block, {
+      season: file.season, snapshotDate: file.snapshotDate, ids: new Set(players.map((p) => String(p.bio.id))), copiedSince: copiedSince(file.season),
+    })).toBeNull();
+    for (const p of players) expect(p.condition.injuryHistory).toEqual(block.players[String(p.bio.id)]);
+    expect(file.startingDevelopment.basis.injuryHistory).toMatch(/pastInjuries block/);
   });
 });
 
@@ -207,7 +244,7 @@ describe("the step itself", () => {
     const once = serializeLeagueFile(withStartingDevelopment(stripped()));
     expect(serializeLeagueFile(withStartingDevelopment(stripped()))).toBe(once);
     expect(serializeLeagueFile(withStartingDevelopment(JSON.parse(once) as LeagueFileLike))).toBe(once);
-    // At /2 (AB2) too: the committed file, run again, is the same bytes.
+    // At /2 (AB2), or /3 with its block (AB7), too: the committed file, run again, is the same bytes.
     expect(serializeLeagueFile(withStartingDevelopment(JSON.parse(text) as LeagueFileLike))).toBe(text);
   });
 
@@ -359,7 +396,81 @@ describe("import-real's build (buildRealLeague), on hand-written rows with made-
     expect(by("g1").bio.combine).toEqual({ forty: 4.6, cone: 7.0, vertical: 33 });
     expect(by("g2").condition.injury).toMatchObject({ kind: "real:hamstring", playable: false });
     expect(by("g3").condition.injury).toMatchObject({ kind: "real:reserve-pup" });
-    expect(built.startingDevelopment.version).toBe(STARTING_DEVELOPMENT_VERSION);
+    // No pastInjuries block in buildRealLeague's output: `/2`'s records, at `/2` (import-real adds the block after, `importRealWrites`).
+    expect(built.startingDevelopment.version).toBe(NO_PAST_INJURIES_VERSION);
     expect(Object.keys(built.startingDevelopment.players).sort()).toEqual(built.league.players.map((p) => String(p.bio.id)).sort());
+  });
+});
+
+describe("standin-development/3 (ADR-087 AB7): P8 copied from the pastInjuries block, on the committed file with a made-up block", () => {
+  const base = atV2();
+  const ids = base.league.players.map((p) => String(p.bio.id));
+  const block: PastInjuriesBlock = madeUpBlock(ids, base.season, base.snapshotDate, 30);
+  const three = withStartingDevelopment(withPastInjuries(base, block));
+
+  it("writes /2 with no block (the /2 file's bytes) and /3 with one; taking AB7's additions off gives the /2 bytes back (test 19)", () => {
+    expect(serializeLeagueFile(withStartingDevelopment(base))).toBe(serializeLeagueFile(base));
+    expect(sha256(serializeLeagueFile(withStartingDevelopment(base)))).toBe(FILE_AT_V2_SHA256);
+    expect(three.startingDevelopment!.version).toBe(STARTING_DEVELOPMENT_VERSION);
+    expect(three.startingDevelopment!.basis.injuryHistory).toMatch(/standin-injuries\/1/);
+    expect(sha256(serializeLeagueFile(withoutPastInjuries(three)))).toBe(FILE_AT_V2_SHA256);
+    expect(withoutPastInjuries(base)).toBe(base);
+  });
+
+  it("copies each man's records with exactly P8's four keys, after `injury`, and nobody else gets one", () => {
+    let withHistory = 0;
+    for (const p of three.league.players) {
+      const want = block.players[String(p.bio.id)];
+      expect(p.condition.injuryHistory).toEqual(want);
+      if (want === undefined) continue;
+      withHistory++;
+      const keys = Object.keys(p.condition);
+      expect(keys[keys.length - 1]).toBe("injuryHistory");
+      for (const r of p.condition.injuryHistory!) expect(Object.keys(r)).toEqual(["kind", "weeks", "since", "healed"]);
+    }
+    expect(withHistory).toBe(Object.keys(block.players).length);
+    expect(Object.keys(block.players).every((id) => REAL_INJURY_KINDS.length === 17 && id.startsWith("r:"))).toBe(true);
+  });
+
+  it("changes nothing run on its own output, and strips the history with the rest (test 2)", () => {
+    expect(serializeLeagueFile(withStartingDevelopment(three))).toBe(serializeLeagueFile(three));
+    // The block taken off, the step run again: no man keeps a history.
+    const { pastInjuries: _p, ...noBlock } = three;
+    const again = withStartingDevelopment(noBlock as LeagueFileLike);
+    expect(again.league.players.filter((p) => p.condition.injuryHistory !== undefined).length).toBe(0);
+    expect(again.startingDevelopment!.version).toBe(NO_PAST_INJURIES_VERSION);
+    for (const p of three.league.players.slice(0, 40)) expect(stripStartingDevelopment(p).condition.injuryHistory).toBeUndefined();
+  });
+
+  it("refuses a block of another version, season or cut, one naming a man not in the file, and a bad record, by the check and a stand-in id alone", () => {
+    const input = (b: PastInjuriesBlock) => ({
+      season: base.season, snapshotDate: base.snapshotDate, players: base.league.players, status: base.league.provenance.status,
+      measurements: base.league.provenance.measurements, history: base.league.provenance.history, pastInjuries: b,
+    });
+    const first = Object.keys(block.players)[0]!;
+    const bad = (records: unknown) => ({ ...block, players: { ...block.players, [first]: records } }) as PastInjuriesBlock;
+    const r0 = block.players[first]![0]!;
+    const cases: [PastInjuriesBlock, RegExp][] = [
+      [{ ...block, version: "standin-injuries/0" }, /is not standin-injuries\/1/],
+      [{ ...block, season: base.season + 1 }, /another season/],
+      [{ ...block, through: "2026-10-24" }, /cut is not the file's snapshotDate/],
+      [{ ...block, players: { ...block.players, "r:999999": block.players[first]! } }, /stand-in r:999999, who is not in the file/],
+      [bad([]), /records not a non-empty list/],
+      [bad([{ ...r0, team: "T1" }]), /exactly kind, weeks, since and healed/],
+      [bad([{ ...r0, kind: "real:left-knee" }]), /kind is not one of the 17 classes/],
+      [bad([{ ...r0, weeks: 0 }]), /weeks is not a whole number/],
+      [bad([{ ...r0, since: { ...r0.since, week: 19 } }]), /invalid stamp/],
+      [bad([{ ...r0, since: r0.healed, healed: r0.since }]), /healed before it began|invalid stamp/],
+      [bad([{ ...r0, healed: { season: base.season, phase: "PLAYOFFS", week: 1, day: 1 } }]), /on or after the league's first day/],
+      [bad([{ ...r0, healed: { season: base.season - 1, phase: "OFF_SUMMER", week: 1, day: 1 } }]), /invalid stamp|copied injury/],
+      [bad([{ ...r0, since: { ...r0.since, season: r0.since.season + 1 }, healed: { ...r0.healed, season: r0.healed.season + 1 } }, r0]), /oldest first|first day/],
+    ];
+    for (const [b, re] of cases) {
+      let message = "";
+      try { standInDevelopment(input(b)); } catch (e) { message = (e as Error).message; }
+      expect(message, String(re)).toMatch(re);
+      // Never a value: the kind text, a team code or a stamp's phase never shows.
+      expect(leakCount(message, /left-knee|T1\b|OFF_SUMMER|PLAYOFFS/), "values in a refusal").toBe(0);
+    }
   });
 });

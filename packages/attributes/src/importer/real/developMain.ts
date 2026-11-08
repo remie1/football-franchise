@@ -3,7 +3,8 @@
  *
  * Gives every stand-in in a league file his starting development (ADR-087 §2.5, step 1;
  * `development.ts`): growth rate, body, career snaps, fade shifts (§12.2.3), patience, combine
- * record and today's injury.
+ * record and today's injury; and, when the file has a `pastInjuries` block (`standin-injuries`), each
+ * man's injury history (P8, §12.3.7) copied from it, at `standin-development/3`.
  * Takes off any records an earlier run left and writes the new ones into the same file, through the
  * serializer `import-real` writes with, so a second run changes nothing. Reads only the league file
  * (made-up names; no raw data, no name table). Prints counts only.
@@ -42,6 +43,9 @@ function main(argv: readonly string[]) {
     `${players.filter((p) => p.bio.combine !== undefined).length} with a combine record, ` +
     `${players.filter((p) => p.attributes.development?.fadeShift !== undefined).length} with fade shifts (${file.startingDevelopment!.version})`);
   console.log(`  injuries copied: ${sources.length} (${bySource})`);
+  console.log(file.pastInjuries === undefined
+    ? "  no pastInjuries block: run standin-injuries"
+    : `  ${players.filter((p) => p.condition.injuryHistory !== undefined).length} men with an injury history (P8) from the pastInjuries block`);
   console.log(`  teams without game statuses on their latest injury report: ${noStatus} of ${new Set(players.map((p) => String(p.teamId))).size}`);
   if (after === before) console.log(`  unchanged: ${path}`);
   else {

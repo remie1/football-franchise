@@ -25,3 +25,14 @@ export type { RosterRow, PlayerRow, CombineRow, DepthRow, ContractRow, SnapRow, 
 export {
   loadSnapRows, loadSnapshotRows, loadTrackingRows, loadScheduleRows, loadOfficialRows, loadPlayerNames, loadPlayRows,
 } from "./rows.js";
+// ADR-087 AB7: the stand-ins' past injuries (P8), `standin-injuries`.
+export * from "./pastInjuries.js";
+export {
+  buildPastInjuries, CHAIN_LEFT_WEEKS, KEPT_CLASSES, pastInjuriesMethod, realKind, seasonSpells, SNAPSHOT_SEASON_SPELLS, standInJoin, WEEKS_MEASURE,
+  type PastInjuriesReport, type InjurySeasonCounts, type SeasonSpells, type StandInJoin, type WeekStates,
+} from "./injurySpells.js";
+export {
+  copiedPastInjuries, fetchInjuriesSnapshot, injuriesSnapshotDir, parquetColumns, pastInjuriesOfSnapshot, readInjurySnapshot,
+  type ColumnsOf, type CopiedPastInjuries, type InjurySnapshot, type PastInjuriesBuilt,
+} from "./injurySnapshot.js";
+export { runStandinInjuries, type StandinInjuriesDeps } from "./injuriesCommand.js";

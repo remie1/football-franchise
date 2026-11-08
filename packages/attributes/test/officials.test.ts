@@ -24,7 +24,7 @@ import {
   type CareerHistory, type CopySpread, type Download, type LeagueFileLike, type Leans, type OfficialRow, type PlayRow,
   type RefereeSeason, type ScheduleRow, type SealedTable, type SealedTables, type SeasonCounts, type StandInOfficiating,
 } from "../src/importer/real/index.js";
-import type { ReadRows } from "../src/importer/real/rows.js";
+import { projecting, shuffled } from "./helpers.js";
 
 const REFEREE = (i: number) => `Made Up Referee ${String(i).padStart(2, "0")}`;
 const KEY = (i: number) => nameKey(REFEREE(i));
@@ -202,29 +202,7 @@ const countRows = (r: ReturnType<typeof madeUpRows>) => {
   return SEASONS.map((s) => countSeason(s, r.plays[s]!, games, book));
 };
 
-/**
- * A stand-in for the parquet reader over made-up files, key to rows: it keeps only the columns asked for,
- * and throws on one a file lacks, as `readRows` does, so a column a loader leaves out shows.
- */
-const projecting = (files: Readonly<Record<string, readonly object[]>>): ReadRows => async <T>(_dir: string, key: string, columns: readonly string[]) => {
-  const rows = files[key];
-  if (rows === undefined) throw new Error(`no made-up file ${key}`);
-  return rows.map((row) => Object.fromEntries(columns.map((c) => {
-    if (!Object.hasOwn(row, c)) throw new Error(`${key} has no column ${c}`);
-    return [c, (row as Record<string, unknown>)[c]];
-  }))) as unknown as T[];
-};
-
-/** The rows in another order, on a seeded shuffle. */
-function shuffled<T>(xs: readonly T[], label: string): T[] {
-  const rng = createRng("made-up shuffle", label);
-  const out = [...xs];
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = rng.int(0, i);
-    [out[i], out[j]] = [out[j]!, out[i]!];
-  }
-  return out;
-}
+// `projecting` (the parquet reader over made-up files) and `shuffled` (a seeded shuffle) are in `helpers.ts`.
 
 // --- A league file by hand ------------------------------------------------------------------------
 

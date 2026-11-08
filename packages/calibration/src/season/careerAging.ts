@@ -34,6 +34,7 @@ import {
   ABILITY_GROUPS, compareStamps, positionOverall, type AbilityGroup, type CalendarStamp, type FranchiseEventEnvelope, type GameParticipation, type PlayerState,
   type Position, type Team,
 } from "@ff/contracts";
+import { bodyPart } from "../injuries/classify.js";
 import type { SeasonPeople } from "./realSeason.js";
 
 const bumpBy = (m: Record<string, number>, k: string, by = 1) => { m[k] = (m[k] ?? 0) + by; };
@@ -406,10 +407,56 @@ export interface ConcussionTally {
  * The tally reads the time-loss (SHORT, LONG, MAJOR) football (GAME, PRACTICE) concussions of the
  * regular season, as the real side counts "every football spell with body part concussion/head" in its
  * regular seasons; out 4+ weeks reads the draw's length (`weeks` ≥ 4), as the real side's Kaplan-Meier
- * share out 4+ weeks. The league file's current injuries (`real:` kinds) are not draws and count as no
- * prior either way. Ages are `ageOf` (his age in the season; "?" not known). Returns the tally and both
- * counts after the season.
+ * share out 4+ weeks. The league file's current injuries (`real:` kinds) are not draws, so this tally
+ * never counts one; on the spot path (ADR-087 AB7) the walk's first day seeds both counts with the real
+ * concussions the file holds (`pastInjurySeed`), on the group path they start empty. Ages are `ageOf` (his
+ * age in the season; "?" not known). Returns the tally and both counts after the season.
  */
+/** What the walk's first day seeded from the league file on the spot path (ADR-087 AB7): the rows' `p8`, counts only. */
+export interface P8Seed {
+  /** Men with a P8 history (`condition.injuryHistory`), and their records. */
+  readonly seededMen: number;
+  readonly seededRecords: number;
+  /** Concussions seeded into the `prior` counts: P8 records of `real:concussion-head`, and copied current concussions. */
+  readonly seededConcussions: number;
+  /** Copied current injuries with a `real:` kind, which franchise's spot path maps to its own kind when they heal. */
+  readonly copiedMapped: number;
+}
+
+/** P8's concussion kind (attributes' `REAL_INJURY_KINDS`, copied in `standInLeague.ts`). */
+const REAL_CONCUSSION = "real:concussion-head";
+
+/**
+ * The concussion counts a spot-path walk starts from (ADR-087 AB7, §12.3.7): each man's real concussions
+ * before the league's first day, both ways `concussionLengths` counts them. His P8 records of
+ * `real:concussion-head` are real regular-season time-loss spells, so they count in `prior` and in `seen`.
+ * His copied current injury counts when its kind, read back as text ("-" as " ") by calibration's own
+ * `bodyPart`, is concussion/head: in `prior`, since franchise records it under its own kind when it heals,
+ * and in `seen` unless it was copied away from football (`setting` "AWAY", the non-football list; critic 8).
+ */
+export function pastInjurySeed(players: readonly PlayerState[]): { counts: Map<string, number>; seen: Map<string, number>; p8: P8Seed } {
+  const counts = new Map<string, number>();
+  const seen = new Map<string, number>();
+  let seededMen = 0, seededRecords = 0, seededConcussions = 0, copiedMapped = 0;
+  for (const p of players) {
+    const id = String(p.bio.id);
+    const records = p.condition.injuryHistory ?? [];
+    if (records.length > 0) seededMen++;
+    seededRecords += records.length;
+    const recorded = records.filter((r) => r.kind === REAL_CONCUSSION).length;
+    const copied = p.condition.injury;
+    const real = copied !== undefined && copied.kind.startsWith("real:");
+    if (real) copiedMapped++;
+    const copiedConcussion = real && bodyPart(copied.kind.slice("real:".length).replace(/-/g, " ")) === "concussion/head";
+    const prior = recorded + (copiedConcussion ? 1 : 0);
+    const seenPrior = recorded + (copiedConcussion && copied.setting !== "AWAY" ? 1 : 0);
+    if (prior > 0) counts.set(id, prior);
+    if (seenPrior > 0) seen.set(id, seenPrior);
+    seededConcussions += prior;
+  }
+  return { counts, seen, p8: { seededMen, seededRecords, seededConcussions, copiedMapped } };
+}
+
 export function concussionLengths(
   injuries: readonly InjuryRead[], prior: ReadonlyMap<string, number>, ageOf: (id: string) => number | undefined = () => undefined,
   seenBefore: ReadonlyMap<string, number> = new Map(),

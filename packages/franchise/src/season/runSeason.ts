@@ -43,6 +43,7 @@ import type { League } from "../league/buildLeague.js";
 import type { LeaguePeople, DayStep } from "./people.js";
 import { draftSteps, turnYear, type DraftStepsConfig } from "../draft/steps.js";
 import { PLAYER_STEP_PREFIX, playerSteps, type PlayerStepsConfig } from "../players/steps.js";
+import { seedPastInjuries } from "../players/injuries.js";
 import { staffSteps, type StaffStepsConfig } from "../staff/steps.js";
 import { meetingSteps, type MeetingStepsConfig } from "../meeting/steps.js";
 import { leagueYearSteps, type LeagueYearConfig } from "../cap/leagueYear.js";
@@ -229,6 +230,8 @@ export function runSeason(input: RunSeasonInput): SeasonRun {
   if (input.coaching && !input.people?.coaching) throw new Error("runSeason: the coaches' steps need people.coaching");
   if (input.meeting && !input.people?.coaching) throw new Error("runSeason: the meeting's steps need people.coaching");
   let people = input.people;
+  // ADR-087 AB7: the stand-ins' past injuries (P8) into the injury memory, once, before any day step (spot path only).
+  if (people && playersConfig && !resumeFrom) people = seedPastInjuries(people, playersConfig, season);
   const rules = input.rules ?? DEFAULT_LEAGUE_RULES;
   const schedule = buildSchedule(league, season, seed, {
     rules,
