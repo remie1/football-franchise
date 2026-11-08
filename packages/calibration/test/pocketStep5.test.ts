@@ -478,6 +478,8 @@ describe("step 5's visit and grading on a tiny corpus (scratch; nothing is recor
     const ce = g.sections.clauses.find((c) => c.id === "s5b.clockExpired")!;
     const e1 = f0(1, 3).s5.gen.extra;
     expect(ce.values).toContainEqual(expect.stringContaining(`beside, the pressured-only count (not CLEAN through the throwaway): gen set 1 ${String(e1.clockExpired - e1.cleanClockExpired)} of ${String(e1.clockExpired)} (`));
+    // The stand-in row says what it compares (measurement M7).
+    expect(g.sections.clauses.find((c) => c.id === "s5b.standIn")!.note).toBe("F0's sack_rate against the stand-in nearest 5b (sacks 1.95, TOT §4.3; reported)");
     const bin = g.sections.clauses.find((c) => c.id === "mr.bin20.raw")!;
     expect(bin.values).toContain("beside, its fitted-shape status: the 2.0 s bin is one of the seven bins of the pressured curve, which AM-10's fallback moves into the fitted ledger; no selection in this run");
     // A guard clause the filing does not hold is refused by name, never skipped (measurement M7).

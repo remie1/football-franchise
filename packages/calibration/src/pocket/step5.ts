@@ -1044,7 +1044,7 @@ export function gradeStep5(x: GradeStep5Inputs): Step5Grade {
     banded("mr.unblockedShare", "F0", undefined, (r, l) => rowValueOf(r, "unblocked_share_of_hit_or_sack", l), ["gen"]);
     banded("s5b.binsTwiceFtn", "F0", undefined, (r, l) => binsAboveTwiceFtn(r.s5[l]), [], "reported under the fallback");
     banded("s5b.quick", "F0", undefined, (r, l) => rowValueOf(r, "quick_pressure_share_by_origin", l), []);
-    banded("s5b.standIn", "F0", undefined, (r, l) => rowValueOf(r, "sack_rate", l), []);
+    banded("s5b.standIn", "F0", undefined, (r, l) => rowValueOf(r, "sack_rate", l), [], "F0's sack_rate against the stand-in nearest 5b (sacks 1.95, TOT §4.3; reported)");
     banded("mr.unblockedMen", "F0", undefined, (r, l) => rowValueOf(r, "unblocked_men_per_100", l), []);
     // Plan §7.3 (fidelity F-8): flat's direction against D1 on the rows F0's clauses read, F0 minus D1 at the graded set.
     {
