@@ -34,6 +34,13 @@ export interface ScrambleArgs {
   readonly tick: number;
   readonly threats: readonly ArrivalClock[];
   readonly scrambleRng: Rng;
+  /**
+   * ADR-089 step 5a (§4.6 "the break-out at urgency 0"; AM-9 `breakOut`; the Orchestrator's ruling
+   * on the clean pick's urgency): the urgency the escape's target is set at, when the caller
+   * states it. Only a break-out at a clean pick states it (0: its tick published CLEAN). Left out,
+   * as every forced escape leaves it, it is the tick's own, as today.
+   */
+  readonly urgency?: number;
 }
 
 export interface ScrambleOutcome {
@@ -57,7 +64,7 @@ export interface ScrambleOutcome {
 export function resolveScramble(args: ScrambleArgs): ScrambleOutcome {
   const { tunables } = args;
   const t = tunables.scramble;
-  const urgency = urgencySteps(tunables, minTimeToArrival(args.threats, args.tick));
+  const urgency = args.urgency ?? urgencySteps(tunables, minTimeToArrival(args.threats, args.tick));
   const edgeThreats = threatsWithAlignment(args.threats, "EDGE").length;
 
   const roll = rollD100(

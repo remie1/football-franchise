@@ -2055,6 +2055,11 @@ export function simulatePassPlayWith(
           tick,
           threats,
           scrambleRng: movementRng.fork(`t${tick.toFixed(1)}:scramble`),
+          // ADR-089 step 5a (§4.6 "the break-out at urgency 0"; AM-9 `breakOut`): a break-out at a
+          // clean pick is on a tick that published CLEAN, an unhurried tick, so its target carries
+          // no urgency term (the clean pick's own rule, `resolveCleanPick`). A forced escape states
+          // none and computes its own, as today.
+          ...(cleanPick !== undefined ? { urgency: 0 } : {}),
         });
         log.check(escape.check);
         if (escape.sacked) {

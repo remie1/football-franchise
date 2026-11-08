@@ -756,7 +756,8 @@ Results per Tick:
 > tick at or past his break) gains a window bump for the rest of the play, TRAILING +10 and EVEN +5
 > (IN_FRONT none, D25), added to his base inside the decayed openness before the clamp; it never
 > writes the contest position, and a misread's delta cancels it. **(e) ESCAPE** is today's escape
-> roll on `movement/t<tick>:scramble`: ESCAPED today's scramble (`QB_PURSUIT`, `QB_DECISION`
+> roll on `movement/t<tick>:scramble`, at urgency 0 by the pick's own rule (its target 50 plus 10
+> for each live EDGE threat, with no urgency term; a forced escape computes its own, as today): ESCAPED today's scramble (`QB_PURSUIT`, `QB_DECISION`
 > SCRAMBLE), CONTAINED the escape's own HOLD (he may break out again at a later clean expiry),
 > CAUGHT today's caught-escape sack. **D23 on the run:** after a clean break-out the desperation
 > throw at 25 is not taken; the normal-bar throw on the run stays. There is no clean HOLD and no

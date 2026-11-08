@@ -30,7 +30,8 @@
  *   (reported, never graded).
  * - **d. MOVE**: today's climb in full, then the read restart and the reset (`resetAfterMove`) and
  *   the window bump (`bumpFor`), openness only, never the contest position (D25).
- * - **e. ESCAPE**: today's escape roll and its three outcomes (in `passPlay.ts`).
+ * - **e. ESCAPE**: today's escape roll at urgency 0 (the pick's own rule: the tick published
+ *   CLEAN) and its three outcomes (in `passPlay.ts`).
  *
  * No die is drawn here but the pick's one d100; the floor, the restart, the reset and the bump
  * draw nothing.

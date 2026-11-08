@@ -2,8 +2,10 @@
  * ADR-089 step 5a, ITEM e (plan §2.1 row e): ESCAPE AT A CLEAN PICK is today's escape roll.
  *
  * 1. A clean pick's ESCAPE draws today's `scramble` CHECK on `movement/t<tick>:scramble`, on the
- *    tick's own threats, whose urgency is computed and is 0 (asserted), so its target is 50 plus
- *    10 for each live EDGE threat.
+ *    tick's own threats, at urgency 0 by definition (its tick published CLEAN; §4.6 "the break-out
+ *    at urgency 0"), so its target is 50 plus 10 for each live EDGE threat, even with a threat 1.0
+ *    to 1.25 s out (whose own urgency, under step 2's horizons, is 1). A forced escape computes its
+ *    own urgency, as today.
  * 2. Today's three outcomes at their margin boundaries (`tunables.ts` scramble bands): at 0 or more
  *    he is out (`QB_PURSUIT`, `QB_DECISION` SCRAMBLE), from -20 to -1 he is contained (the escape's
  *    own HOLD), below -20 he is caught (a sack). On the clean bench nobody is eligible to be named,
@@ -18,6 +20,7 @@ vi.mock("../src/resolve/scramble.js", async (importOriginal) => {
   return { ...real, resolveScramble: vi.fn(real.resolveScramble) };
 });
 
+import { createRng } from "@ff/contracts";
 import { simulatePassPlay } from "../src/index.js";
 import { resolveScramble } from "../src/resolve/scramble.js";
 import { minTimeToArrival, urgencySteps } from "../src/resolve/rushThreat.js";
@@ -67,7 +70,8 @@ describe("ADR-089 step 5a: ESCAPE at a clean pick", () => {
             // Its inputs: the spy call for this tick.
             const call = scrambleSpy.mock.calls.map((x) => x[0]).find((a) => a.tick === tick);
             if (call === undefined) throw new Error(`${seed}: no escape roll at ${tick}`);
-            expect(urgencySteps(run.tunables, minTimeToArrival(call.threats, tick))).toBe(0);
+            // Stated 0 by the caller, whatever the threats' own urgency.
+            expect(call.urgency, seed).toBe(0);
             const edge = call.threats.filter((t) => t.alignment === "EDGE").length;
             if (edge > 0) outcomes.edgePaid += 1;
             expect(c.target).toBe(run.tunables.scramble.target + edge * run.tunables.scramble.edgeThreatPenalty);
@@ -111,6 +115,41 @@ describe("ADR-089 step 5a: ESCAPE at a clean pick", () => {
     // The boundaries were met in play: a margin at 0 and one at -20 or -21 (each on its own side).
     expect([...margins].some((m) => m >= 0 && m <= 2)).toBe(true);
     expect([...margins].some((m) => m < 0 && m >= -2)).toBe(true);
+  });
+});
+
+describe("ADR-089 step 5a: the break-out's urgency", () => {
+  it("a threat 1.1 s out on a CLEAN tick: the clean break-out's target has no urgency term; a forced escape's has today's", () => {
+    const { state } = PASS_FIXTURES[0]?.[1]() ?? (() => { throw new Error("no fixture"); })();
+    const qb = state.players[state.quarterback as unknown as string];
+    if (qb === undefined) throw new Error("no quarterback");
+    const threats = [{ rusher: qb.bio.id, alignment: "EDGE" as const, wonAtTick: 0.5, etaTick: 2.1, rollRef: "test/rush-rep" }];
+    expect(urgencySteps(S5_TUNABLES, minTimeToArrival(threats, 1.0))).toBe(1);
+    const rng = () => createRng("break-out", "game:g/play:1").fork("movement").fork("t1.0:scramble");
+    const clean = resolveScramble({ tunables: S5_TUNABLES, qb, tick: 1.0, threats, scrambleRng: rng(), urgency: 0 });
+    const forced = resolveScramble({ tunables: S5_TUNABLES, qb, tick: 1.0, threats, scrambleRng: rng() });
+    const t = S5_TUNABLES.scramble;
+    expect(clean.check.target).toBe(t.target + t.edgeThreatPenalty);
+    expect(forced.check.target).toBe(t.target + t.edgeThreatPenalty + t.perUrgencyStepPenalty);
+    expect(clean.roll).toEqual(forced.roll);
+  });
+
+  it("in play, a forced escape states no urgency (today's)", () => {
+    let forced = 0;
+    for (const [fixture, build] of PASS_FIXTURES) {
+      for (let i = 0; i < 60; i++) {
+        scrambleSpy.mockClear();
+        const { state, calls } = build();
+        const { events } = simulatePassPlay(state, withPicture(state, calls), `escape-forced-${fixture}-${i}`, S5_TUNABLES);
+        const cleanTicks = new Set(events.filter((e) => (checkOf(e)?.roll?.rngLabel ?? "").endsWith(":clean")).map((e) => tickOfEvent(e)));
+        for (const [args] of scrambleSpy.mock.calls) {
+          if (cleanTicks.has(args.tick)) continue;
+          forced += 1;
+          expect(args.urgency).toBeUndefined();
+        }
+      }
+    }
+    expect(forced).toBeGreaterThan(5);
   });
 });
 
