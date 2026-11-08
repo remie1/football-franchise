@@ -318,6 +318,36 @@ describe("step 5's visit and grading on a tiny corpus (scratch; nothing is recor
     expect(() => reselectFromFile(path, FILED, AMEND, "fnv1a:00000000")).toThrow(/not the pin fnv1a:00000000/);
   });
 
+  it("grades F0's miss split with part 1's free runners earlier than M8's table (measurement M4), and refuses an unfiled guard clause", { timeout: 240_000 }, () => {
+    const { file, guard } = preflightStep5("5b", FILED, AMEND);
+    const f0 = (s: SeedSet, earlier: number): Step5Record => {
+      const r = structuredClone(play("E0", s));
+      const s3 = (r as unknown as { s3: { gen: { part1?: { earlier: number } } } }).s3.gen;
+      expect(s3.part1, "E0's record folds part 1").toBeDefined();
+      s3.part1!.earlier = earlier;
+      return r;
+    };
+    const records: Step5RecordsBySet = new Map<ArmId, Partial<Record<SeedSet, Step5Record>>>([
+      ["F0", { 1: f0(1, 3), 2: f0(2, 0) }],
+      ["D1", { 1: play("E0", 1), 2: play("E0", 2) }],
+    ]);
+    const g = gradeStep5({ half: "5b", records, file, guard, step4: new Map() });
+    const sack = g.sections.clauses.find((c) => c.id === "s5b.sack")!;
+    expect(["PASS", "FAIL"]).toContain(sack.verdict);
+    const covered = g.sections.clauses.filter((c) => c.arms[0] === "F0" && (c.verdict === "PASS" || c.verdict === "FAIL"));
+    if (covered.some((c) => c.verdict === "FAIL")) {
+      expect(g.sections.miss).toContain("free runners earlier than M8's table (part 1): F0 3, D1 beside 0");
+      expect(g.sections.miss?.some((l) => l.includes("3 free runner(s) arrive earlier than M8's table"))).toBe(true);
+    } else {
+      throw new Error("the fixture's F0 should miss a covered row on the tiny corpus");
+    }
+    // A guard clause the filing does not hold is refused by name, never skipped (measurement M7).
+    const a = preflightStep5("5a", FILED, AMEND);
+    const without = { ...a.file, bands: { ...a.file.bands, clauses: a.file.bands.clauses.filter((c) => c.id !== "s5a.int") } };
+    const e = new Map<ArmId, Partial<Record<SeedSet, Step5Record>>>([["E0", { 1: play("E0", 1), 2: play("E0", 2) }], ["E9", { 1: play("E8", 1), 2: play("E8", 2) }]]);
+    expect(() => gradeStep5({ half: "5a", records: e, file: without, guard: a.guard, fresh: { 1: play("E0", 1), 2: play("E0", 2) } })).toThrow(/the guard clause s5a\.int is not in the filing/);
+  });
+
   it("runs 5a with an injected player into a scratch cache: plays, writes E0's second fresh play, reads the cache, then grades", { timeout: 240_000 }, () => {
     const parent = join(scratch, "run");
     const { guard } = preflightStep5("5a", FILED, AMEND);

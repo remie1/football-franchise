@@ -594,6 +594,8 @@ export function gradeStep5(x: GradeStep5Inputs): Step5Grade {
       return a === null || b === null ? null : a - b;
     };
     const values = LEAGUES.map((l) => `${l} set ${String(graded)} ${num(v(graded, l))}${sets.length > 1 ? ` (${beside((s) => v(s, l))})` : ""}`);
+    const genValue = v(graded, "gen");
+    if (genValue !== null && Number.isFinite(genValue)) gradedGenValue.set(id, genValue);
     const isGraded = c.kind === "graded" && oneSet === undefined;
     const fails = gradedOn.filter((l) => !inBand(v(graded, l), c));
     const verdict = !isGraded ? "REPORTED" : fails.length === 0 ? "PASS" : "FAIL";
@@ -615,6 +617,8 @@ export function gradeStep5(x: GradeStep5Inputs): Step5Grade {
     proofs.push({ id, what, kind, verdict: problems.length === 0 ? "PASS" : "FAIL", detail: problems.length === 0 ? "clean" : problems.slice(0, 5).join("; ") });
     if (problems.length > 0) (kind === "fold" ? foldFaults : structuralFailures).push(`${id}: ${String(problems.length)} failing, first: ${problems[0] ?? ""}`);
   };
+  /** Each banded clause's value on gen at the graded set (the miss split's rows). */
+  const gradedGenValue = new Map<string, number>();
   const has = (id: ArmId, parts: readonly string[]): boolean => parts.every((p) => partsOfArm(id).includes(p));
 
   // The structural proofs and fold checks (plan §7.2 R-3), each bound to the arms whose parts it reads.
@@ -663,7 +667,8 @@ export function gradeStep5(x: GradeStep5Inputs): Step5Grade {
   }
   const guardClause = (id: string, arm: ArmId): void => {
     const c = clauseOf(id);
-    if (c === undefined) return;
+    // A guard clause the filing does not hold is a build fault in this harness, never a silent no-op (measurement M7).
+    if (c === undefined) throw new Error(`ADR-089 step ${half}: the guard clause ${id} is not in the filing`);
     const rows = guardRows.filter((g) => g.arm === arm);
     const verdict = rows.length === 0 || rows.every((g) => g.verdict === "NOT PLAYED") ? "NOT PLAYED" : oneSet !== undefined ? "REPORTED" : rows.some((g) => g.verdict === "BREACH") ? "FAIL" : "PASS";
     clauses.push({ id, kind: c.kind, arms: [arm, guard.bases[arm] ?? "?"], filed: "AM-8", values: rows.map((g) => `${g.league} ${g.verdict}`), verdict, note: `under ${guard.am8}, the S5 class view` });
@@ -786,12 +791,18 @@ export function gradeStep5(x: GradeStep5Inputs): Step5Grade {
     banded("s5b.quick", "F0", undefined, (r, l) => rowValueOf(r, "quick_pressure_share_by_origin", l), []);
     banded("s5b.standIn", "F0", undefined, (r, l) => rowValueOf(r, "sack_rate", l), []);
     banded("mr.unblockedMen", "F0", undefined, (r, l) => rowValueOf(r, "unblocked_men_per_100", l), []);
-    guardClause("s5b.guard", "F0");
+    // F0 against F5 is AM-8's guard row on its own (no filed s5b clause carries it); a breach there is in guardBreaches.
     // The miss rule on F0 (AM-10's split), when a covered row missed.
     const f0 = at("F0", graded);
     const covered = clauses.filter((c) => MISS_RULE_COVERS.includes(c.id) && c.arms[0] === "F0" && (c.verdict === "PASS" || c.verdict === "FAIL"));
     if (f0 !== undefined && covered.some((c) => c.verdict === "FAIL")) {
-      const ms = (f0 as unknown as { readonly s3: Readonly<Record<League, { readonly missSplit: { readonly byClock: Readonly<Record<string, number | null>>; readonly quick: number | null } }>> }).s3.gen.missSplit;
+      type S3Gen = { readonly missSplit: { readonly byClock: Readonly<Record<string, number | null>>; readonly quick: number | null }; readonly part1?: { readonly earlier: number } };
+      const s3gen = (r: Step5Record): S3Gen => (r as unknown as { readonly s3: Readonly<Record<League, S3Gen>> }).s3.gen;
+      const ms = s3gen(f0).missSplit;
+      // AM-10's class (ii) reads part 1's "free runners earlier than M8's table" on F0, as step 3 reads it (measurement M4).
+      const earlier = s3gen(f0).part1?.earlier;
+      const d1 = at("D1", graded);
+      const d1Earlier = d1 === undefined ? undefined : s3gen(d1).part1?.earlier;
       const rowOn = (id: string): number => rowValueOf(f0, id, "gen") ?? Number.NaN;
       const hitOrSack = clauseOf("s5b.hitOrSack");
       const split: MissSplit = {
@@ -802,11 +813,11 @@ export function gradeStep5(x: GradeStep5Inputs): Step5Grade {
         quickNoFreeRunner: ms.byClock["quickNoFreeRunner"] ?? Number.NaN,
         unblockedPressuresPer100: rowOn("unblocked_pressures_per_100"),
         unblockedShareOfHitOrSack: rowOn("unblocked_share_of_hit_or_sack"),
-        freeRunnersEarlierThanM8: 0,
+        freeRunnersEarlierThanM8: earlier ?? 0,
         hitOrSackInBand: hitOrSack !== undefined && inBand(rowValueOf(f0, "hit_or_sack_rate", "gen"), hitOrSack),
         sacksShort: (rowValueOf(f0, "sack_rate", "gen") ?? Number.POSITIVE_INFINITY) < 3.9,
         shareShort: false,
-        rows: covered.map((c) => ({ clause: c.id, value: Number.NaN, passed: c.verdict === "PASS" })),
+        rows: covered.map((c) => ({ clause: c.id, value: gradedGenValue.get(c.id) ?? Number.NaN, passed: c.verdict === "PASS" })),
       };
       const k = classifyMiss(split);
       missLines = [
@@ -815,6 +826,7 @@ export function gradeStep5(x: GradeStep5Inputs): Step5Grade {
         ...k.options.map((o) => `option: ${JSON.stringify(o)}`),
         ...(k.suppliers.length === 0 ? [] : [`class (iii)'s next suppliers: ${k.suppliers.join(", ")}`]),
         `decided by ${k.decidedBy}; the free-run clock and the throw bars are never on the list`,
+        `free runners earlier than M8's table (part 1): F0 ${earlier === undefined ? "not folded" : String(earlier)}, D1 beside ${d1Earlier === undefined ? "not folded" : String(d1Earlier)}`,
       ];
       next.push("a covered row missed on F0: options A (G1), B (accept and report) and C (G2), each on both sets, go to the owner");
     }
