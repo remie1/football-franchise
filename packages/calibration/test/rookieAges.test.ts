@@ -12,6 +12,14 @@
  * seeds would take about 10. Its bands are the fitted table's MEASURED 2027 values (the first draft's known
  * exception, a little older and its gap wider than REAL's), not REAL's.
  *
+ * What it guards: the 2027 reading only, not the fit. It does not tell the refit's table from AB4b's first
+ * one (ρ 0.70; b2's 2027 reading, 22.69 and a gap of 0.59, passes both bands). The fitted values are held by
+ * attributes' literal pin (`draftClass.test.ts`, "hold the CHOSEN table"); behaviorally, only that file's
+ * draft-free check tells the refit's ρ from AB4b's (1.73 against 1.43 years), and it does not see a share
+ * moved at the same ρ. This test holds that a class drawn by the fitted table, played through the career
+ * check's walk, puts its rookies on the 53s near REAL's mean with the undrafted older: AB4's table fails the
+ * mean band, and a lost link (no gap, as at the default aging) fails the gap band.
+ *
  * This lives in calibration because it is the one package that may both make a class
  * (`generateDraftClass`, ADR-086 R1) and run the draft and the season after it (`runSeason`, ADR-078
  * R1). The first test plays the career check's own walk (`runCapCheck` on the stand-in league, arm
@@ -133,19 +141,22 @@ describe("rookie ages of made-up classes (ADR-087 §12.5, AB4 and AB4b)", () => 
     // 22.68, the undrafted 0.88 older (1.01 and 0.79 by seed). The bands are not REAL's: this is the 2027
     // class, the first draft's known exception (no compensatory picks, so more of its rookies on the 53s
     // are undrafted, and older). They are the table's MEASURED 2027 values from the refit's confirming run (24 seeds
-    // ab4r-conf-1 to -24: mean 22.679, gap 0.725; REAL 22.67 and 0.62) ± 2 standard errors of a two-seed
-    // reading, from that run's seed-to-seed sds (0.058 for the mean, 0.133 for the gap): 22.60-22.76 and
-    // 0.54-0.91 (CHOSEN). The 2028 class the table is fitted on read 22.670 and 0.682 there. The sim's
-    // ages are whole years and REAL's gap is of fractional ages; a gap needs no offset if both groups'
-    // birthdays fall alike across the year (an assumption, as the grader reads it). AB4's table (draft-day
-    // shares computed from REAL for the whole class, ρ 0.57) fails both: on 24 seeds it read 22.13 and a
-    // gap of 0.35 here. AB4b's first table (ρ 0.70) read 22.69 and 0.59, inside both (MEASURED, ADR-087
-    // §12.9's AB4b note).
-    expect(all).toBeGreaterThan(22.6);
-    expect(all).toBeLessThan(22.76);
+    // ab4r-conf-1 to -24: mean 22.679, gap 0.725; REAL 22.67 and 0.62) ± 3 standard errors of a two-seed
+    // reading, from that run's seed-to-seed sds (0.058 for the mean, 0.133 for the gap; two-seed SEs 0.041
+    // and 0.094): 22.56-22.80 and 0.44-1.01 (CHOSEN). The AB4 review of the refit widened them from ± 2 SEs
+    // (22.60-22.76 and 0.54-0.91), where this gap's reading sat 0.03 under the top: the reading is fixed by
+    // its seeds, but a change elsewhere that moves who is kept on the 53s draws it again, and ± 2 SEs would
+    // fail such a fresh draw about one time in 20 for each band, ± 3 SEs about one in 370. The 2028 class the
+    // table is fitted on read 22.670 and 0.682 there. The sim's ages are whole years and REAL's gap is of
+    // fractional ages; a gap needs no offset if both groups' birthdays fall alike across the year (an
+    // assumption, as the grader reads it). AB4's table (draft-day shares computed from REAL for the whole
+    // class, ρ 0.57) fails both on 24 seeds: it read 22.13 and a gap of 0.35 there. AB4b's first table
+    // (ρ 0.70) read 22.69 and 0.59, inside both (MEASURED, ADR-087 §12.9's AB4b note).
+    expect(all).toBeGreaterThan(22.56);
+    expect(all).toBeLessThan(22.8);
     const gap = u.mean - d.mean;
-    expect(gap).toBeGreaterThan(0.54);
-    expect(gap).toBeLessThan(0.91);
+    expect(gap).toBeGreaterThan(0.44);
+    expect(gap).toBeLessThan(1.01);
   }, 1_800_000);
 
   it("at the default aging, the class's ages do not follow talent: drafted and undrafted are the same age after the draft", () => {

@@ -446,14 +446,29 @@ function readCheckpoint(path: string, o: CareerSeedOptions): CareerCheckpoint & 
  * A record read from the cache, refused unless it is this check's version with rows of this rows
  * version: rows of two versions are never pooled or graded together (a record of version 5 lacks
  * version 6's rows, and its rows would read as no data in some rows and as values in others).
+ * A record of an older version is graded from a tree of that version (the v6 baseline, AB1's build
+ * 6b118e35f8d06440, from a version-6 tree), so the refusal says so; any other is played again.
  */
 export function checkRecordVersion(record: CareerSeedRecord, path: string): CareerSeedRecord {
   const v = (record as { version?: unknown }).version, rv = (record as { rows?: { version?: unknown } }).rows?.version;
-  if (v !== CAREER_CHECK_VERSION || rv !== CAREER_ROWS_VERSION) {
-    throw new Error(`career check: ${path} holds a record of check version ${String(v)} (rows version ${String(rv)}), not ${CAREER_CHECK_VERSION} (rows ${CAREER_ROWS_VERSION}); ` +
-      "records of two versions are never read together: play the seed again on this build");
-  }
+  if (v !== CAREER_CHECK_VERSION || rv !== CAREER_ROWS_VERSION) throw new CareerRecordVersionError(path, v, rv);
   return record;
+}
+
+/**
+ * A cached record of another check or rows version, as `checkRecordVersion` refuses it. `older`: its
+ * check version is a number under this tree's, so a tree of its own version can grade it.
+ */
+export class CareerRecordVersionError extends Error {
+  readonly older: boolean;
+  constructor(readonly path: string, readonly check: unknown, readonly rows: unknown) {
+    const older = typeof check === "number" && check < CAREER_CHECK_VERSION;
+    super(`career check: ${path} holds a record of check version ${String(check)} (rows version ${String(rows)}), not ${CAREER_CHECK_VERSION} (rows ${CAREER_ROWS_VERSION}); ` +
+      "records of two versions are never read together: " +
+      (older ? `grade it from a tree of check version ${String(check)} (check one out and grade there), or play the seed again on this build` : "play the seed again on this build"));
+    this.name = "CareerRecordVersionError";
+    this.older = older;
+  }
 }
 
 /**

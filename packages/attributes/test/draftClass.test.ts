@@ -88,6 +88,10 @@ describe("rookie ages for made-up classes (ADR-087 §12.5, AB4)", () => {
     // CHOSEN (fitted, ADR-087 §12.9's AB4b note and its refit): the walk's 2028 class, its second made-up class and
     // the first whose draft holds compensatory picks, on the week-8 53s counted like the NFL, lands on REAL's
     // whole-year shares and its 0.62 gap. A latent the fit sets, not REAL's own.
+    // This literal pin is the guard of the fitted values. The ±1 pt and exact-replay tests below read the table
+    // itself, so they move with it; the draft-free check tells the refit's ρ from AB4b's first table (1.73 against
+    // 1.43 years) but not a share moved at the same ρ (one point from 22 to 23 passes it); and calibration's
+    // walk test (`rookieAges.test.ts`) reads the 2027 class, which AB4b's first table passes too.
     expect(ROOKIE_AGE.shares).toEqual([
       { age: 20, share: 0.046 }, { age: 21, share: 0.143 }, { age: 22, share: 0.265 },
       { age: 23, share: 0.281 }, { age: 24, share: 0.139 }, { age: 25, share: 0.126 },

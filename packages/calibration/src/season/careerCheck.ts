@@ -286,8 +286,10 @@ export interface RosterPicture {
   readonly rookieAge: RookieAgeTally;
   /**
    * The same rookies by draft status (rows version 7; ADR-087 §12.5, AB4b): drafted (a draft line)
-   * and undrafted (any other), each as `rookieAge` is read. The real side gives the gap on fractional
-   * ages (drafted 23.01, undrafted 23.63); the grader sets the whole-year means' gap beside it.
+   * and undrafted (`"UDFA"`, as `undraftedShare` reads it), each as `rookieAge` is read; the two sum
+   * to it, since no man still a prospect (`"PROSPECT"`) is on a team's 53 (the reader refuses one).
+   * The real side gives the gap on fractional ages (drafted 23.01, undrafted 23.63); the grader sets
+   * the whole-year means' gap beside it.
    */
   readonly rookieAgeByDraft: { readonly drafted: RookieAgeTally; readonly undrafted: RookieAgeTally };
 }
@@ -405,7 +407,11 @@ export function rosterPicture(
     return { n: ages.length, mean: mean(ages), histogram };
   };
   const rookieRows = rows.filter(isRookie);
+  // One reading of "undrafted", `undraftedShare`'s; a prospect is on no team's 53, so the split is whole.
+  const prospect = rookieRows.find((r) => r.p.bio.draft === "PROSPECT");
+  if (prospect !== undefined) throw new Error(`career check: ${String(prospect.p.bio.id)} is on ${prospect.team}'s 53 still a prospect (draft "PROSPECT")`);
   const drafted = (r: (typeof rows)[number]) => typeof r.p.bio.draft === "object";
+  const undrafted = (r: (typeof rows)[number]) => r.p.bio.draft === "UDFA";
   return {
     players: rows.length,
     overall: {
@@ -429,7 +435,7 @@ export function rosterPicture(
     rookieAge: tallyOf(rookieRows.map((r) => r.p.bio.age)),
     rookieAgeByDraft: {
       drafted: tallyOf(rookieRows.filter(drafted).map((r) => r.p.bio.age)),
-      undrafted: tallyOf(rookieRows.filter((r) => !drafted(r)).map((r) => r.p.bio.age)),
+      undrafted: tallyOf(rookieRows.filter(undrafted).map((r) => r.p.bio.age)),
     },
   };
 }

@@ -13,7 +13,7 @@ import type { StaffState } from "@ff/contracts";
 import { buildLeague, buildStaff, runSeason, type SeasonRun } from "@ff/franchise";
 import type { CapCheckInput } from "../src/season/capCheck.js";
 import {
-  armInput, CAREER_FINGERPRINT_LEAVES_OUT, CAREER_SEED_SETS, careerCachePaths, careerFingerprint, CareerCheckStopped, COACH_STYLE_LINEUPS,
+  armInput, CAREER_FINGERPRINT_LEAVES_OUT, CAREER_SEED_SETS, careerCachePaths, careerFingerprint, CareerCheckStopped, CareerRecordVersionError, COACH_STYLE_LINEUPS,
   CAREER_CHECK_VERSION, decodePeople, decodeState, encodePeople, encodeState, gradedAging, listCareerBuilds, peopleDifference, readCareerRecords,
   runCareerSeed, seedOf, stateDifference, withHeadCoachLineups, writeWhole,
 } from "../src/season/careerCheckRun.js";
@@ -216,6 +216,16 @@ describe("the cache's files", () => {
       const record = (version: number, rowsVersion: number) => JSON.stringify({ version, seed: "old-seed", arm: "both", seasons: 20, rows: { version: rowsVersion } });
       writeFileSync(rows, record(6, 6));
       expect(() => readCareerRecords(dir, "both", ["old-seed"], 20)).toThrow(/check version 6 \(rows version 6\), not 7 \(rows 7\)/);
+      // An older version's record is refused with its route: a tree of its own version grades it (the
+      // grade command prints this one line, no stack). A newer or unknown one is played again.
+      const refusal = (() => { try { readCareerRecords(dir, "both", ["old-seed"], 20); } catch (e) { return e; } return undefined; })();
+      expect(refusal).toBeInstanceOf(CareerRecordVersionError);
+      expect(refusal).toMatchObject({ older: true, check: 6, rows: 6 });
+      expect((refusal as Error).message).toMatch(/grade it from a tree of check version 6 \(check one out and grade there\), or play the seed again on this build$/);
+      writeFileSync(rows, record(8, 8));
+      expect(() => readCareerRecords(dir, "both", ["old-seed"], 20)).toThrow(/never read together: play the seed again on this build$/);
+      writeFileSync(rows, JSON.stringify({ seed: "old-seed", arm: "both", seasons: 20, rows: {} }));
+      expect(() => readCareerRecords(dir, "both", ["old-seed"], 20)).toThrow(/check version undefined \(rows version undefined\).*play the seed again on this build$/);
       writeFileSync(rows, record(5, 5));
       expect(() => readCareerRecords(dir, "both", ["old-seed"], 20)).toThrow(/check version 5 \(rows version 5\), not 7 \(rows 7\)/);
       writeFileSync(rows, record(7, 6));

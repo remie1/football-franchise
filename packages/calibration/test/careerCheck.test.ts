@@ -636,7 +636,7 @@ describe("the owner's aging rulings: the reader's new pieces", () => {
     expect(rosterPicture({ teams: [], players: [] }).rookieAgeByDraft).toEqual({ drafted: { n: 0, mean: 0, histogram: {} }, undrafted: { n: 0, mean: 0, histogram: {} } });
   });
 
-  it("the rookies by draft status (rows version 7, ADR-087 §12.5 AB4b): drafted by a draft line, the rest undrafted, as the ledger reads a rookie", () => {
+  it("the rookies by draft status (rows version 7, ADR-087 §12.5 AB4b): drafted by a draft line, undrafted by \"UDFA\" (as undraftedShare reads it), as the ledger reads a rookie", () => {
     const a = squad("T01", 70, 60);
     const b = squad("T02", 66, 60);
     // Two of T01's starters came in this season: one drafted at 21, one undrafted at 24; a man out 4+ weeks drops from the NFL count.
@@ -668,6 +668,9 @@ describe("the owner's aging rulings: the reader's new pieces", () => {
       expect(d.n + u.n).toBe(p.rookieAge.n);
       expect(d.n * d.mean + u.n * u.mean).toBeCloseTo(p.rookieAge.n * p.rookieAge.mean, 12);
     }
+    // A man still a prospect is on no team's 53; the reader refuses one rather than count him either way.
+    const withProspect = players.map((p) => (String(p.bio.id) === "T02-b0" ? { ...p, bio: { ...p.bio, draft: "PROSPECT" as const } } : p));
+    expect(() => rosterPicture({ teams, players: withProspect }, rookies)).toThrow(/T02-b0 is on T02's 53 still a prospect/);
   });
 
   it("the 53 counted like the NFL: an unhealed LONG or MAJOR injury leaves a man out; the variant reads the weeks still to go", () => {
