@@ -27,6 +27,7 @@ import {
   playStep5Arm,
   preflightStep5,
   q5Problems,
+  guardAllOf,
   rePointsOf,
   runStep5,
   step5GateRefusal,
@@ -34,6 +35,7 @@ import {
   step5MeasuresOf,
   STEP5_DIRTY_REFUSAL,
   STEP5_GRID_IDS,
+  STEP5_GUARD_CLOCK,
   STEP5A_AMENDMENTS_PIN,
   STEP5A_RECORDS_FINAL,
   STEP5B_AMENDMENTS_PIN,
@@ -43,6 +45,7 @@ import {
   type Step5RecordsBySet,
 } from "../src/pocket/step5.js";
 import { RELEASE_BINS } from "../src/pocket/selection.js";
+import { am1ArmReading, type GuardSide } from "../src/pocket/guardAm1.js";
 import type { Step1Env } from "../src/pocket/step1.js";
 
 const PKG = join(import.meta.dirname, "..");
@@ -216,6 +219,23 @@ describe("step 5's visit and grading on a tiny corpus (scratch; nothing is recor
     (moved.s5.gen.fit.games as string[])[0] = "fnv1a:moved";
     const bad = gradeStep5({ half: "5a", records, file, guard, fresh: { 1: play("E0", 1), 2: moved } });
     expect(bad.sections.outcome.structuralFailures).toEqual([expect.stringMatching(/^S-7: E0 set 2's two fresh plays differ: gen: the stream digests differ/)]);
+    // The guard on AM-8's clock: raw release seconds on both sides (bins and rate table), the league mix from the same raw fold.
+    expect(STEP5_GUARD_CLOCK).toBe("RAW");
+    for (const id of ["E0", "E8"] as const) for (const l of ["flat", "gen"] as const) {
+      const r = play(id, 1);
+      const all = guardAllOf(r.s5[l].guard);
+      const sum = (xs: readonly number[]): number => xs.reduce((a, b) => a + b, 0);
+      expect(sum(all.aimedByBin), `${id} ${l}`).toBe(sum(r.report.intGuard[l].all.aimedByBin));
+      expect(all.interceptions, `${id} ${l}`).toBe(r.report.intGuard[l].all.interceptions);
+    }
+    const side = (id: ArmId, l: "flat" | "gen"): Partial<Record<SeedSet, GuardSide>> => Object.fromEntries(([1, 2] as const).map((s) => {
+      const r = play(id, s);
+      return [s, { all: guardAllOf(r.s5[l].guard), byClass: Object.fromEntries(Object.entries(r.s5[l].guard).map(([cls, c]) => [cls, { aimedByBin: c.aimedByBin, interceptions: c.interceptions }])) }];
+    }));
+    for (const l of ["flat", "gen"] as const) {
+      const row = g.sections.guard.find((r) => r.arm === "E9" && r.league === l)!;
+      expect(row.Z, l).toBe(am1ArmReading(side("E0", l), side("E8", l), "RAW", guard.lines).league.Z);
+    }
     // s5a.intLeague reads the filed int_rate (INT per attempt, intGuard.intPerAttempt), not INT per aimed throw.
     const intLeague = g.sections.clauses.find((c) => c.id === "s5a.intLeague")!;
     const perAttempt = play("E8", 1).report.intGuard.gen.intPerAttempt - play("E0", 1).report.intGuard.gen.intPerAttempt;

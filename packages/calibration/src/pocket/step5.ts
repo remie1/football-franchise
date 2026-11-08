@@ -38,7 +38,7 @@ import { fileURLToPath } from "node:url";
 import type { MatchEventEnvelope } from "@ff/contracts";
 import type { GameSnapshot, Tunables } from "@ff/engine";
 import { canonicalise } from "../harness/digest.js";
-import { releaseBinOf } from "../metrics/collect.js";
+import { RELEASE_BINS as COLLECT_RELEASE_BINS, releaseBinOf } from "../metrics/collect.js";
 import { AMENDMENTS_PATH, amendmentsAtStep, amendmentsDigest, entryOf, loadAmendments, STEP3_AMENDMENTS_DIGEST, type AmendmentsFile, type BaseMap } from "./amendments.js";
 import { armById, recordedStep5, step5ArmDef, step5ArmRefusal, STEP5A_RUN_IDS, STEP5B_RUN_IDS, STEP5_GRID, type ArmId, type Step5Records } from "./arms.js";
 import { FILED_PATH, type GuardClock, type IntMix } from "./bands.js";
@@ -57,11 +57,11 @@ import { POCKET_1_S5A_DIGEST, POCKET_1_S5A_FIT_DIGEST, readsStep3Facts } from ".
 import { s2ContextOf } from "./s2Stream.js";
 import { emptyS5Fold, foldS5Dropback, s5DropbacksOf, s5Summary, type S5Fold } from "./s5Stream.js";
 import { gridPointId, REAL, RELEASE_BINS, selectWith, type Am10Verdict, type BinCount, type GridArm } from "./selection.js";
-import { emptyGuardFold, foldGuardGame, openFiling, PR33_STATE, sanitize, type GuardFold, type Step5Args } from "./step0.js";
+import { emptyGuardFold, openFiling, PR33_STATE, sanitize, type GuardFold, type Step5Args } from "./step0.js";
 import { armFileOf, FULL_CORPUS, isUnder, jsonText, realOf, STEP1_CALLER, STEP1_CLOSED_RECORDS, step1Env, stampProblems, writeAtomic, type Step1Corpus, type Step1Env } from "./step1.js";
 import { rowValueOf, STEP2_CLOSED_RECORDS, STEP3_RECORDS, step3StampOf, timesFromPicture, unmadeChoicesOf, type Step3Stamp } from "./step3.js";
 import { playStep4Arm, STEP4_AMENDMENTS_PIN, STEP4_RECORDS, step4FoldsOf, type PlayStep4Options, type Step4Record } from "./step4.js";
-import { playsOf, readDropback, throwBarFor, worstStatus } from "./throwClass.js";
+import { isAimed, playsOf, readDropback, throwBarFor, worstStatus } from "./throwClass.js";
 import type { ThrowClassifier } from "./throwClass.js";
 
 export const STEP5_ARM_FORMAT = "adr-089-step5-arm/v1";
@@ -279,6 +279,33 @@ export function emptyStep5LeagueFolds(): Step5LeagueFolds {
   };
 }
 
+/**
+ * AM-8: "the release clock is each arm's own, raw seconds on both sides". Step 5's guard bins every
+ * aimed throw on its raw release (`THROW.releaseSeconds`, the decision tick when a throw on the run
+ * carries none) and reads the raw rate table (`REAL.intPerAimedRaw`), where steps 0 to 4 bin on the
+ * decision tick (`foldGuardGame`, the TICK table).
+ */
+export const STEP5_GUARD_CLOCK: GuardClock = "RAW";
+
+/** `foldGuardGame` on the raw release (AM-8): the same classes and counts, binned on `THROW.releaseSeconds`. */
+export function foldGuardGameRaw(fold: GuardFold, events: readonly MatchEventEnvelope[], tunables: Tunables, classify: ThrowClassifier): void {
+  for (const slice of playsOf(events)) {
+    const d = readDropback(slice);
+    if (d === undefined || !isAimed(d) || d.throwTick === undefined) continue;
+    const cell = fold[classify(d, tunables).cls];
+    const i = COLLECT_RELEASE_BINS.findIndex((b) => b.label === releaseBinOf(releaseSecondsOf(slice.events) ?? d.throwTick!));
+    cell.aimedByBin[i] = (cell.aimedByBin[i] ?? 0) + 1;
+    if (d.intercepted) cell.interceptions += 1;
+    if (d.caught) cell.completions += 1;
+  }
+}
+
+/** The league mix of a step-5 guard fold: every aimed throw by raw release bin, and their interceptions. */
+export function guardAllOf(g: GuardFold): IntMix {
+  const cells = Object.values(g);
+  return { aimedByBin: COLLECT_RELEASE_BINS.map((_, i) => cells.reduce((a, c) => a + (c.aimedByBin[i] ?? 0), 0)), interceptions: cells.reduce((a, c) => a + c.interceptions, 0) };
+}
+
 /** One game into step 5's folds, read under the arm's own tunables and the guard's class view. */
 export function foldStep5Game(L: Step5LeagueFolds, events: readonly MatchEventEnvelope[], tunables: Tunables, snapshot: GameSnapshot, classify: ThrowClassifier): void {
   const ctx = s2ContextOf(tunables, snapshot);
@@ -300,7 +327,7 @@ export function foldStep5Game(L: Step5LeagueFolds, events: readonly MatchEventEn
     }
   }
   foldCleanPocketRowsGame(L.rows, events, tunables);
-  foldGuardGame(L.guard, events, tunables, classify);
+  foldGuardGameRaw(L.guard, events, tunables, classify);
   foldFitGame(L.fit, events);
   for (const slice of playsOf(events)) {
     const d = readDropback(slice);
@@ -597,7 +624,7 @@ export function gradeStep5(x: GradeStep5Inputs): Step5Grade {
   for (const [arm, base] of Object.entries(guard.bases).filter((e): e is [ArmId, ArmId] => e[1] !== undefined)) {
     for (const l of LEAGUES) {
       const sideOf = (r: Step5Record): GuardSide => ({
-        all: r.report.intGuard[l].all,
+        all: guardAllOf(r.s5[l].guard),
         byClass: Object.fromEntries(Object.entries(r.s5[l].guard).map(([cls, cell]) => [cls, { aimedByBin: cell.aimedByBin, interceptions: cell.interceptions } satisfies IntMix])),
       });
       const bySet = (id: ArmId): Partial<Record<SeedSet, GuardSide>> => Object.fromEntries(sets.flatMap((s) => (at(id, s) === undefined ? [] : [[s, sideOf(at(id, s)!)]])));
@@ -612,7 +639,7 @@ export function gradeStep5(x: GradeStep5Inputs): Step5Grade {
         guardRows.push({ arm, against: base, league: l, role: "graded", verdict: "SKIPPED (equal dials, AM-8 skipEqualDials)", graded: false, Z: null, breaches: [], filedBreaches: [], ownClock: [] });
         continue;
       }
-      const reading = am1ArmReading(bySet(base), bySet(arm), armRecord.report.clock as GuardClock, guard.lines);
+      const reading = am1ArmReading(bySet(base), bySet(arm), STEP5_GUARD_CLOCK, guard.lines);
       const isGraded = reading.graded;
       const verdict = isGraded && oneSet === undefined ? (reading.breaches.length > 0 ? "BREACH" : "PASS") : "REPORTED";
       if (verdict === "BREACH") guardBreaches.push(`${arm} against ${base}, ${l}: ${reading.breaches.join(", ")}`);
