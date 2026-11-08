@@ -970,7 +970,7 @@ export function gradeStep5(x: GradeStep5Inputs): Step5Grade {
         continue;
       }
       const problems = freshBaseProblems(a, b);
-      replay.push(`E0 set ${String(s)}, played fresh twice: ${problems.length === 0 ? "identical (stream digests and records)" : problems.join("; ")}`);
+      replay.push(`E0 set ${String(s)}, played fresh twice: ${problems.length === 0 ? "identical in content (stream digests and records); that the second play ran in a separate process is not proven (build departure 1)" : problems.join("; ")}`);
       if (problems.length > 0) structuralFailures.push(`S-7: E0 set ${String(s)}'s two fresh plays differ: ${problems.join("; ")}`);
     }
   }

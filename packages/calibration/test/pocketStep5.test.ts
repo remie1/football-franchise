@@ -262,7 +262,7 @@ describe("step 5's visit and grading on a tiny corpus (scratch; nothing is recor
     expect(["PASS", "FAIL"]).toContain(verdict("s5a.int"));
     expect(verdict("s5a.reset")).toBe("NOT PLAYED");
     expect(g.sections.guard.filter((r) => r.arm === "E9").map((r) => r.league)).toEqual(["flat", "gen"]);
-    expect(g.sections.replay).toEqual(["E0 set 1, played fresh twice: identical (stream digests and records)", "E0 set 2, played fresh twice: identical (stream digests and records)"]);
+    expect(g.sections.replay).toEqual(["E0 set 1, played fresh twice: identical in content (stream digests and records); that the second play ran in a separate process is not proven (build departure 1)", "E0 set 2, played fresh twice: identical in content (stream digests and records); that the second play ran in a separate process is not proven (build departure 1)"]);
     expect(g.sections.proofs.map((p) => p.id)).toEqual(["S-1 proof:clean-expiry-bar", "S-2 proof:one-clean-move", "S-3", "S-6", "rows", "picks:offered", "rows:recomputed", "S-4", "S-9"]);
     // Plan §7.3 (fidelity F-8): time to throw beside the hit and sack figures, the pressured sacks apart.
     const k = play("E8", 1).report.sacks.gen;
@@ -566,7 +566,7 @@ describe("step 5's visit and grading on a tiny corpus (scratch; nothing is recor
     const graded = runStep5(opts);
     expect(graded.graded).toBe(true);
     expect(graded.awaitingFresh).toBeUndefined();
-    expect(graded.grade!.sections.replay).toEqual(["E0 set 1, played fresh twice: identical (stream digests and records)", "E0 set 2, played fresh twice: identical (stream digests and records)"]);
+    expect(graded.grade!.sections.replay).toEqual(["E0 set 1, played fresh twice: identical in content (stream digests and records); that the second play ran in a separate process is not proven (build departure 1)", "E0 set 2, played fresh twice: identical in content (stream digests and records); that the second play ran in a separate process is not proven (build departure 1)"]);
   });
 });
 

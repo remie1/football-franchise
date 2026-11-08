@@ -632,7 +632,7 @@ export function runFit5a(opts: Fit5aOptions): Fit5aResult {
       throw new Error(`ADR-089 step 5a fit: a build fault: the fresh process's histograms at offset ${String(o)} differ from the cached run's (${theirs === undefined ? "missing" : canonicalise(theirs)} against ${canonicalise(mine)}). Nothing was written`);
     }
   }
-  log(`pocket step 5a fit: the fresh replay matches; playing the confirm run at ${canonicalise(w.offsets)}`);
+  log(`pocket step 5a fit: the fresh replay matches in content (histograms, stamp and fingerprint; that it ran in a separate process is not proven, build departure 1); playing the confirm run at ${canonicalise(w.offsets)}`);
   const confirm = play(w.offsets, opts.corpus);
   const confirmProblems = fitFoldProblems(confirm.fold);
   if (confirmProblems.length > 0) throw new Error(`ADR-089 step 5a fit: a build fault on the confirm run: ${confirmProblems.join("; ")}. Nothing was written`);
