@@ -459,6 +459,7 @@ const bandText = (c: BandClause): string => {
   return "reported";
 };
 const per100 = (n: number, d: number): number | null => (d === 0 ? null : (100 * n) / d);
+const finiteOrNull = (v: number | null | undefined): number | null => (v === null || v === undefined || !Number.isFinite(v) ? null : v);
 
 /** Clean scrambles per 100 clean dropbacks (`row:scramble_rate_by_pocket`'s clean cell). */
 export function cleanScrambleOf(f: Step5LeagueFolds): number | null {
@@ -650,7 +651,19 @@ export function gradeStep5(x: GradeStep5Inputs): Step5Grade {
       const n = cell.aimedByBin.reduce((a, b) => a + b, 0);
       return `E0's desperation throws ${String(n)} (${num(per100(n, at("E0", s)!.s5[l].extra.dropbacks))} per 100 dropbacks), ${String(cell.interceptions)} INT`;
     });
-    banded("s5a.intLeague", "E9", "E0", (r, l) => rowValueOf(r, "int_per_aimed_throw", l), [], "INT per aimed throw, E9 minus E0 (the filed int_rate's reading on aimed throws)");
+    banded("s5a.intLeague", "E9", "E0", (r, l) => finiteOrNull(r.report.intGuard[l].intPerAttempt), [], "INT per attempt (the filed int_rate, throwaways in the denominator), E9 minus E0");
+    {
+      // Beside it, the aimed reading (INT per aimed throw), which leaves the throwaways out.
+      const c = clauses.find((k) => k.id === "s5a.intLeague");
+      if (c !== undefined && c.verdict !== "NOT PLAYED") {
+        const aimed = (s: SeedSet, l: League): number | null => {
+          const a9 = rowValueOf(at("E9", s), "int_per_aimed_throw", l);
+          const a0 = rowValueOf(at("E0", s), "int_per_aimed_throw", l);
+          return a9 === null || a0 === null ? null : a9 - a0;
+        };
+        clauses[clauses.indexOf(c)] = { ...c, values: [...c.values, ...LEAGUES.map((l) => `beside, per aimed throw: ${l} ${sets.map((s) => `set ${String(s)} ${num(aimed(s, l))}`).join(", ")}`)] };
+      }
+    }
     reported("s5a.reset", ["E10", "E9"], (s, l) => `clean moves ${String(at("E10", s)!.s5[l].s5.cleanMoves)} against ${String(at("E9", s)!.s5[l].s5.cleanMoves)}, picks ${String(at("E10", s)!.s5[l].s5.picks.total)} against ${String(at("E9", s)!.s5[l].s5.picks.total)}`, "E10 (no reset) against E9");
     for (const [id, p] of [["s5a.cleanExpiryBar", "S-1 proof:clean-expiry-bar"], ["s5a.oneCleanMove", "S-2 proof:one-clean-move"]] as const) {
       const c = clauseOf(id);

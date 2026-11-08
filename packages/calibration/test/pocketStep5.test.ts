@@ -216,6 +216,11 @@ describe("step 5's visit and grading on a tiny corpus (scratch; nothing is recor
     (moved.s5.gen.fit.games as string[])[0] = "fnv1a:moved";
     const bad = gradeStep5({ half: "5a", records, file, guard, fresh: { 1: play("E0", 1), 2: moved } });
     expect(bad.sections.outcome.structuralFailures).toEqual([expect.stringMatching(/^S-7: E0 set 2's two fresh plays differ: gen: the stream digests differ/)]);
+    // s5a.intLeague reads the filed int_rate (INT per attempt, intGuard.intPerAttempt), not INT per aimed throw.
+    const intLeague = g.sections.clauses.find((c) => c.id === "s5a.intLeague")!;
+    const perAttempt = play("E8", 1).report.intGuard.gen.intPerAttempt - play("E0", 1).report.intGuard.gen.intPerAttempt;
+    expect(intLeague.values[1]).toBe(`gen set 1 ${perAttempt.toFixed(2)} (set 2 ${(play("E8", 2).report.intGuard.gen.intPerAttempt - play("E0", 2).report.intGuard.gen.intPerAttempt).toFixed(2)})`);
+    expect(intLeague.values.some((v) => v.startsWith("beside, per aimed throw: gen set 1 "))).toBe(true);
     // S-1's halves (plan R-3): a clean-expiry THROW to a man below 30, or a desperation THROW after a clean break-out, is a build fault.
     for (const field of ["belowBarTargetThrows", "onRunDesperation", "emptyPoolThrows"] as const) {
       const doctored = structuredClone(play("E8", 1));
