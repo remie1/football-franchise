@@ -335,9 +335,9 @@ export type Step4ArmId = (typeof STEP4_ARM_IDS)[number];
 /**
  * Step 5a's eleven arms on the clean bench (ADR-089 step 5, plan §5.1), in order: E0, the s4 clean
  * bench (AM-8's base, played fresh and twice), E1 to E8 (each part alone, then jointly), E9
- * (`pocket-1.s5a` on the bench, graded against E0) and E10 (E9 with no reset). Named, not yet defined
- * (inert): E1, E9 and E10 are defined only once the 5a fit is recorded (the fit commit), the others
- * with the step-5 bundles; nothing in this build plays them.
+ * (`pocket-1.s5a` on the bench, graded against E0) and E10 (E9 with no reset). E1, E9 and E10 are
+ * defined once the 5a fit is recorded (the fit commit, done: `POCKET_1_S5A_LEAVES`), the others with
+ * the step-5 bundles.
  */
 export const STEP5A_ARM_IDS = ["E0", "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "E10"] as const;
 export type Step5aArmId = (typeof STEP5A_ARM_IDS)[number];
@@ -1491,7 +1491,7 @@ export function step5ArmsWith(records: Step5Records, others: readonly Arm[] = []
 
 let fiveTable: ReturnType<typeof step5ArmsWith> | undefined;
 
-/** This build's step-5 arms (E0 and E2 to E8 until the fit is recorded), built once. */
+/** This build's step-5 arms (E0 to E10 and F1 to F14 since the fit is recorded; F0, G1 and G2 wait on the selection), built once. */
 function step5Table(): ReturnType<typeof step5ArmsWith> {
   if (fiveTable !== undefined) return fiveTable;
   const t = armTable();

@@ -70,9 +70,10 @@
  *    subset of the step-3, step-4 and step-5 blocks is a bundle (an arm carries one part alone).
  *    The two names are stamped by the step-5 harness's arms (`withOverlay`, `checkStamp` and
  *    `runOneGame` take them), but neither is in `ENGINE_RULES`, the list a run or a save may name,
- *    until it is recorded: `pocket-1.s5a` at the fit commit and `pocket-1.s5b` at the selection
- *    commit. Until then `rulesTunables` refuses each by name (`step5RulesRefusal`), so no save,
- *    export or season is ever stamped with a digest that is later re-recorded.
+ *    until it is recorded: `pocket-1.s5a` at the fit commit (done: the fitted deltas, its digest and
+ *    the fit record's digest are literals below) and `pocket-1.s5b` at the selection commit. Until
+ *    then `rulesTunables` refuses the name by name (`step5RulesRefusal`), so no save, export or
+ *    season is ever stamped with a digest that is later re-recorded.
  *  - **When it is written (O11).** The export file and `season --out` always write `engineRules`, so
  *    they say what played. The identity, the batch provenance and the save write it only when it is
  *    not `legacy`, so a legacy identity and a legacy save stay byte for byte today's. The overlay
@@ -120,7 +121,7 @@ export const POCKET_1_S4_RULES = "pocket-1.s4";
 /**
  * ADR-089 step 5a's design bundle (plan §1.1): `pocket-1.s4` with his count's clean-pocket checklist
  * and the drop floor (`pocket.cleanPocket`) and the three read-system deltas the 5a fit sets. Built
- * and stamped by the step-5 harness; not in `ENGINE_RULES` until the fit is recorded.
+ * and stamped by the step-5 harness; in `ENGINE_RULES` since the fit commit recorded its bundle.
  */
 export const POCKET_1_S5A_RULES = "pocket-1.s5a";
 
@@ -133,11 +134,11 @@ export const POCKET_1_S5B_RULES = "pocket-1.s5b";
 
 /**
  * Every engine rules bundle a run, an export or a save may name. `pocket-1.s4` is named and built,
- * and refused before any game while its petitions are out (`rulesRefusal`). Step 5's two names are
- * not here yet (plan §1.1): `pocket-1.s5a` joins at the fit commit and `pocket-1.s5b` at the
- * selection commit, each once its bundle is recorded.
+ * and refused before any game while its petitions are out (`rulesRefusal`). Step 5's names join
+ * once their bundles are recorded (plan §1.1): `pocket-1.s5a` joined at the fit commit, and
+ * `pocket-1.s5b` joins at the selection commit.
  */
-export const ENGINE_RULES = [LEGACY_RULES, POCKET_1_S1_RULES, POCKET_1_S2_RULES, POCKET_1_S3_RULES, POCKET_1_S4_RULES] as const;
+export const ENGINE_RULES = [LEGACY_RULES, POCKET_1_S1_RULES, POCKET_1_S2_RULES, POCKET_1_S3_RULES, POCKET_1_S4_RULES, POCKET_1_S5A_RULES] as const;
 
 export type EngineRules = (typeof ENGINE_RULES)[number];
 
@@ -206,7 +207,7 @@ export function stampedRulesNamed(name: string | undefined, where: string): Stam
   if (name === undefined) return DEFAULT_ENGINE_RULES;
   if (!isStampedRules(name)) {
     throw new EngineRulesError(
-      `${where}: engine rules ${JSON.stringify(name)} are not in this build, which has ${ENGINE_RULES.join(", ")} (ADR-089 §9), and stamps ${STEP5_RULES.join(" and ")} for the step-5 harness`,
+      `${where}: engine rules ${JSON.stringify(name)} are not in this build, which has ${ENGINE_RULES.join(", ")} (ADR-089 §9), and stamps ${STEP5_RULES.filter((n) => !isEngineRules(n)).join(" and ")} for the step-5 harness`,
     );
   }
   return name;
@@ -730,14 +731,26 @@ export function readSystemDeltaLeaves(offsets: ReadSystemOffsets, base: Tunables
 // message `step5RulesRefusal` gives. The `as` keeps each one's declared type, so a reader is checked
 // for the recorded case too.
 
-/** The three fitted deltas as leaf patches on Half and Follows: recorded at the 5a fit commit (a test derives them from the fit record). */
-export const POCKET_1_S5A_LEAVES = undefined as readonly LeafPatch[] | undefined;
+/**
+ * The three fitted deltas as leaf patches on Half and Follows, recorded at the 5a fit commit from the
+ * committed fit record (`reports/adr-089-step5a.fit.json`, AM-9 `fit.*`; a test derives them from its
+ * winner): offsets HALF_FIELD +1.0, FULL_FIELD -1.0 and CONCEPT -0.25 s from today's, so the deltas
+ * are +0.5, 0 and -1.25 s, decided by the loss alone (no tie), none on a grid edge.
+ */
+export const POCKET_1_S5A_LEAVES = deepFreeze([
+  { tunableId: "qb.readSystem.HALF_FIELD.budgetDeltaSeconds", currentValue: -0.5, proposedValue: 0.5, evidence: S5_EVIDENCE, expectedEffect: S5_EFFECT },
+  { tunableId: "qb.readSystem.FULL_FIELD.budgetDeltaSeconds", currentValue: 1.0, proposedValue: 0, evidence: S5_EVIDENCE, expectedEffect: S5_EFFECT },
+  { tunableId: "qb.readSystem.CONCEPT.budgetDeltaSeconds", currentValue: -1.0, proposedValue: -1.25, evidence: S5_EVIDENCE, expectedEffect: S5_EFFECT },
+]) as readonly LeafPatch[] | undefined;
 
-/** `pocket-1.s5a`'s overlay digest on this build's `DEFAULT_TUNABLES` (O28): recorded at the 5a fit commit. */
-export const POCKET_1_S5A_DIGEST = undefined as string | undefined;
+/**
+ * `pocket-1.s5a`'s overlay digest on this build's `DEFAULT_TUNABLES` (O28), recorded at the 5a fit
+ * commit as the literal `overlayDigestOf` gives and checked every time the bundle is built (K24).
+ */
+export const POCKET_1_S5A_DIGEST = "fnv1a:972b8b3b" as string | undefined;
 
-/** The digest of the committed 5a fit record (`reports/adr-089-step5a.fit.json`): recorded at the 5a fit commit. */
-export const POCKET_1_S5A_FIT_DIGEST = undefined as string | undefined;
+/** The digest of the committed 5a fit record (`reports/adr-089-step5a.fit.json`, its `stableDigest`): recorded at the 5a fit commit. */
+export const POCKET_1_S5A_FIT_DIGEST = "fnv1a:2874e804" as string | undefined;
 
 /** `pocket-1.s5b`'s overlay: `pocket-1.s5a`'s on the block clock the filed rule picks (`step5OverlayAt`); recorded at the selection commit. */
 export const POCKET_1_S5B_OVERLAY = undefined as PocketOverlay | undefined;
@@ -1644,8 +1657,9 @@ function pocket1s5b(): Tunables {
  * What a rules name plays: `legacy` is `DEFAULT_TUNABLES` itself (the same reference, so a legacy
  * run's tunables, digests and stream are today's by construction); `pocket-1.s1`, `pocket-1.s2`,
  * `pocket-1.s3` and `pocket-1.s4` are their design bundles, deep-frozen and stamped (`pocket-1.s4`
- * built, and refused by `checkStamp` until its petitions are in contracts). `pocket-1.s5a` and
- * `pocket-1.s5b` are refused by name (`step5RulesRefusal`) until their bundles are recorded.
+ * built, and refused by `checkStamp` until its petitions are in contracts). `pocket-1.s5a` is its
+ * recorded bundle (the fit commit); `pocket-1.s5b` is refused by name (`step5RulesRefusal`) until
+ * its bundle is recorded.
  */
 export function rulesTunables(rules: StampedRules): Tunables {
   if (rules === LEGACY_RULES) return DEFAULT_TUNABLES;
@@ -1661,7 +1675,7 @@ export function rulesTunables(rules: StampedRules): Tunables {
 
 /**
  * The overlay digest of a rules bundle: none for `legacy`, which is no overlay; the recorded literal
- * for `pocket-1.s1`, `pocket-1.s2`, `pocket-1.s3` and `pocket-1.s4`. When a later step adds a bundle, the `never`
+ * for `pocket-1.s1`, `pocket-1.s2`, `pocket-1.s3`, `pocket-1.s4` and `pocket-1.s5a`. When a later step adds a bundle, the `never`
  * below stops compiling until its overlay's digest is recorded here.
  */
 export function engineRulesDigestOf(rules: EngineRules): string | undefined {
@@ -1670,6 +1684,7 @@ export function engineRulesDigestOf(rules: EngineRules): string | undefined {
   if (rules === POCKET_1_S2_RULES) return POCKET_1_S2_DIGEST;
   if (rules === POCKET_1_S3_RULES) return POCKET_1_S3_DIGEST;
   if (rules === POCKET_1_S4_RULES) return POCKET_1_S4_DIGEST;
+  if (rules === POCKET_1_S5A_RULES) return POCKET_1_S5A_DIGEST;
   const unhandled: never = rules;
   throw new EngineRulesError(`no overlay digest for engine rules ${String(unhandled)}`);
 }

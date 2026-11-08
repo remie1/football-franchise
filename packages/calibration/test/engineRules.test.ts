@@ -121,12 +121,12 @@ function nodes(value: unknown, path = "$"): [string, object][] {
 }
 
 describe("the rules this build has (ADR-089 §9)", () => {
-  it("is legacy, pocket-1.s1, pocket-1.s2, pocket-1.s3 and pocket-1.s4, and legacy is the default", () => {
+  it("is legacy, pocket-1.s1, pocket-1.s2, pocket-1.s3, pocket-1.s4 and pocket-1.s5a, and legacy is the default", () => {
     expect(LEGACY_RULES).toBe("legacy");
     expect(POCKET_1_S1_RULES).toBe("pocket-1.s1");
     expect(POCKET_1_S2_RULES).toBe("pocket-1.s2");
     expect(POCKET_1_S3_RULES).toBe("pocket-1.s3");
-    expect([...ENGINE_RULES]).toEqual(["legacy", "pocket-1.s1", "pocket-1.s2", "pocket-1.s3", "pocket-1.s4"]);
+    expect([...ENGINE_RULES]).toEqual(["legacy", "pocket-1.s1", "pocket-1.s2", "pocket-1.s3", "pocket-1.s4", "pocket-1.s5a"]);
     expect(DEFAULT_ENGINE_RULES).toBe("legacy");
     expect(isEngineRules("legacy")).toBe(true);
     expect(isEngineRules("pocket-1")).toBe(false);
@@ -136,6 +136,9 @@ describe("the rules this build has (ADR-089 §9)", () => {
     // ADR-089 step 4 names pocket-1.s4 (refused before any game until P6, P7 and P8 are in contracts).
     expect(isEngineRules("pocket-1.s4")).toBe(true);
     expect(isEngineRules("pocket-1.s5")).toBe(false);
+    // ADR-089 step 5: pocket-1.s5a joins at the 5a fit commit; pocket-1.s5b waits on the 5b selection.
+    expect(isEngineRules("pocket-1.s5a")).toBe(true);
+    expect(isEngineRules("pocket-1.s5b")).toBe(false);
   });
 
   it("checks a named bundle: absent is the default, an unknown name or the word default is refused", () => {
@@ -148,7 +151,7 @@ describe("the rules this build has (ADR-089 §9)", () => {
       expect(() => engineRulesNamed(bad, "here")).toThrow(EngineRulesError);
     }
     expect(() => engineRulesNamed("pocket-1.s9", "runBatch")).toThrow(
-      'runBatch: engine rules "pocket-1.s9" are not in this build, which has legacy, pocket-1.s1, pocket-1.s2, pocket-1.s3, pocket-1.s4 (ADR-089 §9)',
+      'runBatch: engine rules "pocket-1.s9" are not in this build, which has legacy, pocket-1.s1, pocket-1.s2, pocket-1.s3, pocket-1.s4, pocket-1.s5a (ADR-089 §9)',
     );
   });
 

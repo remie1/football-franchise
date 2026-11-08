@@ -384,7 +384,7 @@ describe("the gates: open since P6, P7 and P8 are in contracts (plan §1.1, §6)
     }
   });
 
-  it("pocket-1.s4 and kind T pass every calibration entry; withheld, they are refused there, and only they", () => {
+  it("pocket-1.s4 and kind T pass every calibration entry; withheld, they are refused there, and only they (and pocket-1.s5a, which carries s4's blocks)", () => {
     for (const rules of ENGINE_RULES) expect(rulesRefusal(rules), rules).toBeUndefined();
     expect(step4Refusal(kindT())).toBeUndefined();
     expect(checkStamp(rulesTunables("pocket-1.s4"), "pocket-1.s4", "season")).toBe(rulesTunables("pocket-1.s4"));
@@ -393,7 +393,9 @@ describe("the gates: open since P6, P7 and P8 are in contracts (plan §1.1, §6)
     expect(step4Refusal(kindT(), WITHHELD)).toBe(GATE_CONTACT);
     expect(() => checkStamp(rulesTunables("pocket-1.s4"), "pocket-1.s4", "season", WITHHELD)).toThrow(`season: ${GATE_BOTH}`);
     expect(() => checkStamp(kindT(), "pocket-1.s4", "runBatch", WITHHELD)).toThrow(`runBatch: ${GATE_CONTACT}`);
-    for (const rules of ENGINE_RULES.filter((r) => r !== "pocket-1.s4")) expect(step4Refusal(rulesTunables(rules), WITHHELD), rules).toBeUndefined();
+    for (const rules of ENGINE_RULES.filter((r) => r !== "pocket-1.s4" && r !== "pocket-1.s5a")) expect(step4Refusal(rulesTunables(rules), WITHHELD), rules).toBeUndefined();
+    // pocket-1.s5a (in ENGINE_RULES since the 5a fit is recorded) is pocket-1.s4 plus step 5's block, so it carries both step-4 blocks and is refused as s4 is.
+    expect(step4Refusal(rulesTunables("pocket-1.s5a"), WITHHELD)).toBe(GATE_BOTH);
   });
 
   it("a test's own petitions shut the calibration gate, one at a time", () => {

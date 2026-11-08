@@ -3,15 +3,18 @@
  * (`src/pocket/rules.ts`; plan §1.1, §1.2, §4's rules.ts row, §9 commit 5).
  *
  *  1. The names: both are stamped names (`STAMPED_RULES`, the `OverlayRules` union) and step 5's
- *     (`pocketStepOf` 5), and neither is in `ENGINE_RULES`, the list a run, an export or a save may
- *     name, until it is recorded (the fit commit, the selection commit).
+ *     (`pocketStepOf` 5); each joins `ENGINE_RULES`, the list a run, an export or a save may name,
+ *     when it is recorded: `pocket-1.s5a` at the fit commit (done), `pocket-1.s5b` at the selection
+ *     commit (not yet).
  *  2. The block: `POCKET_1_S5A_CLEAN_POCKET` is the design's (every part on, D23's bar 30, the reset
  *     1.0 s, the CHOSEN floor), frozen; `POCKET_1_S5A_OVERLAY` is `pocket-1.s4`'s plus the block;
  *     `STEP5_BLOCKS` follows step 4's in `POCKET_BLOCKS`.
- *  3. The records: the leaves, the digests and s5b's overlay are placeholders (`undefined`), and
- *     `rulesTunables` refuses each name with its named message; the command line, the season, the
- *     export and a save refuse both names; `DEFAULT_TUNABLES` and the s1 to s4 bundles carry no
- *     block and their digests stand.
+ *  3. The records: s5a's leaves, its digest and the fit record's digest are recorded at the fit
+ *     commit (the fitted deltas from `reports/adr-089-step5a.fit.json`), and `rulesTunables` builds
+ *     `pocket-1.s5a` at its recorded digest; s5b's overlay and digest are placeholders (`undefined`)
+ *     and `rulesTunables` refuses `pocket-1.s5b` with its named message; the command line, the
+ *     season and a save take s5a and refuse s5b; `DEFAULT_TUNABLES` and the s1 to s4 bundles carry
+ *     no block and their digests stand.
  *  4. The recipe: `step5Bundle` builds either name before its literals exist (s4 plus the block plus
  *     the deltas' leaves, stamped at a digest of its own); `readSystemDeltaLeaves` moves only the three
  *     deltas; `step5OverlayAt` swaps the block clock (at S theta 11 the overlay is s5a's, so s5b's
@@ -137,45 +140,42 @@ function thrown(run: () => unknown): Error {
   throw new Error("expected a throw");
 }
 
-const S5A_REFUSAL =
-  "pocket-1.s5a is built but not recorded: it is recorded after the 5a fit (its three fitted deltas POCKET_1_S5A_LEAVES, POCKET_1_S5A_DIGEST and POCKET_1_S5A_FIT_DIGEST, " +
-  "committed with the fit record), so no run, export or save names it before then (ADR-089 step 5, plan §1.1)";
 const S5B_REFUSAL =
   "pocket-1.s5b is built but not recorded: it is recorded after the 5b selection (the block clock the filed rule picks, POCKET_1_S5B_OVERLAY and POCKET_1_S5B_DIGEST, " +
   "on pocket-1.s5a's recorded deltas), so no run, export or save names it before then (ADR-089 step 5, plan §1.1)";
 
 describe("step 5's names (plan §1.1)", () => {
-  it("are stamped names and step 5's, and not in ENGINE_RULES until recorded", () => {
+  it("are stamped names and step 5's; pocket-1.s5a is in ENGINE_RULES since the fit is recorded, pocket-1.s5b not until the selection", () => {
     expect(POCKET_1_S5A_RULES).toBe("pocket-1.s5a");
     expect(POCKET_1_S5B_RULES).toBe("pocket-1.s5b");
     expect([...STEP5_RULES]).toEqual(["pocket-1.s5a", "pocket-1.s5b"]);
-    expect([...ENGINE_RULES]).toEqual(["legacy", "pocket-1.s1", "pocket-1.s2", "pocket-1.s3", "pocket-1.s4"]);
-    expect([...STAMPED_RULES]).toEqual([...ENGINE_RULES, "pocket-1.s5a", "pocket-1.s5b"]);
+    expect([...ENGINE_RULES]).toEqual(["legacy", "pocket-1.s1", "pocket-1.s2", "pocket-1.s3", "pocket-1.s4", "pocket-1.s5a"]);
+    expect([...STAMPED_RULES]).toEqual([...ENGINE_RULES, "pocket-1.s5b"]);
+    expect(isEngineRules("pocket-1.s5a")).toBe(true);
+    expect(isEngineRules("pocket-1.s5b")).toBe(false);
     for (const name of STEP5_RULES) {
-      expect(isEngineRules(name), name).toBe(false);
       expect(isStampedRules(name), name).toBe(true);
       expect(isStep5Rules(name), name).toBe(true);
       expect(pocketStepOf(name), name).toBe(5);
       expect(readsStep3Facts(name) && readsStep4Facts(name), name).toBe(true);
     }
-    for (const name of ENGINE_RULES) expect(isStep5Rules(name), name).toBe(false);
+    for (const name of ENGINE_RULES) expect(isStep5Rules(name), name).toBe(name === "pocket-1.s5a");
     for (const bad of ["pocket-1.s5", "pocket-1.s5c", "pocket-1.s6", "s5a"]) expect(isStampedRules(bad), bad).toBe(false);
     // The union a bundle is stamped with takes both (a compile-time check, made at run time too).
     const overlayNames: readonly OverlayRules[] = ["pocket-1.s1", "pocket-1.s2", "pocket-1.s3", "pocket-1.s4", "pocket-1.s5a", "pocket-1.s5b"];
     expect(overlayNames.every((n) => isStampedRules(n))).toBe(true);
   });
 
-  it("stampedRulesNamed takes every stamped name; engineRulesNamed, the run's, refuses step 5's", () => {
+  it("stampedRulesNamed takes every stamped name; engineRulesNamed, the run's, takes pocket-1.s5a and refuses pocket-1.s5b", () => {
     for (const name of STAMPED_RULES) expect(stampedRulesNamed(name, "w")).toBe(name);
     expect(stampedRulesNamed(undefined, "w")).toBe("legacy");
     expect(() => stampedRulesNamed("pocket-1.s9", "w")).toThrow(
-      'w: engine rules "pocket-1.s9" are not in this build, which has legacy, pocket-1.s1, pocket-1.s2, pocket-1.s3, pocket-1.s4 (ADR-089 §9), and stamps pocket-1.s5a and pocket-1.s5b for the step-5 harness',
+      'w: engine rules "pocket-1.s9" are not in this build, which has legacy, pocket-1.s1, pocket-1.s2, pocket-1.s3, pocket-1.s4, pocket-1.s5a (ADR-089 §9), and stamps pocket-1.s5b for the step-5 harness',
     );
-    for (const name of STEP5_RULES) {
-      expect(() => engineRulesNamed(name, "season --engine-rules"), name).toThrow(
-        `season --engine-rules: engine rules "${name}" are not in this build, which has legacy, pocket-1.s1, pocket-1.s2, pocket-1.s3, pocket-1.s4 (ADR-089 §9)`,
-      );
-    }
+    expect(engineRulesNamed("pocket-1.s5a", "season --engine-rules")).toBe("pocket-1.s5a");
+    expect(() => engineRulesNamed("pocket-1.s5b", "season --engine-rules")).toThrow(
+      'season --engine-rules: engine rules "pocket-1.s5b" are not in this build, which has legacy, pocket-1.s1, pocket-1.s2, pocket-1.s3, pocket-1.s4, pocket-1.s5a (ADR-089 §9)',
+    );
   });
 });
 
@@ -207,40 +207,59 @@ describe("pocket-1.s5a's block and overlay (plan §1.1, §1.2)", () => {
   });
 });
 
-describe("the records: placeholders, refused by name until recorded (plan §1.1)", () => {
-  it("every step-5 literal is a placeholder in this build", () => {
-    expect(POCKET_1_S5A_LEAVES).toBeUndefined();
-    expect(POCKET_1_S5A_DIGEST).toBeUndefined();
-    expect(POCKET_1_S5A_FIT_DIGEST).toBeUndefined();
+describe("the records: pocket-1.s5a recorded at the fit commit, pocket-1.s5b refused by name until the selection (plan §1.1)", () => {
+  it("pocket-1.s5a's literals are recorded: the fitted deltas (offsets +1.0, -1.0, -0.25 s), its digest and the fit record's; s5b's are placeholders", () => {
+    expect(POCKET_1_S5A_LEAVES).toEqual(readSystemDeltaLeaves({ HALF_FIELD: 1.0, FULL_FIELD: -1.0, CONCEPT: -0.25 }));
+    expect(POCKET_1_S5A_LEAVES!.map((l) => [l.tunableId, l.currentValue, l.proposedValue])).toEqual([
+      ["qb.readSystem.HALF_FIELD.budgetDeltaSeconds", -0.5, 0.5],
+      ["qb.readSystem.FULL_FIELD.budgetDeltaSeconds", 1.0, 0],
+      ["qb.readSystem.CONCEPT.budgetDeltaSeconds", -1.0, -1.25],
+    ]);
+    for (const [path, node] of nodes(POCKET_1_S5A_LEAVES)) expect(Object.isFrozen(node), path).toBe(true);
+    expect(POCKET_1_S5A_DIGEST).toBe("fnv1a:972b8b3b");
+    expect(POCKET_1_S5A_FIT_DIGEST).toBe("fnv1a:2874e804");
     expect(POCKET_1_S5B_OVERLAY).toBeUndefined();
     expect(POCKET_1_S5B_DIGEST).toBeUndefined();
   });
 
-  it("rulesTunables refuses each step-5 name with its named message; every other name plays", () => {
-    expect(step5RulesRefusal("pocket-1.s5a")).toBe(S5A_REFUSAL);
+  it("rulesTunables builds pocket-1.s5a at its recorded digest and refuses pocket-1.s5b with its named message; every other name plays", () => {
+    expect(step5RulesRefusal("pocket-1.s5a")).toBeUndefined();
     expect(step5RulesRefusal("pocket-1.s5b")).toBe(S5B_REFUSAL);
     for (const name of ENGINE_RULES) expect(step5RulesRefusal(name), name).toBeUndefined();
-    for (const [name, message] of [["pocket-1.s5a", S5A_REFUSAL], ["pocket-1.s5b", S5B_REFUSAL]] as const) {
-      expect(() => rulesTunables(name), name).toThrow(EngineRulesError);
-      expect(() => rulesTunables(name), name).toThrow(message);
-      // Refused every time, never built and cached.
-      expect(() => rulesTunables(name), name).toThrow(message);
-    }
+    const s5a = rulesTunables("pocket-1.s5a");
+    expect(s5a).toEqual(step5Bundle("pocket-1.s5a", POCKET_1_S5A_LEAVES!));
+    expect(s5a.engineRules).toEqual({ name: "pocket-1.s5a", overlayDigest: POCKET_1_S5A_DIGEST });
+    expect(overlayDigestOf(s5a)).toBe(POCKET_1_S5A_DIGEST);
+    expect(engineRulesDigestOf("pocket-1.s5a")).toBe(POCKET_1_S5A_DIGEST);
+    expect([s5a.qb.readSystem.HALF_FIELD.budgetDeltaSeconds, s5a.qb.readSystem.FULL_FIELD.budgetDeltaSeconds, s5a.qb.readSystem.CONCEPT.budgetDeltaSeconds]).toEqual([0.5, 0, -1.25]);
+    expect(s5a.pocket.cleanPocket).toEqual(POCKET_1_S5A_CLEAN_POCKET);
+    for (const [path, node] of nodes(s5a)) expect(Object.isFrozen(node), path).toBe(true);
+    // Built once and kept.
+    expect(rulesTunables("pocket-1.s5a")).toBe(s5a);
+    expect(checkStamp(s5a, "pocket-1.s5a", "w")).toBe(s5a);
+    expect(() => rulesTunables("pocket-1.s5b")).toThrow(EngineRulesError);
+    expect(() => rulesTunables("pocket-1.s5b")).toThrow(S5B_REFUSAL);
+    // Refused every time, never built and cached.
+    expect(() => rulesTunables("pocket-1.s5b")).toThrow(S5B_REFUSAL);
     for (const name of ENGINE_RULES) expect(rulesTunables(name), name).toBeDefined();
   });
 
-  it("no run, export, season or save names either: the command line, the season, the export and a save refuse them", () => {
-    for (const name of STEP5_RULES) {
-      expect(() => parseExportArgs(["--seed", "a", "--engine-rules", name]), name).toThrow(/^--engine-rules must be one of /);
-      expect(() => seasonRules(undefined, name), name).toThrow(/^season --engine-rules: engine rules ".*" are not in this build/);
-      expect(() => exportGame({ seed: "adr-089:s5", engineRules: name }), name).toThrow(/^exportGame: engine rules ".*" are not in this build/);
-      expect(() => rulesOfSave({ engineRules: `${name}@fnv1a:1a2b3c4d` }), name).toThrow(`This save was played with engine rules ${name}, which this version does not have`);
-      expect(() => rulesOfSave({ engineRules: name }), name).toThrow(/^This save's engine rules ".*" are malformed/);
-    }
+  it("a run, the season and a save name pocket-1.s5a at its recorded digest; all of them, and the export, refuse pocket-1.s5b", () => {
+    expect(parseExportArgs(["--seed", "a", "--engine-rules", "pocket-1.s5a"])).toMatchObject({ seed: "a", engineRules: "pocket-1.s5a" });
+    expect(seasonRules(undefined, "pocket-1.s5a")).toBe("pocket-1.s5a");
+    expect(rulesOfSave({ engineRules: `pocket-1.s5a@${POCKET_1_S5A_DIGEST!}` })).toBe("pocket-1.s5a");
+    expect(() => rulesOfSave({ engineRules: "pocket-1.s5a@fnv1a:1a2b3c4d" })).toThrow(`This save was played with engine rules pocket-1.s5a at overlay fnv1a:1a2b3c4d; this build's pocket-1.s5a is ${POCKET_1_S5A_DIGEST!}`);
+    expect(() => rulesOfSave({ engineRules: "pocket-1.s5a" })).toThrow("This save was played with engine rules pocket-1.s5a and carries no overlay digest");
+    const name = "pocket-1.s5b";
+    expect(() => parseExportArgs(["--seed", "a", "--engine-rules", name])).toThrow(/^--engine-rules must be one of /);
+    expect(() => seasonRules(undefined, name)).toThrow(/^season --engine-rules: engine rules ".*" are not in this build/);
+    expect(() => exportGame({ seed: "adr-089:s5", engineRules: name })).toThrow(/^exportGame: engine rules ".*" are not in this build/);
+    expect(() => rulesOfSave({ engineRules: `${name}@fnv1a:1a2b3c4d` })).toThrow(`This save was played with engine rules ${name}, which this version does not have`);
+    expect(() => rulesOfSave({ engineRules: name })).toThrow(/^This save's engine rules ".*" are malformed/);
   });
 
   it("moves no default: DEFAULT_TUNABLES and the s1 to s4 bundles carry no clean-pocket key, and their digests stand", () => {
-    for (const t of [DEFAULT_TUNABLES, ...ENGINE_RULES.filter((r) => r !== "legacy").map((r) => rulesTunables(r))]) {
+    for (const t of [DEFAULT_TUNABLES, ...ENGINE_RULES.filter((r) => r !== "legacy" && r !== "pocket-1.s5a").map((r) => rulesTunables(r))]) {
       expect("cleanPocket" in t.pocket).toBe(false);
       expect(Object.prototype.hasOwnProperty.call(t.pocket, "cleanPocket")).toBe(false);
     }

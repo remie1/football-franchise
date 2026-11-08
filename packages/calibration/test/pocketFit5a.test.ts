@@ -61,7 +61,7 @@ import {
 } from "../src/pocket/fit5a.js";
 import { fitTableLines, step5GateRefusal, step5GateState } from "../src/pocket/step5.js";
 import { CLEAN_BENCH_PARTS, cleanBenchTunablesS5 } from "../src/pocket/oneThreatBench.js";
-import { overlayDigestOf, POCKET_1_S5A_FIT_DIGEST, READ_SYSTEMS, type ReadSystem, type ReadSystemOffsets } from "../src/pocket/rules.js";
+import { overlayDigestOf, POCKET_1_S5A_DIGEST, POCKET_1_S5A_FIT_DIGEST, POCKET_1_S5A_LEAVES, READ_SYSTEMS, readSystemDeltaLeaves, rulesTunables, type ReadSystem, type ReadSystemOffsets } from "../src/pocket/rules.js";
 import { STEP1_CALLER, type Step1Corpus, type Step1Env } from "../src/pocket/step1.js";
 import { playsOf, readDropback } from "../src/pocket/throwClass.js";
 
@@ -558,16 +558,28 @@ function canon(x: unknown): string {
   return JSON.stringify(x);
 }
 
-describe("the committed fit record", () => {
+describe("the committed fit record (the fit commit, plan §9 item 7)", () => {
   const committed = join(__dirname, "..", FIT5A_RECORD);
-  it.skipIf(existsSync(committed))("waits for the fit: no record is committed and POCKET_1_S5A_FIT_DIGEST is not set", () => {
-    expect(existsSync(committed)).toBe(false);
-    expect(POCKET_1_S5A_FIT_DIGEST).toBeUndefined();
-  });
-  it.runIf(existsSync(committed))("recomputes bit for bit and its digest is POCKET_1_S5A_FIT_DIGEST", () => {
+  it("is committed, recomputes bit for bit, and its digest is POCKET_1_S5A_FIT_DIGEST", () => {
+    expect(existsSync(committed)).toBe(true);
     const r = readFitRecord(committed);
     expect(verifyFitRecord(r)).toEqual([]);
     expect(fitRecordDigest(r)).toBe(POCKET_1_S5A_FIT_DIGEST);
+    expect(POCKET_1_S5A_FIT_DIGEST).toBe("fnv1a:2874e804");
     expect(r.bench.corpus).toEqual({ flatFirst: null, genThroughWeek: null });
+    expect(r.replay).toEqual({ process: "fresh, no cache", offsets: replayOffsetsOf(r.winner), histogramsEqual: true });
+  });
+  it("its winner is the literal leaves of pocket-1.s5a (derived here), and pocket-1.s5a is recorded at POCKET_1_S5A_DIGEST", () => {
+    const r = readFitRecord(committed);
+    expect(r.winner.offsets).toEqual({ HALF_FIELD: 1.0, FULL_FIELD: -1.0, CONCEPT: -0.25 });
+    expect(r.winner.deltas).toEqual({ HALF_FIELD: 0.5, FULL_FIELD: 0, CONCEPT: -1.25 });
+    expect(r.winner.e9IsE8).toBe(false);
+    expect(POCKET_1_S5A_LEAVES).toEqual(readSystemDeltaLeaves(r.winner.offsets));
+    const s5a = rulesTunables("pocket-1.s5a");
+    for (const s of READ_SYSTEMS) expect(s5a.qb.readSystem[s].budgetDeltaSeconds, s).toBe(r.winner.deltas[s]);
+    expect(overlayDigestOf(s5a)).toBe(POCKET_1_S5A_DIGEST);
+  });
+  it("refuses a second fit now the record is committed (AM-9 fit.record, missAt5a)", () => {
+    expect(() => runFit5a({ env: ENV, amendments: "fnv1a:3f9478eb", cacheParent: join(tmpdir(), "never"), corpus: CORPUS })).toThrow(FIT5A_RECORDED_REFUSAL);
   });
 });

@@ -19,7 +19,8 @@
  * 3's: men nobody blocked run on their own clock from their snap spots, a touched man is a late, weak
  * block, and any FRONT threat closes the climb lane; `pocket-1.s4`, step 4's, contact by approach
  * and the throwing motion, is named and refused before any game until petitions P6, P7 and P8 are
- * in contracts). A save also records the
+ * in contracts; `pocket-1.s5a`, step 5a's, his count's clean-pocket checklist, the drop floor and
+ * the three fitted read-system deltas, since the 5a fit is recorded). A save also records the
  * rules that played it when they are not `legacy`, as `<name>@<overlay digest>` (K18 (a)); `--load`
  * carries on under the save's rules (none recorded: `legacy`), refuses rules this version cannot
  * play as written, and refuses a `--engine-rules` that differs from the save's. `--out` records the

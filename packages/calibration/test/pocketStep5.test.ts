@@ -106,12 +106,20 @@ describe("step 5's pins, preflight and gate", () => {
     expect(() => preflightStep5("5b", FILED, AMEND, { pin: null })).toThrow(/is not pinned/);
   });
 
-  it("this build's gate refuses both halves by name: the fit is not recorded", () => {
+  it("this build's gate: the fit is recorded and recomputes, so 5a may play; 5b is refused until the 5a records are final", () => {
     const st = step5GateState();
-    expect(st.fitPin).toBeUndefined();
-    expect(st.s5aDigest).toBeUndefined();
-    expect(step5GateRefusal("5a", st)).toMatch(/^ADR-089 step 5a: refused before anything plays \(the gate, plan §9 item 10\): the 5a fit is not recorded/);
-    expect(step5GateRefusal("5b", st)).toMatch(/^ADR-089 step 5b: refused .*the 5a fit is not recorded/);
+    expect(st.fitPin).toBe("fnv1a:2874e804");
+    expect(st.fitRecord).toBe(st.fitPin);
+    expect(st.fitCorpusProblem).toBeUndefined();
+    expect(st.fitVerifyProblem).toBeUndefined();
+    expect(st.s5aDigest).toBe("fnv1a:972b8b3b");
+    expect(st.s5aFinal).toBe(false);
+    expect(step5GateRefusal("5a", st)).toBeUndefined();
+    expect(step5GateRefusal("5b", st)).toMatch(/^ADR-089 step 5b: refused before anything plays \(the gate, plan §9 item 10\): the 5a records are not final/);
+    // Before the fit commit (no pin, no record, no literal) both halves were refused by name.
+    const before: Step5GateState = { fitPin: undefined, fitRecord: undefined, s5aDigest: undefined, s5aFinal: false };
+    expect(step5GateRefusal("5a", before)).toMatch(/^ADR-089 step 5a: refused before anything plays \(the gate, plan §9 item 10\): the 5a fit is not recorded/);
+    expect(step5GateRefusal("5b", before)).toMatch(/^ADR-089 step 5b: refused .*the 5a fit is not recorded/);
   });
 
   it("the gate's every refusal, and what --after-owner lifts (a breach, a miss; never a fault)", () => {
@@ -148,9 +156,12 @@ describe("step 5's pins, preflight and gate", () => {
 
   it("runStep5 is refused before anything plays and no cache is made; a dirty tree is refused once the gate opens", () => {
     const parent = join(scratch, "refused");
+    const before: Step5GateState = { fitPin: undefined, fitRecord: undefined, s5aDigest: undefined, s5aFinal: false };
     for (const half of ["5a", "5b"] as const) {
-      expect(() => runStep5({ half, cacheParent: parent, filedPath: FILED, amendmentsPath: AMEND, env: ENV })).toThrow(/the 5a fit is not recorded/);
+      expect(() => runStep5({ half, cacheParent: parent, filedPath: FILED, amendmentsPath: AMEND, env: ENV, gate: before })).toThrow(/the 5a fit is not recorded/);
     }
+    // This build's own gate: 5b waits on the 5a records.
+    expect(() => runStep5({ half: "5b", cacheParent: parent, filedPath: FILED, amendmentsPath: AMEND, env: ENV })).toThrow(/the 5a records are not final/);
     expect(existsSync(parent)).toBe(false);
     expect(() => runStep5({ half: "5a", cacheParent: parent, filedPath: FILED, amendmentsPath: AMEND, env: { ...ENV, dirty: true }, gate: OPEN })).toThrow(STEP5_DIRTY_REFUSAL);
     expect(existsSync(parent)).toBe(false);
@@ -169,16 +180,21 @@ describe("releaseSharesOf (s5a.under1 and s5a.over35 on the fit's windows; code-
 });
 
 describe("step 5's plan and parser", () => {
-  it("plays only the defined arms: 5a E0 and E2 to E8, 5b D1; with a fit and a selection, every arm", () => {
-    expect(playableStep5Ids("5a")).toEqual(["E0", "E2", "E3", "E4", "E5", "E6", "E7", "E8"]);
-    expect(playableStep5Ids("5b")).toEqual(["D1"]);
+  it("plays only the defined arms: with this build's fit, every 5a arm and 5b's D1 and F1 to F14; with no fit, 5a E0 and E2 to E8, 5b D1; with a fit and a selection, every arm", () => {
+    expect(playableStep5Ids("5a")).toEqual([...STEP5A_RUN_IDS]);
+    expect(playableStep5Ids("5b")).toEqual(["D1", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12", "F13", "F14"]);
+    expect(playableStep5Ids("5a", {})).toEqual(["E0", "E2", "E3", "E4", "E5", "E6", "E7", "E8"]);
+    expect(playableStep5Ids("5b", {})).toEqual(["D1"]);
     const records = { fitted: { HALF_FIELD: 0.5, FULL_FIELD: 0.25, CONCEPT: 0 }, selection: { at: { shape: "S" as const, theta: 12 }, restampOf: "F6" as const } };
     expect(playableStep5Ids("5a", records)).toEqual([...STEP5A_RUN_IDS]);
     expect(playableStep5Ids("5b", records)).toHaveLength(18);
-    const p = planStep5("5a", { shard: { index: 2, count: 3 } });
+    const p = planStep5("5a", { shard: { index: 2, count: 3 }, records: {} });
     expect(p.complete).toHaveLength(16);
     expect(p.mine.map((t) => `${t.id}.set${String(t.seedSet)}`)).toEqual(["E0.set2", "E3.set1", "E4.set2", "E6.set1", "E7.set2"]);
-    expect(() => planStep5("5a", { arms: ["E9"] })).toThrow(/E9 is not playable: E9 is one of step 5a's arms, named in this build but not yet defined/);
+    expect(() => planStep5("5a", { arms: ["E9"], records: {} })).toThrow(/E9 is not playable: E9 is one of step 5a's arms, named in this build but not yet defined/);
+    // This build's fit: the eleven 5a arms on both sets, E9 among them.
+    expect(planStep5("5a", {}).complete).toHaveLength(22);
+    expect(planStep5("5a", { arms: ["E9"] }).targets.map((t) => `${t.id}.set${String(t.seedSet)}`)).toEqual(["E9.set1", "E9.set2"]);
     expect(() => planStep5("5b", { arms: ["E0"] })).toThrow(/not in step 5b's run/);
   });
 
@@ -543,7 +559,8 @@ describe("step 5's visit and grading on a tiny corpus (scratch; nothing is recor
       out: join(scratch, "r5a.json"),
     };
     const first = runStep5(opts);
-    const all = ["E0", "E2", "E3", "E4", "E5", "E6", "E7", "E8"].flatMap((id) => [`${id}.set1`, `${id}.set2`]);
+    // The fit is recorded, so all eleven 5a arms play, E1, E9 and E10 among them.
+    const all = STEP5A_RUN_IDS.flatMap((id) => [`${id}.set1`, `${id}.set2`]);
     expect(first.played).toEqual(all);
     expect(fresh).toBe(2);
     expect(first.graded).toBe(true);
@@ -557,7 +574,7 @@ describe("step 5's visit and grading on a tiny corpus (scratch; nothing is recor
     const { report: _r, out: _o, ...noWrites } = opts;
     const part = runStep5({ ...noWrites, cacheParent: join(scratch, "part"), arms: ["E0"] });
     expect(part.graded).toBe(false);
-    expect(part.remaining).toHaveLength(14);
+    expect(part.remaining).toHaveLength(20);
     expect(fresh).toBe(4);
     const m = JSON.parse(readFileSync(opts.out, "utf8")) as { format: string; half: string; outcome: object };
     expect(m.format).toBe("adr-089-step5-measures/v1");

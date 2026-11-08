@@ -166,6 +166,8 @@ import {
   POCKET_1_S3_OVERLAY,
   POCKET_1_S4_DIGEST,
   POCKET_1_S4_RULES,
+  POCKET_1_S5A_DIGEST,
+  POCKET_1_S5A_LEAVES,
   POCKET_1_S5A_RULES,
   POCKET_1_S5B_RULES,
   readSystemDeltaLeaves,
@@ -1237,8 +1239,8 @@ describe("step 5's arm ids, named and inert (ADR-089 step 5, plan §5.1, §5.2)"
     }
   });
 
-  it("defines E0 and E2 to E8 now; E1, E9, E10 and F1 to F14 wait on the fit, F0, G1 and G2 on the selection; everyArm is steps 1 to 4's", () => {
-    const now = ["E0", "E2", "E3", "E4", "E5", "E6", "E7", "E8"];
+  it("defines E0 to E10 and F1 to F14 now the 5a fit is recorded; F0, G1 and G2 wait on the selection; everyArm is steps 1 to 4's", () => {
+    const now = [...STEP5A_ARM_IDS, "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12", "F13", "F14"];
     for (const id of [...STEP5A_ARM_IDS, ...STEP5B_ARM_IDS]) {
       const why = step5ArmRefusal(id);
       if (now.includes(id)) {
@@ -1252,9 +1254,12 @@ describe("step 5's arm ids, named and inert (ADR-089 step 5, plan §5.1, §5.2)"
       expect(armRefusal(id), id).toBeUndefined();
       expect(everyArm().some((a) => a.id === id), id).toBe(false);
     }
-    expect(step5ArmRefusal("E1")).toMatch(/^E1 is one of step 5a's arms, named in this build but not yet defined \(ADR-089 step 5, plan §5\): defined only once the 5a fit is recorded/);
-    expect(step5ArmRefusal("F5")).toMatch(/: defined only once the 5a fit is recorded/);
+    // With no fit recorded (the records seam), E1, E9, E10 and F1 to F14 are refused by name, as before the fit commit.
+    expect(step5ArmRefusal("E1", {})).toMatch(/^E1 is one of step 5a's arms, named in this build but not yet defined \(ADR-089 step 5, plan §5\): defined only once the 5a fit is recorded/);
+    expect(step5ArmRefusal("F5", {})).toMatch(/: defined only once the 5a fit is recorded/);
+    expect(step5ArmRefusal("F0")).toMatch(/^F0 is one of step 5b's arms, .*: defined only once the 5b selection is recorded/);
     expect(step5ArmRefusal("F0", { fitted: { HALF_FIELD: 0.5, FULL_FIELD: 0, CONCEPT: 0 } })).toMatch(/^F0 is one of step 5b's arms, .*: defined only once the 5b selection is recorded/);
+    // STEP5_ARM_DEFS' order: E0 to E10, then F1 to F14 (F0 is before them in the table and waits).
     expect(step5Arms().map((a) => a.id)).toEqual(now);
     expect(everyArm().map((a) => a.id)).toEqual([...ARM_IDS, ...STEP2_ARM_IDS, ...STEP3_ARM_IDS, ...STEP4_ARM_IDS]);
     const all = [...everyArm(), ...PROOF_OVERLAY_IDS.map((id) => proofOverlay(id))];
@@ -1291,6 +1296,25 @@ describe("step 5's arm ids, named and inert (ADR-089 step 5, plan §5.1, §5.2)"
     expect(armById("E5").base).toBe("E4");
     expect(armById("E8").base).toBe("E7");
     expect(exclusiveMechanisms(armById("E5"))).toEqual([]);
+  });
+
+  it("with this build's recorded fit, E1, E9 and E10 carry the fitted deltas (+0.5, 0, -1.25 s) and F5 is pocket-1.s5a itself (S-8)", () => {
+    const deltas = { HALF_FIELD: 0.5, FULL_FIELD: 0, CONCEPT: -1.25 };
+    for (const id of ["E1", "E9", "E10"] as const) {
+      const a = armById(id);
+      for (const [system, want] of Object.entries(deltas)) expect(a.tunables.qb.readSystem[system as keyof typeof deltas].budgetDeltaSeconds, `${id} ${system}`).toBe(want);
+    }
+    expect(armById("E1").rules).toBe(POCKET_1_S4_RULES);
+    expect(armById("E1").tunables.pocket.cleanPocket).toBeUndefined();
+    expect(armById("E9").rules).toBe(POCKET_1_S5A_RULES);
+    expect(armById("E9").tunables.pocket.cleanPocket!.resetSeconds).toBe(1.0);
+    expect(armById("E10").tunables.pocket.cleanPocket!.resetSeconds).toBe(0);
+    expect(armById("E9").base).toBe("E0");
+    expect(armById("E10").base).toBe("E9");
+    expect(armById("E9").digest).toBe(overlayDigestOf(cleanBenchTunablesS5({ on: CLEAN_BENCH_PARTS }, { HALF_FIELD: 1.0, FULL_FIELD: -1.0, CONCEPT: -0.25 })));
+    expect(armById("F5").digest).toBe(POCKET_1_S5A_DIGEST);
+    expect(armById("F5").tunables).toEqual(rulesTunables(POCKET_1_S5A_RULES));
+    expect(armById("F5").patches.filter((p) => p.tunableId.startsWith("qb.readSystem.")).map((p) => [p.tunableId, p.proposedValue])).toEqual(POCKET_1_S5A_LEAVES!.map((p) => [p.tunableId, p.proposedValue]));
   });
 
   it("with a fit and a selection (a test's own), builds every arm: E9 is E8 with the deltas, F5 is pocket-1.s5a's recipe at theta 11, F0 restamps the winner (R-9) and O28 is distinct (rules name, dials)", () => {
