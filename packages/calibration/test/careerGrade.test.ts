@@ -951,6 +951,14 @@ describe("the rows added for the owner's aging rulings (rows version 5)", () => 
     });
     expect(check(g, "rookie-age", "undrafted, mean age (whole years)").ref).toBeCloseTo(rk.undraftedMeanFractional - (rk.meanFractional - rk.meanWhole), 12);
     expect(check(g, "rookie-age", "undrafted less drafted (years), later window 2033-2045").status).toBe("REPORTED");
+    // The drafted share of the rookies, from the same counts, against REAL's 1,442 of 1,891 (76.3%), ±5 pts.
+    const realDrafted = rk.draftedN / (rk.draftedN + rk.undraftedN);
+    expect(realDrafted).toBeCloseTo(1442 / 1891, 12);
+    expect(check(g, "rookie-age", "drafted share of the rookies")).toMatchObject({
+      sim: expect.closeTo(200 / 270, 12), ref: expect.closeTo(realDrafted, 12), halfWidth: 0.05, status: "PASS",
+    });
+    expect(check(g, "rookie-age", "drafted share of the rookies").seRef).toBeCloseTo(Math.sqrt((realDrafted * (1 - realDrafted)) / 1891), 12);
+    expect(check(g, "rookie-age", "drafted share of the rookies, later window 2033-2045").status).toBe("REPORTED");
     // Pooled over the men of a seed's window (2029-45), not the mean of its seasons' gaps: the 8 even years hold
     // 300 drafted at 22 and 100 undrafted at 23, the 9 odd years 100 of each at 23. Drafted (8·300·22 + 9·100·23) /
     // 3,300 = 22.2727, so the gap is 0.7273 (the seasons' gaps would average 8/17 = 0.47).
@@ -965,6 +973,8 @@ describe("the rows added for the owner's aging rulings (rows version 5)", () => 
     expect(check(split, "rookie-age", "drafted, mean age (whole years)").sim).toBeCloseTo(73500 / 3300, 12);
     expect(check(split, "rookie-age", "undrafted, mean age (whole years)").sim).toBeCloseTo(23, 12);
     expect(check(split, "rookie-age", "undrafted less drafted (years)").sim).toBeCloseTo(23 - 73500 / 3300, 12);
+    // The share pooled the same way: (8·300 + 9·100) drafted of (8·400 + 9·200) = 3,300 of 5,000.
+    expect(check(split, "rookie-age", "drafted share of the rookies").sim).toBeCloseTo(3300 / 5000, 12);
     expect(check(g, "availability", "upTo25")).toMatchObject({ sim: expect.closeTo(0.9, 12), ref: null, status: "REPORTED" });
     expect(check(g, "availability", "from33").sim).toBeCloseTo(0.8, 12);
     expect(check(g, "availability", "every age").sim).toBeCloseTo(1 - 20 / 150, 12);

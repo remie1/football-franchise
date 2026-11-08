@@ -26,15 +26,16 @@
  * at K, P and LS, and the men his draw leaves at 22 or under come into the league this season. With
  * growth on and `aging` at `"ability"`, no position is read: the specialists' two years are dropped,
  * the older men keep today's spread, and the rookies-to-be (that same draw at 22 or under) take the
- * draft class's rookie age (`drawRookieAge`) on the `"age"` fork of their development stream, a year
- * past draft day (`ROOKIE_YEARS_PAST_DRAFT`), with no credited seasons yet.
+ * league's own rookie age (`drawRookieAge` by `ROOKIE_AGE_ON_53`, the ages of rookies already on a 53;
+ * the orchestrator's ruling on §12.5) on the `"age"` fork of their development stream, with no
+ * credited seasons yet.
  */
 import {
   ATTRIBUTE_REGISTRY_V1, clampRating, createRng, playerId, positionOverall,
   type AttributeMap, type PlayerId, type PlayerState, type Position, type RatedLeague, type Rng, type Team,
 } from "@ff/contracts";
 import { physicalRatings, type Measurements } from "./derive.js";
-import { drawRookieAge, withDevelopment, type AgingOption } from "./development.js";
+import { drawRookieAge, ROOKIE_AGE_ON_53, withDevelopment, type AgingOption } from "./development.js";
 import { drawName } from "./names.js";
 import { PHYSICAL, PROFILES, TIERS, UNIVERSAL, type Tier } from "./profiles.js";
 import { BODY, POSITION_ORDER, ROSTER_SHAPE, type Dist } from "./shape.js";
@@ -65,7 +66,7 @@ export interface GenerateLeagueInput {
   /**
    * ADR-087 §12.1: how the players age. `"ability"` gives each player his fade shifts (P7,
    * `development.ts` `drawFadeShift`) on a fork of his development stream, and §12.5's ages (AB4: no
-   * specialists' two years, the rookies-to-be by the draft class's rookie age); `"position"`, the
+   * specialists' two years, the rookies-to-be by the league's own rookie ages, `ROOKIE_AGE_ON_53`); `"position"`, the
    * default, gives none, and the league is exactly what it was before the option. Acts only with
    * `development` on.
    */
@@ -76,12 +77,13 @@ export interface GenerateLeagueInput {
  * A made-up man's age with `aging` at `"ability"` (§12.5, §12.2.6), reading no position: `age` on his
  * bio, `draftAge` for his draft line (`draftFor`'s seasons in the league) and whether he is a rookie.
  * A man the draw leaves at 22 or under comes in this season, as today (`draftFor`: drafted this
- * season, or undrafted with none played), and takes the draft class's rookie age a year on from
- * draft day, from `rng`, his own `"age"` stream; an older man keeps the draw.
+ * season, or undrafted with none played), and takes the league's own rookie age (`ROOKIE_AGE_ON_53`:
+ * the ages of rookies already on a 53, since every rookie-to-be starts on one), from `rng`, his own
+ * `"age"` stream; an older man keeps the draw.
  */
 function abilityAge(p: Pick<Drawn, "talentZ" | "unlistedAge">, rng: Rng): { age: number; draftAge: number; rookie: boolean } {
   const rookie = p.unlistedAge <= ENTRY_AGE;
-  return { age: rookie ? drawRookieAge(rng, p.talentZ) + ROOKIE_YEARS_PAST_DRAFT : p.unlistedAge, draftAge: p.unlistedAge, rookie };
+  return { age: rookie ? drawRookieAge(rng, p.talentZ, ROOKIE_AGE_ON_53) : p.unlistedAge, draftAge: p.unlistedAge, rookie };
 }
 
 /** What `RatedLeague.provenance` holds for a generated league. */
@@ -163,17 +165,6 @@ const ENTRY_AGE = 22;
  * Today's rule adds two at K, P and LS; with `aging` at `"ability"` none is added (§12.2.6).
  */
 const ageSpread = (rng: Rng): number => Math.floor(Math.abs(gauss(rng)) * 4.5);
-
-/**
- * With `aging` at `"ability"`: a rookie-to-be's age is his draft-day age (`drawRookieAge`) plus this
- * many years. CHOSEN: the league is made for its season's first day, camp (franchise's `seasonStart`),
- * and a drafted class turns a year older between draft day and its first camp (`turnYear`), so a
- * made-up rookie stands where a drafted man of his talent does at his first camp. The draw is the
- * class's (§12.5): a latent fitted (AB4b) so that the rookies a made-up class puts on the week-8 53s
- * land on REAL's. The league's rookies-to-be are not cut down from a class (every one starts on a 53),
- * so they run older than REAL's week-8 rookies; MEASURED in §12.9's AB4b note.
- */
-export const ROOKIE_YEARS_PAST_DRAFT = 1;
 
 function draftFor(rng: Rng, talent: number, age: number, season: number): PlayerState["bio"]["draft"] {
   const z = talent + 0.5 * gauss(rng);

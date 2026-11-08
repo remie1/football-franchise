@@ -24,7 +24,7 @@
  */
 import { createRng, playerId, type DraftClass, type PlayerState, type Position, type Rng } from "@ff/contracts";
 import type { Measurements } from "./derive.js";
-import { drawRookieAge, withDevelopment, type AgingOption } from "./development.js";
+import { drawRookieAge, ROOKIE_AGE, withDevelopment, type AgingOption } from "./development.js";
 import { gauss, measure, overallAt, rateAttributes } from "./generate.js";
 import { drawName } from "./names.js";
 import { POSITION_ORDER, ROSTER_SHAPE, ROSTER_SIZE } from "./shape.js";
@@ -116,7 +116,7 @@ export function generateDraftClass(input: GenerateDraftClassInput): GeneratedDra
     const displayName = drawName(rng, used);
     // Today's age draw, made on either path in its place in his stream (thrown away under "ability").
     const drawnAge = 21 + rng.int(0, 2);
-    const age = ability ? drawRookieAge(root.fork(`development/${String(id)}`).fork("age"), talentZ) : drawnAge;
+    const age = ability ? drawRookieAge(root.fork(`development/${String(id)}`).fork("age"), talentZ, ROOKIE_AGE) : drawnAge;
     const prospect: PlayerState = {
       bio: {
         id,

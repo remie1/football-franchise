@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { ATTRIBUTE_REGISTRY_V1, createRng, teamId, type PlayerState, type Position, type RatedLeague, type Team } from "@ff/contracts";
 import {
-  drawRookieAge, generateLeagueRosters, overallAt, ROOKIE_AGE, ROOKIE_YEARS_PAST_DRAFT, ROSTER_SHAPE, ROSTER_SIZE, type FictionalProvenance,
+  drawRookieAge, generateLeagueRosters, overallAt, ROOKIE_AGE, ROOKIE_AGE_ON_53, ROSTER_SHAPE, ROSTER_SIZE, type FictionalProvenance,
 } from "../src/index.js";
 import { gauss, measure, SLOT_TALENT } from "../src/fictional/generate.js";
 
@@ -202,18 +202,32 @@ describe("the made-up league's ages under aging \"ability\" (ADR-087 §12.5, §1
       if (typeof p.bio.draft === "object") expect(a.bio.draft, id).toEqual({ ...p.bio.draft, year: SEASON });
       else expect(a.bio.draft, id).toBe("UDFA");
       expect(a.attributes.development!.snaps, id).toBe(0);
-      expect(a.bio.age >= 21 && a.bio.age <= 26, id).toBe(true);
+      expect(a.bio.age >= 20 && a.bio.age <= 26, id).toBe(true);
     }
   });
 
-  it("gives the rookies-to-be the draft class's ages a year past draft day: within ±1 pt of each share", () => {
+  it("holds the league's own table: REAL's week-8 shares (copied) and its fitted ρ", () => {
+    // REAL (copied): the week-8 rookies' whole-year shares, 2018-24, rounded to tenths of a point; they sum to 1.
+    expect(ROOKIE_AGE_ON_53.shares).toEqual([
+      { age: 20, share: 0.002 }, { age: 21, share: 0.128 }, { age: 22, share: 0.315 }, { age: 23, share: 0.354 },
+      { age: 24, share: 0.166 }, { age: 25, share: 0.029 }, { age: 26, share: 0.006 },
+    ]);
+    expect(ROOKIE_AGE_ON_53.shares.reduce((s, x) => s + x.share, 0)).toBeCloseTo(1, 12);
+    expect(ROOKIE_AGE_ON_53.shares.reduce((s, x) => s + x.age * x.share, 0)).toBeCloseTo(22.665, 12);
+    // CHOSEN (fitted, ADR-087 §12.9's AB4b note, its refit): the undrafted rookies 0.62 older at week 8 of the league's
+    // first season (calibration's leagueRookieAges.test.ts checks that reading).
+    expect(ROOKIE_AGE_ON_53.rho).toBe(0.46);
+    // Not the class's table: a class is cut down to its 53s, the league's rookies-to-be start on them.
+    expect(ROOKIE_AGE_ON_53).not.toEqual(ROOKIE_AGE);
+  });
+
+  it("gives the rookies-to-be the league's own table (ROOKIE_AGE_ON_53): within ±1 pt of each share", () => {
     const ages = pairs.filter(({ a }) => rookie(a)).map(({ a }) => a.bio.age);
     expect(ages.length).toBeGreaterThan(10_000);
-    for (const { age, share } of ROOKIE_AGE.draftDay) {
-      const got = ages.filter((x) => x === age + ROOKIE_YEARS_PAST_DRAFT).length / ages.length;
-      expect(Math.abs(got - share), `age ${age + ROOKIE_YEARS_PAST_DRAFT}: ${got}`).toBeLessThan(0.01);
+    for (const { age, share } of ROOKIE_AGE_ON_53.shares) {
+      const got = ages.filter((x) => x === age).length / ages.length;
+      expect(Math.abs(got - share), `age ${age}: ${got}`).toBeLessThan(0.01);
     }
-    expect(ROOKIE_YEARS_PAST_DRAFT).toBe(1);
     // Each from his own development stream's "age" fork, against his talent's own draw, exactly. His slot
     // (the generator's, before the depth sort) is recovered: each slot's stream is replayed as the
     // generator draws it (his talent's own draw, then his measurements, which read his talent), and his
@@ -238,7 +252,7 @@ describe("the made-up league's ages under aging \"ability\" (ADR-087 §12.5, §1
           const p = byId.get(String(id))!;
           if (!rookie(p)) continue;
           const e = root.fork(`development/${String(id)}`).fork("age");
-          expect(p.bio.age, String(id)).toBe(drawRookieAge(e, mine[0]!.talentZ) + ROOKIE_YEARS_PAST_DRAFT);
+          expect(p.bio.age, String(id)).toBe(drawRookieAge(e, mine[0]!.talentZ, ROOKIE_AGE_ON_53));
           checked++;
         }
       }
@@ -251,7 +265,12 @@ describe("the made-up league's ages under aging \"ability\" (ADR-087 §12.5, §1
     const udfa = rookies.filter((p) => p.bio.draft === "UDFA").map((p) => p.bio.age);
     const drafted = rookies.filter((p) => p.bio.draft !== "UDFA").map((p) => p.bio.age);
     expect(udfa.length).toBeGreaterThan(1000);
-    expect(mean(udfa) - mean(drafted)).toBeGreaterThan(0.3);
+    // By the league's own table at its start: 0.656 older over these 20 leagues (MEASURED; 2,952 undrafted at 23.13,
+    // 8,726 drafted at 22.47). The band (CHOSEN) is ±0.1, about 5 standard errors of a 20-league reading (league sd
+    // 0.083, MEASURED on the fit's and the confirming run's 32 leagues). AB4b's draw here (the class's table at
+    // ρ 0.70, a year on) read about 1.2 and AB4's about 0.8 (MEASURED, ADR-087 §12.9's AB4b note).
+    expect(mean(udfa) - mean(drafted)).toBeGreaterThan(0.556);
+    expect(mean(udfa) - mean(drafted)).toBeLessThan(0.756);
     // On the position path today's rookies do not follow talent this way.
     const todays = pairs.filter(({ a }) => rookie(a)).map(({ p }) => p);
     const nonKicking = (ps: PlayerState[]) => ps.filter((p) => !KICKING.has(p.bio.position));
