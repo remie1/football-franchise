@@ -65,9 +65,11 @@ describe("the stand-in league file's records, read by switch", () => {
     expect(() => readStandInFile(later)).toThrow(/forSwitches does not know these records/);
   });
 
-  it("is at standin-development/2 or /3 (ADR-087 AB2, AB7), and still reads a /1 or /2 file", () => {
-    // /3 only when the file has a pastInjuries block (AB7 ruling B); the committed file has none yet.
-    expect(file.startingDevelopment!.version).toBe((file as { pastInjuries?: unknown }).pastInjuries === undefined ? "standin-development/2" : "standin-development/3");
+  it("is at standin-development/3 (ADR-087 AB7), and still reads a /1 or /2 file", () => {
+    // /3 goes with a pastInjuries block (AB7 ruling B); the committed file has had its block since the
+    // custody run (2026-11-09), so it reads /3 and the block is there.
+    expect((file as { pastInjuries?: unknown }).pastInjuries).toBeDefined();
+    expect(file.startingDevelopment!.version).toBe("standin-development/3");
     expect([...KNOWN_STARTING_DEVELOPMENT]).toEqual(["standin-development/1", "standin-development/2", "standin-development/3"]);
     expect(readStandInFile(text.replace(`"version":"${file.startingDevelopment!.version}"`, '"version":"standin-development/2"')).season).toBe(2026);
     const one = { ...file.startingDevelopment!, version: "standin-development/1" };
