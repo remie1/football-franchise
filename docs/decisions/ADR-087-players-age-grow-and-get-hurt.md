@@ -2695,6 +2695,56 @@ The choices it fixed (CHOSEN unless marked):
 
   The earlier plants still bite: the longer kept whole, 3; the end fields from the earliest spell, 5; the chain into a merged link from its last-ending spell, 3. Comparing a third spell with the last-ending spell alone is still equivalent, with 0.
 
+**AB7 custody run (2026-11-09).** The real past injuries are in the committed league file. The thread that holds the sealed tables (the money and cap thread) ran the runbook in its own container: bundle in, bundle out, no push. Its one commit, `a9056b8`, sits on AB7's tip `f4e8247` and changes the league file alone: sha256 `e9852a70…` before, `5ee5b8d59def6c3274ae7a89ee645d5935ccb0d37a35d4276846e37936e7555f` after (`standin-development/3`). It read injuries snapshot `2026-11-09` (manifest sha256 `ac87cbb8185b18b6f2c4ad51a4cd0a37ce750084900a2f0d8b43231068a3ed18`). Its report holds counts only, and this thread read nothing else of the run. No contracts file changed.
+- **What the block holds** (MEASURED, the custody report; this thread's checks and pins agree):
+  - Names agree for 2,528 of 2,528 men.
+  - Team games and spells read, by season: 2019 512 and 192; 2020 512 and 295; 2021 544 and 400; 2022 542 and 556; 2023 544 and 701; 2024 544 and 838; 2025 544 and 1,121; 2026 188 and 607. The cut left out 178 of 2026's games.
+  - 1,413 men hold 3,881 records.
+  - By kind: knee 559, ankle 556, hamstring 418, unknown 393, concussion-head 327, shoulder 257, groin-hip 225, foot-toe 206, back-neck 171, chest-ribs-abdomen 164, calf-shin 157, hand-wrist 149, illness 104, quad-thigh 103, elbow-arm 68, achilles 14, other 10.
+  - By band: SHORT 2,569, LONG 788, MAJOR 524.
+  - Left out from the file's own season: 390 chains open at the cut (305 of them men with a copied injury, 85 without) and 210 others. 22 copied injuries had no open spell.
+  - Chained across a season end 169 times and after leaving a roster 19 times; overlapping spells merged 2 times.
+  - No row had a blank game type. Non-football spells left out, by season from 2019: 2, 4, 5, 7, 5, 3, 6, 7.
+  - Officials (step 5) were not run, since no officials snapshot was kept. `standin-development` printed `/3`: 2,528 of 2,528 men with growth records, 327 injuries copied, 1,413 men with an injury history.
+  - On the new file the custody thread's tests matched its baseline: attributes 219 passed; calibration 2,583 passed and 111 skipped; franchise 915 passed. D was `a6798279…` and E `a3b82c8b…`. The 2-season career-check rows at the defaults were `6aecb0bc…` before and after; the masked records were equal and had no `p8`.
+  - The leak check counted 0 for every label over the block, the records, the commit and its message, and the printouts. Scanned as a printout, the league file itself gave the same baseline before and after: full names 1, short names 0, gsis-like and pfr-like ids 0, team codes 14, report texts 7. So those counts come from the file as it was already committed on main, not from AB7. The importer's owner should look at them. For the full name, the GUESS is a made-up stand-in name that matches a real one when case and accents are ignored.
+- **Intake checks** (this thread, counts only; the script in `scratchpad/ab7/intake/`, not committed). All passed:
+  - (a) The range `f4e8247..a9056b8` is one commit and lists the league file alone.
+  - (b) `withoutPastInjuries` of the new file gives `e9852a70…` back to the byte. The pins hold (`FILE_AT_V2_SHA256`, `FILE_BEFORE_RECORDS_SHA256`, `FILE_AT_V1_SHA256`, `FILE_BEFORE_OFFICIALS_SHA256`, the loader pin `b080396c…` and the 205/122/2 copied injuries). Attributes ran 219 tests and the six calibration test files that read the file ran 105, all passing.
+  - (c) The block is `standin-injuries/1`, season 2026, `asOf` 2026-11-09, `through` 2026-10-23, seasons 2019-2026, with the manifest sha256 above. Its `method` is deep-equal to `pastInjuriesMethod(2026)`, its counts equal the report's, and it sits just before `officiating`. `standin-development` on a scratch copy printed "unchanged".
+  - (d) Every record passes: a kind of the 17, weeks a whole number of 1 or more, `since` ≤ `healed`, healed before 2026's first day, nothing in 2026 (ruling D1), and each man's records in the code's order. Every key is a stand-in id of the file, the block's men are in the file's order, `pastInjuriesProblem` gives null, and each of the 1,413 men's `condition.injuryHistory` equals his block entry, as the key after `injury`. Totals equal the report's by kind and by band. No record is DAY_TO_DAY. 327 − 305 = 22 copied injuries had no open spell.
+  - (e) An allowlist scan read every string in the block and in every `condition.injuryHistory`: 23,307 values and 94,594 keys. 0 fell outside the allowlist, which holds the known keys, stand-in ids of the file, the 17 kinds, phase names and the version, date, sha256, fetch-time and `method` strings the code writes. Two planted strings, one in a record and one in `method`, each counted 2 (a key and a value).
+- **Pins** (`attributes/test/standinDevelopment.test.ts`, "hold the custody run's real past injuries, by count"). The test reads the committed file and pins:
+  - `asOf`, the manifest sha256, the seasons and the block's eight counts;
+  - the men, records, kinds and bands, counted again from the records rather than read from `counts`;
+  - the 22 copied injuries with no open spell, the 1,413 men with a history, and the records' sha256 (`d0916bc3…`, over the JSON of `pastInjuries.players`).
+
+  No test pins the committed file's whole sha256. `e9852a70…` appears as `FILE_AT_V2_SHA256` and in two comments, and each means "the `/2` file" or "without AB7's additions", so none moved. Three plants each failed the new test alone (1 of 27 failed; the source was restored and its sha256 checked each time): a pinned count changed, a count changed in a scratch copy of the file, and one record taken off a scratch copy (from the block and from his history). With the record taken off, every other test still passes, so only the pin catches it. The tests that must not read the histories still read history-free copies: attributes' `atV2()` (`withoutPastInjuries`), and calibration's `plain` and its group-path reads, which passed unchanged.
+- **What the histories move** (MEASURED, spot path only, seed homie-1, one season, with the `/2` file from `f4e8247` as "before"):
+  - (a) `season --development --injuries --ability-rules`: the out file is `6520a9f4…` before (P4(c)'s, unchanged) and `90b210ff…` after, so it differs. The header now prints "Past injuries (P8): 1413 men's histories, seeded into injury memory once". The figures below come from the full stream through `runRealSeason` with a scratch driver, as in P4(c):
+    - events 11,686 before and 11,696 after; injuries 2,408 both times.
+    - By band: DAY_TO_DAY 810 → 821, SHORT 980 → 976, LONG 307 → 306, MAJOR 311 → 305.
+    - By age at the file's date: ≤25 1,016 → 1,018, 26-30 1,088 → 1,085, 31+ 275 → 276, men not in the file 29 → 29.
+    - Concussions 179 → 174, of them time-loss 124 → 121.
+    - Men who missed games 908 → 902. Here that means men with an injury of 1 week or more drawn in the regular season or playoffs, copied injuries apart.
+    - Repeat marks: heals with a durability fall went 185 → 365. Concussion heals went 123 → 120, other kinds' 62 → 223, and copied injuries' 0 → 22.
+    - In-run injuries in memory with an earlier one of the same kind (repeats): 111 → 360. Of them, concussions 16 → 34; by age ≤25 49 → 94, 26-30 46 → 206, 31+ 16 → 60.
+
+    So the counts and lengths of injuries barely move in one season. What moves is the repeat weight on them: about 3 times the repeats and twice the durability marks, mostly in men 26 and older.
+  - (b) The 2-season d5b-t1 career-check (arm `both`) with `--ability-rules`: rows `df718d89…` before, with `p8` {0, 0, 2, 327}; and `bde6b496…` after, with `p8` {seededMen 1,413, seededRecords 3,881, seededConcussions 329, copiedMapped 327}. 329 = the 327 P8 concussions plus the 2 copied ones.
+  - (c) From the block alone, by age at the file's date (MEASURED; REAL beside it only where the repo already has it):
+    - ≤25: 352 of 1,169 men (30.1%) have a record, 0.52 records a man.
+    - 26-30: 832 of 1,096 (75.9%), 2.25 a man.
+    - 31+: 229 of 263 (87.1%), 3.10 a man.
+    - All: 1,413 of 2,528 (55.9%), 1.54 records a man, 2.75 a man with one. Mean weeks 4.08.
+    - Men with a concussion record: 4.4%, 16.5% and 14.4% by group.
+    - Records by the season they began, 2019 to 2025: 188, 283, 371, 539, 680, 799, 1,021. The window opens in 2019, so the oldest men's earlier careers are missing and 31+ reads low.
+    - `injury-rates.md` (REAL, 2019-2024 time-loss football spells, a different count) has no share of men with a history. Its band shares by weeks out are SHORT 57.9%, LONG 19.2% and MAJOR 22.9%, against the block's 66.2%, 20.3% and 13.5%. The block drops chains open at the cut, and a spell still open at a season's end with no chain ends there, so its long tail is shorter. Its body-part shares are knee 14.8%, unknown 11.1% and concussion/head 8.8%, against the block's 14.4%, 10.1% and 8.4%.
+  - **For AB9:** AB9 tunes the spot-path injury panels (repeat shares, durability by number of concussions, the concussion rows "the real side's way") and the retirement review's seeded memory with these histories in. The repeat rate and the durability marks are the readings that move (above). The priors hold 2025 and 2026 rows (the held-out note above), so these panels must not be graded against 2025-or-later targets.
+- **From here on** the spot-path panels and AB9's readings move. Rows from before this commit cannot pool with rows after it without an explicit `--build`, since records carry the league file's sha256 and the build fingerprint.
+- **Default paths unchanged** (MEASURED, 2026-11-09 02:22-02:32Z, on this tree). D and E now read the new file: A `63febe8b…`; B `--save` `66108c69…` and `--load` `8f7f112a…`; C `036372a3…`; D `a6798279…`; E `a3b82c8b…`; F `--save` `e1dafb12…` and `--load` `329818b2…`; G `4a51db00…`. The 2-season d5b-t1 career-check at the defaults gives rows `6aecb0bc…` with no `p8`.
+- **`pnpm verify`** exits 0 on this tree (2026-11-09, 02:33-02:55Z, after the last test edit; only this note's last line came after). Build, test and typecheck each exit 0: attributes 220 tests in 16 files (219 and the new pin), franchise 915 in 60, calibration 2,583 passed and 111 skipped in 185, engine 1,633 passed and 2 skipped in 84 (MEASURED). No file in `packages/contracts`, `engine`, `playbook`, `narrative` or `apps/game` changed, and the league file is still `5ee5b8d5…`.
+
 ### 12.10 NEW contracts edits (each needs the owner's typed yes; NEW-1 and NEW-2 have it, 2026-11-14)
 
 | Edit | What | Why | Recommendation |

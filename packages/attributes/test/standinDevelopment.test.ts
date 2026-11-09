@@ -54,6 +54,29 @@ const FILE_AT_V2_SHA256 = "e9852a70facb1c20cfdb951fc09f9706cd515ebde2eda1dde588a
 /** The file without AB7's additions (`withoutPastInjuries`): the `/2` file, before and after the custody run. */
 const atV2 = (): LeagueFileLike => withoutPastInjuries(JSON.parse(text) as LeagueFileLike);
 
+/**
+ * The custody run's block (ADR-087 AB7; run 2026-11-09 by the thread that holds the sealed tables, on
+ * injuries snapshot 2026-11-09), by its counts-only report: MEASURED. `playersSha256` is sha256 over the
+ * JSON of `pastInjuries.players` as the file holds it.
+ */
+const CUSTODY = {
+  asOf: "2026-11-09",
+  manifestSha256: "ac87cbb8185b18b6f2c4ad51a4cd0a37ce750084900a2f0d8b43231068a3ed18",
+  counts: {
+    men: 1413, records: 3881, chainedAcrossSeasonEnd: 169, chainedAfterLeaving: 19, merged: 2,
+    openAtCutDropped: 390, openAtCutDroppedWithCopiedInjury: 305, snapshotSeasonDropped: 210,
+  },
+  byKind: {
+    "real:achilles": 14, "real:ankle": 556, "real:back-neck": 171, "real:calf-shin": 157, "real:chest-ribs-abdomen": 164,
+    "real:concussion-head": 327, "real:elbow-arm": 68, "real:foot-toe": 206, "real:groin-hip": 225, "real:hamstring": 418,
+    "real:hand-wrist": 149, "real:illness": 104, "real:knee": 559, "real:other": 10, "real:quad-thigh": 103, "real:shoulder": 257,
+    "real:unknown": 393,
+  },
+  byBand: { SHORT: 2569, LONG: 788, MAJOR: 524 },
+  copiedWithoutOpen: 22,
+  playersSha256: "d0916bc3de910c5f28e9e9d6c654621600101fbda93506d3ae05c1d37dbbef6a",
+} as const;
+
 /** The file as it was before the step: AB7's block, every record and the extras key taken off. */
 function stripped(): LeagueFileLike {
   const { startingDevelopment: _s, pastInjuries: _p, ...rest } = atV2();
@@ -236,6 +259,40 @@ describe("the committed league file's growth records", () => {
     })).toBeNull();
     for (const p of players) expect(p.condition.injuryHistory).toEqual(block.players[String(p.bio.id)]);
     expect(file.startingDevelopment.basis.injuryHistory).toMatch(/pastInjuries block/);
+  });
+
+  it("hold the custody run's real past injuries, by count (ADR-087 AB7 custody run, 2026-11-09)", () => {
+    // The custody run's block (MEASURED: its counts-only report and this file agree), pinned by counts and one
+    // sha256: only another custody run, on another snapshot or another rule, may move these. Counts only: a
+    // failure prints numbers, never a record or an id with its history.
+    const block = file.pastInjuries;
+    expect(block === undefined, "the committed file has no pastInjuries block").toBe(false);
+    if (block === undefined) return;
+    expect(file.startingDevelopment.version).toBe(STARTING_DEVELOPMENT_VERSION);
+    expect([block.version, block.season, block.asOf, block.through]).toEqual([STANDIN_INJURIES_VERSION, 2026, CUSTODY.asOf, file.snapshotDate]);
+    expect(block.manifestSha256).toBe(CUSTODY.manifestSha256);
+    expect(block.seasons).toEqual([2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026]);
+    expect({ ...block.counts }).toEqual(CUSTODY.counts);
+    // The records themselves, counted again from the block, not read from its counts.
+    const records = Object.values(block.players).flat();
+    expect(Object.keys(block.players).length, "men with a record").toBe(CUSTODY.counts.men);
+    expect(records.length, "records").toBe(CUSTODY.counts.records);
+    const byKind: Record<string, number> = {};
+    const byBand: Record<string, number> = { DAY_TO_DAY: 0, SHORT: 0, LONG: 0, MAJOR: 0 };
+    for (const r of records) {
+      byKind[r.kind] = (byKind[r.kind] ?? 0) + 1;
+      byBand[bandOf(r.weeks)]!++;
+    }
+    expect(byKind).toEqual(CUSTODY.byKind);
+    expect(Object.keys(CUSTODY.byKind).sort()).toEqual([...REAL_INJURY_KINDS].sort());
+    expect(byBand).toEqual({ DAY_TO_DAY: 0, ...CUSTODY.byBand });
+    expect(records.reduce((a, r) => a + r.weeks, 0) > 0).toBe(true);
+    // The open-at-cut split against the copied injuries (327, pinned above): 305 of them had a spell open at the
+    // cut, so 22 had none.
+    const copied = players.filter((p) => p.condition.injury !== undefined).length;
+    expect([copied, copied - block.counts.openAtCutDroppedWithCopiedInjury]).toEqual([327, CUSTODY.copiedWithoutOpen]);
+    expect(players.filter((p) => p.condition.injuryHistory !== undefined).length).toBe(CUSTODY.counts.men);
+    expect(sha256(JSON.stringify(block.players)), "the records, to the byte").toBe(CUSTODY.playersSha256);
   });
 });
 
