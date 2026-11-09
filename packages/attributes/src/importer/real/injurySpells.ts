@@ -218,6 +218,8 @@ interface Link {
   /**
    * Its spells in the sort order, so `parts[0]` starts first: it gives the link's start, the start index the
    * season-end rule reads (he is out from his first week), its class, and with the rest, in order, its kind.
+   * When two parts start the same week, `parts[0]` is the one whose team sorts first (`bySpellOrder`), and the
+   * season-end rule reads its start index alone (handoff review; rare: it needs a doubled first week on two teams).
    */
   readonly parts: readonly Spell[];
   /**

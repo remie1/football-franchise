@@ -48,7 +48,8 @@ const pfr = (n: number) => `p:${String(n).padStart(2, "0")}`;
 const standIn = (n: number) => `s:${String(n).padStart(2, "0")}`;
 const WORDS = [
   "Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen",
-  "Seventeen", "Eighteen", "Nineteen", "Twenty", "TwentyOne", "TwentyTwo", "TwentyThree", "TwentyFour",
+  "Seventeen", "Eighteen", "Nineteen", "Twenty", "TwentyOne", "TwentyTwo", "TwentyThree", "TwentyFour", "TwentyFive", "TwentySix",
+  "TwentySeven", "TwentyEight", "TwentyNine",
 ];
 const nameOf = (n: number) => `Made Up Player ${WORDS[n]}`;
 const P18 = "P".repeat(18);
@@ -150,6 +151,47 @@ const MEN: readonly Man[] = [
       { season: 2025, team: "T2", weeks: "-XXXXX" + "P".repeat(12), text: "Chest" },
     ],
   },
+  // 25: the later-starting spell ends first (handoff review): T1 weeks 5-11, back for T1 in week 12; T2 weeks 7-8 and gone. One span, 5-11:
+  // the latest end is T1's, not the newest spell's.
+  {
+    n: 25,
+    stints: [
+      { season: 2025, team: "T1", weeks: "PPPPXXXXXXXP" + "P".repeat(6), text: "Shoulder" },
+      { season: 2025, team: "T2", weeks: "------XX" + "-".repeat(10), text: "Shoulder" },
+    ],
+  },
+  // 26: the same with T1 gone after week 11, then out for T3 weeks 15-16: 4 weeks after T1's last missed week (the spell that ends last),
+  // so it chains; from T2's (week 8, the newest spell's) it would be 7.
+  {
+    n: 26,
+    stints: [
+      { season: 2025, team: "T1", weeks: "PPPPXXXXXXX" + "-".repeat(7), text: "Hamstring" },
+      { season: 2025, team: "T2", weeks: "------XX" + "-".repeat(10), text: "Hamstring" },
+      { season: 2025, team: "T3", weeks: "-".repeat(14) + "XXPP", text: "Hamstring" },
+    ],
+  },
+  // 27: a tie in end (handoff review): T3 weeks 6-9 and gone, T1 week 8 and gone after its week-9 bye, both back in calendar week 10.
+  // The longer (T3's) gives the last missed week, 9, so T4's spell from week 13 (4 weeks on) chains; from T1's (week 8) it would be 5.
+  {
+    n: 27,
+    stints: [
+      { season: 2024, team: "T3", weeks: "-----XXXX" + "-".repeat(9), text: "Wrist" },
+      { season: 2024, team: "T1", weeks: "-------X" + "-".repeat(10), text: "Knee" },
+      { season: 2024, team: "T4", weeks: "-".repeat(12) + "XXPPPP", text: "Wrist" },
+    ],
+  },
+  // 28: an overlap in the file's season (handoff review): T1 weeks 4-5, back for T1 in week 6; T2 weeks 5-7, out at the cut. The span ends with
+  // T2's, so it is open at the cut (with a copied injury); read from T1's it would be another spell of the file's season.
+  {
+    n: 28,
+    copied: true,
+    stints: [
+      { season: S, team: "T1", weeks: "---XXP" + "P".repeat(12) },
+      { season: S, team: "T2", weeks: "----XXX" + "P".repeat(11) },
+    ],
+  },
+  // 29: touching, not overlapping (handoff review): T1 weeks 3-4 and gone, out for T2 from week 5, the week T1's spell ends: chained after leaving, not merged.
+  { n: 29, stints: [{ season: 2025, team: "T1", weeks: "PPXX" + "-".repeat(14), text: "Groin" }, { season: 2025, team: "T2", weeks: "----XXPPPPPPPPPPPP", text: "Groin" }] },
 ];
 const KEEP = new Set(MEN.map((m) => gsis(m.n)));
 
@@ -165,16 +207,19 @@ function seasonsOf(men: readonly Man[], o: { cut?: boolean; shuffle?: string } =
     ...(season === S && o.cut !== false ? { cutBefore: CUT } : {}),
   }));
 }
-function build(seasons: readonly SeasonSpells[] = seasonsOf(MEN)) {
+function build(seasons: readonly SeasonSpells[] = seasonsOf(MEN), men: readonly Man[] = MEN) {
   return buildPastInjuries({
     season: S, snapshotDate: CUT,
-    players: MEN.map((m) => ({ id: standIn(m.n), copiedInjury: m.copied === true })),
-    realOf: new Map(MEN.map((m) => [standIn(m.n), gsis(m.n)])),
+    players: men.map((m) => ({ id: standIn(m.n), copiedInjury: m.copied === true })),
+    realOf: new Map(men.map((m) => [standIn(m.n), gsis(m.n)])),
     seasons, manifest: { date: "2026-10-24", fetchedAt: "2026-10-24T12:00:00.000Z" }, manifestSha256: "0".repeat(64),
   });
 }
-/** Every record's weeks, summed: men 4-24's records, as the tests below give them one by one. */
-const WEEKS_TOTAL = 2 + 5 + (2 + 2) + (1 + 2) + 4 + (1 + 1) + (2 + 2) * 2 + 4 + 3 + (1 + 4) + (2 + 2) + 4 + (2 + 2) + 4 + (2 + 2) + 7 + 8 + 7 + 8;
+/** Every record's weeks, summed: men 4-29's records, as the tests below give them one by one. */
+const WEEKS_TOTAL = 2 + 5 + (2 + 2) + (1 + 2) + 4 + (1 + 1) + (2 + 2) * 2 + 4 + 3 + (1 + 4) + (2 + 2) + 4 + (2 + 2) + 4 + (2 + 2) + 7 + 8 + 7 + 8
+  + 7 + 9 + 6 + 4;
+/** One man's block alone, from the same rows. */
+const alone = (n: number) => build(seasonsOf(MEN), MEN.filter((m) => m.n === n)).block;
 const rs = (season: number, week: number): CalendarStamp => ({ season, phase: "REGULAR_SEASON", week, day: 1 });
 const PLAYOFFS_1 = (season: number): CalendarStamp => ({ season, phase: "PLAYOFFS", week: 1, day: 1 });
 
@@ -230,8 +275,11 @@ describe("tests 13-15: the records", () => {
     expect(of(1)).toBeUndefined();
     expect(of(2)).toBeUndefined();
     expect(of(3)).toBeUndefined();
-    expect(block.counts.openAtCutDropped).toBe(3);
-    expect(block.counts.openAtCutDroppedWithCopiedInjury).toBe(1);
+    expect(block.counts.openAtCutDropped).toBe(4);
+    expect(block.counts.openAtCutDroppedWithCopiedInjury).toBe(2);
+    // Man 28's span in the file's season ends with the spell that ends last, out at the cut: open, not another spell (handoff review).
+    expect(of(28)).toBeUndefined();
+    expect(alone(28).counts).toMatchObject({ merged: 1, openAtCutDropped: 1, openAtCutDroppedWithCopiedInjury: 1, snapshotSeasonDropped: 0 });
     // Men 4 and 15 have a copied injury and no open chain.
     expect(report.copiedWithoutOpen).toBe(2);
   });
@@ -286,9 +334,12 @@ describe("tests 13-15: the records", () => {
       { kind: "real:quad-thigh", weeks: 2, since: rs(2025, 9), healed: rs(2025, 11) },
     ]);
     expect(pastInjuriesMethod(S).chain.left).toMatch(/with the same team or another/);
-    // Men 2 (into the cut), 5, 14 and 24 (into a merged link) across a season end; men 8, 17, 19 and 22 (from a merged link) after leaving.
+    // Men 2 (into the cut), 5, 14 and 24 (into a merged link) across a season end; men 8, 17, 19, 29 and 22, 26 and 27 (from a merged link) after leaving.
     expect(block.counts.chainedAcrossSeasonEnd).toBe(4);
-    expect(block.counts.chainedAfterLeaving).toBe(4);
+    expect(block.counts.chainedAfterLeaving).toBe(7);
+    // A spell that starts the week the other team's spell ends touches it, and chains after leaving: it is not an overlap (handoff review).
+    expect(of(29)).toEqual([{ kind: "real:groin-hip", weeks: 2 + 2, since: rs(2025, 3), healed: rs(2025, 7) }]);
+    expect(alone(29).counts).toMatchObject({ merged: 0, chainedAfterLeaving: 1 });
   });
 
   it("merges spells on two teams that overlap in time into one span, from the earliest start to the latest end (review finding 10)", () => {
@@ -306,8 +357,14 @@ describe("tests 13-15: the records", () => {
       "two or more spells of one man on two teams that overlap in time are one span, from the earliest start to the latest end in calendar weeks: " +
       "its weeks are that span, its start and kind come from the earlier-starting spell, its end, team and last missed week from the spell that ends last (on a tie, the longer)",
     );
-    // Men 12, 21, 22 and 24 one merge each, man 23 two.
-    expect(block.counts.merged).toBe(6);
+    // The later-starting spell ends first: the span ends with the earlier one's end, not the newest spell's (handoff review).
+    expect(of(25)).toEqual([{ kind: "real:shoulder", weeks: 7, since: rs(2025, 5), healed: rs(2025, 12) }]);
+    // ... and its last missed week chains him on: 7 weeks, then weeks 15-16.
+    expect(of(26)).toEqual([{ kind: "real:hamstring", weeks: 7 + 2, since: rs(2025, 5), healed: rs(2025, 17) }]);
+    // A tie in end: the longer spell's last missed week chains him on (4 weeks, then weeks 13-14).
+    expect(of(27)).toEqual([{ kind: "real:hand-wrist", weeks: 4 + 2, since: rs(2024, 6), healed: rs(2024, 15) }]);
+    // Men 12, 21, 22, 24, 25, 26, 27 and 28 one merge each, man 23 two.
+    expect(block.counts.merged).toBe(10);
   });
 
   it("sums calendar weeks out, byes counted, not games missed (ruling D3)", () => {
@@ -330,8 +387,8 @@ describe("tests 13-15: the records", () => {
     const all = Object.values(block.players).flat();
     expect(all).toHaveLength(block.counts.records);
     expect(Object.keys(block.players)).toHaveLength(block.counts.men);
-    // 29 records of 20 men (men 1-3 open at the cut, 15 never hurt).
-    expect(block.counts).toMatchObject({ men: 20, records: 29 });
+    // 33 records of 24 men (men 1-3 and 28 open at the cut, 15 never hurt).
+    expect(block.counts).toMatchObject({ men: 24, records: 33 });
     expect(all.reduce((a, r) => a + r.weeks, 0)).toBe(WEEKS_TOTAL);
     for (const r of all) {
       expect(compareStamps(r.healed, first)).toBeLessThan(0);
@@ -347,7 +404,9 @@ describe("tests 13-15: the records", () => {
     expect(block.method).toEqual(pastInjuriesMethod(S));
     expect(block.seasons).toEqual(SEASONS);
     expect(block).toMatchObject({ version: "standin-injuries/1", season: S, asOf: "2026-10-24", through: CUT });
-    expect(report.byBand).toEqual({ SHORT: all.filter((r) => r.weeks <= 3).length, LONG: all.filter((r) => r.weeks >= 4 && r.weeks <= 8).length, MAJOR: 0 });
+    expect(report.byBand).toEqual({ SHORT: all.filter((r) => r.weeks <= 3).length, LONG: all.filter((r) => r.weeks >= 4 && r.weeks <= 8).length, MAJOR: 1 });
+    // Man 26's 9 weeks, the one MAJOR.
+    expect(all.filter((r) => r.weeks >= 9)).toHaveLength(1);
     expect(realKind("chest/ribs/abdomen")).toBe("real:chest-ribs-abdomen");
   });
 
