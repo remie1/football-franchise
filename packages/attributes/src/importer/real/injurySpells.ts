@@ -12,7 +12,8 @@
  *      then only the file's men are kept, each timeline cut down to its weeks and their states. In the
  *      file's season a game counts only when it was played before the cut (`gameday < snapshotDate`).
  *   3. `buildPastInjuries`, the importer's own rules (CHOSEN, each in `pastInjuriesMethod`): football and
- *      illness spells; two spells of one man on two teams that overlap in time merged; a spell that ran
+ *      illness spells; two or more spells of one man on two teams that overlap in time merged into one
+ *      span, from the earliest start to the latest end; a spell that ran
  *      on past what the rows show chained into his next under `CHAIN_LEFT_WEEKS` and the season-end rule;
  *      every chain with a link in the file's season left out (`SNAPSHOT_SEASON_SPELLS = "drop"`): the sim
  *      plays that season again from camp, so its spells have not happened yet; kind, weeks and stamps;
@@ -27,7 +28,7 @@
 import { DEFAULT_LEAGUE_RULES, type CalendarStamp, type InjuryRecord } from "@ff/contracts";
 import { bandOf } from "./development.js";
 import {
-  buildTimelines, spellsOf, type EntryState, type MissClass, type ReportRow, type RosterRow, type SnapRow, type Spell,
+  buildTimelines, spellsOf, type BodyPart, type EntryState, type MissClass, type ReportRow, type RosterRow, type SnapRow, type Spell,
 } from "./injuryRules.js";
 import type { DatedGameRow } from "./injuryRows.js";
 import { compareRecords, STANDIN_INJURIES_VERSION, type PastInjuriesBlock, type PastInjuriesCounts } from "./pastInjuries.js";
@@ -36,14 +37,20 @@ import type { SealedTable } from "./standins.js";
 
 /** The spell classes kept (ruling D2): football and illness; the non-football list has no body part, so it could never be a prior. */
 export const KEPT_CLASSES: readonly MissClass[] = ["FOOTBALL", "ILLNESS"];
-/** What `weeks` sums (ruling D3): calendar weeks out, byes counted, the unit of franchise's `weeksRemaining`. */
-export const WEEKS_MEASURE: "weeksOut" | "gamesMissed" = "weeksOut";
+/**
+ * What `weeks` sums (ruling D3): calendar weeks out, byes counted, the unit of franchise's `weeksRemaining`.
+ * Only "weeksOut" is built. Were it "gamesMissed", a merged link's games missed would be the number of
+ * distinct game weeks in which any of its spells missed a game (a doubled trade week counted once), not
+ * the spells' sum; that path is not built, so flipping this constant needs code in `recordOf` too.
+ */
+export const WEEKS_MEASURE = "weeksOut" as const;
 /** The file's own season's spells (ruling D1): left out, since the sim plays that season again from camp. */
 export const SNAPSHOT_SEASON_SPELLS = "drop" as const;
 /**
  * A spell that ends with him off the roster chains into his next, with the same team or another, only when
- * it starts within this many calendar weeks of his last missed week (ruling D4, CHOSEN; the window holds
- * for a same-team spell too, as the build spec's chain rule has no team test).
+ * it starts within this many calendar weeks of his last missed week (ruling D4, CHOSEN). The same-team case
+ * is confirmed by the Orchestrator (review finding 11): a man let go while hurt and signed again by the same
+ * team while still out has the same injury, and the 4-week window bounds both cases alike.
  */
 export const CHAIN_LEFT_WEEKS = 4;
 /** The entries that show him well between two spells: either one stops a chain. */
@@ -63,7 +70,7 @@ export function pastInjuriesMethod(season: number) {
       leftWithinWeeks: CHAIN_LEFT_WEEKS,
       brokenBy: HEALTHY,
     },
-    overlap: "two spells of one man on two teams that overlap in time are one: the longer by weeksOut is kept whole, its start and its weeks; the shorter's weeks outside it are lost",
+    overlap: "two or more spells of one man on two teams that overlap in time are one span, from the earliest start to the latest end in calendar weeks: its weeks are that span, its start and kind come from the earlier-starting spell, its end, team and last missed week from the spell that ends last (on a tie, the longer)",
     kind: "real: and the first link's body-part class, \"/\" written \"-\"; the first known later link's when the first is other or unknown",
     franchiseKind: "on the spot path franchise reads each class as the game's kind of that body part (REAL_PART_KINDS); knee as knee-mcl (CHOSEN), so a real knee history is a prior for knee-mcl draws only, never acl; other and unknown as \"other\", never drawn and never a repeat",
     weeks: WEEKS_MEASURE,
@@ -199,6 +206,43 @@ function lastMissedWeek(sp: Spell, tls: readonly WeekStates[]): number {
   return t.weeks[sp.startIndex + sp.gamesMissed - 1]!;
 }
 
+/** The calendar week a spell's man was back (or the week after the rows end): its start plus its weeks out. */
+const endOf = (sp: Spell) => sp.startWeek + sp.weeksOut;
+
+/**
+ * One link of a chain: one spell, or two or more of his spells on two teams that overlap in time, merged
+ * into one span (review finding 10, the Orchestrator's ruling: the ADR measures calendar weeks out, and a
+ * man out on one team from week 6 and on the next from week 8 to 12 was out from week 6 to week 12).
+ */
+interface Link {
+  /**
+   * Its spells in the sort order, so `parts[0]` starts first: it gives the link's start, the start index the
+   * season-end rule reads (he is out from his first week), its class, and with the rest, in order, its kind.
+   */
+  readonly parts: readonly Spell[];
+  /**
+   * The spell that ends last (on a tie in end, the longer, then the first in the sort order): its end type,
+   * its team and its last missed week are the link's, for chaining into his next spell.
+   */
+  readonly last: Spell;
+  /** Calendar weeks from the first part's start to the latest end, byes counted. */
+  readonly weeksOut: number;
+}
+
+const linkOf = (sp: Spell): Link => ({ parts: [sp], last: sp, weeksOut: sp.weeksOut });
+
+/** The link with `sp`, which overlaps it and starts no earlier than its first part, merged in. */
+function mergedWith(l: Link, sp: Spell): Link {
+  const first = l.parts[0]!;
+  const later = endOf(sp) > endOf(l.last) || (endOf(sp) === endOf(l.last) && sp.weeksOut > l.last.weeksOut);
+  const last = later ? sp : l.last;
+  return { parts: [...l.parts, sp], last, weeksOut: endOf(last) - first.startWeek };
+}
+
+/** Whether `sp` overlaps in time any of the link's spells on another team that season (so a third link merges into the span too). */
+const overlaps = (l: Link, sp: Spell) => l.parts.some((p) => p.season === sp.season && p.team !== sp.team
+  && p.startWeek < endOf(sp) && sp.startWeek < endOf(p));
+
 /** Whether any of his weeks strictly between `from` and `to` (to the end of the rows when `to` is null) shows him well. */
 function healthyBetween(tls: readonly WeekStates[], from: { s: number; w: number }, to: { s: number; w: number } | null): boolean {
   for (const t of tls) {
@@ -210,8 +254,14 @@ function healthyBetween(tls: readonly WeekStates[], from: { s: number; w: number
   return false;
 }
 
-/** How spell `a` continues into `b`, his next: across a season end, after leaving a roster, or not at all (ruling D4). */
-function joins(a: Spell, b: Spell, tls: readonly WeekStates[]): "seasonEnd" | "left" | null {
+/**
+ * How link `la` continues into `lb`, his next: across a season end, after leaving a roster, or not at all
+ * (ruling D4). From `la` its last-ending spell's end, team and last missed week; into `lb` its first spell's
+ * start (a merged link's earliest).
+ */
+function joins(la: Link, lb: Link, tls: readonly WeekStates[]): "seasonEnd" | "left" | null {
+  const a = la.last;
+  const b = lb.parts[0]!;
   const last = { s: a.season, w: lastMissedWeek(a, tls) };
   const first = { s: b.season, w: b.startWeek };
   if (a.end === "SEASON_END") {
@@ -226,26 +276,29 @@ function joins(a: Spell, b: Spell, tls: readonly WeekStates[]): "seasonEnd" | "l
 }
 
 const bySpellOrder = (a: Spell, b: Spell) => a.season - b.season || a.startWeek - b.startWeek || (a.team < b.team ? -1 : a.team > b.team ? 1 : 0);
-const overlaps = (a: Spell, b: Spell) => a.season === b.season && a.team !== b.team
-  && a.startWeek < b.startWeek + b.weeksOut && b.startWeek < a.startWeek + a.weeksOut;
 
 /** A body-part class as a kind: `real:` and the class, "/" written "-". */
 export const realKind = (part: string): string => `real:${part.replace(/\//g, "-")}`;
 
-function stampsOf(first: Spell, last: Spell): { since: CalendarStamp; healed: CalendarStamp } {
-  const back = last.startWeek + last.weeksOut;
+function stampsOf(first: Link, last: Link): { since: CalendarStamp; healed: CalendarStamp } {
+  const start = first.parts[0]!;
+  const back = endOf(last.last);
+  const season = last.last.season;
   return {
-    since: { season: first.season, phase: "REGULAR_SEASON", week: first.startWeek, day: 1 },
+    since: { season: start.season, phase: "REGULAR_SEASON", week: start.startWeek, day: 1 },
     // The week he was back; past the regular season's last week (18), the playoffs' first.
-    healed: back > DEFAULT_LEAGUE_RULES.weeksPerSeason ? { season: last.season, phase: "PLAYOFFS", week: 1, day: 1 } : { season: last.season, phase: "REGULAR_SEASON", week: back, day: 1 },
+    healed: back > DEFAULT_LEAGUE_RULES.weeksPerSeason ? { season, phase: "PLAYOFFS", week: 1, day: 1 } : { season, phase: "REGULAR_SEASON", week: back, day: 1 },
   };
 }
 
-function recordOf(chain: readonly Spell[]): InjuryRecord {
-  const known = (s: Spell) => s.bodyPart !== "other" && s.bodyPart !== "unknown";
-  const part = known(chain[0]!) ? chain[0]!.bodyPart : (chain.find(known)?.bodyPart ?? chain[0]!.bodyPart);
+function recordOf(chain: readonly Link[]): InjuryRecord {
+  // The kind from the first known spell, a merged link's spells in start order.
+  const parts: readonly BodyPart[] = chain.flatMap((l) => l.parts.map((p) => p.bodyPart));
+  const known = (b: BodyPart) => b !== "other" && b !== "unknown";
+  const part = known(parts[0]!) ? parts[0]! : (parts.find(known) ?? parts[0]!);
   const { since, healed } = stampsOf(chain[0]!, chain[chain.length - 1]!);
-  return { kind: realKind(part), weeks: chain.reduce((a, s) => a + s[WEEKS_MEASURE], 0), since, healed };
+  // `weeks`: the links' calendar weeks out (WEEKS_MEASURE), a merged link's span once.
+  return { kind: realKind(part), weeks: chain.reduce((a, l) => a + l.weeksOut, 0), since, healed };
 }
 
 export interface PastInjuriesReport {
@@ -306,25 +359,25 @@ export function buildPastInjuries(input: {
     const tls = tlsOf.get(real) ?? [];
     const sorted = [...(spellsOf_.get(real) ?? [])].sort(bySpellOrder);
 
-    // Two spells of his on two teams that overlap in time (a trade week's rows on both): one, the longer, kept whole;
-    // the shorter's weeks outside it are lost, so its start can move later (the spec's rule, kept by ruling D4).
-    const spells: Spell[] = [];
+    // Two or more spells of his on two teams that overlap in time (a trade week's rows on both): one link, one
+    // span from the earliest start to the latest end (review finding 10, the Orchestrator's ruling). Each merge counts.
+    const links: Link[] = [];
     for (const sp of sorted) {
-      const prev = spells[spells.length - 1];
+      const prev = links[links.length - 1];
       if (prev !== undefined && overlaps(prev, sp)) {
         merged++;
-        if (sp.weeksOut > prev.weeksOut) spells[spells.length - 1] = sp;
-      } else spells.push(sp);
+        links[links.length - 1] = mergedWith(prev, sp);
+      } else links.push(linkOf(sp));
     }
 
-    // Chains: each spell continues into his next when the rules allow (ruling D4).
-    const chains: Spell[][] = [];
-    for (const sp of spells) {
+    // Chains: each link continues into his next when the rules allow (ruling D4).
+    const chains: Link[][] = [];
+    for (const link of links) {
       const cur = chains[chains.length - 1];
-      const how = cur === undefined ? null : joins(cur[cur.length - 1]!, sp, tls);
-      if (how === null) chains.push([sp]);
+      const how = cur === undefined ? null : joins(cur[cur.length - 1]!, link, tls);
+      if (how === null) chains.push([link]);
       else {
-        cur!.push(sp);
+        cur!.push(link);
         if (how === "seasonEnd") chainedAcrossSeasonEnd++;
         else chainedAfterLeaving++;
       }
@@ -333,9 +386,9 @@ export function buildPastInjuries(input: {
     const records: InjuryRecord[] = [];
     let open = false;
     for (const chain of chains) {
-      if (chain.some((sp) => sp.season >= S)) {
+      if (chain.some((l) => l.parts[0]!.season >= S)) {
         // The file's season (ruling D1, "drop"): the sim plays it again from camp.
-        const last = chain[chain.length - 1]!;
+        const last = chain[chain.length - 1]!.last;
         const isOpen = last.season === S
           && (last.end === "SEASON_END" || (last.end === "LEFT" && !healthyBetween(tls, { s: S, w: lastMissedWeek(last, tls) }, null)));
         if (isOpen) {

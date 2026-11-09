@@ -34,7 +34,7 @@ export interface PastInjuriesCounts {
    */
   readonly chainedAcrossSeasonEnd: number;
   readonly chainedAfterLeaving: number;
-  /** Spells of one man on two teams that overlap in time, merged into one. */
+  /** Merges of spells of one man on two teams that overlap in time into one span (each merge counted: three overlapping spells count 2). */
   readonly merged: number;
   /** Chains still running at the cut, left out (the copied `condition.injury` is his injury today), and how many of them a man with a copied injury had. */
   readonly openAtCutDropped: number;
