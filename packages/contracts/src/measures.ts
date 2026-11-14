@@ -116,8 +116,13 @@ const OUTSIDE_LB: PositionProfile = {
   secondary: ["zoneCoverage", "manCoverage", "instincts", "firstStep", "finesseMove", "powerMove", "runStuff", "gapDiscipline"],
   keyPhysical: ["speed"],
 };
+/**
+ * Inside linebackers' overall leans on `acceleration` in place of `gapDiscipline` (ADR-087 NEW-2,
+ * step AB-L; the owner's typed yes, 2026-11-14): real inside linebackers are as young as running
+ * backs, and an overall made of smarts, which hold up, kept old ones starting too long.
+ */
 const INSIDE_LB: PositionProfile = {
-  core: ["tackling", "playRecognition", "instincts", "pursuit", "zoneCoverage", "runStuff", "blockShed", "gapDiscipline"],
+  core: ["tackling", "playRecognition", "instincts", "pursuit", "zoneCoverage", "runStuff", "blockShed", "acceleration"],
   secondary: ["manCoverage", "passRush", "ballSkills"],
   keyPhysical: ["speed"],
 };
