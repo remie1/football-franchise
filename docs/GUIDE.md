@@ -6,7 +6,7 @@ rules live in `ARCHITECTURE_CHARTER.md`, and the full working history lives in `
 This page points into both and should stay short. Update the "Where things stand" section when
 a big piece lands.
 
-_Last updated: 7 November 2026._
+_Last updated: 14 November 2026._
 
 ## What the game is
 
@@ -205,8 +205,15 @@ windows. Its fix is designed right after the pocket fix, measured on the fixed p
   at 0.68, your answer. Step 1b gives the stand-in league copies of the 17 real crews under
   made-up referee names, kept as their records show, your answer (`standin-officials`). A
   stand-in season now plays 2026, or 2027 with the copies carried one winter (the default with
-  growth and injuries off; with either on, it plays 2026). No game uses a crew until step 2. The
-  rulebook (step 0) is still to come, and the fouls themselves come after the pocket fix.
+  growth and injuries off; with either on, it plays 2026). No game uses a crew until step 2.
+  Step 0, the rulebook, is built (14 November 2026): plain functions that take one down and its
+  flags and give back the choices the team fouled against has (a few are folded together or left
+  out), each with the NFL's yards, spot, down and clock, or, for a case a later step builds, which
+  step that is; and a computer coach's pick among them. Every rule in it, and the challenge rules
+  too, was checked against the 2026 NFL rulebook, row by row: 4 of the 36 rows held as written,
+  and the other 32 are corrected to the rulebook. On your answer, a computer coach declines a
+  penalty when declining leaves the other team facing fourth down. Nothing calls it yet, and the
+  fouls themselves still come after the pocket fix.
 
 **Started outside the simulator (21 October 2026):** a game viewer for the browser, a season
 shell for the front office, faster CI, and this guide.
