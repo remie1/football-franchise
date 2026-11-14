@@ -7,10 +7,10 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
-  agilityFromCone, createRng, jumpingFromVertical, playerId, speedFromForty, strengthFrom, teamId,
+  ABILITY_GROUPS, agilityFromCone, createRng, jumpingFromVertical, playerId, speedFromForty, strengthFrom, teamId,
   type PlayerState, type Position, type Team,
 } from "@ff/contracts";
-import { drawGrowth, drawPatience, GROWTH } from "../src/fictional/development.js";
+import { drawFadeShift, drawGrowth, drawPatience, FADE_SHIFT, GROWTH } from "../src/fictional/development.js";
 import {
   COPIED_REPORT, COPIED_RESERVE, DEVELOPMENT_STREAM, INJURY_WEEKS, REAL_TEAM_SLOTS, SEED_LABEL, STARTING_DEVELOPMENT_VERSION,
   bandOf, buildRealLeague, copiedSince, serializeLeagueFile, standInDevelopment, startingConstants, stripStartingDevelopment,
@@ -34,6 +34,14 @@ const json = (x: unknown) => JSON.stringify(x, (_k, v) => (v instanceof Set ? [.
  * of the league, or a refresh of its contracts, may change this.
  */
 const FILE_BEFORE_RECORDS_SHA256 = "ffdd05762bae1b197794cb0099c8c0dd8f37a1767bd93034549bf001f7a4ea96";
+/**
+ * The committed league file at `standin-development/1`, before ADR-087 AB2 added the fade shifts, by
+ * its sha256: AB2's data diff is the shifts alone. Rebased onto 2241964 (main at 24a79aa), the /1
+ * file is main's: a7a6a66's growth records unchanged, the 2026 rookies' real deal lengths (#86) and
+ * the officiating block (#78). So the pin moved from a7a6a66's bb55709a… to main's c58c68ba…, and
+ * the file was regenerated from main's with `standin-development`, not merged.
+ */
+const FILE_AT_V1_SHA256 = "c58c68ba3b4859a4060cfd5819343189758b87928bc4c436d2a768ef27a910f3";
 
 /** The file as it was before the step: every record and the extras key taken off. */
 function stripped(): LeagueFileLike {
@@ -96,6 +104,41 @@ describe("the committed league file's growth records", () => {
       expect(dev.carry).toEqual({});
       expect(file.startingDevelopment.players[id]!.growth).toBe("draw");
     }
+  });
+
+  it("draw every player's 12 fade shifts on his own \"aging\" fork, at standin-development/2 (ADR-087 §12.2.3, AB2)", () => {
+    expect(STARTING_DEVELOPMENT_VERSION).toBe("standin-development/2");
+    expect(file.startingDevelopment.version).toBe("standin-development/2");
+    for (const p of players) {
+      const shift = p.attributes.development!.fadeShift!;
+      expect(Object.keys(shift)).toEqual([...ABILITY_GROUPS]);
+      expect(shift).toEqual(drawFadeShift(stream(String(p.bio.id)).fork("aging")));
+      for (const g of ABILITY_GROUPS) expect(Math.abs(shift[g]!)).toBeLessThanOrEqual(FADE_SHIFT.zClamp * FADE_SHIFT.sd[g]);
+    }
+    // The file's basis line names the draw (the fork layout itself is checked above: each man's shifts are
+    // drawFadeShift on his own stream's "aging" fork; growth and patience on theirs; injuries in the tests below).
+    expect(file.startingDevelopment.basis.fadeShift).toMatch(/drawFadeShift/);
+  });
+
+  it("are the /1 file's records with the fade shifts added and nothing else: taking them off gives back the /1 file, to the byte (ADR-087 AB2)", () => {
+    // AB2's data diff, pinned: the version set back to /1, `basis.fadeShift`, `constants.fadeShift` and every
+    // man's `development.fadeShift` taken off. A regeneration that moved any growth, patience, snaps, body or
+    // injury record (or anything else in the file) fails here.
+    const f = JSON.parse(text) as LeagueFileLike & { startingDevelopment: StartingDevelopment };
+    const { fadeShift: _b, ...basis } = f.startingDevelopment.basis;
+    const { fadeShift: _c, ...constants } = f.startingDevelopment.constants;
+    const one = {
+      ...f,
+      startingDevelopment: { ...f.startingDevelopment, version: "standin-development/1", basis, constants },
+      league: {
+        ...f.league,
+        players: f.league.players.map((p) => {
+          const { fadeShift: _f, ...development } = p.attributes.development!;
+          return { ...p, attributes: { ...p.attributes, development } };
+        }),
+      },
+    };
+    expect(sha256(serializeLeagueFile(one))).toBe(FILE_AT_V1_SHA256);
   });
 
   it("put on the bio only the combine drills he actually ran", () => {
@@ -164,6 +207,17 @@ describe("the step itself", () => {
     const once = serializeLeagueFile(withStartingDevelopment(stripped()));
     expect(serializeLeagueFile(withStartingDevelopment(stripped()))).toBe(once);
     expect(serializeLeagueFile(withStartingDevelopment(JSON.parse(once) as LeagueFileLike))).toBe(once);
+    // At /2 (AB2) too: the committed file, run again, is the same bytes.
+    expect(serializeLeagueFile(withStartingDevelopment(JSON.parse(text) as LeagueFileLike))).toBe(text);
+  });
+
+  it("takes the fade shifts off with the rest of the record (stripStartingDevelopment)", () => {
+    for (const p of players.slice(0, 50)) {
+      expect(p.attributes.development!.fadeShift).toBeDefined();
+      const bare = stripStartingDevelopment(p as PlayerState);
+      expect(bare.attributes.development).toBeUndefined();
+      expect(json(bare)).not.toMatch(/fadeShift/);
+    }
   });
 
   it("draws each player's growth, patience and injury length from his own stream: other players never move them", () => {
@@ -177,9 +231,14 @@ describe("the step itself", () => {
     expect(all.players.every((p, i) => json(stripStartingDevelopment(p)) === json(base.league.players[i]))).toBe(true);
     const half = standInDevelopment(input(base.league.players.filter((_, i) => i % 2 === 1)));
     const byId = new Map(all.players.map((p) => [String(p.bio.id), p]));
+    // The same players backwards: drawn per player, so the order they come in moves nothing either.
+    const backwards = new Map(standInDevelopment(input([...base.league.players].reverse())).players.map((p) => [String(p.bio.id), p]));
+    const draws = (p: PlayerState) => json([p.attributes.development!.growth, p.attributes.development!.fadeShift, p.personality.patience, p.condition.injury]);
+    for (const p of all.players) expect(draws(backwards.get(String(p.bio.id))!)).toBe(draws(p));
     for (const p of half.players) {
       const q = byId.get(String(p.bio.id))!;
       expect(p.attributes.development!.growth).toBe(q.attributes.development!.growth);
+      expect(p.attributes.development!.fadeShift).toEqual(q.attributes.development!.fadeShift);
       expect(p.personality.patience).toBe(q.personality.patience);
       const [a, b] = [half.startingDevelopment.players[String(p.bio.id)]!.injury, all.startingDevelopment.players[String(p.bio.id)]!.injury];
       if (a !== undefined && b !== undefined && a.source === b.source) expect(p.condition.injury!.weeksRemaining).toBe(q.condition.injury!.weeksRemaining);
@@ -239,7 +298,19 @@ describe("the step itself", () => {
     for (const p of later.players) {
       expect(p.attributes.development!.growth).toBe(of(String(p.bio.id)).attributes.development!.growth);
       expect(p.personality.patience).toBe(of(String(p.bio.id)).personality.patience);
+      expect(p.attributes.development!.fadeShift).toEqual(of(String(p.bio.id)).attributes.development!.fadeShift);
     }
+  });
+
+  it("draws the fade shifts by id alone: the same man listed at another position gets the same shifts", () => {
+    const one = (position: Position) => standInDevelopment({
+      season: 2026, snapshotDate: "2026-10-23", players: [made("x:1", T1, position)],
+      status: { "x:1": "active" }, measurements: {}, history: { "x:1": hist() },
+    }).players[0]!;
+    const [wr, k] = [one("WR"), one("K")];
+    expect(wr.attributes.development!.fadeShift).toEqual(drawFadeShift(stream("x:1").fork("aging")));
+    expect(k.attributes.development!.fadeShift).toEqual(wr.attributes.development!.fadeShift);
+    expect(of("x:9").attributes.development!.fadeShift).toEqual(drawFadeShift(stream("x:9").fork("aging")));
   });
 
   it("records the teams whose latest report has no game statuses", () => {

@@ -11,13 +11,14 @@
  *
  * Growth is ADR-087's: with `development` on, each prospect also gets his growth rate, body and
  * patience, and his combine drills go on his bio (P2), from another fork of his own
- * (`development/<player id>`, `development.ts`). His talent is drawn from the growth-on class talent
- * (`PROSPECT_TALENT_WITH_GROWTH`, D5b), from the same draw, so switching it on moves no name,
+ * (`development/<player id>`, `development.ts`); with the `aging` option at `"ability"` too, his
+ * fade shifts (§12.2.3), on that fork's `"aging"` fork. His talent is drawn from the growth-on class
+ * talent (`PROSPECT_TALENT_WITH_GROWTH`, D5b), from the same draw, so switching it on moves no name,
  * position or age here; only the ratings that follow from his talent.
  */
 import { createRng, playerId, type DraftClass, type PlayerState, type Position, type Rng } from "@ff/contracts";
 import type { Measurements } from "./derive.js";
-import { withDevelopment } from "./development.js";
+import { withDevelopment, type AgingOption } from "./development.js";
 import { gauss, measure, overallAt, rateAttributes } from "./generate.js";
 import { drawName } from "./names.js";
 import { POSITION_ORDER, ROSTER_SHAPE, ROSTER_SIZE } from "./shape.js";
@@ -54,6 +55,12 @@ export interface GenerateDraftClassInput {
   readonly usedNames?: ReadonlySet<string>;
   /** ADR-087: give each prospect his development record (P1, no snaps), combine record (P2) and patience (P6). Off by default. */
   readonly development?: boolean;
+  /**
+   * ADR-087 §12.1: how the prospects age. `"ability"` gives each his fade shifts (P7); `"position"`,
+   * the default, gives none, and the class is exactly what it was before the option. Acts only with
+   * `development` on.
+   */
+  readonly aging?: AgingOption;
 }
 
 export interface GeneratedDraftClass {
@@ -112,7 +119,9 @@ export function generateDraftClass(input: GenerateDraftClassInput): GeneratedDra
       personality: { needs: {}, type: "quiet" },
     };
     players.push(input.development
-      ? withDevelopment(prospect, root.fork(`development/${String(id)}`), { measurements: m })
+      ? withDevelopment(prospect, root.fork(`development/${String(id)}`), {
+        measurements: m, ...(input.aging === "ability" ? { aging: "ability" as const } : {}),
+      })
       : prospect);
   }
   return { draftClass: { draft: input.draft, prospects: players.map((p) => p.bio.id) }, players, combine, overall };

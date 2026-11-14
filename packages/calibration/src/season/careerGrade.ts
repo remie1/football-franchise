@@ -463,7 +463,10 @@ export interface GradeInput {
   /** What the rows were made with, for the report's header. */
   readonly meta: {
     readonly seasons: number;
-    readonly league: { readonly path: string; readonly sha256: string };
+    /** The league file the graded rows were played on, as their records name it (`gradedLeague`). */
+    readonly league: LeagueFileName;
+    /** The tree's league file, when it is not the one the rows were played on (a `--build` grade of older rows). */
+    readonly treeLeague?: LeagueFileName;
     readonly fingerprints: Readonly<Record<string, string>>;
     readonly engineRules: string;
     readonly callerVersion: string;
@@ -1240,6 +1243,35 @@ export function agingRedesignRows(
   return rows;
 }
 
+/** A league file as a career-check record names it: repository-relative path and sha256. */
+export interface LeagueFileName {
+  readonly path: string;
+  readonly sha256: string;
+}
+
+/**
+ * The league file the graded rows were played on, read from their records (each names its own,
+ * `CareerSeedRecord.league`), never from the file on disk now: a `--build` grade of an older build's
+ * rows names the file those rows were played on, though the tree's file has moved since (ADR-087
+ * AB2 rewrote it at `/2` while the AB1 baseline was playing on `/1`). Records naming two different
+ * league files (by sha256) are refused: one grade is one league. With no record (every seed
+ * missing), the tree's file, `tree`. `treeLeague` is set when the tree's file is not the rows'.
+ */
+export function gradedLeague(
+  records: Iterable<{ readonly seed: string; readonly arm: string; readonly league: LeagueFileName }>, tree: LeagueFileName,
+): { league: LeagueFileName; treeLeague?: LeagueFileName } {
+  let league: LeagueFileName | undefined, from = "";
+  for (const r of records) {
+    if (league === undefined) { league = { path: r.league.path, sha256: r.league.sha256 }; from = `${r.arm}-${r.seed}`; continue; }
+    if (r.league.sha256 !== league.sha256) {
+      throw new Error(`career-check: the rows were played on two league files: ${from} on ${league.path} (sha256 ${league.sha256.slice(0, 12)}), ` +
+        `${r.arm}-${r.seed} on ${r.league.path} (sha256 ${r.league.sha256.slice(0, 12)}); grade one league at a time`);
+    }
+  }
+  if (league === undefined) return { league: tree };
+  return league.sha256 === tree.sha256 ? { league } : { league, treeLeague: tree };
+}
+
 export function gradeCareerCheck(input: GradeInput): CareerGrade {
   const nfl = input.nfl ?? NFL_CAREERS;
   const nflDraft = input.nflDraft ?? NFL_DRAFT;
@@ -1784,7 +1816,9 @@ export function renderGradeMarkdown(grade: CareerGrade): string {
     say(`**OWNER rows wait on the owner's answer** (${pending.map((r) => `${r.id}, ${r.card ?? "-"} card`).join("; ")}): until it is given, any of them that does not pass or is not resolvable blocks the flip.`);
   }
   say();
-  say(`The stand-in league \`${m.league.path}\` (sha256 \`${m.league.sha256.slice(0, 12)}\`), ${m.seasons} seasons a seed, engine rules \`${m.engineRules}\`, ` +
+  say(`The stand-in league \`${m.league.path}\` (sha256 \`${m.league.sha256.slice(0, 12)}\`, as the rows' records name it)` +
+    `${m.treeLeague !== undefined ? `, not the tree's file now (\`${m.treeLeague.path}\`, sha256 \`${m.treeLeague.sha256.slice(0, 12)}\`)` : ""}, ` +
+    `${m.seasons} seasons a seed, engine rules \`${m.engineRules}\`, ` +
     `caller \`${m.callerVersion}\`. Fingerprints: ${Object.entries(m.fingerprints).map(([a, f]) => `${a} \`${f}\``).join(", ")}.`);
   say(`Grade seeds: ${grade.seeds.graded.length} of ${grade.seeds.asked.length} in` +
     `${grade.seeds.missing.length > 0 ? ` (missing: ${grade.seeds.missing.join(", ")})` : ""}. ` +

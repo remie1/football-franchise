@@ -13,6 +13,9 @@
  * player's growth record, patience and combine record are left out, and with `injuries` off, his
  * copied injury, so a switched-off run (and an `--injuries`-only run's development) is exactly what
  * it was before the records existed. With `development` on, every player must have a growth record.
+ * His fade shifts (ADR-087 §12.2.3, P7, from `standin-development/2`) are read only with development
+ * on and `aging: "ability"` (§12.1), and then every growth record must hold all 12; at the default
+ * `aging` they are left out too, so a growth-on run is what it was before the file had them.
  *
  * The practice squads (the file's `provenance.practiceSquad`) go on the teams only with a switch on
  * (ADR-087 §11): a team short of a player calls one up before it signs from the street. Switched off,
@@ -28,7 +31,9 @@
  * `{ id, referee, leans }`, so nothing else from the file rides into a season. Only a season that
  * asks for crews plays them (`officiatingFor`); the rated league never sees them.
  */
-import { officiatingCrewId, type CrewLeanFamily, type OfficiatingCrew, type PlayerId, type PlayerState, type RatedLeague, type Team } from "@ff/contracts";
+import {
+  ABILITY_GROUPS, officiatingCrewId, type CrewLeanFamily, type OfficiatingCrew, type PlayerId, type PlayerState, type RatedLeague, type Team,
+} from "@ff/contracts";
 import type { League } from "@ff/franchise";
 import { makeProvenancedLeague, type ProvenancedLeague } from "../league/provenance.js";
 
@@ -40,9 +45,10 @@ export const STANDIN_FILE_FORMAT = "ff-standin-league/1";
  * The starting-development records `forSwitches` knows how to leave out (the file's
  * `startingDevelopment.version`, attributes' `STARTING_DEVELOPMENT_VERSION`, copied, since
  * calibration may not import it). A file with any other version is refused: records this loader does
- * not know would reach a switched-off run.
+ * not know would reach a switched-off run. `/2` (ADR-087 AB2) adds each player's `fadeShift` to his
+ * growth record, which `forSwitches` leaves out unless development is on with `aging: "ability"`.
  */
-export const KNOWN_STARTING_DEVELOPMENT = ["standin-development/1"] as const;
+export const KNOWN_STARTING_DEVELOPMENT = ["standin-development/1", "standin-development/2"] as const;
 
 /**
  * The officials blocks this loader knows (the file's `officiating.version`, attributes'
@@ -83,6 +89,12 @@ interface StandInFile {
 export interface StandInSwitches {
   readonly development?: boolean;
   readonly injuries?: boolean;
+  /**
+   * ADR-087 §12.1: how the players age, `"position"` (absent: the default) or `"ability"`. Acts only
+   * with `development` on: then `"ability"` keeps each player's fade shifts and needs all 12 on
+   * every growth record. AB2 reads it here alone; the season's own steps take it at AB3.
+   */
+  readonly aging?: "position" | "ability";
 }
 
 /**
@@ -202,7 +214,25 @@ function readOfficials(block: unknown, season: number): StandInOfficiating {
   };
 }
 
-/** A player as a run with these switches sees him: what a switched-off step would read, left out. */
+/** The values `StandInSwitches.aging` may take; absent is `"position"`. */
+export const STAND_IN_AGING = ["position", "ability"] as const;
+
+/**
+ * Throws unless `aging` is absent, `"position"` or `"ability"`. `forSwitches` reads anything but
+ * `"ability"` as the default, so a misspelled value (from a flag or a file) would play the position
+ * path silently; it is refused here instead.
+ */
+export function assertAging(aging: unknown): void {
+  if (aging !== undefined && !(STAND_IN_AGING as readonly unknown[]).includes(aging)) {
+    throw new SyntaxError(`aging is "position" or "ability", not ${JSON.stringify(aging)}`);
+  }
+}
+
+/**
+ * A player as a run with these switches sees him: what a switched-off step would read, left out.
+ * Development off takes off his whole growth record (his fade shifts with it); development on at the
+ * default `aging` takes off only his fade shifts, which nothing but the ability path reads.
+ */
 export function forSwitches(p: PlayerState, switches: StandInSwitches | undefined): PlayerState {
   let out = p;
   if (switches?.development !== true) {
@@ -210,6 +240,9 @@ export function forSwitches(p: PlayerState, switches: StandInSwitches | undefine
     const { patience: _p, ...personality } = out.personality;
     const { combine: _c, ...bio } = out.bio;
     out = { ...out, bio, attributes, personality };
+  } else if (switches.aging !== "ability" && out.attributes.development?.fadeShift !== undefined) {
+    const { fadeShift: _f, ...development } = out.attributes.development;
+    out = { ...out, attributes: { ...out.attributes, development } };
   }
   if (switches?.injuries !== true) {
     const { injury: _i, ...condition } = out.condition;
@@ -220,8 +253,12 @@ export function forSwitches(p: PlayerState, switches: StandInSwitches | undefine
 
 const finite = (x: unknown): boolean => typeof x === "number" && Number.isFinite(x);
 
-/** Throws unless every player can grow: a finite growth rate and career snaps, and all four body numbers. */
-function assertGrowthRecords(players: readonly PlayerState[]): void {
+/**
+ * Throws unless every player can grow: a finite growth rate and career snaps, and all four body
+ * numbers; with `aging: "ability"`, a finite fade shift for each of the 12 ability groups too
+ * (ADR-087 §12.2.3; a file before `standin-development/2` has none).
+ */
+function assertGrowthRecords(players: readonly PlayerState[], aging: StandInSwitches["aging"]): void {
   const missing = players.filter((p) => {
     const d = p.attributes.development;
     return d === undefined || !finite(d.growth) || !finite(d.snaps) || d.body === undefined
@@ -230,6 +267,15 @@ function assertGrowthRecords(players: readonly PlayerState[]): void {
   if (missing.length > 0) {
     throw new Error(`the stand-in league file's players have no growth records (${missing.length} of ${players.length}, first ${String(missing[0]!.bio.id)}); ` +
       "no growth records; run standin-development (pnpm --filter @ff/attributes standin-development)");
+  }
+  if (aging !== "ability") return;
+  const unshifted = players.filter((p) => {
+    const shift = p.attributes.development!.fadeShift;
+    return shift === undefined || ABILITY_GROUPS.some((g) => !finite(shift[g]));
+  });
+  if (unshifted.length > 0) {
+    throw new Error(`the stand-in league file's players have no fade shifts for every ability group (${unshifted.length} of ${players.length}, ` +
+      `first ${String(unshifted[0]!.bio.id)}); aging "ability" needs all 12; run standin-development (pnpm --filter @ff/attributes standin-development)`);
   }
 }
 
@@ -300,6 +346,7 @@ export function standInPracticeSquads(file: Pick<StandInFile, "league">): Map<st
  * both off, no team has one, as before.
  */
 export function buildStandInLeague(base: League, file: StandInFile, switches?: StandInSwitches): { league: League; rated: StandInLeague } {
+  assertAging(switches?.aging);
   const byId = new Map(file.league.teams.map((t) => [String(t.id), t]));
   const switched = switches?.development === true || switches?.injuries === true;
   const squads = switched ? standInPracticeSquads(file) : undefined;
@@ -310,7 +357,7 @@ export function buildStandInLeague(base: League, file: StandInFile, switches?: S
     return { ...t, displayName: s.displayName, city: s.city, roster: s.roster, depthChart: s.depthChart, ...(practiceSquad ? { practiceSquad } : {}) };
   });
   const players = file.league.players.map((p) => forSwitches(p, switches));
-  if (switches?.development === true) assertGrowthRecords(players);
+  if (switches?.development === true) assertGrowthRecords(players, switches.aging);
   const rated = makeProvenancedLeague(
     "REAL_STAND_IN",
     `standin-${file.snapshotDate}`,

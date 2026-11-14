@@ -3,19 +3,20 @@
  * committed league file (named here) carries growth records and copied injuries, and each is read
  * only with the switch that uses it, so switched-off runs are exactly as before; development refuses
  * a file without records; switched-on runs play the file's season; and a copied w-week injury keeps
- * its player out of exactly the run's first w weeks. (The same seed's switched-on stand-in run gives
- * the same events: `realSeasonPlayers.test.ts`.)
+ * its player out of exactly the run's first w weeks. Each player's fade shifts (ADR-087 AB2, the
+ * file's `standin-development/2`) are read only with development on and `aging: "ability"`. (The
+ * same seed's switched-on stand-in run gives the same events: `realSeasonPlayers.test.ts`.)
  */
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
-import { compareStamps, teamId, type CalendarStamp, type PlayerState } from "@ff/contracts";
+import { ABILITY_GROUPS, compareStamps, teamId, type CalendarStamp, type PlayerState } from "@ff/contracts";
 import { buildLeague, type SeasonRun } from "@ff/franchise";
 import { fieldedStarters } from "../src/season/playerChecks.js";
 import { rosterGroups } from "../src/season/playerChecksRun.js";
 import { DEFAULT_SEASON, runRealSeason, seasonToPlay } from "../src/season/realSeason.js";
-import { buildStandInLeague, forSwitches, readStandInFile, standInPracticeSquads, standInSeason } from "../src/season/standInLeague.js";
+import { assertAging, buildStandInLeague, forSwitches, readStandInFile, STAND_IN_AGING, standInPracticeSquads, standInSeason } from "../src/season/standInLeague.js";
 
 const FILE = join(__dirname, "..", "..", "attributes", "leagues", "standin-2026-10-23.json");
 const text = readFileSync(FILE, "utf8");
@@ -26,6 +27,13 @@ const base = buildLeague("standin-development-test");
 const json = (x: unknown) => JSON.stringify(x, (_k, v) => (v instanceof Set ? [...v] : v));
 const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 const has = (ps: readonly PlayerState[], pick: (p: PlayerState) => unknown) => ps.filter((p) => pick(p) !== undefined).length;
+/** The player with his fade shifts (ADR-087 §12.2.3, the file's `/2`) taken off, and nothing else. */
+function withoutShifts(p: PlayerState): PlayerState {
+  const d = p.attributes.development;
+  if (d === undefined) return p;
+  const { fadeShift: _f, ...development } = d;
+  return { ...p, attributes: { ...p.attributes, development } };
+}
 /**
  * The players of the league file before `standin-development` wrote its records (commit e23bf69's
  * file, read by `readStandInFile`), by the sha256 of their JSON: only a new snapshot of the league
@@ -46,9 +54,23 @@ describe("the stand-in league file's records, read by switch", () => {
   });
 
   it("refuses records of a version the loader does not know, which could reach a switched-off run", () => {
-    const later = text.replace('"version":"standin-development/1"', '"version":"standin-development/2"');
+    // ADR-087 §12.2.3: AB2 taught the loader /2, so the unknown version is one no step writes.
+    const later = text.replace('"version":"standin-development/2"', '"version":"standin-development/99"');
     expect(later).not.toBe(text);
     expect(() => readStandInFile(later)).toThrow(/forSwitches does not know these records/);
+  });
+
+  it("is at standin-development/2 (ADR-087 AB2), and still reads a /1 file, which has no fade shifts", () => {
+    expect(text).toContain('"version":"standin-development/2"');
+    const one = { ...file.startingDevelopment!, version: "standin-development/1" };
+    const asOne = JSON.stringify({
+      ...JSON.parse(text) as object, startingDevelopment: one,
+      league: { ...file.league, players: file.league.players.map((p) => withoutShifts(p)) },
+    }, (_k, v) => (v instanceof Set ? [...v] : v));
+    const read = readStandInFile(asOne);
+    expect(has(read.league.players, (p) => p.attributes.development?.fadeShift)).toBe(0);
+    expect(json(buildStandInLeague(base, read, { development: true, injuries: true })))
+      .toBe(json(buildStandInLeague(base, file, { development: true, injuries: true })));
   });
 
   it("leaves every record out with both switches off: the league is the one before the records, to the byte", () => {
@@ -74,6 +96,58 @@ describe("the stand-in league file's records, read by switch", () => {
     expect(has(ps, (p) => p.personality.patience)).toBe(ps.length);
     expect(has(ps, (p) => p.bio.combine)).toBeGreaterThan(1000);
     expect(has(ps, (p) => p.condition.injury)).toBe(0);
+  });
+
+  it("reads the fade shifts only with development on and aging \"ability\" (ADR-087 §12.1, §12.2.3)", () => {
+    // In the file: all 12, on every player (attributes' `standinDevelopment.test.ts` checks how they were drawn).
+    expect(file.league.players.every((p) => Object.keys(p.attributes.development!.fadeShift ?? {}).join() === ABILITY_GROUPS.join())).toBe(true);
+    // Development off: the whole record goes, so the loader pin above holds whatever aging says.
+    for (const aging of [undefined, "position", "ability"] as const) {
+      const off = buildStandInLeague(base, file, aging === undefined ? {} : { aging }).rated.league.players;
+      expect(sha256(json(off)), String(aging)).toBe(PLAYERS_BEFORE_RECORDS_SHA256);
+      expect(forSwitches(file.league.players[3]!, { injuries: true, ...(aging ? { aging } : {}) }).attributes.development).toBeUndefined();
+    }
+    // Development on at the default aging: only the shifts go, so the run reads the records it read at /1.
+    for (const sw of [{ development: true }, { development: true, aging: "position" as const }, { development: true, injuries: true }]) {
+      const ps = buildStandInLeague(base, file, sw).rated.league.players;
+      expect(has(ps, (p) => p.attributes.development?.fadeShift), JSON.stringify(sw)).toBe(0);
+      expect(json(ps)).toBe(json(file.league.players.map((p) => withoutShifts(forSwitches(p, sw)))));
+    }
+    // Development on with aging "ability": kept, exactly as the file has them.
+    const ability = buildStandInLeague(base, file, { development: true, aging: "ability" }).rated.league.players;
+    expect(has(ability, (p) => p.attributes.development?.fadeShift)).toBe(ability.length);
+    ability.forEach((p, i) => expect(p.attributes.development).toEqual(file.league.players[i]!.attributes.development));
+  });
+
+  it("refuses aging \"ability\" on records without all 12 fade shifts, and plays them at the default aging", () => {
+    const shiftless = { ...file, league: { ...file.league, players: file.league.players.map(withoutShifts) } };
+    expect(() => buildStandInLeague(base, shiftless, { development: true, aging: "ability" })).toThrow(/no fade shifts for every ability group/);
+    expect(() => buildStandInLeague(base, shiftless, { development: true })).not.toThrow();
+    expect(() => buildStandInLeague(base, shiftless, { development: true, aging: "position" })).not.toThrow();
+    type Dev = NonNullable<PlayerState["attributes"]["development"]>;
+    const breaks: [string, (d: Dev) => Dev][] = [
+      ["no SMARTS", (d) => { const { SMARTS: _s, ...rest } = d.fadeShift!; return { ...d, fadeShift: rest }; }],
+      ["SPEED NaN", (d) => ({ ...d, fadeShift: { ...d.fadeShift!, SPEED: Number.NaN } })],
+      ["LEG a string", (d) => ({ ...d, fadeShift: { ...d.fadeShift!, LEG: "1" as unknown as number } })],
+    ];
+    for (const [what, brk] of breaks) {
+      const broken = { ...file, league: { ...file.league, players: file.league.players.map((p, i) => (i === 11
+        ? { ...p, attributes: { ...p.attributes, development: brk(p.attributes.development!) } }
+        : p)) } };
+      expect(() => buildStandInLeague(base, broken, { development: true, aging: "ability" }), what).toThrow(/aging "ability" needs all 12/);
+      expect(() => buildStandInLeague(base, broken, { development: true }), what).not.toThrow();
+    }
+    expect(() => buildStandInLeague(base, file, { development: true, aging: "ability" })).not.toThrow();
+  });
+
+  it("refuses an aging value that is neither \"position\" nor \"ability\", which forSwitches would read as the default", () => {
+    for (const aging of ["Ability", "abilty", "", "positon", null, 1]) {
+      const sw = { development: true, aging } as unknown as Parameters<typeof buildStandInLeague>[2];
+      expect(() => buildStandInLeague(base, file, sw), String(aging)).toThrow(/aging is "position" or "ability"/);
+      expect(() => buildStandInLeague(base, file, { ...sw, development: false }), String(aging)).toThrow(/aging is "position" or "ability"/);
+    }
+    for (const aging of [undefined, "position", "ability"] as const) expect(() => assertAging(aging)).not.toThrow();
+    expect([...STAND_IN_AGING]).toEqual(["position", "ability"]);
   });
 
   it("refuses development on a file without growth records, or with any part of one broken", () => {
