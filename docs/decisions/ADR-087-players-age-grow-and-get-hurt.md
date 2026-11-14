@@ -786,6 +786,32 @@ against the Spread line's 6.55), because fast and slow developers now drift apar
 the draft classes' spread of talent (Rookies card, with a draft re-check), is what widens it. Nothing
 changes with both switches off.
 
+**Tuning round 1: the class talent (2026-11-07).** The second knob family, alone in its PR, set on the
+market after ADR-085 step 13 as agreed with the cap thread. With growth on, draft classes draw talent
+from `PROSPECT_TALENT_WITH_GROWTH` {mean -1.5, sd 1.15} instead of `PROSPECT_TALENT` {-0.8, 0.75}, from
+the same draw, so names, positions and ages stay; with growth off nothing changes. Measured with and
+without on the four tuning seeds (20 seasons, both switches on, one build: main 2e295a9), graded with
+the D5b bands (pass 1, coach-style arms not played):
+
+| Row (mark) | Without | With | Real or line |
+|---|---|---|---|
+| Pooled within-group sd, 2036-45 (GATE) | 5.94 FAIL | 7.52 PASS | 7.28, line 6.55-8.00 |
+| Mean overall on the 53, 2036-45 (REPORT) | 68.1 | 66.6 | year 0 66.4 |
+| Starter-backup gap (GATE) | FAIL from 2033 | PASS every year | 4.34 ±1.0 |
+| Undrafted share (GATE) | 32.2% FAIL | 24.6% PASS | 25.7% ±4 |
+| Share 31+ / 34+ (GATE) | 8.7% / 2.2% | 10.5% / 3.0% | 10.1% / 2.9% |
+| Mean age, league (GATE) | 26.06 | 26.31 | 26.27 ±0.5 |
+| Career, league-wide: expected / reach 10 (GATE) | 3.79 / 6.8% FAIL | 4.21 / 9.3% PASS | 4.95 ±20% / 11.8% ±3 |
+| Win spread, 2029-45 (GATE, at least 2.75) | 2.51 | 2.65 | 2.75 |
+| D7 starter rate, rounds 1 / 2 / 3 / 4-7 (GATE) | .686 / .619 / .522 / .373 | .716 / .639 / .553 / .361 | .635 / .512 / .410 / .239 ±.10 |
+| Ratings of 99 (GATE) | FAIL, 52-94 a league | FAIL, 52-97 | year 0 41.5, +3 |
+
+The draft re-check (Rookies card): with growth on, drafted men from round 2 on start too often with or
+without the change (round 3 about .52-.55 of their seasons on a 53, against .41 real), so the miss is
+growth's, not the class's; the change moves each round band by at most 0.03. The 99s and the win spread
+miss both ways too. Those three wait for the aging redesign (ability groups), which changes how men
+grow and fade, and are graded again on its runs. Rows: the project's `design/d5b/class-talent-tune.md`.
+
 ### Measurements for the owner's aging rulings (2026-11-06; rows version 5)
 
 The owner ruled on 2026-11-06:
