@@ -7,6 +7,8 @@
 - **Status:** design ruled by the owner (Q1-Q8, 2026-10-23 18:28Z; follow-ups F1-F3, 20:49Z).
   Contracts edits P1-P6, S1, C1, E1-E5 and D1 approved by the owner's typed yes (2026-10-24
   02:39Z). D1-D4 built and D5a measured 2026-10-24 (PR #35; §11); both switches off by default.
+  §12 (aging by ability, with no positions) accepted 2026-11-07, with contracts edits P7, E6, P8
+  and W1 approved by the owner's typed yes (2026-11-06 23:20Z; confirmed 2026-11-07 12:15Z).
 - **Works with:** "Player draft" (ADR-086: the year turnover, rookies), "Salary cap and contracts"
   (ADR-085: cuts, free agents, injured reserve, replacements; real-player stand-ins), ADR-079
   (absolute ratings, physical ratings pinned to measurements), ADR-080 (coaches), ADR-075 (players'
@@ -395,6 +397,9 @@ only the personality sheet.
 | **D1** | `contracts.md` wording for the above; the `TrueAttributes` reader comment (§7's four franchise readers of truth); `contracts.md` §3 truth-layer note; the `contracts.md` §10 amendment (P5) | documents |
 
 No change to `GameResult` or the engine's types.
+
+§12 adds P7, E6, P8 and W1 (§12.2.2, §12.4.1, §12.3.7, §12.8), and lists the edits not yet approved
+as NEW-1 to NEW-4 (§12.10).
 
 ## 9. Build plan
 
@@ -938,6 +943,754 @@ The sim's totals (ours, measured):
 A smoke grade is never a graded report, so these numbers judge nothing.
 
 With both switches off nothing in the game changes. The reader and grader only watch, `capForecast` is pure, and no file outside `packages/calibration/src/season/` (and its tests) changes.
+
+## 12. Aging by ability, with no positions (amendment, 2026-11-07)
+
+**Status:** Accepted 2026-11-07. It carries out the owner's rulings R1-R4 (2026-11-06, §12.0) and
+his answers to its six questions (2026-11-07 12:15Z, §12.12).
+- Contracts edits: P7, E6, P8 and W1 only. The owner approved them by typed yes on 2026-11-06 23:20Z
+  (*"yes on edits P7, E6, P8 and W1"*) and confirmed them on 2026-11-07 12:15Z (*"Edits P7, E6, P8
+  and W1 are approved"*). They are built as step AB0 (§12.9).
+- Anything else that touches `packages/contracts` is listed as NEW-1 to NEW-4 (§12.10). Each NEW edit
+  needs the owner's own typed yes. NEW-1 (Q3) and NEW-2 (Q4) are chosen and wait for their typed
+  names; NEW-3 is not made (Q5); NEW-4 is not asked.
+
+This section replaces §2.4's age profiles by position, and §6.1's "unsigned only" retirement, wherever
+growth is on.
+
+How to read the numbers. Every number carries one label:
+- **REAL** — counted from real NFL data, with its source.
+- **MEASURED** — counted in our sim or in the scratch model; the run is named.
+- **CHOSEN** — a design pick.
+- **GUESS** — a starting value that tuning will move.
+
+The REAL sources are:
+- the nflverse cache, through `pnpm --filter @ff/calibration injury-rates` (`reports/injury-rates.md`, PR #69);
+- `nfl-careers` (`reports/nfl-careers.md`, `NFL_CAREERS`);
+- the week-8 rookie count in that same report.
+
+The MEASURED sources are:
+- "toy": the scratch model, variant D. Its report is `/mnt/project-files/design/aging-redesign/curve-model-report.md`, and the model's files (its code, and the tables it wrote in `out/`, with version 1's in `out/v1/`) are kept beside it in `/mnt/project-files/design/aging-redesign/model/`. The model files cited below (`model/...`, `check.ts`, `cohort.ts`, `model.ts`, `fast.ts`, `ninety9.ts`, `options.ts` and `out/tables.md`) are in that folder, not repository paths. The code's imports name the worktree it ran in, so it does not run from there as it stands;
+- "grade": `/mnt/project-files/design/d5b/class-talent-tune-with.md`, the 20-season check on main plus class talent, 4 tune seeds.
+
+Code paths are checked against main at 760b8f6, plus the class-talent commit 5253037.
+
+This text is the amendment's second draft, which applies a review of the first (against the rulings, the code and the numbers). Each finding, whether it was applied and why, is in `/mnt/project-files/design/aging-redesign/draft2-revisions.md`.
+
+### 12.0 Rulings this section carries out
+
+R1 (owner, 2026-11-06). Nothing in aging, growth or retirement may depend on a player's listed position (`bio.position`).
+- A position is what a team plays a man at.
+- A position's overall formula (`positionOverall`, `POSITION_PROFILES`) may be used only to *judge* a man. It must never set how he ages.
+
+R2 (owner, 2026-11-06). Injury risk may follow the spot his team plays him at, which is the depth chart. It never follows his listed position.
+
+R3 (owner, 2026-11-06). Retirement by his own choice is in. It supersedes Q7 and the Old card's "Q7 stands". A man who is not signed still retires when nobody signs him in time (§6.1, unchanged).
+
+R4 (owner, 2026-11-06). The 12 ability groups are accepted (plan doc, "Aging by ability: the plan"). The steeper technique fade from 31 is his pick, and goes in as an option to try in tuning. "Smarts from playing slow" is his pick too, as an option; the fit makes it part of the base set on the ability path, because the fitted smarts curve needs it (§12.2.4), and a test run without it sits beside (AB9-T2, Q2).
+
+R5 (this section). With growth off, every output stays byte-for-byte what main makes today. With growth on, the new rules are built behind options that default to the old rules, so each build step can prove it changes nothing until it is switched on.
+- R1-R3 are already ruled, so no new yes is needed to make them the growth-on rules. The defaults become `ability` / `spot` / `choice` with growth on at AB11 (§12.9), when AB9 and AB10 are done and graded.
+- Until then `position`, `group` and `unsigned` stay only as comparison arms.
+- The only owner yes still open here is Q8's: switching growth and injuries on by default (ADR-087 §9, D5b; "The flip" under the D5b tuning limits).
+
+### 12.1 Switches
+
+Each new rule is an option. Each option defaults to today's rule while it is built, so it is inert until AB11 makes the new rules the growth-on default (R5).
+
+| Option | Lives in | Values (default first) | What it picks |
+|---|---|---|---|
+| `aging` | `PlayerStepsConfig.aging`, its own optional field (franchise `players/steps.ts`); also the `generateLeagueRosters` / `generateDraftClass` options (attributes) | `"position"` \| `"ability"` | Profiles by position (§2.4), or the ability curves (§12.2). In attributes: today's rookie and specialist ages, or §12.5's ages. |
+| `injuryRisk` | `PlayerStepsConfig.injuryRisk`, its own optional field (`injuries` is a boolean, `config.injuries === true`, and stays one) | `"group"` \| `"spot"` | Today's `byGroup` by `POSITION_GROUP[bio.position]` with the age rule from 26, or §12.3's spot and age factors, marks and healing. |
+| `retirement` | `PlayerStepsConfig.retirement`, its own optional field | `"unsigned"` \| `"choice"` | Today's unsigned-only rule, or §12.4 added on top of it. |
+
+Each option does nothing unless its parent switch is on:
+- `aging` only acts with `development` on;
+- `injuryRisk` only acts with `injuries` on;
+- `retirement: "choice"` acts with either switch on. Its age and injury inputs simply read neutral when the other switch is off.
+
+How the options reach the code and the checks:
+- **Calibration.** It takes `--aging ability`, `--injury-risk spot` and `--retirement choice`, and one shorthand, `--ability-rules`, which sets all three. These go on `season`, `career-check` and `player-checks`.
+- **Records.** `PlayerMemory.switches` (franchise `players/types.ts`, not contracts) gains optional keys `aging?`, `injuryRisk?` and `retirement?`. `steps.ts` writes each only when it is not the default, so a save made at the defaults is byte-identical to main's.
+- **Carrying on.** The season command restores only `development` and `injuries` from `memory.switches` today (`calibration/src/season/main.ts`, about lines 185-188). It reads the three new keys too, and so does career-check's resume, so a `--load` carries on under the same rules instead of falling back to the defaults.
+- **Cache.** The options join the career-check cache key, next to the build fingerprint.
+- **Old saves.** A save without the options loads under today's rules.
+
+### 12.2 A. Ability groups and curves (variant D)
+
+#### 12.2.1 What it does
+
+Each rating belongs to one of the 12 ability groups. Each group has its own age curve.
+
+Each player carries one number per group, fixed for life: how many years earlier (minus) or later (plus) than usual that ability starts to fade. A running back then fades early because his game leans on speed and quickness. A quarterback lasts because his game leans on passing and smarts. No line of the rule reads his listed position.
+
+**The loss in a year.** Starting from his age `a` and his own shift `s` for the group:
+
+```
+yearsPast = min(cap, max(0, a − start − s + wear))      // wear: §12.3.6, body groups and DURABILITY only
+loss      = per × yearsPast
+```
+
+Gains (learning, workouts, the own-curve gains) are scaled by growth as today, and are not shifted. Losses read at the shifted age. A man two years "late" (s = +2) therefore starts fading later, and at any given age he fades more gently. Wear pushes the other way: more contact taken means more years past, so a man who has taken heavy contact fades as if he were older.
+
+**Curves (variant D, re-fitted 2026-11-07 after the review; all CHOSEN).** The starts and pers are fitted in the toy (`model/fit.ts`, coordinate descent, 3 sweeps) against REAL targets read through the toy's own bias: each row's target is REAL + (toy today − sim today), so the curves are not tuned to cancel the toy's own errors. The caps (8, and 10 for SMARTS) are CHOSEN, the plan's guesses; the fit does not move them. The model's arithmetic was checked against `expectedOverallPath` on today's rules (`check.ts`: worst error 0.0000 over 1,496 player-years where no clamp binds); that checks the arithmetic, not the fit. Loss, fit seed / check seed (MEASURED, toy): **D 49.0 / 54.5**, A 83.9 / 84.0, B 59.6 / 65.1, C 66.7 / 72.5. The first draft's values (63.4 / 79.1 for D) came from a toy whose "today" rookies were a year young and which was graded on raw REAL; the model's report keeps them beside its version 1.
+
+| Group | Ratings | Start (age) | Per year past | Cap (years) |
+|---|---|---|---|---|
+| SPEED | speed; and, as the "follows" weights in `body.ts`: acceleration .7, mobility .6, firstStep .7, pursuit .6 | 25 | 0.00731 s on the 40 | 8 |
+| QUICKNESS | agility; the agility share of acceleration .3, mobility .4, firstStep .3, pursuit .4; elusiveness (follows quickness .6, speed .3); yac (.4/.4) | 23 | 0.012 s on the cone | 8 |
+| SPRING | jumping | 28 | 0.1582 in on the vertical | 8 |
+| STRENGTH | strength; power and anchor (follow strength 1) | 28 | 0.206 bench reps | 8 |
+| ARM | armStrength | main's `OWN_CURVES.armStrength` | — | — |
+| LEG | kickPower, puntPower | main's `OWN_CURVES` | — | — |
+| STAMINA | stamina | main's `OWN_CURVES.stamina` | — | — |
+| DURABILITY | durability | main's `OWN_CURVES.durability`, plus wear (§12.3.6) and marks (§12.3.4) | — | — |
+| TECHNIQUE | passBlock, runBlock, footwork, sustain, pullSkill, passRush, runStuff, powerMove, finesseMove, blockShed, tackling, zoneCoverage, manCoverage, press, ballSkills, routeRunning, releaseWR, catching, catchInTraffic, spectacularCatch, ballSecurity, disguise | 29 | 0.19775 rating points | 8 |
+| PASSING | accuracy, touch, release, improvisation | 33 | 0.625 pts | 8 |
+| KICKING | kickAccuracy, puntHangTime | 30 | 0.58594 pts | 8 |
+| SMARTS | the 11 in `GROUP_MEMBERS.SMARTS` | 26 | 0.35156 pts | 10 |
+
+How the groups relate to today's tables:
+- The four body groups replace the `AGING_PROFILES` peak and per-year numbers.
+- The four rating groups replace `SKILL_FADE` and `SMARTS_FADE`.
+- ARM, LEG, STAMINA and DURABILITY keep main's `OWN_CURVES` as they are, with the shift read on the loss side only.
+- volatility and discipline stay FIXED (personality, Spec #14).
+
+**The other rules that move with `aging: "ability"`** (all CHOSEN, fitted in the toy with the curves):
+- **Learning floor** 0.08. Main's `LEARNING_RATE.floor` is 0.15.
+- **Workout age** `WORKOUT_AGE` [[22, 1], [25, 0.1], [28, 0]]. Main runs [[22, 1], [25, .6], [28, .35], [32, .2], [36, .1]].
+- **Smarts from snaps** 0.45 per 1,000 snaps. Main's `SMARTS_SNAPS` is 0.6.
+- **Passing from snaps.** The PASSING snaps term (0.15 per 1,000 snaps) applies to accuracy, touch, release and improvisation, as in the toy (`model.ts` `withPassingSnaps`, `fast.ts` `wPassSnaps`). None of them takes the smarts snaps term.
+- **Smarts from playing slow** on, c = 0.2 (§12.2.4). It is part of the fitted set, not an extra.
+- **Leaving SKILL.** elusiveness and yac move from SKILL to QUICKNESS. They keep full learning and get no technique fade.
+
+**The SMARTS row and slow smarts go together.** The fit set the SMARTS fade start at 26 only because slow smarts adds smarts back while the legs go. A typical starter's awareness, a year at each age (MEASURED, toy, `model/smartsyear.ts`, entering at 22, growth 1):
+
+| Rules | at 24 | at 26 | at 28 | at 30 | at 32 | at 34 | sum 26-35 |
+|---|---|---|---|---|---|---|---|
+| today (QB) | +1.42 | +1.28 | +1.26 | +0.96 | +0.36 | −0.20 | +6.5 |
+| D as fitted (slow smarts 0.2) | +0.98 | +1.35 | +1.17 | +0.98 | +0.63 | +0.03 | +7.4 |
+| D's rows with slow smarts 0 (never fitted) | +0.98 | +0.83 | +0.12 | −0.59 | −1.29 | −2.00 | −7.6 |
+| B as fitted (no slow smarts) | +0.91 | +0.75 | +0.74 | +0.74 | +0.44 | −0.16 | +4.4 |
+
+So D's SMARTS row is never used with slow smarts off: that mix would make a starter's smarts fall from 28, against the plan's approved "fades late (as today)" and the owner's "reading defenses and throwing keep improving". A man who does not play gets no slow-smarts gain, so a career backup's smarts do fall from about 28 under D; that is reported in AB9.
+
+**Variant B, the fitted set without slow smarts** (CHOSEN, toy fit; used only for AB9-T2): SPEED 27 / 0.00731; QUICKNESS 22 / 0.009; SPRING 31 / 0.09492; STRENGTH 31 / 0.17578; TECHNIQUE 29 / 0.35156; PASSING 29 / 0.5; KICKING 30 / 0.58594; SMARTS 31 / 0.3 (cap 10); passing snaps 0.3; smarts snaps 0.45; learning floor 0.06; workouts [[22, 1], [25, 0.3], [28, 0]].
+
+#### 12.2.2 The per-player number (P7)
+
+Contracts, `packages/contracts/src/players.ts` (edit P7, approved):
+
+```ts
+/** ADR-087 P7: the 12 ability groups (names only; the curves live in franchise). */
+export const ABILITY_GROUPS = [
+  "SPEED", "QUICKNESS", "SPRING", "STRENGTH", "ARM", "LEG",
+  "STAMINA", "DURABILITY", "TECHNIQUE", "PASSING", "KICKING", "SMARTS",
+] as const;
+export type AbilityGroup = (typeof ABILITY_GROUPS)[number];
+
+export interface PlayerDevelopment {
+  // ...growth, snaps, carry, body (unchanged)
+  /** ADR-087 P7: years earlier (minus) or later (plus) than usual each ability starts to fade, fixed
+   *  for life. Missing, or a group missing, reads 0 (typical), so old saves and files load. */
+  fadeShift?: Partial<Record<AbilityGroup, number>>;
+}
+```
+
+The type pins go in `contracts/test/development.test.ts`, which imports the helpers from `contracts/test/typePins.ts` (that file holds helpers only, not pins):
+- `fadeShift` is an `OptionalKeys` member;
+- `typeof ABILITY_GROUPS` is the 12-name tuple, in this order (a union has no order, so the order is pinned on the tuple); `AbilityGroup` is its element type.
+
+#### 12.2.3 The body clock and the spread
+
+How each player's shifts are drawn:
+- The four body groups share one clock draw `c`. For a body group `g`: `s_g = sd_g × (√ρ·c + √(1−ρ)·e_g)`, with ρ = 0.5 (CHOSEN).
+- Every other group: `s_g = sd_g × e_g`.
+- `c` and `e_g` are standard normals. The combined z for each group (`√ρ·c + √(1−ρ)·e_g` for a body group, `e_g` for the rest) is clamped at ±2.5 (CHOSEN), as the toy does (`cohort.ts` `drawDeltas`). Cutting `c` and `e_g` one by one would let a body group's z reach ±3.54 (about 0.7-1.2% of draws past ±2.5, MEASURED by two reviewers' quick simulations), and test 4 would fail.
+- Each `s_g` is stored rounded to 2 decimals (CHOSEN; keeps saves small and diffs readable).
+
+The spreads `sd_g` (all CHOSEN, from the plan doc's guesses):
+
+| Groups | sd (years) |
+|---|---|
+| SPEED, QUICKNESS, SPRING, STRENGTH | 1.5 |
+| ARM, LEG | 2 |
+| TECHNIQUE | 1 |
+| STAMINA, DURABILITY, PASSING, KICKING, SMARTS | 1.5 |
+
+Where the draws come from:
+- **Made-up players.** `packages/attributes/src/fictional/development.ts` `withDevelopment(player, rng, start)` adds a fork `rng.fork("aging")`, with one sub-fork per group name and one for `"clock"`. A fork by label never moves the existing `"growth"`, `"snaps"` and `"patience"` streams, so every other value stays as it is. The draw runs only when the generator's `aging` option is `"ability"`. Otherwise `fadeShift` stays absent.
+- **Real veterans.** `packages/attributes/src/importer/real/development.ts` draws theirs the same way, on a new `"aging"` fork beside growth, patience and injury. No real data shows a man's own clock. `STARTING_DEVELOPMENT_VERSION` goes to `"standin-development/2"`. `stripStartingDevelopment` also strips `fadeShift`.
+- **The loader.** `packages/calibration/src/season/standInLeague.ts` `KNOWN_STARTING_DEVELOPMENT` adds `/2`. `forSwitches` already drops the whole growth record with development off, so `fadeShift` goes with it. `assertGrowthRecords` checks that every growth record has all 12 shifts when `--aging ability` is set. The refusal test in `calibration/test/standInDevelopment.test.ts` (about lines 48-51) uses `"standin-development/2"` as its unknown version; in AB2 it moves to a version the loader does not know (for example `/99`).
+- **Later versions.** Each step that changes what the records hold bumps the version, so the loader never reads records it does not know: `/3` at AB7 (P8's `injuryHistory`, §12.3.7) and `/4` for AB10's new league file (§12.9).
+
+#### 12.2.4 "Smarts from playing slow" (option `slowSmarts`)
+
+While his legs fade and he keeps playing, a man's smarts gain a little extra.
+
+**Rule.** In each game week, each SMARTS rating gains
+`c × (yearly SPEED+QUICKNESS rating loss, net of gains) × playShare / gamesPerSeason`.
+- `playShare` is his snaps over a starter's 65 a game (`EXPECTED_STARTER_SNAPS_PER_GAME`; capped at 1).
+- `c` = 0.2 (CHOSEN, fitted in the toy as the yearly form). The toy gives a starter `c ×` the speed and agility rating points he lost that year; the weekly form spreads it across game weeks so it follows play.
+- **On the ability path, `c` defaults to 0.2**: the base (AB3's default with `aging: "ability"`, and AB9-T1) is variant D as fitted. With `aging: "position"` the rule does not exist, so this changes nothing on the default path.
+- **The off arm is AB9-T2.** It sets `c` = 0 and swaps in variant B's whole fitted set (§12.2.1), never D's rows with `c` = 0.
+
+**Lives in** `packages/franchise/src/players/development.ts` `developOne`, beside `weekInputs`. `bodyWeek` returns this week's slice in seconds, inches and reps, not a year's rating loss, so the rule computes the yearly loss itself: `abilityYear` plus `yearOfWorkouts` for his age, turned into speed and agility points by `body.ts` `bodyScale`. It makes no draws, and it is skipped when `c` = 0.
+
+#### 12.2.5 The steeper technique fade from 31 (option `techniqueKnee`, tuning only)
+
+The re-fit puts the TECHNIQUE fade start at 29, the owner's age, but its slope is gentle: 0.198 points a year past (CHOSEN, fitted), 1.6 at the cap. The owner asked for "from 29, steeper from 31".
+
+**The option.** It adds a knee: a second slope `perAfterKnee` from `knee` = 31 (CHOSEN, the owner's age).
+- Start 29 (the fit and the owner agree).
+- `per` before the knee: 0.19775 (CHOSEN, fitted).
+- `perAfterKnee`: a GUESS of 0.6. Tuning sets it.
+
+The default is off. Tuning arm AB9-T3 turns it on. It is judged on the peak-usage and decline rows (§12.2.8).
+
+#### 12.2.6 What goes with `aging: "ability"`
+
+- **`AGING_PROFILES`.** These are the eight profiles by position (RB 25 … QB 30, KICKER 30), with `MAX_YEARS_PAST_PEAK` 8, in `developmentTables.ts` at about lines 238-273. They are no longer read on the ability path. The table is deleted at the flip (AB11), not before.
+- **The position argument.** It is threaded through four calls in `development.ts`:
+  - `yearOfAging(position, age)` (lines 122-128);
+  - `bodyWeek(position, age, growth, withTeam, phase, rules)` (146-157);
+  - `developOne` passing `player.bio.position` (line 289);
+  - `expectedWalk` passing `p.bio.position` (line 461).
+
+  On the ability path these become `abilityYear(age, shift, wear)` and `abilityBodyWeek(age, development, withTeam, phase, rules)`. Neither takes a position. A test greps the ability path's module for `bio.position` and fails if it appears (§12.2.7, test 1).
+- **The weekly inputs.** `steps.ts` `playerWeeks` (line 148) picks two growth inputs by his listed side, `sideOf(p.bio.position)`: which coordinator's `development` skill coaches him (`coordinator(..., SIDE_SEAT[side])`, OC, DC or STC), and which side's snaps make up his `playShare` (lines 149-170). So a man listed WR who returns kicks gets no special-teams share. Today `bio.position` is also his chart key, so no output differs yet, but it is a read R1 bars. On the ability path:
+  - his side comes from the chart key that lists him this week (the same `spotOf` as §12.3.1; K, P and LS mean special teams);
+  - a man on no key takes the side where most of his snaps came this week (ties: offense, then defense, then special; CHOSEN), and a man with no snaps and no key takes no coordinator and a share of 0, as a man with no snaps does today;
+  - the coordinator and `playShare` both follow that side.
+
+  Retirement's "lost his job" input (§12.4.3) counts starts by the same rule. With `aging: "position"` the line stays as it is.
+- **Specialists two years older.** In the made-up league, `generate.ts:168` makes `21 + (specialist ? 2 : 0) + …`. With `aging: "ability"`, the made-up age follows §12.5 for every man, with no specialist term.
+- **Overall when judging.** `overallWithCarry` (`positionOverall` at `bio.position`) stays. It only *judges* a man, which R1 allows. Nothing in the ability path reads it to set a curve.
+- **Growth off.** `aging` is ignored. Every byte is unchanged (§12.9).
+
+The money thread owns the money side's position rules: `cap/value.ts` `legacyRuleAge(age, position)` (line 98), `ageFactor` and `termFor(age, position)`. This section does not touch them. It does give `expectedOverallChange` / `expectedOverallPath` an `aging` option, so that thread can read ability-based paths when it is ready (§12.11, note M2).
+
+#### 12.2.7 Tests (franchise unless marked)
+
+1. **No position.** `players.aging.test.ts`:
+   - two men identical in every rating, record and shift, but with different `bio.position`, get identical deltas for 20 years;
+   - the same two men, on the same chart key with the same snaps, get the same `PlayerWeek` from `playerWeeks`, and the same deltas when the whole week runs through `playerSteps` (so the coordinator and the share are covered, not only the development-week level);
+   - a man listed WR who is on no chart key and took most of his snaps on special teams gets a special-teams share and the special-teams coordinator's coaching;
+   - a source grep finds no `bio.position` or `POSITION_GROUP` in `players/aging.ts`.
+2. **Curve shape.** Each group's loss is 0 at `start + shift`, climbs by `per` a year, and stops at `cap`. A shift of +2 equals the same man two years younger on the loss side, and changes nothing on the gain side. Wear: with `wear` > 0 a body group's or durability's years past go up, and more contact never lowers any group's loss.
+3. **Missing reads typical.** A record without `fadeShift`, or with one group missing, equals one with zeros.
+4. **Body clock** (attributes `development.test.ts`). Over 20,000 draws: each body group's sd is about 1.5 (a little under, from the clamp); pairwise correlations are about 0.5 (±0.03); nothing lies past ±2.5 sd (the combined z is clamped, §12.2.3); all 12 groups are present; draws are the same for the same seed.
+5. **Streams unmoved** (attributes `generate.test.ts`, `draftClass.test.ts`). With `aging: "position"`, the league and the class are deep-equal to main. With `"ability"`, everything except `fadeShift`, the age (§12.5) and the fields that follow age is deep-equal to main. In the made-up league those fields are `bio.draft.year` (`draftFor` sets it to season − max(0, age − 22), `generate.ts` about line 132) and `development.snaps` (career snaps come from seasons since that year, or from age for the undrafted: `fictional/development.ts` `seasonsPlayed`). The test asserts that they are recomputed from the new age, not that they are unchanged.
+6. **Importer** (attributes `standinDevelopment.test.ts`). It writes all 12 at `/2`. A second run changes nothing. Strip removes them. The calibration loader's refusal test uses a version it does not know (§12.2.3).
+7. **Slow smarts.** With `c` = 0 there is no change. With `c` = 0.2, a man losing 1 point of legs a year at a starter's share gains 0.2 smarts points over the season, and a man with no snaps gains 0.
+8. **Technique knee.** Off equals the fit's curve. On, the slope changes at 31.
+9. **Rewrites.** In `players.development.test.ts`:
+   - line 505 (the RB at 40 example) and line 521 ("each position's decline") become "each ability group's decline" plus test 1;
+   - line 137 pins the sha256 of `GROUP_MEMBERS` (the same digest as calibration's `RATING_GROUP_DIGEST`). It is left as it is, since `GROUP_MEMBERS` does not change (test 11). A separate pin is added for the ability membership table, matched to calibration's `ABILITY_GROUP_COPY` digest;
+   - lines 372 and 604 (the backup's about-70% share) are re-checked on both paths.
+10. **Expected path.** `expectedOverallPath` with `aging: "ability"` matches `developOne` run over the same man and years. (The toy's `check.ts` matched `expectedOverallPath` on today's rules only, worst error 0.0000 over 1,496 player-years, MEASURED; it says nothing yet about an ability path, so this test is new work.)
+11. **Calibration copy pin.** Calibration adds `ABILITY_GROUP_COPY` with its own digest, beside `RATING_GROUP_COPY` / `RATING_GROUP_DIGEST` (`careerCheck.ts`). `GROUP_MEMBERS` itself is left unchanged, so its digest stays.
+
+#### 12.2.8 How the 20-season check judges it
+
+The toy is read as a change from its own baseline, never as a forecast by itself. "Projected" = the sim today (MEASURED, grade) + (toy D − toy today), with toy today's rookies at the sim's 22-24 (`model/out/project-D.md`, 6 leagues, seed 23). It is a GUESS until AB9 measures it. "Rules only" holds the rookie ages equal on both sides (toy D − toy today with real rookie ages), so it shows what the curves alone do.
+
+| Row (CAREER_BANDS) | Today (grade, MEASURED) | Real (REAL) | Toy D / projected D (toy MEASURED; projection GUESS) | Expected direction |
+|---|---|---|---|---|
+| peak-usage (GATE) | QB 28, RB 26, WR 28, TE 29, OL 29, EDGE 29, IDL 29, LB 27, CB 29, S 27 | 24-26 for every group (`NFL_CAREERS`) | Toy D: QB 30, RB 25, WR 26, TE 27, OL 29, EDGE 26, IDL 29, LB 26, CB 26, S 26. Projected: QB 27, RB 24, WR 25, TE 27, OL 27, EDGE 25, IDL 27, LB 23, CB 26, S 23 | Down 2-4 years for most groups. Inside ±1.5 years for RB, WR, OL, EDGE, IDL, LB; QB, TE and CB still late; S may land early |
+| at99 (GATE) | 51.75-97 a league (2036-45 mean 87.5) against the gate 44.5 | — | Toy today 79.8, toy D 38.6. The toy's today is about 0.91× the sim's, so D projects to about 42 in the sim, close to the gate; D + O2 about 36 | Down, but likely needs O2 (AB9-T4) for room; §12.6 |
+| share-31-group (REPORT) | LB 11.1% vs 4.7%; LS 17.3% vs 41.1% | REAL as shown | LB: toy 9.9%, projected 11.2% (rules only +0.1). LS: toy 27.0%, projected 27.9% | LB unchanged and still out; LS better but still short (§12.7) |
+| age-group (GATE) | fails on one group | — | — | Re-measure |
+| careers / reach 5 (GATE) | league 0.299 vs 0.448 (already failing) | 0.448 | Rules only: down in every group, 2-11 points (league, man-weighted: 39.0% → 31.4% in the toy) | **Down: a risk of variant D.** Lower and earlier peaks mean men lose their spots sooner. AB9 must report it; the market thread's exits (M4) are the other side of it |
+| decline size from 30 | — | QB loses 2-4 snap-share points a year, CB 12-14 | The curves alone cannot match the size: the sim gives about 1.17 snap-share points per overall point (MEASURED, sim, build 3b3c7b2006e9cb1a, no class talent; `model/simusage.ts`). Spearman of the group order: today 0.41, D 0.35 | Order not better than today; size still short; report it |
+| league age (GATE: mean, 31+, 34+, pooled sd) | mean 26.31, 31+ 10.5%, 34+ 3.0%, pooled sd 7.52; all PASS today | per `NFL_CAREERS` (2022-24 graded: 26.27 / 10.1% / 2.9%) | Toy, today → D: mean 26.28 → 25.96, 31+ 12.2% → 12.7%, 34+ 3.5% → 4.8%. Projected: mean about 26.0, 31+ about 11.0%, 34+ about 4.3% | Mean down a little, 31+ up a little, 34+ up about 1.3 points. These are passing GATE rows; 34+ (at most NFL + 2 = 4.9%) could come close to failing. The lower floor may also shrink the pooled sd |
+
+New measure-only rows (AB1, reader v6), all measure-only:
+- ability-group means by age;
+- 99s by rating, by ability group and by age;
+- the spread of team overall and how it carries from year to year (§12.6).
+
+### 12.3 B. Injuries
+
+#### 12.3.1 Risk follows the depth-chart spot (`injuryRisk: "spot"`)
+
+**Today.** `gameInjuries` and `weekInjuries` (`players/injuries.ts`, lines 259 and 282) read `POSITION_GROUP[p.bio.position]`, and so does `expectedAvailability` (`players/availability.ts`, line 380). The chart (`players/depthChart.ts`) is rebuilt each week by `bio.position`, so a charted man's spot is his listed position today. The rule below is about where the risk *comes from*: it gives the same answer now, and it stays right once teams play men away from their listed position.
+
+**The spot** is the `Position` key on this week's chart that lists him: QB, RB, FB, WR, TE, LT, LG, C, RG, RT, DE, DT, NT, OLB, MLB, ILB, CB, FS, SS, K, P, LS.
+- A man on two keys takes the first in chart order (CHOSEN).
+- A man on no key (practice squad, unsigned, out injured) takes factor 1 and the league-wide kind mix (CHOSEN).
+- Practice injuries and the kind mix both use the spot's group (LT/LG/C/RG/RT → OL, and so on), from the same chart key, never from `bio.position`.
+- `expectedAvailability` follows the same rule. Under `injuryRisk: "spot"`, a caller that passes no spot gets the chart key that lists him, or, on no key, the no-key rule (factor 1, the league kind mix). It never falls back to `POSITION_GROUP[bio.position]` (`availability.ts` line 380 today).
+
+**Spot factor** = today's group `byGroup` × (the REAL per-1,000-snap rate at that fine position ÷ the REAL group rate). This keeps today's fitted group levels and splits them inside the group. All inputs are REAL (`reports/injury-rates.md`); the factors are computed from them.
+
+**What the REAL rates count.** They are counted by fine listed position: nflverse's `depth_chart_position` holds the man's position in its fine form (CB, FS, SS; T, G, C; DE, DT, NT; OLB, ILB, MLB), not the game-day depth chart (`injury-rates.md`, "By depth-chart spot"). Men moved on game day are not seen. So the owner's "recount by depth-chart spot" split the groups into fine positions; it did not see where men actually played. The sim applies them by the chart key his team gives him, which is what R2 asks for.
+
+| Spot | REAL rate per 1,000 snaps, by fine listed position (nflverse `depth_chart_position`; men moved on game day not seen) | Factor |
+|---|---|---|
+| QB | .876 | .85 |
+| RB | 1.839 | 1.60 |
+| FB | 1.345 | 1.17 |
+| WR | 1.320 | 1.22 |
+| TE | 1.118 | .99 |
+| LT/RT | 1.039 | .97 |
+| LG/RG | .783 | .73 |
+| C | .810 | .76 |
+| DE | 1.061 | .98 |
+| DT | .924 | .85 |
+| NT | 1.200 | 1.10 |
+| OLB | 1.020 | .88 |
+| ILB | 1.022 | .88 |
+| MLB | .912 | .78 |
+| CB | 1.372 | 1.21 |
+| FS | .936 | .82 |
+| SS | 1.042 | .92 |
+| K | 1.877 | 1.21 |
+| P | .645 | .42 |
+| LS | .613 | .40 |
+
+The K, P and LS counts are small (48 / 18 / 15 injuries; REAL). Their factors are reported, but get no weight in the grade.
+
+**Lives in** `injuryTables.ts` `INJURY_RATES.game.bySpot` (new, beside `byGroup`) and `injuries.ts` `spotOf(chart, player)`. `availability.ts` `expectedAvailability` gains a `spot?` option; with none it reads his chart key as above. The money thread decides when its callers pass one (§12.11, M3).
+
+#### 12.3.2 The age factor, measured and smoothed
+
+**REAL.** Injuries per snap, observed over expected (against each band's listed-group mix: each band's player-games at each listed group's all-ages rate), by age band (25 and under, 26-28, 29-30, 31-32, 33 and over): 0.99 / 0.96 / 1.04 / 1.20 / 1.01, with SE ±.02 / .02 / .04 / .06 / .07. Player-games in each band: 63,653 / 39,280 / 14,548 / 7,056 / 4,354.
+
+**Today (GUESS).** `riskFactor` in `injuries.ts` uses `1 + 0.04 × max(0, age − 26)`. At 33, with durability's own fall, that comes to about 1.28 × 1.10 ≈ 1.41, against REAL 1.01-1.20.
+
+**Smoothing (CHOSEN method on REAL inputs):**
+1. Pool the bands with too few men to stand alone:
+   - 28 and under: (63,653 × .99 + 39,280 × .96) / 102,933 = 0.98;
+   - 29-30 stays 1.04;
+   - 31 and over: (7,056 × 1.20 + 4,354 × 1.01) / 11,410 = 1.13.
+2. Put the knots at the pooled bands' middles: (27, 0.98), (29.5, 1.04), (32.5, 1.13). Join them with straight lines, flat outside.
+3. Divide each knot by the typical man's durability factor at that age, from `OWN_CURVES.durability` through `exp(−0.02 × (d − 65))`. Those factors are 1.000, 1.021 and 1.087. Durability's own fall already raises an older man's risk, and this keeps it from being counted twice.
+
+Knots used: (27, 0.98), (29.5, 1.02), (32.5, 1.04), flat outside. These are CHOSEN, computed from REAL. Tuning may move each knot by up to one SE, and only on the reader's injuries-by-age row.
+
+**Level refit.** Over the REAL age mix, today's factor averages about 1.05 and the new one about 0.99 (computed). So the spot path gets its own level, `INJURY_RATES.game.bySpot.perSnap`, refit by the existing season-run fitting test and expected to sit about 5-6% above today's `perSnap` (.00132, fitted). Today's `INJURY_RATES.game.perSnap` is not touched, so the group path is unchanged (§12.3.5, test 9).
+
+#### 12.3.3 Slower healing only where measured
+
+**REAL, 31+ against younger** (Kaplan-Meier share out 4+ weeks):
+
+| Class | 31+ | Younger | Distance | Cases (31+) |
+|---|---|---|---|---|
+| Back / neck / ribs / other | about 43.9% | 33.2% | about 1.9 SE | 86 |
+| Concussion | about 27.9% | 17.1% | about 1.7 SE | 54 |
+
+Both classes sit under 2 SE (two-sample SE: 5.75 points for back and the rest, 6.34 for concussion; REAL counts from `injury-rates.md`, computed the same way for both rows). Soft-tissue and joint injuries show no slowing with age, so none is added.
+
+- **Back / neck / ribs / other: proposed, on the spot path only, as a tuning arm the grade can drop.** It is the larger gap of the two, but under 2 SE, so it is a judgment call against the plan's "only where the full count shows it"; AB9 reports the arm with it and without it.
+  - At 31 and over, the LONG and MAJOR week buckets of `INJURY_KINDS.back` and `.ribs` (and any kind in that class) are multiplied by m = 1.57, and the buckets are renormalized (`pickWeighted` divides by the total).
+  - Why 1.57 (computed from REAL): multiplying two buckets by m and renormalizing multiplies the *odds* of 4+ weeks by exactly m, whatever the kind's own base share. The REAL odds ratio is (43.9/56.1) ÷ (33.2/66.8) = 1.57. A plain share ratio (1.32) would move back's own 4+ share (47.7% of its time-loss draws, 33.7% of all draws) only about 1.15-1.19×, and ribs' about 1.17-1.21×.
+- **Concussion: not yet.** Let the repeat rule (§12.3.4) carry the older men's longer absences, since older men have more priors, then measure on AB1's concussion-length row. Add an age term only if a gap stays.
+
+**Lives in** `injuryTables.ts`, as `HEALING_BY_AGE: { from: 31, classes: ["back", "ribs", ...], longMajorOdds: 1.57 }`, a table only the spot path reads. `injuryRisk` is threaded through `gameInjuries`, `weekInjuries` and `healWeek` into `drawInjury` and `lastingMark`, which read it only on the spot path.
+
+#### 12.3.4 The concussion mark and the repeat rule
+
+**REAL.** Out 4+ weeks:
+
+| Concussion | Share | Cases |
+|---|---|---|
+| First seen | 16.0% | 452 |
+| A later one, with quick relapses set apart | 26.3% | 77 |
+| A quick relapse | 55% | 12 (too few to model) |
+
+By age band, the shares run 17.5 / 16.0 / 17.8 / 25.7 / 30.3%.
+
+**Repeat rule (spot path only).** In `drawInjury`, a concussion's LONG and MAJOR week buckets get:
+- × 0.61 when `priorOfKind` = 0;
+- × 1.14 when `priorOfKind` ≥ 1.
+
+The buckets are then renormalized, so each multiplier scales the odds of 4+ weeks: m = [t/(1−t)] ÷ [s/(1−s)].
+- s is the table's own share: `INJURY_KINDS.concussion.weeks` is SHORT .761 / LONG .084 / MAJOR .155, so 23.9% of time-loss draws are out 4+ weeks (16.9% of all draws once the 29.3% day-to-day share is counted). The time-loss share is the one to use, since the REAL spells are time-loss spells.
+- t is the REAL target: 16.0% for the first seen, 26.3% for a later one with quick relapses set apart. That gives m = 0.61 and 1.14 (computed).
+- This puts the spot path's concussion lengths on the REAL ones. The pooled 4+ share falls from the table's 23.9% to about the REAL pooled 18.3% (REAL: (452 × 15.97% + 89 × 30.45%) / 541 spells, `injury-rates.json`), depending on the sim's mix of first and later concussions. The group path keeps the table as it is.
+
+`priorOfKind` counts `PlayerMemory.injuries` of the same kind, plus P8 history (§12.3.7).
+
+**Mark.** A new `CONCUSSION_MARK = { minBand: "DAY_TO_DAY", ratings: { durability: −1 } }` (CHOSEN size) in `injuryTables.ts`, read by `lastingMark` only on the spot path. `INJURY_KINDS.concussion` itself is not changed: `lastingMark` reads `INJURY_KINDS[kind].lasting` with no switch today (`injuries.ts` line 331), so a mark added there would change every `--injuries` run on the default path. The mark sits on top of today's `REPEAT_DURABILITY` {0, 1, 2, 3} and `MARK_AGE` scaling, so a repeat leaves more. Its size gets no REAL anchor (none exists), so the reader reports durability by number of concussions.
+
+#### 12.3.5 Tests (injuries)
+
+1. **No position.** Two men differing only in `bio.position`, on the same chart key, have identical risk, kind mix and lengths, and identical `expectedAvailability` (with a spot passed and with none). One man moved from key WR to key CB takes CB's factor.
+2. **Off-chart.** The factor is 1 and the kind mix is the league's.
+3. **Spot table.** Every `Position` key has an entry.
+4. **Age factor.** It hits the knots, is flat outside, is continuous, and equals today's when `injuryRisk: "group"`.
+5. **Refit.** The season-run fitting test re-pins `perSnap` on the spot path, and holds the league rate within its band.
+6. **Healing.** At 31+, the odds of 4+ weeks for back and ribs rise 1.57× (exact, from the buckets). At 30 there is no change. Concussion gets no age term. On the group path nothing changes.
+7. **Repeat.** Over 50,000 time-loss concussion draws on the spot path, the first-concussion 4+ share is about 16.0% and the repeat share is about 26.3% (±1 pt). On the group path the table's 23.9% stands.
+8. **Mark.** On the spot path a concussion leaves a durability mark of −1 × `markScale`, larger on a repeat. On the group path it leaves none, as today.
+9. **Unchanged.** Every `players.injuries` / `availability` test passes unchanged on the group path, including `healWeek` (the mark, the repeat weights and the 31+ healing live in tables only the spot path reads).
+
+#### 12.3.6 Wear from mileage (contact taken)
+
+**Existing records.** Nothing counts contact today:
+- `PlayerDevelopment.snaps` counts all snaps, and snaps alone would wear quarterbacks and linemen like running backs;
+- P4 `GameParticipation.contests: { attr, won, lost }[]` is handed back after each game, but not kept.
+
+**New counter, with no contracts edit.** `PlayerMemory.contact` goes in franchise `players/types.ts`. It is a running count of contact taken, saved through S1's `depthMemory: unknown` like the rest of `PlayerMemory`, and it starts at 0 for everyone. It is kept only with `aging: "ability"`, so a default-path save is unchanged; AB1's measure of contact per snap reads the participation rows in calibration, not this counter.
+- `CONTACT_RATINGS` (CHOSEN) is runBlock, passBlock, sustain, anchor, power, passRush, powerMove, blockShed, runStuff, tackling, ballSecurity, catchInTraffic, elusiveness, yac.
+- **Counting contests, not ratings.** P4's participation credits one contest once for every rating its roll names (`calibration/src/season/participation.ts`, `attrsOf` and `credit`), and `playerWeeks` merges contests by rating. So a carrier's break-tackle contest (elusiveness + power, `engine/src/tunables.ts` about lines 2966-2972) would count 2 while the tackler's counts 1 (tackling; strength is not listed). That tilts the count by role. AB1 therefore groups `CONTACT_RATINGS` into roll sets: ratings that appear together in one contact check's terms on the same side (for example {elusiveness, power, yac} for a carrier; {tackling} for a tackler). Each week, `playerSteps` adds, for each roll set, the largest `won + lost` among its ratings, and sums across sets. That is a lower bound on contests and never counts one contest twice. The roll-set table lives in franchise; a calibration test (calibration may read the engine, ADR-012) walks the engine's contact check profiles and fails if a contact check names two listed ratings from different sets on one side.
+- It never reads `bio.position`. It reads what he did on the field.
+
+**Effect.** `wear = perContact × max(0, contact − free)` years. It is added to the years past of SPEED, QUICKNESS, SPRING, STRENGTH and DURABILITY (§12.2.1: `a − start − s + wear`), so more contact makes him fade as if he were older.
+- `free` = the median career contact at age 27 (MEASURED in AB1 first).
+- `perContact` is a GUESS, set in tuning so that the top tenth of contact takers by age 30 run about 1 year ahead.
+
+**Order of work.** AB1 measures contact per snap by spot before any effect lands, as information only. `perContact` is then set in tuning as planned (AB9-T5). Contact taken is what a man does at the spot his team plays him, which R1 allows; it is the approved "wear from mileage" piece, so it is not dropped for following spot.
+
+**NEW-4 (not asked now).** A contact count on the growth record (contracts) is needed only to seed real veterans' past contact, or for `expectedWalk` to see it. Real veterans start at 0, like everyone. The cost is that the oldest real men are under-worn at league start; this is reported.
+
+#### 12.3.7 Real veterans' injury history (P8)
+
+Contracts, `packages/contracts/src/players.ts` (edit P8, approved):
+
+```ts
+/** ADR-087 P8: one past injury, public like an injury report. */
+export interface InjuryRecord {
+  kind: string;          // the importer's kind, e.g. "real:knee" (franchise maps it)
+  weeks: number;         // game weeks missed
+  since: CalendarStamp;  // when it started
+  healed: CalendarStamp; // when he was back
+}
+export interface PlayerCondition {
+  // ...stamina, morale, injury? (unchanged)
+  /** ADR-087 P8: injuries before the league's first day, oldest first. Absent = none known. */
+  injuryHistory?: InjuryRecord[];
+}
+```
+
+The type pins go in `contracts/test/development.test.ts` (helpers from `typePins.ts`): `injuryHistory` is optional, and `InjuryRecord` has exactly these four keys.
+
+**Importer.** `packages/attributes/src/importer/real/` (the one module allowed to touch real data, Iron Rule 7) builds the records.
+- **The source today has no history.** `history.ts` `CareerHistory.injury` is one line, `{ week, part, status }`: the latest listing on the snapshot season's injury report (`buildHistory` keeps each man's last row, and the importer reads only that season's injuries file). It has no weeks missed, no start or healed dates and no past seasons, so `InjuryRecord[]` cannot be built from it. `standin-development` reads the league file alone, so it cannot build them either.
+- **So AB7 adds a reader inside the importer.** It reads past seasons' injury reports and weekly rosters from the nflverse cache (the seasons `injury-rates` reads, 2019 on, up to the snapshot date) and builds spells by the same definitions `injury-rates` counts them with (`reports/injury-rates.md`, "Time-loss injury (spell)" and "Weeks out"). Those rules live in calibration, which the importer may not import, so they are copied into the importer and pinned by a shared fixture test on both sides. Each spell's kind is `real:<part>` from the report text; weeks are calendar weeks out; `since` and `healed` are its first missed week and the week he was back.
+- The open spell he is in at the snapshot is already copied as `condition.injury` (`importer/real/development.ts` about line 235), so it is left out of `injuryHistory`.
+- `import-real` stores the spells in `provenance.history` with the rest of his career history (`provenance` is an attributes-owned `unknown` slot in contracts, so no contracts edit), and `standin-development`, which already reads `provenance.history` (`importer/real/development.ts` about line 145), writes P8 from there. Only kind, weeks and dates cross over. No name or real id crosses; the file stays keyed by stand-in id.
+- It is written at `standin-development/3`. `stripStartingDevelopment` strips it.
+- Durability set from history goes in the startingDevelopment provenance, and is applied only with `--injuries` and `injuryRisk: "spot"`.
+
+**Loader.** `standInLeague.ts` knows `/3`. `forSwitches` keeps `injuryHistory` only when injuries are on and `injuryRisk` is `"spot"`; otherwise it strips it, in the same PR (today it strips only `condition.injury`).
+
+**Franchise.** Only with `injuryRisk: "spot"`, and only when `people.playerMemory` is absent, it seeds `PlayerMemory.injuries` from `injuryHistory` once, mapping `real:<part>` to its own kinds with a mapping table in `injuryTables.ts`. Unknown parts go to "other".
+- Why only on the spot path: a seeded entry is a prior, so the first in-game injury of the same kind would take `REPEAT_DURABILITY`, and a recent healed stamp raises risk ×1.3 (`injuries.ts` `heal` about lines 372-385, `recentlyBack` line 144). On the group path that would change a stand-in `--injuries` run at default options and break inertness proof 2.
+- The same mapping table is applied to the copied current injury (`real:<part>` in `condition.injury`) when it heals into memory on the spot path, so `priorOfKind` and `REPEAT_DURABILITY`, which compare kinds as strings, count a copied concussion and a seeded one as the same kind. On the group path the copied injury heals under its `real:` kind, as today.
+
+**Tests:**
+- the importer's output has no free text beyond the kind;
+- a second import run changes nothing;
+- seeding happens once, and a reload does not double it;
+- with `injuryRisk: "group"` nothing is seeded and a stand-in `--injuries` run equals main's;
+- a man with one past concussion draws a repeat-weighted next one (§12.3.4);
+- a copied current concussion and a seeded past one count as the same kind once it heals (spot path).
+
+#### 12.3.8 How the 20-season check judges injuries
+
+| Row (CAREER_BANDS, or reader v6 new) | Judged against |
+|---|---|
+| `availability` (REPORT) | AB1 merges the REAL share of game weeks missed by age: 19.5 / 18.3 / 17.8 / 18.9 / 14.7% (REAL; flat with age). Today's sim runs 87.1 / 83.8 / 79.6 / 77.6 / 78.5% available, falling with age (MEASURED, grade; the definitions differ, so AB1 aligns them before judging). The spot and age factors should flatten the sim's fall. |
+| Injuries per snap, by age and by spot (new, measure-only, v6) | The REAL ratios and rates above |
+| Concussion 4+ week share, first and repeat (new) | 16.0% / 26.3% |
+| Durability by number of concussions (new, report) | — |
+| Contact per snap by spot (new, measure-only) | — |
+
+### 12.4 C. Retiring on his own (`retirement: "choice"`)
+
+#### 12.4.1 The news (E6)
+
+Contracts, `packages/contracts/src/events.ts:812-816` (edit E6, approved):
+
+```ts
+/** ADR-087 E4/E6: `reason` "UNSIGNED" = nobody signed him in time (§6.1); "OWN_CHOICE" = he chose
+ *  to retire (§12.4); absent = his own choice (saves before E6). `team` = the team he left, absent
+ *  for a free agent. `timing` "SEASON_END" = when the regular season ends; camp opening is "LATE". */
+| { type: "PLAYER_RETIRED"; payload: {
+    player: PlayerId;
+    timing: "IMMEDIATE" | "SLOW" | "LATE" | "SEASON_END";
+    reason?: "UNSIGNED" | "OWN_CHOICE";
+    team?: TeamId;
+  } }
+```
+
+`reason` stays optional, so old saves and tests still read. Calibration's `careerCheck.ts` already counts any reason other than "UNSIGNED" as his own choice, split into `ownSigned` and `ownUnsigned`, so its counting stands. It will read `team` instead of working it out.
+
+The type pin: `reason` is `"UNSIGNED" | "OWN_CHOICE" | undefined`.
+
+#### 12.4.2 The three moments
+
+These follow `franchise-calendar.md` §5's windows: the review is immediate, the opening of free agency is slower, and camp is last.
+
+| Timing | When (franchise calendar) | Why there | Share of the year's chance |
+|---|---|---|---|
+| IMMEDIATE | OFF_EVAL w1 d7 | After `creditSeason` (w1 d1), before the cap is set (w2 d1) and before teams re-sign (w3 d1) | about 0.5 (CHOSEN) |
+| SLOW | OFF_RESET_FA w1 d2 | The day after the new league year (w1 d1), before the first free-agent signing; a test asserts the order | about 0.25 (CHOSEN) |
+| LATE | TRAINING_CAMP w1 d1 | Before `retirementMoment`'s unsigned check (`unsigned.ts`), so his own choice comes first | about 0.25 (CHOSEN) |
+
+The shares split one yearly chance `p` so that the three together give `p`: at moment *k*, `1 − (1 − p)^{share_k}`.
+
+#### 12.4.3 The chance model
+
+The model is a logistic one: `logit p = a(age) + Σ terms`. Every input is his own record, never `bio.position`. The terms below are GUESSES for starting points; tuning sets them.
+
+| Input | Term | Start value |
+|---|---|---|
+| Age | `a(age)`: a table by age band, started from the REAL retired-list rates (25 and under 0.20%, 26-28 0.50%, 29-30 1.28%, 31-32 2.32%, 33 and over 2.95%; REAL lower bound, NFL reserve/retired list, Y 2021-24) | logit of those rates |
+| A long injury this year | + b₁ if he had a LONG or MAJOR injury this league year (public, as on his injury report). A lasting mark is not read: marks are truth-layer (`INJURY_HEALED`; contracts `players.ts` about line 118 keeps an injury's lasting cost hidden), so reading one would be a second truth read under NEW-1. The mark still acts through durability and the rating-fall term | b₁ = 0.7 |
+| Rating fall | + b₂ × max(0, last review's overall − this one), in points. The overall is `overallWithCarry` at the profile his team charted him at most last season, or his best profile if he was not charted. The same profile is used both years. It only judges him (R1). Last review's overall is stored in a new franchise-only `PlayerMemory.lastReview` (no contracts edit), written at each IMMEDIATE moment. It reads true ratings: **NEW-1** | b₂ = 0.15 a point |
+| Years in the league | + b₃ × max(0, credited seasons − 6). REAL by years: 0.09 / 0.20 / 0.41 / 1.37 / 3.54% (0, 1-2, 3-5, 6-9, 10+) | b₃ = 0.15 |
+| Lost his job | + b₄ if he started (50%+ of his side's snaps) the season before and did not this season, from starts kept in `PlayerMemory.starts` (new franchise field, no contracts edit). His side comes from the chart key that lists him, else where most of his snaps came (§12.2.6), never `bio.position` | b₄ = 0.6 |
+| Money ahead | − b₅ × (cash still owed on his deal ÷ the cap). Signed men only; free agents take 0 | b₅ = 4 |
+| Any age | floor: p ≥ 0.05% (a young man may leave out of nowhere) | 0.05% |
+
+The draws come from `rng.fork(\`retire/${season}/${timing}\`)` and then a fork by player id. This is deterministic, and it is independent of list order.
+
+**Lives in** new `packages/franchise/src/players/retirement.ts` (`retirementChance`, `ownRetirements`). `playerSteps` (`steps.ts`) calls it on the three days, before the unsigned step on the LATE day.
+
+#### 12.4.4 The money path
+
+The money code already has a "retired" option: `cap/money.ts` `releasePlayer(c, at, { reason: "RETIRED" })` at line 105. It books a `DeadMoneyCharge` with reason RETIRED, ends the contract with ContractEndReason RETIRED, and sends no `PLAYER_RELEASED`. Nothing calls it yet.
+
+The work splits in two, because `release(book, dead, player, team, at)` (`draft/money.ts` line 71) reaches only the contract book and the dead money.
+- **`retire(book, dead, player, team, at)`** goes in `draft/money.ts`, modeled on `release` (which uses `liveIndex`). It books only the money: it calls `releasePlayer(c, at, { reason: "RETIRED" })`, pushes the charges to `dead`, ends any later deal he holds with the same team, and returns the charges and events. It sends no `PLAYER_RELEASED`.
+- **`retirement.ts` `ownRetirements`** does the rest: it takes him off the team's roster, depth chart, practice squad and reserve, and off `freeAgents`; it calls `forget`; and it sends `PLAYER_RETIRED { reason: "OWN_CHOICE", team, timing }`.
+- **`forget`** (`players/unsigned.ts` line 173) is private today. It is exported and extended to drop `unsignedSince` (which `unsignedDay` drops on its own today) and the new memory fields (`contact`, `starts`, `lastReview`).
+
+When the dead money lands, following `transactionYear` / `isAfterJune1`:
+- IMMEDIATE (OFF_EVAL) books into the next league year, all of it before June 1;
+- SLOW books in the new league year, before June 1;
+- LATE (camp) falls after June 1, so the dead money splits over two years.
+
+Not modeled: the clawback of a signing bonus (`ContractYear.springBonus.clawbackOnRetirement`) is the money thread's.
+
+Money tests (`cap.money` / `draft` tests):
+- each moment books the right years;
+- a man with a later deal ends both;
+- the team's cap room goes up by the cap hit less the dead money;
+- no `PLAYER_RELEASED` is sent.
+
+**Send the money thread this shape first** (§12.11, M1). Build AB8 only after its answer.
+
+#### 12.4.5 Tuning targets and how the check judges it
+
+| Row | Target | Today (grade, MEASURED) |
+|---|---|---|
+| `retired-signed` (REPORT) | By his own choice while signed, within a year of a final-week 53: 0.20 / 0.50 / 1.28 / 2.32 / 2.95% (REAL, lower bound; ≤25, 26-28, 29-30, 31-32, 33+). Tuned to these rates as they are (owner, 2026-11-07 Q6: quiet exits after being let go are already covered by §6.1's two-season unsigned rule, so no allowance above the list) | 0 (no own choice exists) |
+| `back-on-53` (REPORT) | 88.1 / 85.3 / 80.4 / 74.1 / 72.4% (REAL; ≤26, 27-28, 29-30, 31-32, 33+) | 0.740 pooled vs 0.854 |
+| `starters-gone` (REPORT) | 0.68 / 1.74 / 8.08 / 11.60 / 21.18% (REAL; ≤25, 26-28, 29-30, 31-32, 33+) | 0.186 pooled vs 0.037 |
+| OverTheCap signed again (reported beside back-on-53) | 94 / 89 / 86 / 71 / 58% (REPORTED by OverTheCap) | — |
+| New, measure-only (v6) | Retirements by moment, and by years in the league | — |
+
+**Caution.** The sim already over-exits: starters gone is 0.186 against 0.037, and back on a 53 is 0.740 against 0.854 (MEASURED, grade). Those exits come from the market and cut-downs, not from retirement.
+- Own-choice retirement adds exits, so it is tuned on `retired-signed` alone, never to close the exit gaps.
+- **A change from the plan the owner saw.** The plan named two tuning targets: the retired list by age, and "all exits by age together matching the real league". The second moves to the cap and market thread (§12.11, M4), because the sim already has too many exits and retirement can only add more. It was put to the owner as Q6, and he agreed (§12.12).
+- With retirement on alone, `back-on-53` and `starters-gone` should move a little the wrong way. That is expected, and the report says so.
+
+#### 12.4.6 Tests (franchise `players.retirement.test.ts`)
+
+1. **No position.** The same man under two `bio.position` values, on the same chart key, gets the same chance, the same starts count and the same last-review overall.
+2. **Floor and order.** The chance is at or above the floor at 22. It rises with age, injury, rating fall, years and a lost job, and falls with money ahead.
+3. **Same seed.** The same seed gives the same retirements. Shuffling the roster order changes nothing.
+4. **Moments.** Each one fires on its day, never with `retirement: "unsigned"`. On the LATE day the unsigned step still runs after it.
+5. **Signed vs free agent.** A signed man goes through `retire()` (money tests above) and `ownRetirements` removes him from his team. A free agent leaves `freeAgents` and sends `team` absent. `forget` drops all his memory, `unsignedSince` included.
+6. **Old rule unchanged.** All `unsigned.test.ts` tests pass unchanged.
+7. **Tuning helper.** Over a fixed toy roster, the yearly chance by band hits the `a(age)` table when every other term is 0.
+
+### 12.5 D. Rookie ages for made-up classes (`aging: "ability"`)
+
+**REAL** (rookies on week-8 53s, 2018-24): 20 and under 0.2%, 21 12.8%, 22 31.5%, 23 35.4%, 24 16.6%, 25 2.9%, 26 and over 0.6%. The whole-year mean is 22.67. With fractional ages, drafted rookies average 23.01 and undrafted 23.63, about 0.6 older.
+
+**Today.**
+- The draft class draws `age: 21 + rng.int(0, 2)` (`draftClass.ts`, the last draw per prospect).
+- The made-up league draws its own way (`generate.ts:168`).
+- Undrafted men without credited seasons get `seasonsIn` = age − 22 (`cutdown.ts`).
+- Ours: rookies' mean 22.995; share of the league 22 or under 5.5% vs 7.1% (MEASURED, grade, row share-22).
+
+**New draw.** It applies with `aging: "ability"` and growth on only. Sim ages go up one at camp (`turnYear`), so the draft-day spread is one year younger. Draft-day shares (computed from REAL; the ≤20 sliver is folded into 20): 20 13.0%, 21 31.5%, 22 35.4%, 23 16.6%, 24 2.9%, 25 0.6%.
+
+How it is drawn:
+- The old `rng.int(0, 2)` draw is still made and thrown away, so every later value in the stream is unchanged.
+- The new age comes from the prospect's `development` fork, under a new `"age"` label.
+- The undrafted are made older by linking age to talent, so the less talented (who go undrafted) run older. A Gaussian copula takes `z_age = −ρ·z_talent + √(1−ρ²)·e`, mapped through the shares above. ρ starts at 0.3 (GUESS). A calibration tuning run sets it so that, after the draft, undrafted signees average about 0.6 years older than drafted men (REAL 0.62); the test then checks the chosen ρ, it does not tune it.
+- The made-up league's starting rosters draw rookies-to-be the same way. Their older men keep today's spread with the specialist term dropped (§12.2.6). That makes made-up specialists younger at league start, which the share-31-group row will show for K/P/LS.
+
+**What it moves (computed, GUESS-level estimates):**
+- the rookie-age row: mean toward 22.67, share 22 or under up about 1.8 points;
+- age-league about −0.05 years;
+- D7 slightly up, since younger rookies learn faster under `learningRate`;
+- the undrafted row: older, as is real.
+
+**Tests** (attributes `draftClass.test.ts` and `generate.test.ts`):
+- over 20 classes of 900 (`DRAFT_CLASS_SIZE`), the shares sit within ±1 pt of the target;
+- every non-age field is deep-equal to main;
+- under `aging: "position"` the whole class is deep-equal to main;
+- the undrafted are about 0.6 older after the draft runs. This test lives in calibration, the only package that may both make a class (`generateDraftClass`, a permitted surface under ADR-086 R1) and run the draft (`runSeason`); franchise imports only contracts, and attributes cannot run the draft. A draft-free check sits beside it in attributes: prospects below the round-7 talent cut run about 0.6 older.
+
+### 12.6 E. The 99s, D7 over-starting and the win spread
+
+| Problem | Today (grade, MEASURED) | What in this redesign should move it | What else exists | What to measure (AB1, v6) |
+|---|---|---|---|---|
+| Ratings of 99 | 51.75-97 a league (2036-45 mean 87.5) against the gate 44.5 | The lower learning floor (0.08) and fewer late workouts, which stop strength climbing into the late 20s (strength 99s 35.4 → 7.2 a league in the toy). Toy (MEASURED, toy, v2; `ninety9.ts` via `options.ts`): today 79.8; C 65.3; C+O1 43.2; D 38.6 (D already has O1's early end to workouts); D+O2 (smarts snaps halved, 0.45 to 0.225) 33.0. Like for like, D cuts the toy's 99s from about 80 to 39. The toy's today is about 0.91× the sim's 87.5, so D would be about 42 in the sim (GUESS), just under the 44.5 gate, and D+O2 about 36 (GUESS). | O2: a tuning arm (AB9-T4), likely needed for room. O3 / O4 (toy 12.2 / 17.7) act like a ceiling on ratings. They clash with Q1/F1's "no ceilings", so they are not proposed; the owner would have to ask. | 99s by rating, by ability group and by age; and the share of 99s that are smarts (under D, smarts are the largest source: 14.0 of 38.6 in the toy) |
+| D7 over-starting | .716 / .639 / .553 / .361 against .635 / .512 / .410 / .239 (REAL) | The lower floor and fewer workouts slow mid-round men's growth. Younger rookies (§12.5) push slightly the other way. Exits that open jobs come from the market. | Class talent (5253037) is already the lever. Re-check D7 whenever peaks move. | D7 by round, with starts by age |
+| Win spread / win r | 2.651 < 2.75; r 0.029 vs 0.40 (REAL) | Each man's own clock gives teams more lasting differences, so a team of late faders stays good longer. Small, and it may not be enough. | The money and market threads (keeping a good team together) | The spread of team overall, and its year-to-year r, beside win spread |
+
+**Risks to watch:**
+- **Drift.** D lowers the typical starter's overall at 30 by 1-4 points against today (MEASURED, toy, `out/tables.md`; QB −0.9, RB −4.0, OL −4.1, IDL −3.4). The lever is class talent, with a D7 re-check.
+- **Careers.** Reach 5 falls 2-11 points in the toy, like for like (§12.2.8). It is already a failing GATE. AB9 reports it beside M4.
+- **Pooled sd.** The lower floor shrinks the passing pooled sd (7.52 today, MEASURED). The check is the passing rows.
+- **The backup's share.** The backup ≥60% limit (`players.development.test.ts` lines 372 and 604) is re-checked.
+- **One knob family per PR.** The tuning limits recorded with the owner's D5b answers (ADR-087 §11) say one knob family per PR. Variant D moves the curves, the learning floor, the workouts, smarts and passing from snaps, and slow smarts together, because the fit chose them together and the SMARTS row only works with slow smarts (§12.2.1). AB3 lands them as one fitted set. That is an exception to the limit, so it is put to the owner in Q2 rather than flagged only here. Each part keeps its own constant, so tuning can split them later.
+
+### 12.7 F. Long snapping
+
+**The problem.** There is no snapping rating. The LS profile in `contracts/src/measures.ts` `POSITION_PROFILES` has core passBlock and sustain ("There is no snapping rating"). So a snapper ages like a blocker.
+- REAL: LS 31+ is 41.1%, the oldest group.
+- Today: 17.3% (MEASURED, grade).
+- Toy D: 27.0% (MEASURED, toy); projected 27.9% in the sim (GUESS, §12.2.8). Better than today, still well short.
+
+**What a fix needs: NEW-3** (registry, contracts, not approved).
+- Add a `longSnapping` rating through `registry.ts` `A(id, name, groups, category)`, an `{ op: "add" }` migration, special teams, KICKING ability group.
+- Put it in the LS profile.
+- The engine does not read it (no snap-quality play exists), so it would only shape who is charted and how snappers age.
+
+The toy says such a rating moves snappers the wrong way at first (31+ falls from 27.0% to 20.9% with snapping weighted 1/3, and to 19.1% at 1/2; MEASURED, toy): a new skill rating learned young makes young snappers look good.
+
+**Owner, 2026-11-07 (Q5): wait until bad snaps are part of the game.** Report LS as a known miss.
+
+**Inside linebackers (NEW-2, same footing).** Real inside linebackers are as young as running backs. Theirs rate 3 of 8 core ratings in smarts, which hold up.
+- Swapping gapDiscipline → acceleration in the INSIDE_LB profile takes the toy's LB 31+ from 9.9% to 5.4% under D (MEASURED, toy). Read as a change, that is about 11.2% → 6.7% in the sim (GUESS; REAL 4.7%): closer, but still about 2 points over. Swapping instincts → agility as well gives a toy 2.5%, about 3.8% projected.
+- The profile is a contracts table, and it changes output with growth off (charts, drafts, overalls), so it cannot land inert.
+
+**Owner, 2026-11-07 (Q4): change it now.** NEW-2 lands as its own step, AB-L, after AB0 and before the AB9 panels, once the owner types its name. It is not inert: it changes how inside linebackers are rated, charted, drafted and kept with growth off too, and `PROFILES` in `attributes/src/fictional/profiles.ts` is `POSITION_PROFILES`, so made-up linebackers are generated from it as well. Before its PR: measure what moves (golden game digests, committed calibration records, the stand-in league's charts, player-checks), tell the threads that pin them, and re-pin in the same PR; its PR text lists every re-pinned value.
+
+### 12.8 G. W1: the `docs/design/contracts.md` wording
+
+Add to the ADR-087 list (about lines 222-230, after P6 and C1):
+
+> - P7 `ABILITY_GROUPS` / `AbilityGroup` (the 12 ability groups, names only) and `PlayerDevelopment.fadeShift?: Partial<Record<AbilityGroup, number>>` (in `players.ts`): for each ability, how many years earlier (minus) or later (plus) than usual it starts to fade, fixed for life; missing, or a group missing, reads 0. Drawn by the generator, written by the importer for real veterans, read by franchise's development step; the curves stay in franchise.
+> - P8 `InjuryRecord { kind, weeks, since, healed }` and `PlayerCondition.injuryHistory?: InjuryRecord[]` (in `players.ts`): injuries before the league's first day, oldest first, public like an injury report; absent = none known. Written by the importer only; franchise seeds its own injury memory from it once.
+
+Update the two shapes in the §3 code block, so it does not go stale:
+- line 120, the `TrueAttributes.development` shape comment: `{ growth, snaps, carry, body: { forty, cone, vertical, bench }, fadeShift? }`;
+- lines 171-174, `PlayerCondition`: add `injuryHistory?: InjuryRecord[];  // ADR-087 P8: injuries before the league's first day, oldest first`.
+
+Replace the events line (about line 439, the E4 text) with:
+
+> - E4/E6 `PLAYER_RETIRED { player, timing, reason?, team? }`: `reason` "UNSIGNED" = nobody signed him in time (ADR-087 §6.1), "OWN_CHOICE" = he chose to (§12.4), absent = his own choice (saves before E6); `team` = the team he left, absent for a free agent; `timing` IMMEDIATE (the review), SLOW (free agency opens), LATE (camp opens) or SEASON_END.
+
+### 12.9 H. Build plan
+
+Every PR follows these rules:
+- small, one step at a time;
+- off by default, or acting with growth on only;
+- tests in the same PR (Iron Rule 8);
+- an inertness proof in the PR text.
+
+**Inertness proof** (every step from AB1 on; AB-L is not inert and re-pins instead):
+1. **Growth off.** With growth off, these are byte-identical to main:
+   - `season --seed homie-1 --out` → `season.json`;
+   - `--stop-after 9 --save` / `--load`;
+   - the stand-in league as a switched-off run reads it: the loader pin `PLAYERS_BEFORE_RECORDS_SHA256` (`calibration/test/standInDevelopment.test.ts` lines 34 and 44-45), plus season runs from that file with the switches off. The file's own bytes do change at AB2 and AB7 (the importer writes `fadeShift`, then `injuryHistory`, whatever the switches), so the file itself is reviewed as a data diff;
+   - the golden 50 / 100 game digests.
+
+   The diff is empty.
+2. **Growth on, defaults** (AB1 to AB10; AB11 is the step that changes them). With growth on and the new options at their defaults, the event stream is identical to main's for the same seed (`season --development --injuries`, events compared), and the career-check rows are equal.
+3. **Contracts.** The contracts tests and type pins pass. `pnpm -r build` and `pnpm -r test` are green.
+
+**Rebased onto 2241964 (2026-11-08).** AB0 to AB5 were rebuilt on 2241964: PR #73's head (d8ad413) with main merged at 24a79aa, which brings PR #86 (the stand-in league's 2026 rookies on their real deal lengths: 301 estimated deals, their years only) and PR #78 (the league file's officiating block, the 17 copied crews). Each step's commits were picked again in order; AB2's two also carry the pins of the regenerated league file (below). This note is written at AB0 but describes the whole rebuilt stack through AB5: read at a lower step, its parts on later steps (AB2's pins and AB2's note below, the note on the rebase onto d8ad413 that comes with AB3's review fixes, AB4's bullet, AB5's rows and runs) describe commits above that step. The note on the rebase onto d8ad413 (after AB3's review fixes, below) stands as written; its hashes are the old base's. MEASURED, 2026-11-08:
+- **Conflicts.** Two in code, each resolved by keeping both sides' imports and nothing else: calibration `season/standInLeague.ts` at AB2 (AB2's `ABILITY_GROUPS` beside main's crew types) and `season/main.ts` at AB3's review fixes (AB3's `agingOf` beside main's `standInOfficialsLine`). In `standinDevelopment.test.ts` both sides' constants were kept.
+- **The league file was not merged.** At AB2 main's file was taken (sha256 `c58c68ba…`) and `standin-development` wrote it at `/2` (`e9852a70…`); a second run changes nothing. Against main's file the data diff is the fade shifts alone: 2,528 of 2,528 men gain `development.fadeShift`, and the version, `basis.fadeShift` and `constants.fadeShift` change. Each man's shifts are the old `/2` file's, since they are drawn by id. The officiating block is main's to the byte. Two pins move with the file, each in the AB2 commit that needs it, so that every AB2 commit passes its tests: `standinOfficialsFile.test.ts`'s `FILE_BEFORE_OFFICIALS_SHA256` is the new file without its block (`e5cd6230…`, against main's `d9102480…`), in AB2's first commit, which writes the file; and `FILE_AT_V1_SHA256` is main's file (it was `bb55709a…`), in AB2's review fixes, which add that test. `FILE_BEFORE_RECORDS_SHA256` holds as main set it. The picks keep their messages, so the `/1` hash in AB2's note below and in both AB2 commit messages (`bb55709a…`), and the `/2` hash in its first (`1153f45f…`), are the old base's.
+- **The nine reference runs did not move.** On 2241964 the nine runs of proofs 1 and 2 give the old base's bytes: A `63febe8b…`; B `--save` `66108c69…` and `--load` `8f7f112a…`; D `a6798279…`; C `036372a3…`; E `a3b82c8b…`; F `--save` `e1dafb12…` and `--load` `329818b2…`; G `4a51db00…`. The rebuilt AB5 gives the same nine.
+  - The stand-in runs D and E did not move with #86. The season command's stand-in league plays without the file's deals (its people carry no contracts), so the deal lengths reach only the cap-check walk.
+  - Nor did #78 move them. They now play the file's crews (D carried one winter into 2027, E as they stand in 2026; the run's log says which), and no game reads a crew until ADR-093 step 2.
+- **What changed meaning: the career check's rows.** The walk plays the file's deals, so #86 moved the default rows. The 2-season check of d5b-t1 (arm `both`) gives v6 rows `20dc5eee…` at AB1 on the new base, against the old base's `7ee56f89…` (v5: `84241dcb…`, against `dcf754c5…`).
+  - For example, the re-signings at the end of the 2026 league year fall from 461 to 199, since the 2026 rookies no longer come off one-year deals; the expiring deals the reader follows fall from 308 to 276.
+  - At 2027 week 8 the mean overall is 66.62 (old base 66.67), the pooled sd 7.90 (7.88), the mean age 26.20 (26.26) and the win spread 2.96 (2.69).
+  - The reader is still inert on the new base: AB1's rows with its own paths taken off are 2241964's v5 rows to the byte, and AB5's rows with the split taken off and the version set back are AB1's.
+  - So the v6 baseline (4 tune seeds × 20 seasons, build `6b118e35f8d06440`, on the old file) no longer stands for the new base, as the earlier note said it did for d8ad413. AB9's grade needs a baseline played on the new base: on main's file (`c58c68ba…`) at AB1, or on its `/2` regeneration (`e9852a70…`) from AB2 on. At the default aging the two give the same rows (the line above: AB5's rows, played on `/2`, are AB1's, played on main's file, once the split and the version are set aside).
+
+| Step | What | Where | Off / inert by | Rows it should move (when switched on) |
+|---|---|---|---|---|
+| AB0 | P7, E6, P8 types, and W1 wording; type pins | contracts, docs | Optional fields only; nothing reads them | none |
+| AB-L | NEW-2 (§12.7): the INSIDE_LB profile swaps gapDiscipline for acceleration. Waits for the owner's "yes on NEW-2" | contracts `measures.ts` `POSITION_PROFILES` (attributes `fictional/profiles.ts` generates from it as `PROFILES`) | **Not inert**: it changes how inside linebackers are rated, charted, drafted and kept with growth off too. The golden game digests, the committed calibration records, the stand-in league's charts and player-checks are re-pinned in the same PR, and its PR text lists every re-pinned value | LB share 31 and over (toy D 9.9% → 5.4%, about 11.2% → 6.7% in the sim, GUESS); with growth off, inside linebackers' overalls and charts |
+| AB1 | Reader v6 (`CAREER_ROWS_VERSION` 6, `CAREER_CHECK_VERSION` 6), measure-only rows: ability means by age; 99s by rating / group / age; injuries per snap by age and spot; concussion lengths; contact per snap by spot (counted by roll sets, §12.3.6, from the participation rows; information only); team-overall spread and r; availability's REAL reference merged and aligned. Re-run the baseline on the 4 tune seeds | calibration | Reads only; the season output is unchanged | none (baseline) |
+| AB2 | Draw `fadeShift` (generator, under `aging`); importer `/2` with the `"aging"` fork, `injuryHistory` kept out until AB7; loader knows `/2`; the loader's refusal test moves to an unknown version | attributes, calibration loader | `aging: "position"` leaves it absent; `forSwitches` drops it with development off (loader pin unchanged); the file is reviewed as a data diff | none |
+| AB3 | Variant D as one fitted set (Q2): the ability curves, learning floor, workouts, smarts and passing snaps, slow smarts at c = 0.2, elusiveness/yac move; variant B's set kept as the T2 arm; `techniqueKnee` off; `playerWeeks` side from the chart key on the ability path; `expectedOverallChange/Path` `aging` option | franchise `players/aging.ts` (new), `development.ts`, `developmentTables.ts`, `steps.ts` | `aging: "position"` default | peak-usage, at99, share-31-group, careers/reach 5, decline order, passing rows, D7 (re-check) |
+| AB4 | Rookie ages and the specialist rule dropped | attributes `draftClass.ts`, `generate.ts` | `aging: "position"` | rookie-age, share-22, age-league, undrafted, D7 (slight) |
+| AB5 | Injury risk by spot (chart key; `expectedAvailability` with no spot reads the chart key), the new age factor, the spot path's own `bySpot.perSnap` refit | franchise `injuries.ts`, `injuryTables.ts`, `availability.ts` (`spot?`) | `injuryRisk: "group"`; `INJURY_RATES.game.perSnap` untouched | availability, injuries per snap by age/spot |
+| AB6 | Concussion mark (`CONCUSSION_MARK`) and repeat weights; back/ribs healing at 31+ (`HEALING_BY_AGE`); `injuryRisk` threaded through `gameInjuries`, `weekInjuries`, `healWeek`, `drawInjury`, `lastingMark`; wear (`PlayerMemory.contact` by roll sets, kept only with `aging: "ability"`; `perContact` 0 until tuned) | franchise | `injuryRisk: "group"` reads none of the new tables (`INJURY_KINDS` unchanged); wear 0 | concussion rows, availability 31+, durability by concussions |
+| AB7 | P8 history: a new importer reader builds spells from past injury reports and weekly rosters into `provenance.history` (`import-real`), and `standin-development` writes P8 from it at `/3`; the loader knows `/3` and keeps it only with injuries on and `injuryRisk: "spot"` (`forSwitches` drops `injuryHistory` otherwise, and `stripStartingDevelopment` drops it too, so a second `standin-development` run changes nothing; both pinned); franchise seeds memory once on the spot path; the kind mapping also covers the copied current injury | attributes importer, calibration loader, franchise | Stripped unless injuries are on with `injuryRisk: "spot"` (loader pin unchanged; the file is a data diff) | stand-in league's injuries by age in years 1-3 |
+| AB8 | Retirement by choice (after M1's answer); `retire()` money path; E6 sent | franchise `retirement.ts`, `draft/money.ts`, `steps.ts` | `retirement: "unsigned"` | retired-signed; back-on-53 and starters-gone (slightly worse, expected) |
+| AB9 | 20-season grade: `--ability-rules` on the 4 tune seeds; tuning arms T1 base (variant D as fitted, slow smarts on), T2 slow smarts off (variant B's whole fitted set), T3 `techniqueKnee`, T4 O2 (smarts snaps halved), T5 wear on, T6 back/ribs healing off; then pass 2 on the 12 grade seeds (`career-check -- --grade --pass 2`) | calibration (runs only) | Runs only | all of the above |
+| AB10 | Real veterans aged once at league start under the ability curves: a copy of the curves in attributes, pinned by digest against franchise's; the tables freeze for this (D5b tuning limits) | attributes importer | Writes a new stand-in league file at `/4` (the Aged card: "a new league file, the old one kept"); `standin-2026-10-23.json` is left unchanged, so every run on it is unchanged | stand-in league's ages and ratings (on the new file) |
+| AB11 | The new rules become the growth-on defaults: `ability` / `spot` / `choice` (already ruled, R1-R3); `AGING_PROFILES` and the position path deleted. Lands when AB9 and AB10 are done and graded. Growth off is still unchanged; switching growth and injuries on by default stays Q8's, for the owner | franchise, attributes, calibration | Growth off unchanged | the whole card |
+
+The order is AB0 → AB1 → AB2 → AB3 → AB4 → AB5 → AB6 → AB7 → AB8 → AB9 → AB10 → AB11, with AB-L after AB0 and before AB9.
+- AB-L lands once the owner types "yes on NEW-2", at any point after AB0; the AB9 panels wait for it, AB1 to AB8 do not. The steps after it prove inertness against main with AB-L in it.
+- AB4 and AB5 may run in parallel after AB3.
+- AB8 waits on M1.
+
+### 12.10 NEW contracts edits (not approved; each needs the owner's typed yes)
+
+| Edit | What | Why | Recommendation |
+|---|---|---|---|
+| NEW-1 (owner: yes, Q3 2026-11-07; typed name pending) | One more reader line in the `TrueAttributes` reader comment (`contracts/src/players.ts`): franchise's retirement step reads true ratings (the rating-fall term only; the injury term now reads only public injury bands, §12.4.3, so no lasting-mark read is needed) | Retirement must see how far he really fell; four franchise truth readers are listed today | Yes. Fallback without it: use his drop in snap share instead |
+| NEW-2 | The INSIDE_LB profile: swap gapDiscipline for acceleration | Real inside linebackers are young | Owner chose "change it now" (Q4, 2026-11-07); typed name pending. Own step AB-L (§12.7) |
+| NEW-3 | A `longSnapping` rating plus the LS profile | Snappers have no rating of their own | Owner: wait until bad snaps are part of the game (Q5, 2026-11-07); not made |
+| NEW-4 | A contact count on the growth record | Seeding real veterans' past wear | Not asked now |
+
+### 12.11 Notes for other threads
+
+- **M1, money.** Send the retirement shape (§12.4.2-12.4.4) before AB8: the moments, `retire()` calling `releasePlayer(c, at, { reason: "RETIRED" })`, the dead-money years, and the clawback left to them.
+- **M2, money.** `expectedOverallChange` / `expectedOverallPath` gain an `aging` option. That thread decides when its callers read it, and when it removes `cap/value.ts` `legacyRuleAge(age, position)`, `ageFactor` and `termFor(age, position)`.
+- **M3, money.** `expectedAvailability` gains a `spot?` option. That thread decides which spot its callers pass.
+- **M4, cap and market.** The sim over-exits now: starters gone is 0.186 against 0.037, and back on a 53 is 0.740 against 0.854 (MEASURED, grade, main). Own-choice retirement will add to that a little. The fix is in the market and cut-downs. The cap thread's step 14 already closes more than half of it on its 5-season panel (back on a 53 80.7% against main 74.7%; MEASURED by the cap thread, `/mnt/project-files/design/step14-ages/exits.md`). Of the misses left there, 38% are unsigned free agents who retire under §6.1's patience rule (half in the bottom quarter at their position) and 15% are signed then cut on cut-down day and never picked up. Re-measure the exit rows on the first joint panel (M5) before anyone tunes for them.
+- **M5, cap step 14 (agreed with the cap thread, 2026-11-07).** The redesign is tuned once, against the step-14 market. Every AB9 tuning panel plays a local merge of this branch with the cap thread's step-14 head (`claude/project-thread-b4ukr0`, frozen for the panels; the cap thread sends each new head), graded on the D5b bands, with a REPORT row for the undrafted share inside each age group (25 and under, 26-30, 31 and over; REAL 2022-24 in `/mnt/project-files/design/step14-ages/`). Step 14 stays off main until the pair passes; then step 14 goes to the owner first as its own PR, and the redesign PRs follow on top. Each AB step's inertness proof stays against main.
+
+### 12.12 The owner's answers (2026-11-07 12:15Z)
+
+The six questions went to the owner in plain football words, recommended answer first, in the plan
+doc's section "The redesign worked out, and six questions"
+([plan](https://claude.ai/artifact/EdBiiswtV5vGCmypxftPm4); its text is
+`/mnt/project-files/design/aging-redesign/owner-section.md`). That is the wording he answered. His
+answers: *"1. Yes 2. Yes 3. Yes 4. Change it now 5. Wait until bad snaps are part of the game 6. We
+don't have to worry about men who retire quietly after being let go because we have our rule that
+they will quietly retire after not ending up on a roster for two seasons. We can focus on our
+rostered retirements matching real life rostered retirements without having to account for soft
+retirements after being let go."*
+
+| | Question | Answer | What it sets |
+|---|---|---|---|
+| Q1 | Start the technique fade with the fit (from 29, gentle) and try the owner's steeper fade from 31 as a test run beside it, keeping whichever matches real careers better? | **Yes** | TECHNIQUE starts at 29 with the fitted slope (§12.2.1); the steeper fade is the `techniqueKnee` option, tuning arm AB9-T3 (§12.2.5) |
+| Q2 | Five growth numbers change together (the learning floor 0.15 to 0.08, workouts ending by about 25-28, smarts from snaps 0.6 to 0.45, passing from snaps, slow smarts on), as one fitted set in one PR rather than one knob family per PR? | **Yes** | AB3 lands variant D as one fitted set (§12.2.1, §12.6). Each part keeps its own constant, so a later round can split them |
+| Q3 | Retirement's rating-fall term reads his true ratings (NEW-1), or his drop in playing time instead? | **Yes** (NEW-1) | The rating-fall term reads true ratings (§12.4.3). NEW-1's line in contracts still waits for its typed name ("yes on NEW-1"), so it is not made yet |
+| Q4 | Inside linebackers: swap gap discipline for acceleration in their profile (NEW-2) now, or leave it as a known miss? | **Change it now** | NEW-2 lands as its own step, AB-L, after AB0 and before the AB9 panels, once its typed name ("yes on NEW-2") comes (§12.7). It is not inert |
+| Q5 | Long snappers: a snapping rating (NEW-3) now, or wait until bad snaps are part of the game? | **Wait until bad snaps are part of the game** | No NEW-3. LS 31 and over is reported as a known miss (§12.7) |
+| Q6 | Tune retiring to the real retired list alone, and send the exit gap to the money and market thread? (The plan proposed aiming a little above the list, for men who retire quietly after being let go.) | **Yes**, with no allowance above the list | Own-choice retiring of rostered men is tuned on `retired-signed` to the real retired-list rates as they are (§12.4.5). §6.1's rule already retires the men nobody signs within two seasons, so quiet retirements after being let go need no allowance. The all-exits target goes to M4 (§12.11) |
+
+**Told to the owner with the questions** (no answer needed beyond Q2 and Q6):
+- The injury rates "by spot" were counted by each man's fine listed position (corner, free safety,
+  guard and so on), because the real files do not show where men lined up on game day. The game
+  applies them by the spot his team plays him.
+- Slower healing at 31 and over for back and rib injuries is real but below the usual bar of proof,
+  so it goes in as a test run the check can drop. Concussions get no age rule; the repeat rule covers
+  them.
+- Retiring does not read an injury's lasting mark, since the mark is hidden; it reads a long injury
+  this year from his public report, and the mark still counts through his durability and his rating
+  fall (§12.4.3).
+- On paper, the new curves shorten careers (fewer men reach five seasons). Careers are already too
+  short, so the test run reports this beside the money and market thread's work.
+- The made-up rookies' first-season ages in the scratch model were a year young. Fixing that changed
+  the fitted numbers; the main picture (body abilities fade early, passing and smarts late) is the
+  same.
+
+**Not asked.**
+- Making the new rules the growth-on default (AB11) needs no new answer: R1-R3 already cover it.
+- Switching growth and injuries on by default (Q8) still waits for the 20-season check (played with
+  the cap thread's step 14, §12.11 M5), and comes back to the owner then.
 
 ## Conjoined mechanisms
 

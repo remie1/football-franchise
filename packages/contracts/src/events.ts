@@ -898,10 +898,11 @@ export type FranchiseEvent =
   | { type: "CONTRACT_RESTRUCTURED"; payload: { player: PlayerId } }
   | { type: "PLAYER_RELEASED"; payload: { player: PlayerId; team: TeamId; postJune1: boolean } }
   /**
-   * ADR-087 E4: `reason` "UNSIGNED" = nobody signed him in time (§6.1); absent = his own choice.
-   * `timing` "SEASON_END" = when the regular season ends; the camp-opening moment is "LATE".
+   * ADR-087 E4/E6: `reason` "UNSIGNED" = nobody signed him in time (§6.1); "OWN_CHOICE" = he chose
+   * to retire (§12.4); absent = his own choice (saves before E6). `team` = the team he left, absent
+   * for a free agent. `timing` "SEASON_END" = when the regular season ends; camp opening is "LATE".
    */
-  | { type: "PLAYER_RETIRED"; payload: { player: PlayerId; timing: "IMMEDIATE"|"SLOW"|"LATE"|"SEASON_END"; reason?: "UNSIGNED" } }
+  | { type: "PLAYER_RETIRED"; payload: { player: PlayerId; timing: "IMMEDIATE"|"SLOW"|"LATE"|"SEASON_END"; reason?: "UNSIGNED"|"OWN_CHOICE"; team?: TeamId } }
   | { type: "TAG_APPLIED"; payload: { player: PlayerId; tagType: string } }
   /**
    * ADR-095 X1: a trade went through. `talk`, `pieces` and `capMoves` are optional so older senders

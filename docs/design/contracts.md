@@ -117,7 +117,7 @@ export interface TrueAttributes {
   readonly kind: "true";
   values: AttributeMap;
   traits: TraitSet;
-  development?: PlayerDevelopment;  // ADR-087 P1: { growth, snaps, carry, body: { forty, cone, vertical, bench } }; absent = never changes
+  development?: PlayerDevelopment;  // ADR-087 P1, P7: { growth, snaps, carry, body: { forty, cone, vertical, bench }, fadeShift? }; absent = never changes
 }
 
 /** One observer's belief about one player. This is all the UI and AI teams ever see. */
@@ -171,7 +171,8 @@ export interface PlayerState {
 export interface PlayerCondition {
   stamina: number;                 // 0..100 current, vs. stamina attribute = recovery rate
   morale: number;                  // -100..100; narrative writes via NarrativeEffect only
-  injury?: { kind: string; weeksRemaining: number; playable: boolean; inGamePenalty?: AttributeMap };
+  injury?: Injury;                 // ADR-087 P3: { kind, weeksRemaining, playable, inGamePenalty?, setting, band, since }
+  injuryHistory?: InjuryRecord[];  // ADR-087 P8: injuries before the league's first day, oldest first
 }
 
 export interface Team {
@@ -229,6 +230,8 @@ Cap *math* lives in franchise; contracts only defines shapes.
 - P4 `GameParticipation { player, team, snaps: { offense, defense, special }, contests: { attr, won, lost }[] }` (in `league.ts`): who played a game and how, handed back beside its result by whoever played it.
 - P6 `PersonalitySheet.patience?: number` (0..2 seasons an unsigned player waits before he retires; a placeholder until Spec #14).
 - C1 `StaffState.lineup?: { incumbent, veteran, form }` (0..100 each): a head coach's depth-chart leanings.
+- P7 `ABILITY_GROUPS` / `AbilityGroup` (the 12 ability groups, names only) and `PlayerDevelopment.fadeShift?: Partial<Record<AbilityGroup, number>>` (in `players.ts`): for each ability, how many years earlier (minus) or later (plus) than usual it starts to fade, fixed for life; missing, or a group missing, reads 0. Drawn by the generator, written by the importer for real veterans, read by franchise's development step; the curves stay in franchise.
+- P8 `InjuryRecord { kind, weeks, since, healed }` and `PlayerCondition.injuryHistory?: InjuryRecord[]` (in `players.ts`): injuries before the league's first day, oldest first, public like an injury report; absent = none known. Written by the importer only; franchise seeds its own injury memory from it once.
 
 The rookie scale, minimum salaries and tag formulas are CBA data and live in franchise.
 
@@ -433,11 +436,13 @@ export interface RollDetail {
 
 ### 6.2 Franchise event types (v0 set)
 
-`CALENDAR_PHASE_ENTERED`, `DEADLINE_REACHED`, `CONTRACT_SIGNED / RESTRUCTURED / EXPIRED` (`CONTRACT_SIGNED` may carry `kind`, `years`, `value`, `guaranteed`; `CONTRACT_EXPIRED` is `{ player, team }`, ADR-085 K6), `CAP_SET` (`{ season, cap }`) and `OPTION_EXERCISED` (`{ player, team, season }`) (ADR-085 K6), `PLAYER_RELEASED / RETIRED (immediate|slow|late per design notes)`, `TAG_APPLIED`, `TRADE_PROPOSED / EXECUTED / REJECTED`, `DRAFT_PICK_MADE`, `SCOUT_REPORT_FILED` (perception delta), `INJURY_OCCURRED / RECOVERED`, `MORALE_CHANGED`, `PRESSURE_EVENT` (owner mandate / hot seat), `PRESS_STORY_PUBLISHED`, `AWARD_GIVEN`, `GAME_SCHEDULED / COMPLETED`, `STAFF_HIRED` (`{ staff, team, role: StaffRole }`) and `STAFF_DEPARTED` (`{ staff, team, reason: StaffDepartureReason }`), typed by ADR-080 P3.
+`CALENDAR_PHASE_ENTERED`, `DEADLINE_REACHED`, `CONTRACT_SIGNED / RESTRUCTURED / EXPIRED` (`CONTRACT_SIGNED` may carry `kind`, `years`, `value`, `guaranteed`; `CONTRACT_EXPIRED` is `{ player, team }`, ADR-085 K6), `CAP_SET` (`{ season, cap }`) and `OPTION_EXERCISED` (`{ player, team, season }`) (ADR-085 K6), `PLAYER_RELEASED / RETIRED (immediate|slow|late|season end; ADR-087 E4/E6)`, `TAG_APPLIED`, `TRADE_PROPOSED / EXECUTED / REJECTED`, `DRAFT_PICK_MADE`, `SCOUT_REPORT_FILED` (perception delta), `INJURY_OCCURRED / RECOVERED`, `MORALE_CHANGED`, `PRESSURE_EVENT` (owner mandate / hot seat), `PRESS_STORY_PUBLISHED`, `AWARD_GIVEN`, `GAME_SCHEDULED / COMPLETED`, `STAFF_HIRED` (`{ staff, team, role: StaffRole }`) and `STAFF_DEPARTED` (`{ staff, team, reason: StaffDepartureReason }`), typed by ADR-080 P3.
 
 The draft (ADR-086 C5): `DRAFT_PICK_MADE` may carry `overall` and `kind`; `COMPENSATORY_PICKS_AWARDED` (`{ draft, picks: { team, round, kind }[] }`), `DRAFT_PICK_CONDITION_SETTLED` (`{ draft, originalTeam, owner, round, text }`) and `WAIVER_CLAIMED` (`{ player, from, to }`).
 
-Players age, grow and get hurt (ADR-087): `RATINGS_CHANGED` (E1, truth layer: `{ team?, changes: { player, attr, from, to }[], body?: { player, measure, from, to }[] }`, one per team per week plus one for free agents), `INJURY_OCCURRED` gains `setting`, `band` and `game?` (E2, public), `INJURY_HEALED` (E3, truth layer: `{ player, lasting: { attr, from, to }[], body? }`), `PLAYER_RETIRED` gains `reason?: "UNSIGNED"` and `timing: "SEASON_END"` (E4), and the COACH decisions `DEPTH_CHART_CHANGED` (`{ team, position, up?, down?, situation: OPEN_COMPETITION | INJURY_COVER | STARTER_RETURNS | KEPT_AFTER_INJURY | FORM | SUDDEN | YOUTH_LOOK | SHAKE_UP (the last two ADR-094 W3), authority, decidedBy }`), `POSITION_BATTLE_DECLARED` (`{ team, position, players, ... }`) and `POSITION_BATTLE_ENDED` (`{ team, position, starter, ... }`) (E5, public).
+Players age, grow and get hurt (ADR-087): `RATINGS_CHANGED` (E1, truth layer: `{ team?, changes: { player, attr, from, to }[], body?: { player, measure, from, to }[] }`, one per team per week plus one for free agents), `INJURY_OCCURRED` gains `setting`, `band` and `game?` (E2, public), `INJURY_HEALED` (E3, truth layer: `{ player, lasting: { attr, from, to }[], body? }`), and the COACH decisions `DEPTH_CHART_CHANGED` (`{ team, position, up?, down?, situation: OPEN_COMPETITION | INJURY_COVER | STARTER_RETURNS | KEPT_AFTER_INJURY | FORM | SUDDEN | YOUTH_LOOK | SHAKE_UP (the last two ADR-094 W3), authority, decidedBy }`), `POSITION_BATTLE_DECLARED` (`{ team, position, players, ... }`) and `POSITION_BATTLE_ENDED` (`{ team, position, starter, ... }`) (E5, public).
+
+- E4/E6 `PLAYER_RETIRED { player, timing, reason?, team? }`: `reason` "UNSIGNED" = nobody signed him in time (ADR-087 §6.1), "OWN_CHOICE" = he chose to (§12.4), absent = his own choice (saves before E6); `team` = the team he left, absent for a free agent; `timing` IMMEDIATE (the review), SLOW (free agency opens), LATE (camp opens) or SEASON_END.
 
 The end-of-season meeting (ADR-081 G2, G3): `STAFF_MEETING_HELD` (`{ meeting: StaffMeeting }`, every take with its hidden grade), `MEETING_CERTAINTY_ASKED` (`{ team, season, speaker, point, certainty }`, the user asked "how sure are you?") and `TEAM_DIRECTION_SET` (`{ team, season, direction, authority }`). ADR-094 W1 and W2: `Team.stance?: TeamStance` (`"BUY" | "HOLD" | "SELL"`), set by the GM after a regular-season week's games with `TEAM_STANCE_SET` (`{ team, season, week, stance, authority: "GM" }`), apart from the yearly direction; `COURSE_ARGUED` (`{ team, season, week, gm, coach, gmStance, coachStance, heat, winner?, outcome }`) when the GM and the head coach argued it.
 
