@@ -49,12 +49,17 @@ import { threadId } from "node:worker_threads";
 import type { StaffState } from "@ff/contracts";
 import { DEFAULT_CALLER_VERSION, type CallerVersion } from "../caller/anticipate.js";
 import type { CapCheckInput } from "./capCheck.js";
-import { runCareerCheck, type CareerCheckpoint, type CareerCheckRows, type CareerReaderState } from "./careerCheck.js";
+import { CAREER_ROWS_VERSION, runCareerCheck, type CareerCheckpoint, type CareerCheckRows, type CareerReaderState } from "./careerCheck.js";
 import type { DraftReaderState } from "./draftCheck.js";
 import type { SeasonPeople } from "./realSeason.js";
 
-/** This check's own version: a change to what a record holds starts a fresh cache. */
-export const CAREER_CHECK_VERSION = 5;
+/**
+ * This check's own version: a change to what a record holds starts a fresh cache. 6: the aging
+ * redesign's measure-only rows (ADR-087 §12, AB1; `CAREER_ROWS_VERSION` 6). A record of another
+ * version, or whose rows are of another rows version, is never read beside these
+ * (`checkRecordVersion`): the fingerprint already holds this number, and the loader refuses too.
+ */
+export const CAREER_CHECK_VERSION = 6;
 
 /** The engine rules the walk plays (`runCapCheck` plays the default, `legacy`). */
 export const CAREER_ENGINE_RULES = "legacy";
@@ -144,6 +149,8 @@ export const CAREER_FINGERPRINT_LEAVES_OUT: readonly string[] = [
   "packages/calibration/src/careers/report.ts",
   "packages/calibration/src/careers/stats.ts",
   "packages/calibration/src/careers/wins.ts",
+  // The real injury numbers the aging redesign's rows are set against (ADR-087 §12, AB1): the grader's alone.
+  "packages/calibration/src/injuries/nflInjuries.ts",
   // The stand-in recount (ADR-087, owner's ruling 2026-11-06): a real-side measurement of the league file, never reached by the walk.
   "packages/calibration/src/standin/main.ts",
   "packages/calibration/src/standin/recount.ts",
@@ -402,6 +409,20 @@ function readCheckpoint(path: string, o: CareerSeedOptions): CareerCheckpoint & 
 }
 
 /**
+ * A record read from the cache, refused unless it is this check's version with rows of this rows
+ * version: rows of two versions are never pooled or graded together (a record of version 5 lacks
+ * version 6's rows, and its rows would read as no data in some rows and as values in others).
+ */
+export function checkRecordVersion(record: CareerSeedRecord, path: string): CareerSeedRecord {
+  const v = (record as { version?: unknown }).version, rv = (record as { rows?: { version?: unknown } }).rows?.version;
+  if (v !== CAREER_CHECK_VERSION || rv !== CAREER_ROWS_VERSION) {
+    throw new Error(`career check: ${path} holds a record of check version ${String(v)} (rows version ${String(rv)}), not ${CAREER_CHECK_VERSION} (rows ${CAREER_ROWS_VERSION}); ` +
+      "records of two versions are never read together: play the seed again on this build");
+  }
+  return record;
+}
+
+/**
  * One seed's rows: read from the cache if they are there; else played, carrying on from a checkpoint
  * if one is there, a checkpoint written after every season, the rows written at the end and the
  * checkpoint removed. `from` says which.
@@ -410,7 +431,7 @@ export function runCareerSeed(o: CareerSeedOptions): { record: CareerSeedRecord;
   if (!Number.isInteger(o.seasons) || o.seasons < 1) throw new RangeError(`seasons must be a whole number, 1 or more, not ${o.seasons}`);
   mkdirSync(o.cacheDir, { recursive: true });
   const paths = careerCachePaths(o.cacheDir, o.arm, o.seed, o.seasons);
-  if (existsSync(paths.rows)) return { record: JSON.parse(readFileSync(paths.rows, "utf8")) as CareerSeedRecord, from: "cache" };
+  if (existsSync(paths.rows)) return { record: checkRecordVersion(JSON.parse(readFileSync(paths.rows, "utf8")) as CareerSeedRecord, paths.rows), from: "cache" };
   const resume = existsSync(paths.checkpoint) ? readCheckpoint(paths.checkpoint, o) : undefined;
   const seconds: number[] = resume?.seconds ?? [];
   const callerVersion = o.callerVersion ?? DEFAULT_CALLER_VERSION;
@@ -458,21 +479,52 @@ export function readCareerRecords(cacheDir: string, arm: CareerArm, seeds: reado
   const missing: string[] = [];
   for (const seed of seeds) {
     const { rows } = careerCachePaths(cacheDir, arm, seed, seasons);
-    if (existsSync(rows)) records.set(seed, JSON.parse(readFileSync(rows, "utf8")) as CareerSeedRecord);
+    if (existsSync(rows)) records.set(seed, checkRecordVersion(JSON.parse(readFileSync(rows, "utf8")) as CareerSeedRecord, rows));
     else missing.push(seed);
   }
   return { records, missing };
 }
 
-/** Each build's folder under the cache root (`data-cache/career-check`) and how many finished rows it holds, by arm. */
-export function listCareerBuilds(cacheRoot: string): { fingerprint: string; rows: Record<string, number> }[] {
+/** One build's folder in the cache: its finished rows by arm, and the versions its first finished record holds. */
+export interface CareerBuild {
+  readonly fingerprint: string;
+  readonly rows: Record<string, number>;
+  /**
+   * The check version and rows version of the folder's first finished record (by file name), null
+   * with no finished record; a field the record lacks, or a record that does not parse, reads null.
+   */
+  readonly version: { readonly check: number | null; readonly rows: number | null } | null;
+  /** Its records are this build's versions (`CAREER_CHECK_VERSION`, `CAREER_ROWS_VERSION`), so the grader can read them (`checkRecordVersion`). */
+  readonly gradable: boolean;
+}
+
+/**
+ * Each build's folder under the cache root (`data-cache/career-check`), how many finished rows it
+ * holds by arm, and whether its records are of this check's versions: a folder of another version
+ * is refused by the grader (`checkRecordVersion`), so the command marks it rather than suggest it.
+ */
+export function listCareerBuilds(cacheRoot: string): CareerBuild[] {
   if (!existsSync(cacheRoot)) return [];
   return readdirSync(cacheRoot).sort().filter((f) => /^[0-9a-f]{16}$/.test(f) && statSync(join(cacheRoot, f)).isDirectory()).map((fingerprint) => {
     const rows: Record<string, number> = {};
+    let first: string | undefined;
     for (const f of readdirSync(join(cacheRoot, fingerprint)).sort()) {
       const arm = CAREER_ARMS.find((a) => f.startsWith(`${a}-`) && f.endsWith(".json") && !f.endsWith(".checkpoint.json"));
-      if (arm !== undefined) rows[arm] = (rows[arm] ?? 0) + 1;
+      if (arm === undefined) continue;
+      rows[arm] = (rows[arm] ?? 0) + 1;
+      first ??= f;
     }
-    return { fingerprint, rows };
+    let version: CareerBuild["version"] = null;
+    if (first !== undefined) {
+      const num = (x: unknown) => (typeof x === "number" ? x : null);
+      try {
+        const r = JSON.parse(readFileSync(join(cacheRoot, fingerprint, first), "utf8")) as { version?: unknown; rows?: { version?: unknown } };
+        version = { check: num(r?.version), rows: num(r?.rows?.version) };
+      } catch {
+        version = { check: null, rows: null };
+      }
+    }
+    const gradable = version !== null && version.check === CAREER_CHECK_VERSION && version.rows === CAREER_ROWS_VERSION;
+    return { fingerprint, rows, version, gradable };
   });
 }
