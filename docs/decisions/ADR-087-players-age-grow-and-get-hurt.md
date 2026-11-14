@@ -9,6 +9,8 @@
   02:39Z). D1-D4 built and D5a measured 2026-10-24 (PR #35; §11); both switches off by default.
   §12 (aging by ability, with no positions) accepted 2026-11-07, with contracts edits P7, E6, P8
   and W1 approved by the owner's typed yes (2026-11-06 23:20Z; confirmed 2026-11-07 12:15Z).
+  NEW-1 and NEW-2 approved by the owner's typed yes (2026-11-14 00:44Z): NEW-1 landed with AB8,
+  and NEW-2 is its own step, AB-L.
 - **Works with:** "Player draft" (ADR-086: the year turnover, rookies), "Salary cap and contracts"
   (ADR-085: cuts, free agents, injured reserve, replacements; real-player stand-ins), ADR-079
   (absolute ratings, physical ratings pinned to measurements), ADR-080 (coaches), ADR-075 (players'
@@ -372,10 +374,16 @@ the UI or read by computer teams' decisions. Fans, the news and other teams lear
 through perception (`PERCEPTION_UPDATED`) once it is built; until then the news writes no
 "breakout" or "lost a step" stories.
 
-Four franchise steps read true ratings until perception exists: the development week, the injury
+Four franchise steps of ADR-087's first build read true ratings until perception exists: the development week, the injury
 draws (true `durability`), the coordinators' read for the depth chart (§3.1, through their blur) and
 the morale step (true `volatility`, §3.1). D1 names all four in the `TrueAttributes` reader comment. The unsigned-retirement check (§6.1) reads
-only the personality sheet.
+only the personality sheet. A fifth reader came with §12: the own-choice retirement review's
+rating-fall term (§12.4.3), added to the comment as NEW-1 (§12.10) after the owner's typed yes on
+2026-11-14. The five are ADR-087's readers. Other ADRs' franchise steps read true ratings too and the
+comment does not name them: the ADR-081 meeting's truth side (`meeting/strength.ts`,
+`meeting/projection.ts`), ADR-085 step 13's money-ahead judging (`cap/ahead.ts`), ADR-094's former
+players as coaches (`staff/formerPlayers.ts`) and ADR-096's mood (`mood/steps.ts`). That gap is older
+than NEW-1; NEW-5 (§12.10) proposes the rewording.
 
 ## 8. Contracts edits this needs (each needs the owner's typed yes)
 
@@ -394,12 +402,12 @@ only the personality sheet.
 | **C1** | `StaffState.lineup?: { incumbent: number; veteran: number; form: number }` (0-100 each), drawn for computer head coaches from their personality type by `buildStaff` on its own random stream (existing coaches unchanged) | the coach's three leanings (§3.1). The owner's team reads ADR-083's main trait instead |
 | **E5** | `DEPTH_CHART_CHANGED { team; position; up?: PlayerId; down?: PlayerId; situation: "OPEN_COMPETITION" \| "INJURY_COVER" \| "STARTER_RETURNS" \| "KEPT_AFTER_INJURY" \| "FORM" \| "SUDDEN" }`, `POSITION_BATTLE_DECLARED { team; position; players: PlayerId[] }` and `POSITION_BATTLE_ENDED { team; position; starter: PlayerId }`, public; each is a COACH-authority decision, `decidedBy` NPC unless the owner set it | why each change happened, for morale now and players' views of the coach later |
 | **P6** | `PersonalitySheet.patience?: number` (0-2 seasons), the placeholder until Spec #14's needs set it | §6.1 |
-| **D1** | `contracts.md` wording for the above; the `TrueAttributes` reader comment (§7's four franchise readers of truth); `contracts.md` §3 truth-layer note; the `contracts.md` §10 amendment (P5) | documents |
+| **D1** | `contracts.md` wording for the above; the `TrueAttributes` reader comment (§7's four franchise readers of truth; NEW-1 adds a fifth, §12.10); `contracts.md` §3 truth-layer note; the `contracts.md` §10 amendment (P5) | documents |
 
 No change to `GameResult` or the engine's types.
 
-§12 adds P7, E6, P8 and W1 (§12.2.2, §12.4.1, §12.3.7, §12.8), and lists the edits not yet approved
-as NEW-1 to NEW-4 (§12.10).
+§12 adds P7, E6, P8 and W1 (§12.2.2, §12.4.1, §12.3.7, §12.8), and lists the further edits as
+NEW-1 to NEW-5 (§12.10). NEW-1 and NEW-2 were approved by the owner's typed yes on 2026-11-14.
 
 ## 9. Build plan
 
@@ -951,9 +959,10 @@ his answers to its six questions (2026-11-07 12:15Z, §12.12).
 - Contracts edits: P7, E6, P8 and W1 only. The owner approved them by typed yes on 2026-11-06 23:20Z
   (*"yes on edits P7, E6, P8 and W1"*) and confirmed them on 2026-11-07 12:15Z (*"Edits P7, E6, P8
   and W1 are approved"*). They are built as step AB0 (§12.9).
-- Anything else that touches `packages/contracts` is listed as NEW-1 to NEW-4 (§12.10). Each NEW edit
-  needs the owner's own typed yes. NEW-1 (Q3) and NEW-2 (Q4) are chosen and wait for their typed
-  names; NEW-3 is not made (Q5); NEW-4 is not asked.
+- Anything else that touches `packages/contracts` is listed as NEW-1 to NEW-5 (§12.10). Each NEW edit
+  needs the owner's own typed yes. NEW-1 (Q3) and NEW-2 (Q4) were chosen on 2026-11-07 and waited for
+  their typed names, which the owner typed on 2026-11-14 (*"Yes on NEW-1 and NEW-2"*). NEW-1's line landed with
+  AB8; NEW-2 lands as AB-L, its own PR, still to come. NEW-3 is not made (Q5); NEW-4 is not asked; NEW-5, a comment fix, is asked with a later step.
 
 This section replaces §2.4's age profiles by position, and §6.1's "unsigned only" retirement, wherever
 growth is on.
@@ -1598,7 +1607,7 @@ The toy says such a rating moves snappers the wrong way at first (31+ falls from
 - Swapping gapDiscipline → acceleration in the INSIDE_LB profile takes the toy's LB 31+ from 9.9% to 5.4% under D (MEASURED, toy). Read as a change, that is about 11.2% → 6.7% in the sim (GUESS; REAL 4.7%): closer, but still about 2 points over. Swapping instincts → agility as well gives a toy 2.5%, about 3.8% projected.
 - The profile is a contracts table, and it changes output with growth off (charts, drafts, overalls), so it cannot land inert.
 
-**Owner, 2026-11-07 (Q4): change it now.** NEW-2 lands as its own step, AB-L, after AB0 and before the AB9 panels, once the owner types its name. It is not inert: it changes how inside linebackers are rated, charted, drafted and kept with growth off too, and `PROFILES` in `attributes/src/fictional/profiles.ts` is `POSITION_PROFILES`, so made-up linebackers are generated from it as well. Before its PR: measure what moves (golden game digests, committed calibration records, the stand-in league's charts, player-checks), tell the threads that pin them, and re-pin in the same PR; its PR text lists every re-pinned value.
+**Owner, 2026-11-07 (Q4): change it now.** NEW-2 lands as its own step, AB-L, after AB0 and before the AB9 panels, once the owner types its name. The owner typed it on 2026-11-14 (*"Yes on NEW-1 and NEW-2"*); AB-L is its own PR, still to come. It is not inert: it changes how inside linebackers are rated, charted, drafted and kept with growth off too, and `PROFILES` in `attributes/src/fictional/profiles.ts` is `POSITION_PROFILES`, so made-up linebackers are generated from it as well. Before its PR: measure what moves (golden game digests, committed calibration records, the stand-in league's charts, player-checks), tell the threads that pin them, and re-pin in the same PR; its PR text lists every re-pinned value.
 
 ### 12.8 G. W1: the `docs/design/contracts.md` wording
 
@@ -1654,7 +1663,7 @@ Every PR follows these rules:
 | Step | What | Where | Off / inert by | Rows it should move (when switched on) |
 |---|---|---|---|---|
 | AB0 | P7, E6, P8 types, and W1 wording; type pins | contracts, docs | Optional fields only; nothing reads them | none |
-| AB-L | NEW-2 (§12.7): the INSIDE_LB profile swaps gapDiscipline for acceleration. Waits for the owner's "yes on NEW-2" | contracts `measures.ts` `POSITION_PROFILES` (attributes `fictional/profiles.ts` generates from it as `PROFILES`) | **Not inert**: it changes how inside linebackers are rated, charted, drafted and kept with growth off too. The golden game digests, the committed calibration records, the stand-in league's charts and player-checks are re-pinned in the same PR, and its PR text lists every re-pinned value | LB share 31 and over (toy D 9.9% → 5.4%, about 11.2% → 6.7% in the sim, GUESS); with growth off, inside linebackers' overalls and charts |
+| AB-L | NEW-2 (§12.7): the INSIDE_LB profile swaps gapDiscipline for acceleration. Waited for the owner's "yes on NEW-2", typed 2026-11-14; its own PR, still to come | contracts `measures.ts` `POSITION_PROFILES` (attributes `fictional/profiles.ts` generates from it as `PROFILES`) | **Not inert**: it changes how inside linebackers are rated, charted, drafted and kept with growth off too. The golden game digests, the committed calibration records, the stand-in league's charts and player-checks are re-pinned in the same PR, and its PR text lists every re-pinned value | LB share 31 and over (toy D 9.9% → 5.4%, about 11.2% → 6.7% in the sim, GUESS); with growth off, inside linebackers' overalls and charts |
 | AB1 | Reader v6 (`CAREER_ROWS_VERSION` 6, `CAREER_CHECK_VERSION` 6), measure-only rows: ability means by age; 99s by rating / group / age; injuries per snap by age and spot; concussion lengths; contact per snap by spot (counted by roll sets, §12.3.6, from the participation rows; information only); team-overall spread and r; availability's REAL reference merged and aligned. Re-run the baseline on the 4 tune seeds | calibration | Reads only; the season output is unchanged | none (baseline) |
 | AB2 | Draw `fadeShift` (generator, under `aging`); importer `/2` with the `"aging"` fork, `injuryHistory` kept out until AB7; loader knows `/2`; the loader's refusal test moves to an unknown version | attributes, calibration loader | `aging: "position"` leaves it absent; `forSwitches` drops it with development off (loader pin unchanged); the file is reviewed as a data diff | none |
 | AB3 | Variant D as one fitted set (Q2): the ability curves, learning floor, workouts, smarts and passing snaps, slow smarts at c = 0.2, elusiveness/yac move; variant B's set kept as the T2 arm; `techniqueKnee` off; `playerWeeks` side from the chart key on the ability path; `expectedOverallChange/Path` `aging` option | franchise `players/aging.ts` (new), `curves.ts` (new), `development.ts`, `steps.ts` (`PlayerStepsConfig.aging` and the resume), `body.ts` and `injuries.ts` (the followers a change of body moves), `types.ts`, `index.ts`; `developmentTables.ts` unchanged as built (the ability set lives in `aging.ts`); calibration: the `--aging` / `--ability-rules` flags, `PlayerSwitches.aging` through `realSeason.ts` and `capCheck.ts` to `buildStandInLeague`, the generated league, the reserve pool and the walk's draft classes (the callers of attributes' `generateLeagueRosters` and `generateDraftClass`), and the career-check cache key (AB2 note) | `aging: "position"` default | peak-usage, at99, share-31-group, careers/reach 5, decline order, passing rows, D7 (re-check) |
@@ -1668,7 +1677,7 @@ Every PR follows these rules:
 | AB11 | The new rules become the growth-on defaults: `ability` / `spot` / `choice` (already ruled, R1-R3); `AGING_PROFILES` and the position path deleted. Lands when AB9 and AB10 are done and graded. Growth off is still unchanged; switching growth and injuries on by default stays Q8's, for the owner | franchise, attributes, calibration | Growth off unchanged | the whole card |
 
 The order is AB0 → AB1 → AB2 → AB3 → AB4 → AB5 → AB6 → AB7 → AB8 → AB9 → AB10 → AB11, with AB-L after AB0 and before AB9.
-- AB-L lands once the owner types "yes on NEW-2", at any point after AB0; the AB9 panels wait for it, AB1 to AB8 do not. The steps after it prove inertness against main with AB-L in it.
+- AB-L lands once the owner types "yes on NEW-2", at any point after AB0 (typed 2026-11-14; AB-L is its own PR, still to come); the AB9 panels wait for it, AB1 to AB8 do not. The steps after it prove inertness against main with AB-L in it.
 - AB4 and AB5 may run in parallel after AB3.
 - AB8 waits on M1.
 
@@ -2289,7 +2298,7 @@ The choices it fixed (CHOSEN unless marked):
 - **The 2-season career-check** of d5b-t1 (arm `both`) gives rows sha256 `6aecb0bc…` on both trees: builds `e4be89df45616e34` and `6298dc91b04f4fbf`, with no `aging` key in either record; the records are equal but for `fingerprint` and `seconds`. (AB5's `7ee56f89…` was on e7f2164; aging-m5 is AB5 rebased onto the m steps.)
 - **`pnpm verify`** exits 0 on the AB6 tree. No file in `packages/contracts`, `engine`, `attributes`, `narrative` or `apps/game` changed, and the league file is unchanged. The record is `scratchpad/ab6/inertness.md`.
 
-**NEW-1** is not in this step: its reader line in `contracts/src/players.ts` lands with the owner's typed yes, before AB8 merges.
+**NEW-1** is not in this step: its reader line in `contracts/src/players.ts` was to land with the owner's typed yes, before AB8 merged. (The owner typed *"Yes on NEW-1 and NEW-2"* on 2026-11-14, and the line landed with AB8.)
 
 **For the Orchestrator's CLAUDE.md lines** (no code change). The new flags, on `season`, `career-check` (runs and `--grade`) and `player-checks`: `--no-healing-by-age` (back and rib healing flat with age; needs `--injury-risk spot` or `--ability-rules`, and so `--injuries`) and `--per-contact <n>` (wear from contact, n years a contest past `free`, 791; needs `--ability-rules`, or `--aging ability --injury-risk spot`, and both `--development` and `--injuries`; `player-checks` only with the `both` arm). They name the rules `…-healflat` and `…-wear<n>` in records, caches and reports.
 
@@ -2404,7 +2413,7 @@ The choices it fixed (CHOSEN unless marked):
   - Calibration `test/careerCheck.test.ts`: the reader reads OWN_CHOICE by `team`, by moment, inside the cohort's year.
   - Calibration `test/playerChecks.test.ts`: `ownRetired` counted apart from the unsigned rule's, and present only when there were some.
 
-**NEW-1 is pending.** The rating-fall term reads true ratings, as the owner answered (Q3, yes). NEW-1's reader-comment line in contracts `players.ts` (`TrueAttributes`) has not been added here. It lands with the owner's typed "yes on NEW-1", before AB8 merges. `retirement.ts` names it in its header and in `reviewOf`.
+**NEW-1 was pending when AB8 was built; it has landed with AB8.** The rating-fall term reads true ratings, as the owner answered (Q3, yes). NEW-1's reader-comment line in contracts `players.ts` (`TrueAttributes`) was not added when AB8 was built: it waited for the owner's typed "yes on NEW-1", to land before AB8 merged. The owner typed *"Yes on NEW-1 and NEW-2"* on 2026-11-14, and the line landed with AB8 (`ADR-087 NEW-1: the retirement review reads true ratings, the fifth franchise reader`): the comment now lists five franchise readers of truth, and `docs/design/contracts.md`'s copy of it says the same. It is a comment only, so no output moves. `retirement.ts` names it in its header and in `reviewOf`.
 
 The choices it fixed (CHOSEN unless marked):
 - **The year a moment decides on.** IMMEDIATE and SLOW decide on the regular season just ended; LATE decides on the season before the camp. So the three moments split one year's chance, and their inputs are that year's.
@@ -2484,7 +2493,7 @@ The choices it fixed (CHOSEN unless marked):
   - **The smokes** above were played again on this tree.
   - **`pnpm verify`** exits 0 on the review-fix tree (16:56-17:17Z, `scratchpad/ab8/fix/verify.log`). Build, test and typecheck each exit 0: franchise 859 tests in 57 files, calibration 2,555 passed and 111 skipped in 184 files, engine 1,633 passed and 2 skipped in 84. No file in `packages/contracts`, `engine`, `attributes`, `narrative` or `apps/game` changed, and the league file is unchanged.
   - The records are `scratchpad/ab8/inertness.md` §6 and `scratchpad/ab8/fix/`. The cache folders were deleted after.
-- **NEW-1 is still pending**, as above: its reader-comment line in contracts `players.ts` lands with the owner's typed "yes on NEW-1", before AB8 merges. The fixes change no contracts file.
+- **NEW-1 was still pending at the fixes**, as above: its reader-comment line in contracts `players.ts` was to land with the owner's typed "yes on NEW-1", before AB8 merged. It did: the typed yes came on 2026-11-14 and the line landed with AB8 (the AB8 note). The fixes change no contracts file.
 
 **AB8 money-thread follow-up (2026-11-08).** From the money thread's review of AB8, which found no defects. Applied in `ADR-087 AB8: money ahead leaves out bonuses already earned (money thread review)`. Only the `retirement: "choice"` path reads it, so the default path does not move (the proofs below).
 - **Earned bonuses stay charged: confirmed by the money thread.** A retirement keeps this league year's bonuses already earned charged (the roster bonus outside OFF_EVAL, the workout bonus from OFF_SUMMER on), as a release does. The review fixes' bullet above and the code comment (`cap/money.ts` `earnedBonuses`) now say so.
@@ -2502,14 +2511,15 @@ The choices it fixed (CHOSEN unless marked):
   - **The stand-in season smoke** (`season --seed homie-1`, the stand-in league, `--development --injuries --retirement choice`), before and after: own choice IMMEDIATE 9, SLOW 5, LATE 3 both times, beside 27 unsigned, and the two out files are the same to the byte (`dc34d8b6…`). Nothing moved. The stand-in deals do carry the bonuses (2027 years: 148 with a roster bonus, 283 with a workout bonus, of 1,282), so money ahead did fall for some men at SLOW and LATE. But the term is small: at 4 a cap's worth (GUESS) against a $300M cap (the default rules' number, read here as the scale), the logit shift is a median 0.02 and at most 0.65 at SLOW (147 men), and a median 0.003 and at most 0.65 at LATE (385 men; MEASURED from the league file's 2027 years). With most men's chance at a moment well under one percent (GUESS: not read from the smoke's own chances), that should add well under one retirement a season (GUESS), and on this seed no man's draw fell in the gap. A lower money-ahead term only ever raises a chance, so on another seed a man could retire who did not before.
   - **`pnpm verify`** exits 0 on this tree (18:27-18:49Z, `scratchpad/ab8cash/verify.log`). Build, test and typecheck each exit 0: franchise 897 tests in 59 files, calibration 2,568 passed and 111 skipped in 184 files, engine 1,633 passed and 2 skipped in 84. No file in `packages/contracts`, `engine`, `attributes`, `narrative` or `apps/game` changed, and the league file is unchanged. The records are in `scratchpad/ab8cash/`.
 
-### 12.10 NEW contracts edits (not approved; each needs the owner's typed yes)
+### 12.10 NEW contracts edits (each needs the owner's typed yes; NEW-1 and NEW-2 have it, 2026-11-14)
 
 | Edit | What | Why | Recommendation |
 |---|---|---|---|
-| NEW-1 (owner: yes, Q3 2026-11-07; typed name pending) | One more reader line in the `TrueAttributes` reader comment (`contracts/src/players.ts`): franchise's retirement step reads true ratings (the rating-fall term only; the injury term now reads only public injury bands, §12.4.3, so no lasting-mark read is needed) | Retirement must see how far he really fell; four franchise truth readers are listed today | Yes. Fallback without it: use his drop in snap share instead |
-| NEW-2 | The INSIDE_LB profile: swap gapDiscipline for acceleration | Real inside linebackers are young | Owner chose "change it now" (Q4, 2026-11-07); typed name pending. Own step AB-L (§12.7) |
+| NEW-1 (owner: yes, Q3 2026-11-07; typed yes 2026-11-14; landed with AB8) | One more reader line in the `TrueAttributes` reader comment (`contracts/src/players.ts`): franchise's retirement step reads true ratings (the rating-fall term only; the injury term now reads only public injury bands, §12.4.3, so no lasting-mark read is needed) | Retirement must see how far he really fell; four franchise truth readers were listed before it; five are listed now. The five are ADR-087's: other ADRs' truth reads were never listed (§7; NEW-5) | Yes. Fallback without it: use his drop in snap share instead |
+| NEW-2 | The INSIDE_LB profile: swap gapDiscipline for acceleration | Real inside linebackers are young | Owner chose "change it now" (Q4, 2026-11-07); typed yes 2026-11-14. Own step AB-L (§12.7), its own PR, still to come |
 | NEW-3 | A `longSnapping` rating plus the LS profile | Snappers have no rating of their own | Owner: wait until bad snaps are part of the game (Q5, 2026-11-07); not made |
 | NEW-4 | A contact count on the growth record | Seeding real veterans' past wear | Not asked now |
+| NEW-5 | Reword the `TrueAttributes` reader comment (`contracts/src/players.ts` and `docs/design/contracts.md`) so the five franchise steps it names are called ADR-087's, or list every franchise reader of truth (also ADR-081, ADR-085 step 13, ADR-094 and ADR-096, §7) | The comment's "only … plus five franchise steps" was already short of the truth before NEW-1 (found in NEW-1's review, 2026-11-14) | A comment only; no step waits for it. Asked with a later step; then a franchise test could check the readers against the comment |
 
 ### 12.11 Notes for other threads
 
@@ -2544,8 +2554,8 @@ retirements after being let go."*
 |---|---|---|---|
 | Q1 | Start the technique fade with the fit (from 29, gentle) and try the owner's steeper fade from 31 as a test run beside it, keeping whichever matches real careers better? | **Yes** | TECHNIQUE starts at 29 with the fitted slope (§12.2.1); the steeper fade is the `techniqueKnee` option, tuning arm AB9-T3 (§12.2.5) |
 | Q2 | Five growth numbers change together (the learning floor 0.15 to 0.08, workouts ending by about 25-28, smarts from snaps 0.6 to 0.45, passing from snaps, slow smarts on), as one fitted set in one PR rather than one knob family per PR? | **Yes** | AB3 lands variant D as one fitted set (§12.2.1, §12.6). Each part keeps its own constant, so a later round can split them |
-| Q3 | Retirement's rating-fall term reads his true ratings (NEW-1), or his drop in playing time instead? | **Yes** (NEW-1) | The rating-fall term reads true ratings (§12.4.3). NEW-1's line in contracts still waits for its typed name ("yes on NEW-1"), so it is not made yet |
-| Q4 | Inside linebackers: swap gap discipline for acceleration in their profile (NEW-2) now, or leave it as a known miss? | **Change it now** | NEW-2 lands as its own step, AB-L, after AB0 and before the AB9 panels, once its typed name ("yes on NEW-2") comes (§12.7). It is not inert |
+| Q3 | Retirement's rating-fall term reads his true ratings (NEW-1), or his drop in playing time instead? | **Yes** (NEW-1) | The rating-fall term reads true ratings (§12.4.3). NEW-1's line in contracts waited for its typed name ("yes on NEW-1"). The owner typed *"Yes on NEW-1 and NEW-2"* on 2026-11-14, and the line landed with AB8 |
+| Q4 | Inside linebackers: swap gap discipline for acceleration in their profile (NEW-2) now, or leave it as a known miss? | **Change it now** | NEW-2 lands as its own step, AB-L, after AB0 and before the AB9 panels, once its typed name ("yes on NEW-2") comes (§12.7). The typed yes came on 2026-11-14; AB-L is its own PR, still to come. It is not inert |
 | Q5 | Long snappers: a snapping rating (NEW-3) now, or wait until bad snaps are part of the game? | **Wait until bad snaps are part of the game** | No NEW-3. LS 31 and over is reported as a known miss (§12.7) |
 | Q6 | Tune retiring to the real retired list alone, and send the exit gap to the money and market thread? (The plan proposed aiming a little above the list, for men who retire quietly after being let go.) | **Yes**, with no allowance above the list | Own-choice retiring of rostered men is tuned on `retired-signed` to the real retired-list rates as they are (§12.4.5). §6.1's rule already retires the men nobody signs within two seasons, so quiet retirements after being let go need no allowance. The all-exits target goes to M4 (§12.11) |
 

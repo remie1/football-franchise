@@ -24,8 +24,8 @@
  *   him at most that regular season (`PlayerMemory.starts`), else his best profile, kept in
  *   `PlayerMemory.lastReview` with the fall since the review before, judged at that review's profile
  *   (the same profile both years). It reads TRUE ratings (`overallWithCarryAt`): this is NEW-1's term
- *   (§12.10), whose reader line in contracts `players.ts` (`TrueAttributes`) is still pending the
- *   owner's typed yes and lands before AB8 merges.
+ *   (§12.10), whose reader line in contracts `players.ts` (`TrueAttributes`) landed with AB8 after
+ *   the owner's typed yes (2026-11-14): the fifth franchise reader of truth.
  * - **The draws** come from `createRng(seed, "franchise:retirement").fork("retire/<season>/<timing>")`
  *   and then a fork by player id, so they do not depend on the order men are listed in.
  * - **Who goes, and how** (`ownRetirements`): a signed man (on a team: its 53, practice squad or
@@ -299,7 +299,7 @@ export function bestProfile(player: PlayerState): Position {
  * His review for the year `season` (§12.4.3), taken at the IMMEDIATE moment: the profile his team
  * charted him at most that regular season, else his best; his overall there; and the fall since the
  * review before (`last`, of the season before), judged at that review's profile, so the same profile
- * is used both years; 0 with no review the season before. TRUE ratings (NEW-1, pending).
+ * is used both years; 0 with no review the season before. TRUE ratings (NEW-1, typed yes 2026-11-14).
  */
 export function reviewOf(player: PlayerState, season: number, starts: SeasonStarts | undefined, last: RetirementReview | undefined): RetirementReview {
   const profile = mostCharted(starts, season) ?? bestProfile(player);
