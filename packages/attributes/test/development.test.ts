@@ -34,12 +34,15 @@ const CLASS_2: GenerateDraftClassInput = { seed: "dev-hash-2", draft: 2031, size
  * sha256 of each input's whole output (Sets as arrays), computed from the code BEFORE the development
  * option was added (generate.ts and draftClass.ts as of 1ec3e9a). With the option off they must not move.
  * The two draft-class pins were moved once, on purpose, by ADR-086 D7's prospect retune (PROSPECT_TALENT).
+ * All four were re-recorded, on purpose, for ADR-087 AB-L (NEW-2), with every man's ratings
+ * unchanged (abl.test.ts): the leagues because inside linebackers' slots follow the new overall, and a
+ * man who swaps slots takes that slot's id; the classes because a class stores each prospect's overall.
  */
 const BEFORE = {
-  league: "faed695b63eb7a2a4f7cc6b48f09849006450adef030b4b7178c0a81de9d2b5c",
-  league2: "b1f29101c82b5584806eb4db77038c5bf5e72ba3c312959f53d4a5b684cfd0e0",
-  draftClass: "1c308980e9b7de987fe57ee23065525acf9157ce716e9b95f0518f0effdbd7f5",
-  draftClass2: "05931e4f055edca36ad25118c485e05ecef54de6fa9322c368bdef328169ec25",
+  league: "229962a1b1d4f71e51285dd4f83f125e8c61a641abd8b6d6f0f9917e04ac2d58",
+  league2: "dd484d9d9ca13015abddfa8a9e4a328696b482ba70742145c4bbd6684b66c159",
+  draftClass: "2fb3462bde2a3d69e5540360070df5d3fba1c2fda6828f5109dcafae4970e0f5",
+  draftClass2: "f2c8e223aa370a39423d299afef03fdb831d75a0e6816ba4917e871815d1666d",
 } as const;
 
 /** A player with ADR-087's new fields taken off: what the development option adds, removed. */
@@ -52,11 +55,13 @@ function strip(p: PlayerState): PlayerState {
 
 /**
  * sha256 of the growth-on draft classes with the new fields taken off: PROSPECT_TALENT_WITH_GROWTH's
- * ratings (ADR-087 D5b). Moves only when that class talent is retuned.
+ * ratings (ADR-087 D5b). Moves when that class talent is retuned, or when the overall a class stores
+ * moves: re-recorded for ADR-087 AB-L (NEW-2), where only the MLB and ILB prospects' stored
+ * overall changed (ratings unchanged, abl.test.ts).
  */
 const WITH_GROWTH = {
-  draftClass: "ff63aaf6283e0010d0e0c7df5c2975dae3be331d2ddc3a43c22299b45684c161",
-  draftClass2: "318b54e46fd31c9cb880fc0984e55afe11983a90fcb24d2182d8ba40c6a7655d",
+  draftClass: "62e48ed5037d59f91611b72591d6f9a8884e9ab43de13de3498e73e12993b26d",
+  draftClass2: "130ba070df9090524a92699a594d4f44642b0bf3efe2a030331e44a01829b39e",
 } as const;
 
 /**
@@ -64,13 +69,16 @@ const WITH_GROWTH = {
  * combine), MEASURED at a7a6a66 (ADR-087 AB1, before AB2 added the aging option) and unchanged by AB2.
  * The default aging (absent or "position") must not move them (§12.2.7 test 5: "deep-equal to main"),
  * and "ability" with the fade shifts taken off gives them too. They move with WITH_GROWTH, or when a
- * development draw moves on purpose.
+ * development draw moves on purpose. Re-recorded for ADR-087 AB-L (NEW-2), ratings unchanged
+ * (abl.test.ts): in the leagues, inside linebackers' slots follow the new overall, and a man who swaps
+ * slots takes that slot's id and the growth, career snaps and patience drawn on its id's fork; in the classes, only the
+ * stored overall of MLB and ILB prospects.
  */
 const WITH_RECORDS = {
-  league: "740c3d6b576b7670e5ccdb9fff9c099dc0da54dc2d706ee8e45af17adddd8ff3",
-  league2: "000ffb6dc63675187f6419ce8dc59d8c013f579f1e0623b2d1e181cdbc506baa",
-  draftClass: "58b21c0ecc83c6407bfff921cb76fea454619a786e2e0d68bdf4f5303bd934de",
-  draftClass2: "a3096636270be64b5f34a1514667c1ac7c022ab951eb66fe7d85ce5e29028d65",
+  league: "4be5bb6a9552c68803d1b4b330983d6f4ac3a0b7dadc3d04823e6092bdcfa89f",
+  league2: "dd6e5e196e21cce64c6c854cf506b6fa730d01166bea2db5d32bb69e77163ad0",
+  draftClass: "cbd242b5da5c70411ba5a546cf4aaba38917e10f3ffd569318bb06c7efc0c36d",
+  draftClass2: "ac72a89e1620bfc712d018272e6569ab0f96641b40c4e956c7b7277eada09bd0",
 } as const;
 
 const off = generateLeagueRosters(LEAGUE);
