@@ -49,7 +49,7 @@ import { DEFAULT_CALLER_VERSION } from "../caller/anticipate.js";
 import type { CapCheckInput } from "./capCheck.js";
 import type { CareerCheckRows } from "./careerCheck.js";
 import {
-  CAREER_ENGINE_RULES, CAREER_SEED_SETS, careerFingerprint, gradedAging, isCareerArm, listCareerBuilds, readCareerRecords, runCareerSeed, seedOf,
+  CAREER_ENGINE_RULES, CAREER_SEED_SETS, CareerRecordVersionError, careerFingerprint, gradedAging, isCareerArm, listCareerBuilds, readCareerRecords, runCareerSeed, seedOf,
   type CareerArm, type CareerSeedRecord,
 } from "./careerCheckRun.js";
 import { gradeCareerCheck, gradedLeague, renderGradeJson, renderGradeMarkdown, type GradeWindows } from "./careerGrade.js";
@@ -180,7 +180,16 @@ if (!args.grade) {
   const fingerprints: Record<string, string> = build === treeFingerprint ? { build } : { build, tree: treeFingerprint };
   const read: CareerSeedRecord[] = [];
   const rowsOf = (arm: CareerArm, list: readonly string[]) => {
-    const { records } = readCareerRecords(cacheOf(build), arm, list, args.seasons);
+    let records: Map<string, CareerSeedRecord>;
+    try {
+      ({ records } = readCareerRecords(cacheOf(build), arm, list, args.seasons));
+    } catch (e) {
+      // A build's rows of another version: one line, no stack. An older version's are graded from a
+      // tree of that version (the v6 baseline, build 6b118e35f8d06440, from a version-6 tree).
+      if (!(e instanceof CareerRecordVersionError)) throw e;
+      console.error(e.message);
+      process.exit(1);
+    }
     for (const [s, r] of records) {
       if (r.fingerprint !== build) throw new Error(`career-check: ${arm}-${s} in build ${build}'s folder says it was played on build ${r.fingerprint}`);
       read.push(r);

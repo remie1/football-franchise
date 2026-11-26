@@ -128,7 +128,8 @@ export function standInOfficialsLine(
  * only with development on and `aging: "ability"`. They go everywhere the switches go: to franchise's
  * players' steps, to the stand-in loader (`buildStandInLeague`, whose `forSwitches` keeps each man's
  * fade shifts only with development on and `aging: "ability"`), and to the generator for the made-up
- * league, the reserve pool and the walk's draft classes, which draw the shifts only then.
+ * league, the reserve pool and the walk's draft classes, which draw the shifts (and, from AB4, §12.5's
+ * ages) only then.
  */
 export interface PlayerSwitches extends AgingSwitches {
   readonly development?: boolean;
@@ -438,7 +439,7 @@ export function runRealSeason(input: RealSeasonInput): { league: League; rated?:
       season,
       ...(input.teamStrengthSd === undefined ? {} : { teamStrengthSd: input.teamStrengthSd }),
       ...(switched && input.players?.development === true ? { development: true } : {}),
-      // ADR-087 AB3: the fade shifts only with development on and aging "ability" (the generator's own fork).
+      // ADR-087 AB3, AB4: the fade shifts and §12.5's ages only with development on and aging "ability".
       ...(switched && input.players?.development === true && input.players.aging === "ability" ? { aging: "ability" as const } : {}),
     });
     league = { ...base, teams: rated.league.teams };
