@@ -54,11 +54,13 @@ const mean = (xs: readonly number[]) => xs.reduce((a, b) => a + b, 0) / xs.lengt
 /**
  * The class's whole output before AB4, MEASURED at a7a6a66 (ADR-087 AB1, before the aging option):
  * `development.test.ts`'s `BEFORE.draftClass` (growth off) and `WITH_RECORDS.draftClass` (growth on),
- * the same pins. AB2 and AB4 leave both as they were at the default and at "position".
+ * the same pins. AB2 and AB4 leave both as they were at the default and at "position". Both were
+ * re-recorded for ADR-087 AB-L (NEW-2), with development.test.ts's: only the class's stored
+ * overall of MLB and ILB prospects moved (ratings unchanged, abl.test.ts).
  */
 const MAIN = {
-  off: "1c308980e9b7de987fe57ee23065525acf9157ce716e9b95f0518f0effdbd7f5",
-  on: "58b21c0ecc83c6407bfff921cb76fea454619a786e2e0d68bdf4f5303bd934de",
+  off: "2fb3462bde2a3d69e5540360070df5d3fba1c2fda6828f5109dcafae4970e0f5",
+  on: "cbd242b5da5c70411ba5a546cf4aaba38917e10f3ffd569318bb06c7efc0c36d",
 } as const;
 
 /** A prospect with what aging "ability" adds or moves taken off: his age and his fade shifts. */
