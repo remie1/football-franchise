@@ -37,7 +37,7 @@ import {
 import { physicalRatings, type Measurements } from "./derive.js";
 import { drawRookieAge, ROOKIE_AGE_ON_53, withDevelopment, type AgingOption } from "./development.js";
 import { drawName } from "./names.js";
-import { PHYSICAL, PROFILES, TIERS, UNIVERSAL, type Tier } from "./profiles.js";
+import { PHYSICAL, PROFILES, TIERS, isDrawnAtCore, UNIVERSAL, type Tier } from "./profiles.js";
 import { BODY, POSITION_ORDER, ROSTER_SHAPE, type Dist } from "./shape.js";
 
 /**
@@ -140,7 +140,7 @@ export function rateAttributes(rng: Rng, position: Position, talent: number, m: 
   for (const id of ACTIVE) {
     if ((PHYSICAL as readonly string[]).includes(id)) out[id] = physical[id]!;
     else if (id in UNIVERSAL) out[id] = tierRating(rng, UNIVERSAL[id]!, talent);
-    else if (profile.core.includes(id)) out[id] = tierRating(rng, TIERS.core, talent);
+    else if (isDrawnAtCore(position, id)) out[id] = tierRating(rng, TIERS.core, talent);
     else if (profile.secondary.includes(id)) out[id] = tierRating(rng, TIERS.secondary, talent);
     else out[id] = tierRating(rng, TIERS.rest, talent);
   }

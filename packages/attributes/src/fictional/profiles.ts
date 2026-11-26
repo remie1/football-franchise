@@ -39,9 +39,34 @@ export const TIERS = {
  * Each position's core, secondary and key physical ratings are shared vocabulary since ADR-087 P5
  * (contracts' `POSITION_PROFILES`): the depth chart, draft boards and cut-down day read the same
  * profiles through `positionOverall`. Re-exported here under the generator's names.
+ * One exception: `DRAWN_AT_CORE` below (ADR-087 AB-L).
  */
 export type Profile = PositionProfile;
 export const PROFILES: Readonly<Record<Position, Profile>> = POSITION_PROFILES;
+
+/**
+ * Rating draws only (`rateAttributes`, which the made-up league, draft classes and the real importer all
+ * call); `positionOverall` never reads it. Since ADR-087 AB-L (NEW-2) the inside linebackers' overall
+ * leans on acceleration in place of gap discipline, and the owner chose (2026-11-14) to keep creating
+ * them as before: gap discipline is still drawn at the core tier for MLB and ILB, so every man's ratings
+ * are drawn exactly as before. What follows the new overall: chart order (and so a made-up league's slot
+ * ids, `p:<team>:<position><depth>`, with the draws on the id's development fork: growth, career snaps,
+ * patience and, under aging "ability", fade shift and rookie age), cut-down day, draft boards and a draft
+ * class's stored overall. Holds only ratings NOT already in that position's core.
+ */
+export const DRAWN_AT_CORE: Readonly<Partial<Record<Position, readonly string[]>>> = {
+  MLB: ["gapDiscipline"],
+  ILB: ["gapDiscipline"],
+};
+
+/**
+ * For a tiered rating only: true when `rateAttributes` draws it at the core tier for this position.
+ * Physical and universal ratings never reach this check (`rateAttributes` handles them first), and for
+ * them the answer means nothing: since AB-L, INSIDE_LB's core holds `acceleration`, so this is true for
+ * MLB and ILB acceleration, which is drawn from the measurements.
+ */
+export const isDrawnAtCore = (position: Position, id: string): boolean =>
+  PROFILES[position].core.includes(id) || (DRAWN_AT_CORE[position]?.includes(id) ?? false);
 
 /**
  * Ratings every player carries whatever his position, each with its own spread and its own
