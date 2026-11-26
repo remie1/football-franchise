@@ -26,8 +26,10 @@
 import { POSITION_GROUP, type PlayerId, type Position, type PositionGroup, type Team } from "@ff/contracts";
 import { SPOT_ORDER, chartSpots } from "./aging.js";
 import {
-  BAND_MIN_WEEKS, CONCUSSION_MARK, CONCUSSION_REPEAT, HEALING_BY_AGE, INJURY_KINDS, INJURY_RATES, type LastingMark, type WeeksBucket,
+  BAND_MIN_WEEKS, CONCUSSION_MARK, CONCUSSION_REPEAT, HEALING_BY_AGE, INJURY_KINDS, INJURY_RATES, REAL_OTHER_KIND, REAL_PART_KINDS,
+  type LastingMark, type WeeksBucket,
 } from "./injuryTables.js";
+import { realBodyPart } from "./realParts.js";
 import type { PastInjury } from "./types.js";
 
 /** ADR-087 §12.1: where injury risk comes from. `"group"` (the default) is today's rule. */
@@ -164,4 +166,19 @@ export function spotWeeks(kind: string, age: number, prior: number, healingByAge
  */
 export function spotLasting(kind: string): LastingMark | undefined {
   return kind === CONCUSSION_REPEAT.kind ? CONCUSSION_MARK : INJURY_KINDS[kind]?.lasting;
+}
+
+/**
+ * The franchise kind a stand-in's real injury is recorded under on the spot path (ADR-087 §12.3.7, AB7).
+ * A kind not starting `real:` comes back as it is. A P8 record's kind (`real:` and one of the 17 classes)
+ * is looked up in `REAL_PART_KINDS`. Any other `real:` kind is a copied current injury's, made of report
+ * text (`real:left-knee`, `real:reserve-injured-reserve`): read back as text ("-" as " ") and classed by the
+ * copied keywords (`realParts.ts`), then looked up. Whatever is left is `REAL_OTHER_KIND`.
+ */
+export function realKindOf(kind: string): string {
+  if (!kind.startsWith("real:")) return kind;
+  const slug = kind.slice("real:".length);
+  if (Object.hasOwn(REAL_PART_KINDS, slug)) return REAL_PART_KINDS[slug]!;
+  const part = realBodyPart(slug.replace(/-/g, " ")).replace(/\//g, "-");
+  return Object.hasOwn(REAL_PART_KINDS, part) ? REAL_PART_KINDS[part]! : REAL_OTHER_KIND;
 }

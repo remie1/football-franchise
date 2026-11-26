@@ -11,8 +11,6 @@
  * spellings), so it stays inside `importer/real/`: only `standInCrews` and `table6Check` read it, and
  * what they give back carries made-up names and counts only.
  */
-import { existsSync } from "node:fs";
-import { rename, rm } from "node:fs/promises";
 import { join } from "node:path";
 import type { LeagueFileLike } from "./leagueFile.js";
 import {
@@ -22,7 +20,7 @@ import {
 } from "./officials.js";
 import { loadOfficialRows, loadPlayerNames, loadPlayRows, loadScheduleRows, type ReadRows } from "./rows.js";
 import {
-  fetchSnapshot, latestSnapshot, officialsFiles, OFFICIALS_SEASONS, readManifest, readRows, verifySnapshot,
+  fetchStagedSnapshot, latestSnapshot, officialsFiles, OFFICIALS_SEASONS, readManifest, readRows, verifySnapshot,
   type Download, type SnapshotManifest,
 } from "./snapshot.js";
 import type { SealedTable } from "./standins.js";
@@ -143,15 +141,12 @@ export async function copiedCrews(cache: string, file: LeagueFileLike, sealed: S
   return { kind: "copied", crews: crewsOfSnapshot(await readOfficialsSnapshot(dir, file.season, read), file, sealed) };
 }
 
-/** Where `fetchOfficialsSnapshot` fetches before the files are whole: its name is no date, so `latestSnapshot` never picks it. */
-const FETCHING = ".fetching";
-
 /**
- * standin-officials' `--fetch` (ADR-093 step 1b): today's officials snapshot (the UTC date), fetched into
- * `<root>/.fetching` and moved to `<root>/<today>` only once every file and the manifest are written, so a
- * failed fetch leaves no dated folder for `latestSnapshot` or `copiedCrews` to find. Refuses when
- * `<root>/<today>` is there already, before any download: a kept folder is never written over, and a
- * re-run on it names it with `--snapshot`. import-real's own `--fetch` is `fetchSnapshot`, as before.
+ * standin-officials' `--fetch` (ADR-093 step 1b): today's officials snapshot (the UTC date), fetched staged
+ * (`fetchStagedSnapshot`): into `<root>/.fetching` and moved to `<root>/<today>` only once every file and the
+ * manifest are written, so a failed fetch leaves no dated folder for `latestSnapshot` or `copiedCrews` to find.
+ * Refuses when `<root>/<today>` is there already, before any download: a kept folder is never written over,
+ * and a re-run on it names it with `--snapshot`. import-real's own `--fetch` is `fetchSnapshot`, as before.
  */
 export async function fetchOfficialsSnapshot(opts: {
   readonly root: string;
@@ -159,23 +154,7 @@ export async function fetchOfficialsSnapshot(opts: {
   readonly now: Date;
   readonly download?: Download;
 }): Promise<{ dir: string; manifest: SnapshotManifest }> {
-  const dir = join(opts.root, opts.now.toISOString().slice(0, 10));
-  if (existsSync(dir)) {
-    throw new Error(`the officials snapshot ${dir} is there already, and a fetch today would write over it: ` +
-      `to read it again, run with --snapshot ${dir}; to fetch afresh, move it out of ${opts.root} first`);
-  }
-  const staging = join(opts.root, FETCHING);
-  await rm(staging, { recursive: true, force: true });
-  try {
-    const fetched = await fetchSnapshot({
-      root: staging, season: opts.season, now: opts.now, files: officialsFiles(opts.season),
-      ...(opts.download === undefined ? {} : { download: opts.download }),
-    });
-    await rename(fetched.dir, dir);
-    return { dir, manifest: fetched.manifest };
-  } finally {
-    await rm(staging, { recursive: true, force: true });
-  }
+  return fetchStagedSnapshot({ ...opts, files: officialsFiles(opts.season), what: "officials" });
 }
 
 /**

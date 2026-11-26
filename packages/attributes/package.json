@@ -10,7 +10,8 @@
     "import-real": "vite-node src/importer/real/main.ts --",
     "standin-development": "vite-node src/importer/real/developMain.ts --",
     "standin-officials": "vite-node src/importer/real/officialsMain.ts --",
-    "standin-contracts": "vite-node src/importer/real/contractsMain.ts --"
+    "standin-contracts": "vite-node src/importer/real/contractsMain.ts --",
+    "standin-injuries": "vite-node src/importer/real/injuriesMain.ts --"
   },
   "dependencies": {
     "@ff/contracts": "workspace:*",

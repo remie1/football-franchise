@@ -42,16 +42,16 @@ import {
   type GameParticipation, type Injury, type InjuryBand, type InjurySetting, type LeagueRules, type PlayerState,
   type PositionGroup, type Rng, type Team,
 } from "@ff/contracts";
-import { phaseWeeks } from "../calendar/clock.js";
+import { phaseWeeks, seasonStart } from "../calendar/clock.js";
 import { addPoints, changeBody, type BodyChange, type Follows, type RatingMove } from "./body.js";
 import {
-  BAND_MIN_WEEKS, BAND_ORDER, BODY_REPORT_STEPS, INJURY_KINDS, INJURY_RATES, MARK_AGE, REPEAT_DURABILITY,
+  BAND_MIN_WEEKS, BAND_ORDER, BODY_REPORT_STEPS, INJURY_KINDS, INJURY_RATES, MARK_AGE, REAL_OTHER_KIND, REPEAT_DURABILITY,
   type WeeksBucket,
 } from "./injuryTables.js";
 import {
-  injuryRiskRule, priorOfKind, spotAgeFactor, spotLasting, spotRiskReader, spotWeeks, type InjuryRisk, type InjuryRiskProfile,
+  injuryRiskRule, priorOfKind, realKindOf, spotAgeFactor, spotLasting, spotRiskReader, spotWeeks, type InjuryRisk, type InjuryRiskProfile,
 } from "./injurySpot.js";
-import type { PastInjury, PlayerWeek } from "./types.js";
+import { emptyMemory, type PastInjury, type PlayerMemory, type PlayerWeek } from "./types.js";
 
 export { spotOf, type InjuryRisk, type InjuryRiskProfile } from "./injurySpot.js";
 
@@ -474,25 +474,61 @@ export function lastingMark(player: PlayerState, injury: Pick<Injury, "kind" | "
   return { player: next, lasting, body };
 }
 
-/** He is healthy: the lasting mark, his history closed, and the truth-layer record. */
+/**
+ * He is healthy: the lasting mark, his history closed, and the truth-layer record. On the spot path
+ * (ADR-087 §12.3.7, AB7) a stand-in's copied injury (a `real:` kind) is read, counted and recorded under
+ * the franchise kind it maps to (`realKindOf`), so a seeded concussion and a copied one are one kind; an
+ * unknown part ("other") and a kind that never repeats count no prior. The lasting mark still reads the
+ * injury as copied, so it leaves no kind's own mark, only the repeat's durability when there is a prior.
+ * The group path records the kind as it is, as before.
+ */
 function heal(
   p: PlayerState, injury: Injury, at: CalendarStamp, history: Record<string, PastInjury[]>, events: FranchiseEvent[], follows?: Follows, injuryRisk?: InjuryRisk,
 ): PlayerState {
   const id = String(p.bio.id);
   const past = history[id] ?? [];
-  const isThis = (h: PastInjury) => h.kind === injury.kind && compareStamps(h.at, injury.since) === 0;
-  const prior = past.filter((h) => h.kind === injury.kind && !isThis(h)).length;
+  const kind = injuryRisk === "spot" ? realKindOf(injury.kind) : injury.kind;
+  const counts = kind === injury.kind || (kind !== REAL_OTHER_KIND && INJURY_KINDS[kind]?.repeats !== false);
+  const isThis = (h: PastInjury) => h.kind === kind && compareStamps(h.at, injury.since) === 0;
+  const prior = counts ? past.filter((h) => h.kind === kind && !isThis(h)).length : 0;
   const mark = lastingMark(p, injury, prior, follows, injuryRisk);
   // Every entry still open closes now: this injury, and a day-to-day knock it took the place of.
   const closed = past.map((h) => (h.healed === undefined ? { ...h, healed: at } : h));
   // An injury he came with (a stand-in's, set without a history) is recorded as he comes back.
-  history[id] = past.some(isThis) ? closed : [...closed, { kind: injury.kind, band: injury.band, at: injury.since, healed: at }];
+  history[id] = past.some(isThis) ? closed : [...closed, { kind, band: injury.band, at: injury.since, healed: at }];
   events.push({
     type: "INJURY_HEALED",
     payload: { player: p.bio.id, lasting: mark.lasting, ...(mark.body.length > 0 ? { body: mark.body } : {}) },
   });
   const { injury: _healed, ...condition } = mark.player.condition;
   return { ...mark.player, condition };
+}
+
+/**
+ * The stand-ins' real injuries before the league's first day (ADR-087 §12.3.7, AB7; contracts P8), put
+ * into the players' injury memory once, before the season's first day step: each man's
+ * `condition.injuryHistory`, oldest first, each record `{ kind: realKindOf(kind), band: bandFor(weeks),
+ * at: since, healed }`. Only on the spot path with injuries on, only when there is no memory yet (a
+ * save, a checkpoint or a walk's later season carries the memory, so nothing is seeded twice), and only
+ * when some man has a history; otherwise the people come back as they are. No event: these happened
+ * before the league. Franchise never writes `condition.injuryHistory`.
+ */
+export function seedPastInjuries<P extends { readonly players: readonly PlayerState[]; readonly playerMemory?: PlayerMemory }>(
+  people: P, config: { readonly injuries?: boolean; readonly injuryRisk?: InjuryRisk }, season: number,
+): P {
+  if (config.injuries !== true || injuryRiskRule(config.injuryRisk) !== "spot" || people.playerMemory !== undefined) return people;
+  const first = seasonStart(season);
+  const injuries: Record<string, PastInjury[]> = {};
+  for (const p of people.players) {
+    const records = p.condition.injuryHistory;
+    if (records === undefined || records.length === 0) continue;
+    injuries[String(p.bio.id)] = records.map((r) => {
+      if (compareStamps(r.healed, first) >= 0) throw new Error(`seedPastInjuries: ${String(p.bio.id)} has a past injury healed on or after the season's first day`);
+      return { kind: realKindOf(r.kind), band: bandFor(r.weeks), at: r.since, healed: r.healed };
+    });
+  }
+  if (Object.keys(injuries).length === 0) return people;
+  return { ...people, playerMemory: { ...emptyMemory(), injuries } };
 }
 
 /**
