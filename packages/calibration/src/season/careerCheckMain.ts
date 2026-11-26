@@ -1,8 +1,9 @@
 /**
  * `pnpm --filter @ff/calibration career-check -- --league <file> (--seed <seed> | --seed-set tune|grade --index <n>) [--arm both|development|incumbent|form] [--seasons 20] [--out <file>]`
  * `pnpm --filter @ff/calibration career-check -- --grade --pass 1|2 --league <file> [--seasons 20] [--seeds a,b] [--coach-seeds a,b] [--build <fingerprint>] [--report <path>] [--smoke]`
- *   either with `[--aging position|ability] [--ability-curves D|B] [--technique-knee] [--smarts-snaps <n>] [--injury-risk group|spot] [--ability-rules]`
+ *   either with `[--aging position|ability] [--ability-curves D|B] [--technique-knee] [--smarts-snaps <n>] [--injury-risk group|spot]`
  *   `[--no-healing-by-age] [--per-contact <n>]` (AB6: the spot path's tuning switches, AB9-T6 and T5; they join the rules' label)
+ *   `[--retirement unsigned|choice] [--ability-rules]`
  *
  * ADR-087 §9, row D5b: the 20-season check. Plays ONE seed of the stand-in league with growth and
  * injuries switched on (the cap check's walk, `careerCheckRun.ts`) and keeps its rows under
@@ -40,8 +41,10 @@
  * `--build <fingerprint>` grade with no aging flags takes the rows' own options. The report's name
  * and header, and its JSON's `meta.aging`, name the options the rows were played under.
  * `--injury-risk spot` (AB5; injury risk by each man's depth-chart key with the measured age
- * factor) travels with them the same way, under the same name (`spot`, `ability-spot`), and
- * `--ability-rules` sets both. It needs injuries on, so it is refused on the `development` arm.
+ * factor) travels with them the same way, under the same name (`spot`, `ability-spot`). It needs
+ * injuries on, so it is refused on the `development` arm. `--retirement choice` (AB8; players may
+ * retire by their own choice at three moments a year, §12.4) travels the same way too (`choice`,
+ * `ability-spot-choice`), on every arm. `--ability-rules` sets all three.
  *
  * Paths given on the command line are read from the folder the command was typed in.
  */

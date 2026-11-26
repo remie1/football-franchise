@@ -109,9 +109,10 @@ The hidden-information pillar, as a type-level guarantee.
 
 ```ts
 /**
- * Ground truth. ONLY the engine, attributes pipeline, and calibration may consume this, plus four
+ * Ground truth. ONLY the engine, attributes pipeline, and calibration may consume this, plus five
  * franchise steps until perception exists (ADR-087 §7): the development week, the injury draws,
- * the coordinators' (blurred) read for the depth chart, and the morale step.
+ * the coordinators' (blurred) read for the depth chart, the morale step, and the retirement
+ * review's rating-fall term (ADR-087 §12.4.3, NEW-1).
  */
 export interface TrueAttributes {
   readonly kind: "true";

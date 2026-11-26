@@ -432,13 +432,23 @@ export interface ExpectedChangeOptions extends AgingOptions {
 
 /** His overall at his own position with each rating's unshown fraction counted (contracts' `positionOverall`). */
 export function overallWithCarry(player: PlayerState): number {
+  return overallWithCarryAt(player, player.bio.position);
+}
+
+/**
+ * His overall judged at a profile (contracts' `positionOverall` at `profile`), with each rating's
+ * unshown fraction counted, as `overallWithCarry` reads it at his own position. ADR-087 §12.4.3 (AB8):
+ * retirement's review judges a man at the profile his team charted him at, never his listed one. It
+ * reads true ratings, so its callers are truth readers (contracts `TrueAttributes`).
+ */
+export function overallWithCarryAt(player: PlayerState, profile: Position): number {
   const carry = (player.attributes.development?.carry ?? {}) as Readonly<Record<string, number>>;
   const values: AttributeMap = { ...player.attributes.values };
   for (const [attr, rest] of Object.entries(carry)) {
     const v = values[attr];
     if (typeof v === "number") values[attr] = v + rest;
   }
-  return positionOverall(player.bio.position, values);
+  return positionOverall(profile, values);
 }
 
 /**
