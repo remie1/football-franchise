@@ -13,6 +13,7 @@ import {
 import {
   BAND_ORDER, DAY_TO_DAY_SHARE, INJURY_KINDS, INJURY_RATES, REPEAT_DURABILITY, WEEKS_SHAPE,
 } from "../src/players/injuryTables.js";
+import type { InjuryRisk } from "../src/players/injurySpot.js";
 import type { PastInjury, PlayerWeek } from "../src/players/types.js";
 
 // ADR-087 D3: injuries on hand-made players, and a season-scale run on a made-up league.
@@ -710,7 +711,7 @@ interface SeasonStats {
  * 32 made-up teams walk `years` calendar years: games in the regular season (one bye each, no
  * playoff games), practice and away every week. Every year after the first is measured.
  */
-function seasonRun(seed: string, teams = 32, years = 3): SeasonStats {
+function seasonRun(seed: string, teams = 32, years = 3, injuryRisk: InjuryRisk = "group"): SeasonStats {
   const players0: PlayerState[] = [];
   let n = 0;
   for (let t = 0; t < teams; t++) {
@@ -722,6 +723,13 @@ function seasonRun(seed: string, teams = 32, years = 3): SeasonStats {
     }
   }
   expect(players0.length).toBe(teams * 53);
+  // ADR-087 AB5: on the spot path each team's chart lists every man at his slot's key (the chart a
+  // team of men who play where they are listed has), so his spot is the key of his slot.
+  const charts = Array.from({ length: teams }, (_, t) => ({
+    id: teamId(`T${t}`),
+    depthChart: Object.fromEntries(DEPTH.map(([position, slots]) => [position, slots.map((_, i) => playerId(`T${t}-${position}${i}`))])),
+  }));
+  const spotPath = injuryRisk === "spot" ? { injuryRisk, teams: charts } : {};
   let players = players0;
   const positionOf = new Map(players.map((p) => [String(p.bio.id), p.bio.position]));
   let history: Record<string, PastInjury[]> = {};
@@ -803,14 +811,14 @@ function seasonRun(seed: string, teams = 32, years = 3): SeasonStats {
               if (measured) group(String(p.bio.id)).snaps += gameExposure({ offense: o, defense: d, special: sp });
             });
           }
-          const r = gameInjuries({ game: gameId(`${season}/${at.week}/T${t}`), at, reports, players, history, seed, rules: RULES });
+          const r = gameInjuries({ game: gameId(`${season}/${at.week}/T${t}`), at, reports, players, history, seed, rules: RULES, ...spotPath });
           players = r.players; history = r.history; tally(at, r.events);
           if (measured) s.teamGames++;
         }
       }
       const healed = healWeek({ at, players, history });
       players = healed.players; history = healed.history;
-      const drawn = weekInjuries({ at, rules: RULES, players, weeks, history, seed });
+      const drawn = weekInjuries({ at, rules: RULES, players, weeks, history, seed, ...spotPath });
       players = drawn.players; history = drawn.history; tally(at, drawn.events);
     }
   }
@@ -880,5 +888,39 @@ describe("a season-scale run on a made-up league (targets: MEASURED NFL numbers,
       expect(Math.abs(groupRate(g) / NFL.per1000WeightedSnaps[g]! - 1), g).toBeLessThan(0.3);
     }
     for (const k of Object.keys(NFL.kinds)) expect(Math.abs(kindShare(k) - NFL.kinds[k]!), k).toBeLessThan(0.025);
+  });
+
+  // ADR-087 §12.3.2 (AB5): the spot path's own level, `INJURY_RATES.game.bySpot.perSnap`, re-pinned by
+  // this run: the spot path plays the group path's league rate (the group path's `perSnap` untouched).
+  it("re-pins the spot path's level: injuryRisk spot plays the group path's league rate, and the NFL's numbers", () => {
+    const group = seasonRun(SEED);
+    const s = seasonRun(SEED, 32, 3, "spot");
+    const perGame = (x: SeasonStats, n: number) => n / x.teamGames;
+    const footballOf = (x: SeasonStats) => x.timeLoss.GAME + x.timeLoss.PRACTICE + x.timeLoss.AWAY;
+    const football = footballOf(s);
+    const share = (x: number) => x / football;
+    const groupRate = (g: string) => (1000 * (s.groups[g]?.timeLoss ?? 0)) / (s.groups[g]?.snaps ?? 1);
+    console.log(`ADR-087 AB5 spot path (bySpot.perSnap ${INJURY_RATES.game.bySpot.perSnap}): time-loss per team-game ${perGame(s, football).toFixed(4)}, ` +
+      `group path (perSnap ${INJURY_RATES.game.perSnap}) ${perGame(group, footballOf(group)).toFixed(4)}; day to day ${perGame(s, s.dayToDay).toFixed(2)}; ` +
+      // Practice keeps the group path's `practice.perWeek` (only the game level was refit), so the
+      // spot age factor lowers it and the game level makes up the difference (the AB5 note).
+      `in season game / practice / away time-loss spot ${s.timeLoss.GAME} / ${s.timeLoss.PRACTICE} / ${s.timeLoss.AWAY}, ` +
+      `group ${group.timeLoss.GAME} / ${group.timeLoss.PRACTICE} / ${group.timeLoss.AWAY}; ` +
+      `whole-year practice time-loss spot ${s.year.PRACTICE.timeLoss}, group ${group.year.PRACTICE.timeLoss}; ` +
+      `by group ${Object.keys(NFL.per1000WeightedSnaps).map((g) => `${g} ${groupRate(g).toFixed(2)}`).join(" ")}`);
+    expect(INJURY_RATES.game.perSnap).toBe(0.00132);
+    expect(INJURY_RATES.game.bySpot.perSnap).toBe(0.00141);
+    // The fit: within 0.5% of the group path's rate on this seed (0.00140 gives -0.6% and 0.00142 +0.9%, MEASURED).
+    expect(Math.abs(perGame(s, football) / perGame(group, footballOf(group)) - 1)).toBeLessThan(0.005);
+    // And the league rate within its band, the rest of the NFL's numbers as the group path holds them.
+    expect(perGame(s, football)).toBeGreaterThan(1.85);
+    expect(perGame(s, football)).toBeLessThan(2.2);
+    expect(perGame(s, s.dayToDay)).toBeGreaterThan(0.62);
+    expect(perGame(s, s.dayToDay)).toBeLessThan(0.94);
+    expect(share(s.timeLoss.PRACTICE)).toBeGreaterThan(0.03);
+    expect(share(s.timeLoss.PRACTICE)).toBeLessThan(0.1);
+    for (const b of ["SHORT", "LONG", "MAJOR"]) expect(Math.abs((s.bands[b] ?? 0) / football - NFL.bands[b]!), b).toBeLessThan(0.04);
+    for (const g of ["RB", "WR", "OL", "DL", "LB", "DB"]) expect(Math.abs(groupRate(g) / NFL.per1000WeightedSnaps[g]! - 1), g).toBeLessThan(0.3);
+    for (const k of Object.keys(NFL.kinds)) expect(Math.abs((s.kinds[k] ?? 0) / football - NFL.kinds[k]!), k).toBeLessThan(0.025);
   });
 });

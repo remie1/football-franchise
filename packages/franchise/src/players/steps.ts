@@ -32,6 +32,7 @@ import { ABILITY_FOLLOWS, abilityRules, agingSwitches, chartSpots, weekSide, typ
 import { depthChartWeek, readBlur } from "./depthChart.js";
 import { PRACTICE_PHASES, developmentWeek } from "./development.js";
 import { gameInjuries, healWeek, isAvailable, weekInjuries } from "./injuries.js";
+import { injuryRiskRule, type InjuryRisk } from "./injurySpot.js";
 import { emptyMemory, type PlayerMemory, type PlayerWeek } from "./types.js";
 import { unsignedDay } from "./unsigned.js";
 
@@ -42,13 +43,21 @@ export const PLAYER_STEP_PREFIX = "players:";
  * ADR-087 §12.1: the aging options (`aging`, default `"position"`; on the ability path `abilityCurves`,
  * `techniqueKnee` and `smartsSnaps`, `aging.ts` `AgingOptions`) act only with `development` on and
  * `aging: "ability"`. They are recorded in `PlayerMemory.switches` only then, and only when not the
- * default, so a run at the defaults is main's to the byte.
+ * default, so a run at the defaults is main's to the byte. `injuryRisk` (AB5) likewise acts only with
+ * `injuries` on and is recorded only then, and only when not the default (`"group"`).
  */
 export interface PlayerStepsConfig extends AgingOptions {
   /** Growth and aging (§2, §4). */
   readonly development?: boolean;
   /** Injuries in games, practice and away from football (§5). */
   readonly injuries?: boolean;
+  /**
+   * ADR-087 §12.1, §12.3.1 (AB5): where injury risk comes from. Default `"group"` (his listed
+   * position's group, today's); `"spot"` reads the chart key his team lists him at this week (the
+   * team's chart as it stands when the draw is made, before the week's rebuild) with §12.3.2's age
+   * factor (`injurySpot.ts`). Acts only with `injuries` on.
+   */
+  readonly injuryRisk?: InjuryRisk;
   /**
    * The season runner's lineup rule (§10): a position this team cannot fill from these available
    * players, or undefined when it can field a side. Absent = every team can always be fielded, and
@@ -290,7 +299,10 @@ export function playerSteps(config: PlayerStepsConfig): DayStep[] {
   if (!development && !injuries) return [];
   // ADR-087 §12.1: the aging options, checked here (a misspelled value throws) and recorded only when they act.
   const aging: AgingRule = development && abilityRules(config) !== undefined ? "ability" : "position";
-  const switches = { development, injuries, ...agingSwitches(config, development) };
+  // AB5: checked here too (a misspelled value throws), and acting (and recorded) only with injuries on.
+  const asked = injuryRiskRule(config.injuryRisk);
+  const injuryRisk: InjuryRisk = injuries && asked === "spot" ? "spot" : "group";
+  const switches = { development, injuries, ...agingSwitches(config, development), ...(injuryRisk === "spot" ? { injuryRisk } : {}) };
 
   const week: DayStep = {
     id: `${PLAYER_STEP_PREFIX}week`,
@@ -308,7 +320,11 @@ export function playerSteps(config: PlayerStepsConfig): DayStep[] {
         const games = [...ctx.games].sort((a, b) => String(a.game.gameId).localeCompare(String(b.game.gameId)));
         for (const g of games) {
           const own = (g.extras as Partial<PlayerGameExtras> | undefined)?.participation ?? [];
-          const r = gameInjuries({ game: g.game.gameId, at: ctx.day, reports: own, players, history, seed: ctx.seed, rules: ctx.rules });
+          const r = gameInjuries({
+            game: g.game.gameId, at: ctx.day, reports: own, players, history, seed: ctx.seed, rules: ctx.rules,
+            // AB5: on the spot path, each man's key on his team's chart as it stands at the game.
+            ...(injuryRisk === "spot" ? { injuryRisk, teams: people.teams } : {}),
+          });
           players = r.players; history = r.history; events.push(...r.events);
         }
       }
@@ -318,7 +334,11 @@ export function playerSteps(config: PlayerStepsConfig): DayStep[] {
         // ADR-087 §12.2.1: on the ability path a lasting mark moves what follows the body there (elusiveness and yac too).
         const healed = healWeek({ at: ctx.day, players, history, ...(aging === "ability" ? { follows: ABILITY_FOLLOWS } : {}) });
         players = healed.players; history = healed.history; events.push(...healed.events);
-        const drawn = weekInjuries({ at: ctx.day, rules: ctx.rules, players, weeks, history, seed: ctx.seed });
+        const drawn = weekInjuries({
+          at: ctx.day, rules: ctx.rules, players, weeks, history, seed: ctx.seed,
+          // AB5: the week's chart, before this week's rebuild below.
+          ...(injuryRisk === "spot" ? { injuryRisk, teams: people.teams } : {}),
+        });
         players = drawn.players; history = drawn.history; events.push(...drawn.events);
       }
       if (development) {

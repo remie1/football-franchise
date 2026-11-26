@@ -49,7 +49,7 @@
  * - *Durability, age and a recent return.* The reports carry neither ratings nor ages: these factors
  *   stay CHOSEN, and the base rates are set for their average on an NFL-aged roster.
  */
-import type { CalendarPhase, InjuryBand, InjurySetting, PositionGroup } from "@ff/contracts";
+import type { CalendarPhase, InjuryBand, InjurySetting, Position, PositionGroup } from "@ff/contracts";
 import type { BodyChange } from "./body.js";
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════
@@ -93,6 +93,42 @@ export const INJURY_RATES = {
     byGroup: {
       QB: 0.85, RB: 1.55, FB: 1.55, WR: 1.22, TE: 0.99, OL: 0.84, DL: 0.94, LB: 0.89, DB: 1.06, ST: 0.67,
     } satisfies Record<PositionGroup, number>,
+    /**
+     * ADR-087 §12.3.1 (step AB5): the spot path, read only with `injuryRisk: "spot"` (`injurySpot.ts`).
+     * The group path above (`perSnap`, `byGroup`) is not touched by it.
+     */
+    bySpot: {
+      /**
+       * The spot path's own level, per weighted snap, for a man on factor 1 at age factor 1 (durability
+       * 65, no recent return). Fitted (§12.3.2, "Level refit"), to 2 places per 1,000 as `perSnap` was:
+       * the value at which the season-run fitting test (`players.injuries.test.ts`, a season-scale run
+       * on a made-up league: NFL ages, the generator's durability, NFL snaps by slot) plays the spot
+       * path to the group path's league rate at `perSnap` (2.04 time-loss injuries per team-game on the
+       * test's seed, both, against the MEASURED 2.02; over six seeds 2.054 against 2.056). 6.8% above
+       * `perSnap` (0.00132): the spot age factor averages 0.991 on the test's ages against the group
+       * path's 1.05 (× 1.060), and the spot factors 0.990 of the group factors on its snaps (× 1.010,
+       * from the 2-place rounding and the split inside each group); worked out, 0.001412. Fitting
+       * straight to 2.02 on the test's seed instead gives 0.00139 (CHOSEN: match the group path, so the
+       * switch moves who is hurt, not how many). MEASURED (fitted).
+       */
+      perSnap: 0.00141,
+      /**
+       * Risk per weighted snap by the chart key that lists him, × `bySpot.perSnap`: the group's
+       * `byGroup` × (the REAL rate per 1,000 snaps at the key's fine spot ÷ the REAL rate of the fine
+       * spots' group), to 2 places, as `byGroup` is. So the group levels stay what they were fitted to
+       * and are split inside each group. REAL inputs: `REAL_SPOT_RATES` (injury-rates.md, "By
+       * depth-chart spot"; LT/RT read the fine spot T, LG/RG read G, FB takes RB's group rate and
+       * K, P and LS the K/P group's); the factors are computed from them, at the 3 places the report
+       * prints (at the JSON's 6, NT's 1.105 would round to 1.11), and a test recomputes each one. K, P
+       * and LS rest on few injuries (48, 18 and 15 after a game played, REAL).
+       */
+      factor: {
+        QB: 0.85, RB: 1.6, FB: 1.17, WR: 1.22, TE: 0.99,
+        LT: 0.97, LG: 0.73, C: 0.76, RG: 0.73, RT: 0.97,
+        DE: 0.98, DT: 0.85, NT: 1.1, OLB: 0.88, MLB: 0.78, ILB: 0.88,
+        CB: 1.21, FS: 0.82, SS: 0.92, K: 1.21, P: 0.42, LS: 0.4,
+      } satisfies Record<Position, number>,
+    },
   },
   practice: {
     /**
@@ -157,6 +193,23 @@ export const INJURY_RATES = {
     perYear: 0.04,
   },
   /**
+   * ADR-087 §12.3.2 (step AB5): how age scales game and practice risk on the spot path
+   * (`injuryRisk: "spot"`), in place of `age`: straight lines between the knots (age, factor), flat
+   * outside them. CHOSEN method on REAL inputs: the REAL observed / expected injuries per snap by age
+   * band (0.99 / 0.96 / 1.04 / 1.20 / 1.01 at 25 and under, 26-28, 29-30, 31-32, 33 and over;
+   * injury-rates.md, "Injuries by age"), pooled where a band is too small to stand alone (28 and under
+   * 0.98, 29-30 1.04, 31 and over 1.13), placed at the pooled bands' middles (27, 29.5, 32.5), and
+   * each divided by the typical man's durability factor at that age (1.000, 1.021, 1.087, from
+   * `OWN_CURVES.durability` through `exp(-0.02 × (d - 65))`), since durability's own fall already
+   * raises an older man's risk. Tuning may move each knot by up to one SE of its pooled band
+   * (§12.3.2): about .015 / .038 / .042 on the knots, computed from REAL (√observed ÷ expected per
+   * snap over the pooled bands, 4,447 / 712 / 596 injuries after a game played, is .015 / .039 / .046
+   * on the pooled ratios, then ÷ the durability factors above). Not the unpooled bands' .02 / .04 / .06.
+   */
+  spotAge: {
+    knots: [[27, 0.98], [29.5, 1.02], [32.5, 1.04]] as readonly (readonly [age: number, factor: number])[],
+  },
+  /**
    * A player back from an injury within the last `weeks` weeks (from his history) is at higher risk
    * in games and practice. CHOSEN: the report does not follow players after a return.
    */
@@ -166,6 +219,24 @@ export const INJURY_RATES = {
     /** × risk. CHOSEN. */
     factor: 1.3,
   },
+} as const;
+
+/**
+ * ADR-087 §12.3.1: the REAL rates `INJURY_RATES.game.bySpot.factor` is computed from. New in-season
+ * time-loss football injuries per 1,000 snaps after a game played, regular seasons 2019-2024, as
+ * injury-rates.md prints them ("By depth-chart spot", to 3 places, the precision §12.3.1's table was
+ * worked from; the report's JSON, `byDepthChartGroup`, holds them to 6, and a test holds these to it).
+ * REAL: `spot` by nflverse's `depth_chart_position`, which holds each man's listed position in its
+ * fine form, not where he played on game day; `group` the fine spots' groups on the same reading (the
+ * "spot" column; FB in RB, K, P and LS in K/P).
+ */
+export const REAL_SPOT_RATES = {
+  spot: {
+    QB: 0.876, RB: 1.839, FB: 1.345, WR: 1.32, TE: 1.118, T: 1.039, G: 0.783, C: 0.81,
+    DE: 1.061, DT: 0.924, NT: 1.2, OLB: 1.02, ILB: 1.022, MLB: 0.912,
+    CB: 1.372, FS: 0.936, SS: 1.042, K: 1.877, P: 0.645, LS: 0.613,
+  },
+  group: { QB: 0.876, RB: 1.785, WR: 1.32, TE: 1.118, OL: 0.896, DL: 1.021, LB: 1.035, DB: 1.203, "K/P": 1.039 },
 } as const;
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════

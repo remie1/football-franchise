@@ -473,8 +473,9 @@ export interface GradeInput {
     readonly engineRules: string;
     readonly callerVersion: string;
     /**
-     * ADR-087 §12.1 (AB3): the aging options' name (`agingFlags.ts` `agingLabel`) the rows were played
-     * under, read from their records; absent at the defaults (players aging by position).
+     * ADR-087 §12.1 (AB3, AB5): the new rules' name (`agingFlags.ts` `agingLabel`) the rows were played
+     * under, read from their records; absent at the defaults (players aging by position, injury risk
+     * by the listed position's group).
      */
     readonly aging?: string;
     /** A smoke run: windows clipped to the seasons there are; never a graded report. */
@@ -1864,7 +1865,12 @@ export function renderGradeMarkdown(grade: CareerGrade): string {
     `${m.seasons} seasons a seed, engine rules \`${m.engineRules}\`, ` +
     `caller \`${m.callerVersion}\`. Fingerprints: ${Object.entries(m.fingerprints).map(([a, f]) => `${a} \`${f}\``).join(", ")}.`);
   if (m.aging !== undefined) {
-    say(`**Aging:** the players aged by ability group, not by position (ADR-087 §12), under \`${m.aging}\`, as the rows' records name it.`);
+    const parts = m.aging.split("-");
+    const rules = [
+      parts.includes("ability") ? "the players aged by ability group, not by position" : "",
+      parts.includes("spot") ? "injury risk followed the depth-chart spot, with the measured age factor (§12.3.1-12.3.2)" : "",
+    ].filter(Boolean);
+    say(`**Aging:** ${rules.join("; ")} (ADR-087 §12), under \`${m.aging}\`, as the rows' records name it.`);
   }
   say(`Grade seeds: ${grade.seeds.graded.length} of ${grade.seeds.asked.length} in` +
     `${grade.seeds.missing.length > 0 ? ` (missing: ${grade.seeds.missing.join(", ")})` : ""}. ` +

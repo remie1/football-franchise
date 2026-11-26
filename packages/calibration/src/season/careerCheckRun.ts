@@ -48,7 +48,7 @@ import { join, sep } from "node:path";
 import { threadId } from "node:worker_threads";
 import type { StaffState } from "@ff/contracts";
 import { DEFAULT_CALLER_VERSION, type CallerVersion } from "../caller/anticipate.js";
-import { agingFromRecord, agingLabel, sameAging, type AgingSwitches } from "./agingFlags.js";
+import { agingFromRecord, agingLabel, assertRulesAct, sameAging, type AgingSwitches } from "./agingFlags.js";
 import type { CapCheckInput } from "./capCheck.js";
 import { CAREER_ROWS_VERSION, runCareerCheck, type CareerCheckpoint, type CareerCheckRows, type CareerReaderState } from "./careerCheck.js";
 import type { DraftReaderState } from "./draftCheck.js";
@@ -96,10 +96,13 @@ export function withHeadCoachLineups(staff: readonly StaffState[], lineup: NonNu
 
 /**
  * What an arm changes in the walk's input: the switches, and for the coach-style arms the staff.
- * `aging` (ADR-087 §12.1, AB3; settled, `settleAging`) joins every arm's switches; at the defaults
- * (`{}`) nothing is added, so the walk's input is what it was before AB3.
+ * `aging` (ADR-087 §12.1, AB3 and AB5; settled, `settleAging`) joins every arm's switches; at the
+ * defaults (`{}`) nothing is added, so the walk's input is what it was before AB3. Options the arm
+ * would not play are refused (`--injury-risk spot` on the `development` arm, which has injuries off),
+ * so a record never names rules its walk did not play.
  */
 export function armInput(arm: CareerArm, aging: AgingSwitches = {}): Pick<CapCheckInput, "players" | "staffTransform"> {
+  assertRulesAct(aging, { development: true, injuries: arm !== "development" }, `the ${arm} arm`);
   switch (arm) {
     case "both": return { players: { development: true, injuries: true, ...aging } };
     case "development": return { players: { development: true, injuries: false, ...aging } };

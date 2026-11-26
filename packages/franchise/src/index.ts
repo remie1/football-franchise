@@ -141,9 +141,11 @@ export {
 } from "./players/availability.js";
 export {
   gameInjuries, weekInjuries, healWeek, isAvailable, bandFor,
-  type InjuryResult, type GameInjuryInput, type WeekInjuryInput, type HealInput,
+  type InjuryResult, type GameInjuryInput, type WeekInjuryInput, type HealInput, type InjuryRiskInput,
 } from "./players/injuries.js";
-export { INJURY_RATES, INJURY_KINDS } from "./players/injuryTables.js";
+// ADR-087 §12.3.1 (AB5): injury risk by the depth-chart spot, behind `injuryRisk: "spot"` (default "group").
+export { spotOf, spotAgeFactor, type InjuryRisk, type InjuryRiskProfile } from "./players/injurySpot.js";
+export { INJURY_RATES, INJURY_KINDS, REAL_SPOT_RATES } from "./players/injuryTables.js";
 export { depthChartWeek, type DepthWeekInput, type DepthWeekResult, type WeekHope } from "./players/depthChart.js";
 export { unsignedDay, drawPatience, type UnsignedInput, type UnsignedResult } from "./players/unsigned.js";
 export { lineupFor, teamLineup, type Lineup } from "./players/lineup.js";
