@@ -327,6 +327,19 @@ describe("each man's own fade shifts (ADR-087 §12.2.3, P7; AB2)", () => {
     const { fadeShift: _f, ...development } = d;
     return { ...p, attributes: { ...p.attributes, development } };
   };
+  /**
+   * The player with AB4's age fields (§12.5) set as `like` has them: his age, his draft line, his
+   * credited seasons (absent when `like` has none) and his career snaps. Each key keeps its place.
+   */
+  const unaged = (p: PlayerState, like: PlayerState): PlayerState => {
+    const { creditedSeasons: _c, ...bio } = p.bio;
+    const d = p.attributes.development;
+    return {
+      ...p,
+      bio: { ...bio, age: like.bio.age, draft: like.bio.draft, ...(like.bio.creditedSeasons === undefined ? {} : { creditedSeasons: like.bio.creditedSeasons }) },
+      attributes: d === undefined ? p.attributes : { ...p.attributes, development: { ...d, snaps: like.attributes.development!.snaps } },
+    };
+  };
   const body = FADE_SHIFT.body as readonly AbilityGroup[];
   /** sd of a standard normal clamped at ±zClamp: √E[min(z², zClamp²)], by numeric integration (≈ 0.9887 at 2.5). */
   const clampedSd = (() => {
@@ -467,22 +480,31 @@ describe("each man's own fade shifts (ADR-087 §12.2.3, P7; AB2)", () => {
       expect(hash(generateDraftClass({ ...CLASS_2, aging: "ability" }))).toBe(BEFORE.draftClass2);
     });
 
-    it("move no other stream: with the shifts taken off, the league and the class are the default's, every field", () => {
-      expect(json({ ...ability, players: ability.players.map(unshifted) })).toBe(json(on));
-      expect(json({ ...classAbility, players: classAbility.players.map(unshifted) })).toBe(json(classOn));
+    it("move no other stream: with the shifts and the ages taken off, the league and the class are the default's, every field", () => {
+      // AB4 (§12.5) moves the ages under "ability", and what follows from a made-up man's age: his draft
+      // line's year, his career snaps and, for a rookie-to-be, his credited seasons (0). They are put back
+      // as the default has them here; `generate.test.ts` and `draftClass.test.ts` pin which move and how.
+      const asDefault = (players: readonly PlayerState[], like: readonly PlayerState[]) => players.map((p, i) => unaged(unshifted(p), like[i]!));
+      expect(json({ ...ability, players: asDefault(ability.players, on.players) })).toBe(json(on));
+      expect(json({ ...classAbility, players: asDefault(classAbility.players, classOn.players) })).toBe(json(classOn));
       const on2 = generateLeagueRosters({ ...LEAGUE_2, development: true });
       const ability2 = generateLeagueRosters({ ...LEAGUE_2, development: true, aging: "ability" });
-      expect(json({ ...ability2, players: ability2.players.map(unshifted) })).toBe(json(on2));
+      expect(json({ ...ability2, players: asDefault(ability2.players, on2.players) })).toBe(json(on2));
       // And so the pinned growth-on output of a7a6a66, every field.
-      expect(hash({ ...ability, players: ability.players.map(unshifted) })).toBe(WITH_RECORDS.league);
-      expect(hash({ ...classAbility, players: classAbility.players.map(unshifted) })).toBe(WITH_RECORDS.draftClass);
-      expect(hash({ ...ability2, players: ability2.players.map(unshifted) })).toBe(WITH_RECORDS.league2);
+      expect(hash({ ...ability, players: asDefault(ability.players, on.players) })).toBe(WITH_RECORDS.league);
+      expect(hash({ ...classAbility, players: asDefault(classAbility.players, classOn.players) })).toBe(WITH_RECORDS.draftClass);
+      expect(hash({ ...ability2, players: asDefault(ability2.players, on2.players) })).toBe(WITH_RECORDS.league2);
       const classAbility2 = generateDraftClass({ ...CLASS_2, development: true, aging: "ability" });
-      expect(hash({ ...classAbility2, players: classAbility2.players.map(unshifted) })).toBe(WITH_RECORDS.draftClass2);
-      // So growth, snaps and patience are the same numbers, whichever option drew them.
-      const growthOf = (ps: readonly PlayerState[]) => ps.map((p) => [p.attributes.development!.growth, p.attributes.development!.snaps, p.personality.patience]);
+      const classOn2 = generateDraftClass({ ...CLASS_2, development: true });
+      expect(hash({ ...classAbility2, players: asDefault(classAbility2.players, classOn2.players) })).toBe(WITH_RECORDS.draftClass2);
+      // So growth and patience are the same numbers, whichever option drew them; and so are career snaps
+      // wherever the age leaves his seasons in the league as they were (every man but K, P and LS, AB4).
+      const growthOf = (ps: readonly PlayerState[]) => ps.map((p) => [p.attributes.development!.growth, p.personality.patience]);
       expect(growthOf(ability.players)).toEqual(growthOf(on.players));
       expect(growthOf(classAbility.players)).toEqual(growthOf(classOn.players));
+      const snapsOf = (ps: readonly PlayerState[]) => ps.filter((p) => !["K", "P", "LS"].includes(p.bio.position)).map((p) => p.attributes.development!.snaps);
+      expect(snapsOf(ability.players)).toEqual(snapsOf(on.players));
+      expect(snapsOf(classAbility.players)).toEqual(snapsOf(classOn.players));
     });
 
     it("leave growth, career snaps and patience on their own forks of his development stream, whichever the option", () => {
