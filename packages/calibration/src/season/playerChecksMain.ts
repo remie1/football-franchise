@@ -1,5 +1,6 @@
 /**
  * `pnpm --filter @ff/calibration player-checks -- [--seeds 20] [--arms off,development,injuries,both] [--shard 1/3] [--league <file>]`
+ *   `[--aging position|ability] [--ability-curves D|B] [--technique-knee] [--smarts-snaps <n>] [--ability-rules]`
  *
  * ADR-087 D5a, the single-season checks: plays `--seeds` seasons (seeds `spread-1`… , ADR-079 R5's)
  * in each arm and writes `reports/player-checks.md` and `.json`:
@@ -23,14 +24,22 @@
  * from the real depth charts; the emergency signings say how many were practice-squad call-ups; and a
  * section gives the growth rates' scale on the 53 at camp. The
  * report names the file by its path from the repository (its name alone when outside it).
+ *
+ * Aging (ADR-087 §12.1, AB3): `--aging ability` and its tuning flags (`agingFlags.ts`) play the arms
+ * with development on (`development`, `both`) with the players aging by ability group. Their seasons
+ * are cached under the options' name (`<arm>-<name>-<seed>.json`; the other arms' are shared with a
+ * default run) and the report is written to `player-checks-<name>` (`player-checks-standin-<name>`),
+ * so a default run's files are never written over; the report's JSON names them (`aging`). The flags
+ * are refused when no chosen arm has development on. At the defaults nothing changes.
  */
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { NFL_SPREAD, ROSTER_GROUPS, summariseArm, type ArmSummary, type SeasonCheck } from "./playerChecks.js";
-import { checkSeason, isArm } from "./playerChecksRun.js";
+import { agingActsOn, agingForArms, checkSeason, isArm } from "./playerChecksRun.js";
 import { readStandInFile } from "./standInLeague.js";
+import { agingLabel, readAgingFlag, settleAging, type AgingFlags } from "./agingFlags.js";
 
 const argv = process.argv.slice(2).filter((a) => a !== "--");
 const opt = (name: string, fallback: string) => { const i = argv.indexOf(name); return i >= 0 && argv[i + 1] !== undefined ? argv[i + 1]! : fallback; };
@@ -40,6 +49,20 @@ for (const a of arms) if (!isArm(a)) throw new SyntaxError(`unknown arm ${a}: of
 const shard = /^(\d+)\/(\d+)$/.exec(opt("--shard", "1/1"));
 if (!shard || Number(shard[1]) < 1 || Number(shard[1]) > Number(shard[2])) throw new SyntaxError("--shard takes i/n, e.g. 2/3");
 const [part, parts] = [Number(shard[1]), Number(shard[2])];
+// The aging options (AB3), checked as the season command checks them.
+const agingFlags: AgingFlags = {};
+for (let i = 0; i < argv.length; i++) {
+  const flag = argv[i]!;
+  readAgingFlag(flag, () => {
+    const v = argv[++i];
+    if (v === undefined) throw new SyntaxError(`${flag} requires a value`);
+    return v;
+  }, agingFlags);
+}
+// Refused when no chosen arm has development on: none would play them (AB3 review).
+const aging = agingForArms(arms, settleAging(agingFlags));
+const agingName = agingLabel(aging);
+if (agingName !== undefined) console.log(`Players age by ability in the arms with development on (${agingName}; ADR-087 §12)`);
 const root = fileURLToPath(new URL("../..", import.meta.url));
 // The stand-in league, when asked for: a path from the folder the command was typed in.
 const leagueAt = argv.indexOf("--league");
@@ -68,14 +91,15 @@ mkdirSync(cache, { recursive: true });
 console.log(`Code ${fingerprint}: seasons cached in ${cache}`);
 
 const runs = arms.flatMap((arm) => Array.from({ length: seeds }, (_, i) => ({ arm, seed: `spread-${i + 1}` })));
-const fileOf = (r: { arm: string; seed: string }) => join(cache, `${r.arm}-${r.seed}.json`);
+const named = (arm: string) => agingName !== undefined && isArm(arm) && agingActsOn(arm);
+const fileOf = (r: { arm: string; seed: string }) => join(cache, `${r.arm}${named(r.arm) ? `-${agingName}` : ""}-${r.seed}.json`);
 
 const todo = runs.filter((r, i) => i % parts === part - 1 && !existsSync(fileOf(r)));
 const started = Date.now();
 todo.forEach((r, i) => {
   writeFileSync(fileOf(r), JSON.stringify(standIn === undefined
-    ? checkSeason(r.seed, r.arm as Parameters<typeof checkSeason>[1])
-    : checkSeason(r.seed, r.arm as Parameters<typeof checkSeason>[1], standIn.season, standIn)));
+    ? checkSeason(r.seed, r.arm as Parameters<typeof checkSeason>[1], undefined, undefined, aging)
+    : checkSeason(r.seed, r.arm as Parameters<typeof checkSeason>[1], standIn.season, standIn, aging)));
   console.log(`${i + 1}/${todo.length} ${r.arm} ${r.seed} (${((Date.now() - started) / 1000).toFixed(0)}s)`);
 });
 const missing = runs.filter((r) => !existsSync(fileOf(r)));
@@ -120,6 +144,11 @@ if (standIn === undefined) {
     "(ADR-087 §2.5, step 1: growth drawn, bodies as rated, injury lengths placeholders); each is read only with its switch. " +
     "Made by `pnpm --filter @ff/calibration player-checks -- --league <file>` " +
     `with the code and file fingerprinted \`${fingerprint}\`.`);
+}
+if (agingName !== undefined) {
+  say();
+  say(`The arms with development on (\`development\`, \`both\`) age the players by ability group, not by position (ADR-087 §12; \`${agingName}\`, ` +
+    "from `--aging ability` and its tuning flags); the other arms are as in a default run.");
 }
 say();
 say("## Win spread (ADR-079 R5)");
@@ -272,9 +301,11 @@ if (grown.length > 0) {
   }
   say();
 }
-const report = standIn === undefined ? "player-checks" : "player-checks-standin";
+const report = `${standIn === undefined ? "player-checks" : "player-checks-standin"}${agingName === undefined ? "" : `-${agingName}`}`;
 writeFileSync(join(root, "reports", `${report}.md`), lines.join("\n"));
+// AB3: the aging options the development arms played under, beside the code, only when not the default.
+const agingRecord = agingName === undefined ? {} : { aging };
 writeFileSync(join(root, "reports", `${report}.json`), JSON.stringify(standIn === undefined
-  ? { seeds, arms, code: fingerprint, summaries }
-  : { seeds, arms, code: fingerprint, league: { file: leaguePath, sha256: leagueSha, snapshotDate: standIn.snapshotDate, season: standIn.season }, summaries }, null, 2));
+  ? { seeds, arms, code: fingerprint, ...agingRecord, summaries }
+  : { seeds, arms, code: fingerprint, ...agingRecord, league: { file: leaguePath, sha256: leagueSha, snapshotDate: standIn.snapshotDate, season: standIn.season }, summaries }, null, 2));
 console.log(lines.join("\n"));

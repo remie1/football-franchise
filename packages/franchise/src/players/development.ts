@@ -30,18 +30,27 @@ import {
 } from "@ff/contracts";
 import { phaseWeeks } from "../calendar/clock.js";
 import { seasonsIn } from "../draft/cutdown.js";
+import {
+  ABILITY_FOLLOWS, abilityBodyWeek, abilityLearningRate, abilityRatingDeltas, abilityRules, legLossYear, slowSmartsWeek,
+  type AbilityRules, type AbilityWeekInputs, type AgingOptions,
+} from "./aging.js";
 import { addPoints, changeBody, type Body, type BodyChange } from "./body.js";
+import { curveAt, weeklyShare, workoutShare } from "./curves.js";
 import {
   AGING_PROFILES, AGING_SHARES, COACHING, DISGUISE_WINDOWS, GROUP_MEMBERS, LEARNING_RATE, MAX_YEARS_PAST_PEAK,
-  ON_OWN_WORKOUT_SHARES, OWN_CURVES, PERFORMANCE, PRACTICE_SHARES, REPORTING_STEPS_PER_UNIT, SKILL_FADE, SKILL_INPUTS,
-  SMARTS_FADE, SMARTS_SNAPS, WOBBLE, WORKOUTS, WORKOUT_AGE, WORKOUT_SHARES,
-  type AgeCurve,
+  OWN_CURVES, PERFORMANCE, PRACTICE_SHARES, REPORTING_STEPS_PER_UNIT, SKILL_FADE, SKILL_INPUTS,
+  SMARTS_FADE, SMARTS_SNAPS, WOBBLE, WORKOUTS, WORKOUT_AGE,
 } from "./developmentTables.js";
 import type { PlayerWeek } from "./types.js";
 
 export { RATING_GROUPS } from "./developmentTables.js";
+export { curveAt, weeklyShare } from "./curves.js";
 
-export interface DevelopmentWeekInput {
+/**
+ * The week's input. ADR-087 §12.1: the aging options (`aging`, and the ability path's tuning options)
+ * act only with `aging: "ability"`; absent, the week is main's to the byte.
+ */
+export interface DevelopmentWeekInput extends AgingOptions {
   readonly players: readonly PlayerState[];
   /** The week's last day; its phase and week say what the week holds (ADR-087 §3). */
   readonly at: CalendarStamp;
@@ -84,21 +93,6 @@ const MOVED: readonly string[] = [...GROUP_MEMBERS.BODY_PRACTICE, ...GROUP_MEMBE
 /** Every rating a week can change (the above and the body's), in rating id order, for the event's list. */
 const CHANGEABLE: readonly string[] = [...new Set([...MOVED, ...GROUP_MEMBERS.BODY])].sort(byString);
 
-/** A curve's value at `age`: straight lines between its points, flat beyond its ends. */
-export function curveAt(curve: AgeCurve, age: number): number {
-  const first = curve[0];
-  const last = curve[curve.length - 1];
-  if (!first || !last) return 0;
-  if (age <= first[0]) return first[1];
-  if (age >= last[0]) return last[1];
-  for (let i = 1; i < curve.length; i++) {
-    const [a1, v1] = curve[i]!;
-    const [a0, v0] = curve[i - 1]!;
-    if (age <= a1) return v0 + ((age - a0) / (a1 - a0)) * (v1 - v0);
-  }
-  return last[1];
-}
-
 /** §2.2: highest for a young player in his first seasons, falls through the mid-20s, low but never zero. */
 export function learningRate(age: number, creditedSeasons: number): number {
   const { floor, fullUntilAge, ageHalfLife, seasonHalfLife } = LEARNING_RATE;
@@ -110,12 +104,6 @@ export function learningRate(age: number, creditedSeasons: number): number {
 /** Weeks in this calendar's year (52 with the default rules). */
 export function yearWeeks(rules: LeagueRules): number {
   return CALENDAR_PHASE_ORDER.reduce((n, phase) => n + phaseWeeks(phase, rules), 0);
-}
-
-/** One week's part of a yearly share table: the phase's share over its length (§4.1). */
-export function weeklyShare(shares: Readonly<Partial<Record<CalendarPhase, number>>>, phase: CalendarPhase, rules: LeagueRules): number {
-  const weeks = phaseWeeks(phase, rules);
-  return weeks > 0 ? (shares[phase] ?? 0) / weeks : 0;
 }
 
 /** §4.2: what a year at `age` takes from a body at `position`, in the measurements' units. */
@@ -134,12 +122,6 @@ export function yearOfWorkouts(age: number, growth: number): BodyChange {
     forty: WORKOUTS.forty * scale, cone: WORKOUTS.cone * scale, vertical: WORKOUTS.vertical * scale,
     bench: WORKOUTS.bench * scale, weightLb: WORKOUTS.weightLb * scale,
   };
-}
-
-/** The share of a year's workouts this week holds: the offseason's for everyone, maintenance for a player on his own in season. */
-function workoutShare(phase: CalendarPhase, withTeam: boolean, rules: LeagueRules): number {
-  if (WORKOUT_SHARES[phase] !== undefined) return weeklyShare(WORKOUT_SHARES, phase, rules);
-  return withTeam ? 0 : weeklyShare(ON_OWN_WORKOUT_SHARES, phase, rules);
 }
 
 /** This week's body change: the calendar's share of a year's aging, plus this week's workouts. */
@@ -188,10 +170,14 @@ interface WeekInputs {
   readonly ageShare: number;
 }
 
-function weekInputs(player: PlayerState, week: PlayerWeek, at: CalendarStamp, rules: LeagueRules, growth: number): WeekInputs {
+/**
+ * The week's inputs. `ability` (ADR-087 §12.2.1): the ability path's learning floor and smarts snaps
+ * in place of main's; absent, main's, exactly as before.
+ */
+function weekInputs(player: PlayerState, week: PlayerWeek, at: CalendarStamp, rules: LeagueRules, growth: number, ability?: AbilityRules): WeekInputs {
   const phase = at.phase;
   const seasons = seasonsIn(player, at.season);
-  const rate = learningRate(player.bio.age, seasons) * growth;
+  const rate = (ability === undefined ? learningRate(player.bio.age, seasons) : abilityLearningRate(player.bio.age, seasons, ability.curves.learningFloor)) * growth;
   const practised = week.withTeam ? Math.max(0, Math.min(1, week.practiced)) : 0;
   const rookieOtas = phase === "OFF_ROOKIES_OTAS" && seasons === 0 ? SKILL_INPUTS.rookieOtaFactor : 1;
   const practiceLoad = weeklyShare(PRACTICE_SHARES, phase, rules) * rookieOtas * practised;
@@ -222,9 +208,47 @@ function weekInputs(player: PlayerState, week: PlayerWeek, at: CalendarStamp, ru
     disguise: rate * disguise,
     practising: practised > 0,
     performance,
-    snaps: growth * SMARTS_SNAPS.pointsPerThousandSnaps * Math.max(0, week.snaps) / 1000,
+    snaps: growth * (ability === undefined ? SMARTS_SNAPS.pointsPerThousandSnaps : ability.smartsSnaps) * Math.max(0, week.snaps) / 1000,
     ageShare: weeklyShare(AGING_SHARES, phase, rules),
   };
+}
+
+/**
+ * Wear from contact taken (ADR-087 §12.3.6), in years added to the body groups' and DURABILITY's years
+ * past. Nothing counts contact before AB6 (`PlayerMemory.contact`), so it is 0 for everyone.
+ */
+const NO_WEAR = 0;
+
+/**
+ * The ability path's week inputs (ADR-087 §12.2.1, §12.2.4): `weekInputs` at the set's learning floor
+ * and smarts snaps, plus passing from snaps (× growth) and slow smarts (his yearly leg loss × c × his
+ * share of a starter's snaps this week / the season's games; none when c is 0). No position is read.
+ *
+ * Slow smarts' share (§12.2.4) is his snaps this week, every side counted (`PlayerWeek.snaps`, the
+ * count smarts and passing snaps read), over a starter's 65 a game (`EXPECTED_STARTER_SNAPS_PER_GAME`),
+ * capped at 1; not `PlayerWeek.playShare` (his side's snaps over the team's busiest man's), which the
+ * play points read. So a kicker's 10 snaps are about 0.15 of a starter's, however few his side has.
+ */
+function abilityWeekInputs(player: PlayerState, week: PlayerWeek, at: CalendarStamp, rules: LeagueRules, growth: number, ability: AbilityRules): AbilityWeekInputs {
+  const base = weekInputs(player, week, at, rules, growth, ability);
+  const dev = player.attributes.development!;
+  const c = ability.curves.slowSmarts;
+  const share = slowSmartsShare(week.snaps);
+  return {
+    common: base.common,
+    disguise: base.disguise,
+    practising: base.practising,
+    performance: base.performance,
+    smartsSnaps: base.snaps,
+    passingSnaps: growth * ability.curves.passingSnaps * Math.max(0, week.snaps) / 1000,
+    slowSmarts: c === 0 ? 0 : slowSmartsWeek(c, legLossYear(player.bio.age, dev, player.bio.weightLb, growth, ability, NO_WEAR), share, rules),
+    ageShare: base.ageShare,
+  };
+}
+
+/** §12.2.4: slow smarts' share of a week, his snaps (every side) over a starter's 65 a game, 0 to 1. */
+export function slowSmartsShare(snaps: number): number {
+  return Math.min(1, Math.max(0, snaps) / EXPECTED_STARTER_SNAPS_PER_GAME);
 }
 
 /** Half the width of a week's wobble step: a year of them spreads by `WOBBLE.yearlySd`. */
@@ -278,7 +302,7 @@ interface Grown {
  * week and his id (contracts' `fork` reads only the labels, so this is the same stream however many
  * players come before him).
  */
-function developOne(player: PlayerState, week: PlayerWeek | undefined, at: CalendarStamp, rules: LeagueRules, root: Rng, half: number): Grown {
+function developOne(player: PlayerState, week: PlayerWeek | undefined, at: CalendarStamp, rules: LeagueRules, root: Rng, half: number, ability?: AbilityRules): Grown {
   const dev = player.attributes.development;
   if (!dev || player.bio.draft === "PROSPECT") return { player, changes: [], body: [] };
   const w = week ?? ON_HIS_OWN;
@@ -286,12 +310,18 @@ function developOne(player: PlayerState, week: PlayerWeek | undefined, at: Calen
   const rng = root.fork(`${stampToString(at)}/${id}`);
   const growth = growthOf(dev.growth);
 
-  const delta = bodyWeek(player.bio.position, player.bio.age, growth, w.withTeam, at.phase, rules);
+  // ADR-087 §12.2: the ability path (`aging: "ability"`) reads his age and his own record, never his
+  // position; the same wobble stream, in the same order.
+  const delta = ability === undefined
+    ? bodyWeek(player.bio.position, player.bio.age, growth, w.withTeam, at.phase, rules)
+    : abilityBodyWeek(player.bio.age, dev, growth, w.withTeam, at.phase, rules, ability, NO_WEAR);
   const wobble = () => (rng.next() * 2 - 1) * half;
-  const deltas = ratingDeltas(player, weekInputs(player, w, at, rules, growth), wobble, growth);
+  const deltas = ability === undefined
+    ? ratingDeltas(player, weekInputs(player, w, at, rules, growth), wobble, growth)
+    : abilityRatingDeltas(player.bio.age, dev, abilityWeekInputs(player, w, at, rules, growth, ability), wobble, growth, ability, NO_WEAR);
   if (Object.keys(delta).length === 0 && deltas.every((d) => d === 0) && w.snaps <= 0) return { player, changes: [], body: [] };
 
-  const moved = changeBody(player, delta).player;
+  const moved = (ability === undefined ? changeBody(player, delta) : changeBody(player, delta, ABILITY_FOLLOWS)).player;
   const movedDev = moved.attributes.development ?? dev;
   const values = { ...moved.attributes.values };
   const carry: Record<string, number> = { ...(movedDev.carry as Record<string, number>) };
@@ -337,8 +367,9 @@ export function developmentWeek(input: DevelopmentWeekInput): DevelopmentWeekRes
   const NO_TEAM = "";
   const half = wobbleHalfWidth(rules);
   const root = createRng(seed, "franchise:development");
+  const ability = abilityRules(input);
   for (const p of input.players) {
-    const grown = developOne(p, weeks.get(String(p.bio.id)), at, rules, root, half);
+    const grown = developOne(p, weeks.get(String(p.bio.id)), at, rules, root, half, ability);
     players.push(grown.player);
     if (grown.changes.length === 0 && grown.body.length === 0) continue;
     const key = p.teamId === undefined ? NO_TEAM : String(p.teamId);
@@ -377,7 +408,7 @@ export function developmentWeek(input: DevelopmentWeekInput): DevelopmentWeekRes
  */
 export const EXPECTED_STARTER_SNAPS_PER_GAME = 65;
 
-export interface ExpectedChangeOptions {
+export interface ExpectedChangeOptions extends AgingOptions {
   /** Where the year starts: its phase and week (the day is ignored; a week's growth lands on its last day). */
   readonly at: CalendarStamp;
   /**
@@ -388,6 +419,8 @@ export interface ExpectedChangeOptions {
   /** How many weeks ahead (default: a year of this calendar's weeks). */
   readonly weeks?: number;
   readonly rules?: LeagueRules;
+  // ADR-087 §12.1, §12.11 M2: the aging options (`aging`, `abilityCurves`, `techniqueKnee`,
+  // `smartsSnaps`), as the development week takes them; absent, main's position path.
 }
 
 /** His overall at his own position with each rating's unshown fraction counted (contracts' `positionOverall`). */
@@ -441,6 +474,7 @@ function expectedWalk(player: PlayerState, options: Omit<ExpectedChangeOptions, 
   // A bye spread over the season: a share of a game each week.
   const gameShare = Math.min(1, games / seasonWeeks);
   const start = { ...options.at };
+  const ability = abilityRules(options);
   let p: PlayerState = { ...player, bio: { ...player.bio, creditedSeasons: seasonsIn(player, start.season) } };
   let phaseIndex = CALENDAR_PHASE_ORDER.indexOf(start.phase);
   let week = Math.max(1, Math.min(start.week, phaseWeeks(start.phase, rules)));
@@ -457,8 +491,17 @@ function expectedWalk(player: PlayerState, options: Omit<ExpectedChangeOptions, 
       contests: [],
     };
     const at: CalendarStamp = { season, phase, week, day: 7 };
-    const deltas = ratingDeltas(p, weekInputs(p, w, at, rules, growth), () => 0, growth);
-    const moved = changeBody(p, bodyWeek(p.bio.position, p.bio.age, growth, w.withTeam, phase, rules)).player;
+    let deltas: number[];
+    let moved: PlayerState;
+    if (ability === undefined) {
+      deltas = ratingDeltas(p, weekInputs(p, w, at, rules, growth), () => 0, growth);
+      moved = changeBody(p, bodyWeek(p.bio.position, p.bio.age, growth, w.withTeam, phase, rules)).player;
+    } else {
+      // The ability path, as `developOne` runs it (§12.2.6): his age and record, no position.
+      const now = p.attributes.development ?? dev;
+      deltas = abilityRatingDeltas(p.bio.age, now, abilityWeekInputs(p, w, at, rules, growth, ability), () => 0, growth, ability, NO_WEAR);
+      moved = changeBody(p, abilityBodyWeek(p.bio.age, now, growth, w.withTeam, phase, rules, ability, NO_WEAR), ABILITY_FOLLOWS).player;
+    }
     const movedDev = moved.attributes.development ?? dev;
     const values = { ...moved.attributes.values };
     const carry: Record<string, number> = { ...(movedDev.carry as Record<string, number>) };

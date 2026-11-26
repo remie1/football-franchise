@@ -34,7 +34,7 @@ import {
   type PositionGroup, type Rng,
 } from "@ff/contracts";
 import { phaseWeeks } from "../calendar/clock.js";
-import { addPoints, changeBody, type BodyChange, type RatingMove } from "./body.js";
+import { addPoints, changeBody, type BodyChange, type Follows, type RatingMove } from "./body.js";
 import {
   BAND_MIN_WEEKS, BAND_ORDER, BODY_REPORT_STEPS, INJURY_KINDS, INJURY_RATES, MARK_AGE, REPEAT_DURABILITY,
   type WeeksBucket,
@@ -81,6 +81,12 @@ export interface HealInput {
   readonly at: CalendarStamp;
   readonly players: readonly PlayerState[];
   readonly history: Readonly<Record<string, readonly PastInjury[]>>;
+  /**
+   * What follows the body when a lasting mark moves it (`lastingMark`); body.ts `FOLLOWS` when absent.
+   * ADR-087 §12.2.1: the players' steps pass `ABILITY_FOLLOWS` on the ability path, so a mark that
+   * slows his 40 or 3-cone moves elusiveness and yac as aging does there.
+   */
+  readonly follows?: Follows;
 }
 
 /** The root of every injury draw. */
@@ -327,8 +333,10 @@ export interface LastingResult {
  * was bad enough, scaled by his age, through his body and then any ratings beyond it; and, when he
  * has had this kind before, durability lower (not for illness and accidents: `InjuryKind.repeats`).
  * With no development record his ratings move by the same amounts, rounded, and no body is touched.
+ * `follows`: what moves with his body (body.ts `FOLLOWS` when absent; `ABILITY_FOLLOWS` on ADR-087's
+ * ability path, §12.2.1).
  */
-export function lastingMark(player: PlayerState, injury: Pick<Injury, "kind" | "band">, priorOfKind: number): LastingResult {
+export function lastingMark(player: PlayerState, injury: Pick<Injury, "kind" | "band">, priorOfKind: number, follows?: Follows): LastingResult {
   const kind = INJURY_KINDS[injury.kind];
   const mark = kind?.lasting && atLeast(injury.band, kind.lasting.minBand) ? kind.lasting : undefined;
   const scale = markScale(player.bio.age);
@@ -340,7 +348,7 @@ export function lastingMark(player: PlayerState, injury: Pick<Injury, "kind" | "
   if (mark?.body) {
     const delta: BodyChange = {};
     for (const [m, d] of Object.entries(mark.body) as [keyof BodyChange, number][]) delta[m] = d * scale;
-    const r = changeBody(next, delta);
+    const r = changeBody(next, delta, follows);
     next = r.player;
     bodyMoves = r.body;
     r.changes.forEach(note);
@@ -369,12 +377,12 @@ export function lastingMark(player: PlayerState, injury: Pick<Injury, "kind" | "
 }
 
 /** He is healthy: the lasting mark, his history closed, and the truth-layer record. */
-function heal(p: PlayerState, injury: Injury, at: CalendarStamp, history: Record<string, PastInjury[]>, events: FranchiseEvent[]): PlayerState {
+function heal(p: PlayerState, injury: Injury, at: CalendarStamp, history: Record<string, PastInjury[]>, events: FranchiseEvent[], follows?: Follows): PlayerState {
   const id = String(p.bio.id);
   const past = history[id] ?? [];
   const isThis = (h: PastInjury) => h.kind === injury.kind && compareStamps(h.at, injury.since) === 0;
   const prior = past.filter((h) => h.kind === injury.kind && !isThis(h)).length;
-  const mark = lastingMark(p, injury, prior);
+  const mark = lastingMark(p, injury, prior, follows);
   // Every entry still open closes now: this injury, and a day-to-day knock it took the place of.
   const closed = past.map((h) => (h.healed === undefined ? { ...h, healed: at } : h));
   // An injury he came with (a stand-in's, set without a history) is recorded as he comes back.
@@ -400,7 +408,7 @@ export function healWeek(input: HealInput): InjuryResult {
     if (!injury || p.bio.draft === "PROSPECT" || sameWeek(injury.since, input.at)) return p;
     const left = injury.weeksRemaining - 1;
     if (left > 0) return { ...p, condition: { ...p.condition, injury: { ...injury, weeksRemaining: left } } };
-    return heal(p, injury, input.at, history, events);
+    return heal(p, injury, input.at, history, events, input.follows);
   });
   return { players, events, history };
 }

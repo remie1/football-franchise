@@ -69,9 +69,11 @@ export const sortNumericKeys = <T>(m: Record<string, T>): Record<string, T> =>
  * §12.2.1's TECHNIQUE row both list it; no player carries it, so it reads nothing. Every one of the
  * registry's 57 ratings is in exactly one group (a test holds this to `ATTRIBUTE_REGISTRY_V1`).
  *
- * Calibration may not import franchise, so this is a copy for now: AB3's franchise membership table
- * must match it, and AB3 adds the pin against `ABILITY_GROUP_DIGEST` (the sha256 of this object's
- * `JSON.stringify`), as `RATING_GROUP_COPY` / `RATING_GROUP_DIGEST` pin `GROUP_MEMBERS`.
+ * Calibration may not import franchise, so this is a copy: franchise's membership table
+ * (`players/aging.ts` `ABILITY_GROUP_MEMBERS`, AB3) is the same object, key for key and in order, and
+ * both are pinned to `ABILITY_GROUP_DIGEST` (the sha256 of its `JSON.stringify`): franchise's test pins
+ * its table to the literal, and calibration's `agingFlags.test.ts` reads that literal and holds it to
+ * this digest, as `RATING_GROUP_COPY` / `RATING_GROUP_DIGEST` pin `GROUP_MEMBERS`.
  */
 export const ABILITY_GROUP_COPY: Readonly<Record<AbilityGroup | "FIXED", readonly string[]>> = {
   SPEED: ["speed", "acceleration", "mobility", "firstStep", "pursuit"],

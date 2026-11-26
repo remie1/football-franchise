@@ -28,6 +28,7 @@ import { flatCap, type CapForSeason } from "../draft/money.js";
 import type { DayStep, DayStepContext, LeaguePeople } from "../season/people.js";
 import { currentJob, seatOf } from "../staff/world.js";
 import { nextDay } from "../calendar/clock.js";
+import { ABILITY_FOLLOWS, abilityRules, agingSwitches, chartSpots, weekSide, type AgingOptions, type AgingRule } from "./aging.js";
 import { depthChartWeek, readBlur } from "./depthChart.js";
 import { PRACTICE_PHASES, developmentWeek } from "./development.js";
 import { gameInjuries, healWeek, isAvailable, weekInjuries } from "./injuries.js";
@@ -37,7 +38,13 @@ import { unsignedDay } from "./unsigned.js";
 /** Every players' step id starts with this, so a save can tell their events from other steps'. */
 export const PLAYER_STEP_PREFIX = "players:";
 
-export interface PlayerStepsConfig {
+/**
+ * ADR-087 §12.1: the aging options (`aging`, default `"position"`; on the ability path `abilityCurves`,
+ * `techniqueKnee` and `smartsSnaps`, `aging.ts` `AgingOptions`) act only with `development` on and
+ * `aging: "ability"`. They are recorded in `PlayerMemory.switches` only then, and only when not the
+ * default, so a run at the defaults is main's to the byte.
+ */
+export interface PlayerStepsConfig extends AgingOptions {
   /** Growth and aging (§2, §4). */
   readonly development?: boolean;
   /** Injuries in games, practice and away from football (§5). */
@@ -132,8 +139,14 @@ function coordinator(staff: readonly StaffState[] | undefined, team: TeamId, sea
   return staff?.find((s) => seatOf(s) === seat && currentJob(s)?.team === team);
 }
 
-/** Each player's week, read before the day's new injuries (§3; `PlayerWeek`). Free agents and prospects are left out. */
-export function playerWeeks(people: LeaguePeople, ctx: DayStepContext, reports: readonly GameParticipation[]): Map<string, PlayerWeek> {
+/**
+ * Each player's week, read before the day's new injuries (§3; `PlayerWeek`). Free agents and prospects
+ * are left out. His side (which coordinator's `development` coaches him, and which side's snaps make
+ * his `playShare`): with `aging: "position"` (the default) the side of his listed position, as before;
+ * with `"ability"` (ADR-087 §12.2.6) the side of the chart key that lists him this week, else the side
+ * where most of his snaps came, else none (no coordinator, a share of 0), never his listed position.
+ */
+export function playerWeeks(people: LeaguePeople, ctx: DayStepContext, reports: readonly GameParticipation[], aging: AgingRule = "position"): Map<string, PlayerWeek> {
   const phase = ctx.day.phase;
   const playing = teamsStillPlaying(phase, ctx.state, ctx.games, people.teams);
   const byPlayer = new Map<string, GameParticipation[]>();
@@ -146,16 +159,18 @@ export function playerWeeks(people: LeaguePeople, ctx: DayStepContext, reports: 
       sideSnaps.set(k, Math.max(sideSnaps.get(k) ?? 0, r.snaps[side]));
     }
   }
+  // The ability path's chart keys, by team (the charts as they stand this week, before this week's rebuild).
+  const spots = aging === "ability" ? new Map(people.teams.map((t) => [String(t.id), chartSpots(t)])) : undefined;
   const weeks = new Map<string, PlayerWeek>();
   for (const p of people.players) {
     if (p.teamId === undefined || p.bio.draft === "PROSPECT") continue;
     const withTeam = playing.has(String(p.teamId)) && PRACTICE_PHASES.has(phase);
     const hurt = p.condition.injury;
     const practiced = !withTeam ? 0 : !hurt ? 1 : hurt.playable ? 0.5 : 0;
-    const side = sideOf(p.bio.position);
     const mine = byPlayer.get(String(p.bio.id)) ?? [];
-    const ownSnaps = mine.reduce((n, r) => n + r.snaps[side], 0);
-    const teamSnaps = sideSnaps.get(`${String(p.teamId)}/${side}`) ?? 0;
+    const side = spots === undefined ? sideOf(p.bio.position) : weekSide(spots.get(String(p.teamId))?.get(String(p.bio.id)), mine);
+    const ownSnaps = side === undefined ? 0 : mine.reduce((n, r) => n + r.snaps[side], 0);
+    const teamSnaps = side === undefined ? 0 : sideSnaps.get(`${String(p.teamId)}/${side}`) ?? 0;
     const contests = new Map<string, { attr: GameParticipation["contests"][number]["attr"]; won: number; lost: number }>();
     for (const r of mine) {
       for (const c of r.contests) {
@@ -163,7 +178,7 @@ export function playerWeeks(people: LeaguePeople, ctx: DayStepContext, reports: 
         contests.set(String(c.attr), { attr: c.attr, won: (was?.won ?? 0) + c.won, lost: (was?.lost ?? 0) + c.lost });
       }
     }
-    const coach = coordinator(people.staff, p.teamId, SIDE_SEAT[side]);
+    const coach = side === undefined ? undefined : coordinator(people.staff, p.teamId, SIDE_SEAT[side]);
     const dc = coordinator(people.staff, p.teamId, "DC");
     const development = coach?.attributes["development"];
     const teaching = dc?.attributes["teaching"];
@@ -273,7 +288,9 @@ export function playerSteps(config: PlayerStepsConfig): DayStep[] {
   const development = config.development === true;
   const injuries = config.injuries === true;
   if (!development && !injuries) return [];
-  const switches = { development, injuries };
+  // ADR-087 §12.1: the aging options, checked here (a misspelled value throws) and recorded only when they act.
+  const aging: AgingRule = development && abilityRules(config) !== undefined ? "ability" : "position";
+  const switches = { development, injuries, ...agingSwitches(config, development) };
 
   const week: DayStep = {
     id: `${PLAYER_STEP_PREFIX}week`,
@@ -282,7 +299,7 @@ export function playerSteps(config: PlayerStepsConfig): DayStep[] {
       if (!weekEnd && (!injuries || ctx.games.length === 0)) return undefined;
       const memory: PlayerMemory = people.playerMemory ?? emptyMemory();
       const reports = participationOf(ctx.games);
-      const weeks = weekEnd ? playerWeeks(people, ctx, reports) : new Map<string, PlayerWeek>();
+      const weeks = weekEnd ? playerWeeks(people, ctx, reports, aging) : new Map<string, PlayerWeek>();
       const events: FranchiseEvent[] = [];
       let players = people.players;
       let history = memory.injuries;
@@ -298,13 +315,14 @@ export function playerSteps(config: PlayerStepsConfig): DayStep[] {
       if (!weekEnd) return { people: { ...people, players, playerMemory: { ...memory, injuries: history, switches } }, events };
 
       if (injuries) {
-        const healed = healWeek({ at: ctx.day, players, history });
+        // ADR-087 §12.2.1: on the ability path a lasting mark moves what follows the body there (elusiveness and yac too).
+        const healed = healWeek({ at: ctx.day, players, history, ...(aging === "ability" ? { follows: ABILITY_FOLLOWS } : {}) });
         players = healed.players; history = healed.history; events.push(...healed.events);
         const drawn = weekInjuries({ at: ctx.day, rules: ctx.rules, players, weeks, history, seed: ctx.seed });
         players = drawn.players; history = drawn.history; events.push(...drawn.events);
       }
       if (development) {
-        const grown = developmentWeek({ players, at: ctx.day, rules: ctx.rules, seed: ctx.seed, weeks });
+        const grown = developmentWeek({ players, at: ctx.day, rules: ctx.rules, seed: ctx.seed, weeks, ...agingSwitches(config, development) });
         players = grown.players; events.push(...grown.events);
       }
       const hopes = config.lineupHopes && people.coaching && ctx.day.phase === "REGULAR_SEASON"

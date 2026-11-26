@@ -470,6 +470,11 @@ export interface GradeInput {
     readonly fingerprints: Readonly<Record<string, string>>;
     readonly engineRules: string;
     readonly callerVersion: string;
+    /**
+     * ADR-087 §12.1 (AB3): the aging options' name (`agingFlags.ts` `agingLabel`) the rows were played
+     * under, read from their records; absent at the defaults (players aging by position).
+     */
+    readonly aging?: string;
     /** A smoke run: windows clipped to the seasons there are; never a graded report. */
     readonly smoke?: boolean;
   };
@@ -1820,6 +1825,9 @@ export function renderGradeMarkdown(grade: CareerGrade): string {
     `${m.treeLeague !== undefined ? `, not the tree's file now (\`${m.treeLeague.path}\`, sha256 \`${m.treeLeague.sha256.slice(0, 12)}\`)` : ""}, ` +
     `${m.seasons} seasons a seed, engine rules \`${m.engineRules}\`, ` +
     `caller \`${m.callerVersion}\`. Fingerprints: ${Object.entries(m.fingerprints).map(([a, f]) => `${a} \`${f}\``).join(", ")}.`);
+  if (m.aging !== undefined) {
+    say(`**Aging:** the players aged by ability group, not by position (ADR-087 §12), under \`${m.aging}\`, as the rows' records name it.`);
+  }
   say(`Grade seeds: ${grade.seeds.graded.length} of ${grade.seeds.asked.length} in` +
     `${grade.seeds.missing.length > 0 ? ` (missing: ${grade.seeds.missing.join(", ")})` : ""}. ` +
     `Coach-style seeds: ${grade.coachSeeds.graded.length} of ${grade.coachSeeds.asked.length} in` +
