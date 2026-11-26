@@ -82,6 +82,7 @@ export interface PlayerMemory {
    * `steps.ts`. ADR-087 §12.1: the aging options are written only when they are not the default and
    * act (development on, `aging: "ability"`; `aging.ts` `agingSwitches`), so a save made at the
    * defaults is main's to the byte, and a save without them carries on under today's rules.
+   * `injuryRisk` (AB5) is written only as `"spot"`, with injuries on (`steps.ts`).
    */
   switches?: {
     development: boolean;
@@ -90,6 +91,7 @@ export interface PlayerMemory {
     abilityCurves?: "D" | "B";
     techniqueKnee?: boolean;
     smartsSnaps?: number;
+    injuryRisk?: "group" | "spot";
   };
   /**
    * ADR-096: fan and media mood's own memory (rest points, the watch list's quiet weeks, grade gaps),

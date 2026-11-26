@@ -8,13 +8,14 @@
  * the starters the engine fields from the teams' real depth charts (`fieldedStarters`).
  *
  * `aging` (ADR-087 §12.1, AB3; settled, `settleAging`) joins the switches of the arms with
- * development on, the only ones it acts on; at the defaults (`{}`) every arm is as before.
+ * development on, the only ones it acts on; `injuryRisk` (AB5) the arms with injuries on. At the
+ * defaults (`{}`) every arm is as before.
  */
 import { buildLeague, buildStaff } from "@ff/franchise";
 import { runRealSeason, type PlayerSwitches } from "./realSeason.js";
 import { fieldedStarters, summariseSeason, type RosterGroup, type SeasonCheck } from "./playerChecks.js";
 import type { readStandInFile } from "./standInLeague.js";
-import { agingLabel, type AgingSwitches } from "./agingFlags.js";
+import { actingRules, agingLabel, type AgingSwitches } from "./agingFlags.js";
 
 export const ARMS = {
   off: undefined,
@@ -41,25 +42,40 @@ export function rosterGroups(file: StandInFile): Map<string, Exclude<RosterGroup
 
 /** Whether the aging options act on this arm (development on), so its seasons are kept apart under them. */
 export const agingActsOn = (arm: Arm): boolean => ARMS[arm]?.development === true;
+/** AB5: whether `injuryRisk` acts on this arm (injuries on). */
+export const injuryRiskActsOn = (arm: Arm): boolean => ARMS[arm]?.injuries === true;
 
-/**
- * The players' switches an arm plays (ADR-087 §12.1, AB3): the arm's own, with the aging options
- * (settled) joined only on the arms they act on (development on) and only when not the default; every
- * other arm, and every arm at the defaults, is the arm's own switches as before.
- */
-export function armSwitches(arm: Arm, aging: AgingSwitches = {}): PlayerSwitches | undefined {
+/** The options (settled) that act on this arm (`actingRules`): the aging options with development on, `injuryRisk` with injuries on. */
+export function armRules(arm: Arm, aging: AgingSwitches = {}): AgingSwitches {
   const switches = ARMS[arm];
-  return switches && agingActsOn(arm) && agingLabel(aging) !== undefined ? { ...switches, ...aging } : switches;
+  return switches === undefined ? {} : actingRules(aging, switches);
 }
 
 /**
- * The aging options, checked against the arms chosen (`--arms`): refused when none of them has
- * development on, since no arm would play them while the report and caches would carry their name.
+ * The players' switches an arm plays (ADR-087 §12.1, AB3 and AB5): the arm's own, with the options
+ * (settled) that act on it joined (`armRules`: the aging options on the arms with development on,
+ * `injuryRisk` on those with injuries on) and only when not the default; every other arm, and every
+ * arm at the defaults, is the arm's own switches as before.
+ */
+export function armSwitches(arm: Arm, aging: AgingSwitches = {}): PlayerSwitches | undefined {
+  const switches = ARMS[arm];
+  const rules = armRules(arm, aging);
+  return switches && agingLabel(rules) !== undefined ? { ...switches, ...rules } : switches;
+}
+
+/**
+ * The options, checked against the arms chosen (`--arms`): the aging options refused when none of
+ * them has development on, `injuryRisk` when none has injuries on, since no arm would play them while
+ * the report and caches would carry their name.
  */
 export function agingForArms(arms: readonly string[], aging: AgingSwitches): AgingSwitches {
-  const name = agingLabel(aging);
+  const { injuryRisk, ...rest } = aging;
+  const name = agingLabel(rest);
   if (name !== undefined && !arms.some((a) => isArm(a) && agingActsOn(a))) {
     throw new SyntaxError(`the aging options (${name}) act only on the arms with development on (development, both); add one to --arms or drop them`);
+  }
+  if (injuryRisk === "spot" && !arms.some((a) => isArm(a) && injuryRiskActsOn(a))) {
+    throw new SyntaxError("--injury-risk spot acts only on the arms with injuries on (injuries, both); add one to --arms or drop it");
   }
   return aging;
 }

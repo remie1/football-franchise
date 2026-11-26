@@ -32,9 +32,12 @@
  *   again (from `history`, then from its own heals, a day-to-day knock's included), as the real
  *   history does.
  *
- * Risk is read by his listed position's group (`POSITION_GROUP`), as `injuries.ts` reads it today.
- * The owner ruled on 2026-11-06 that injury risk will follow the depth-chart spot his team plays him
- * at; that is a later change, to both files together.
+ * Risk is read as `injuries.ts` reads it (ADR-087 §12.1, `injuryRisk`). By default (`"group"`) by his
+ * listed position's group (`POSITION_GROUP`), as always. With `"spot"` (§12.3.1-12.3.2, step AB5;
+ * `injurySpot.ts`, the owner's ruling of 2026-11-06) by the spot his team plays him at: the `spot`
+ * passed, else his key on the `chart` passed (`spotOf`), else the no-key rule (factor 1 in games and
+ * practice, the league's kind mix), never his listed position; and the spot path's age factor and
+ * level. Which spot its callers pass is the money thread's to decide (§12.11, M3).
  *
  * Left out, as second order: a repeat injury's lasting cost to his durability (`lastingMark`), which
  * would raise his risk a few percent after a second injury of the same kind.
@@ -55,13 +58,14 @@
  * Nothing calls it in the game yet.
  */
 import {
-  CALENDAR_PHASE_ORDER, DEFAULT_LEAGUE_RULES, POSITION_GROUP,
-  type CalendarStamp, type InjurySetting, type LeagueRules, type PlayerState, type PositionGroup,
+  CALENDAR_PHASE_ORDER, DEFAULT_LEAGUE_RULES,
+  type CalendarStamp, type InjurySetting, type LeagueRules, type PlayerState, type Position, type PositionGroup, type Team,
 } from "@ff/contracts";
 import { phaseWeeks } from "../calendar/clock.js";
 import { BYE_WINDOW, byeCounts } from "../schedule/buildSchedule.js";
 import { EXPECTED_STARTER_SNAPS_PER_GAME, PRACTICE_PHASES } from "./development.js";
-import { gameExposure, kindWeights, riskFactor, sameWeek, weekNumber } from "./injuries.js";
+import { gameExposure, groupRisk, kindWeights, riskFactor, sameWeek, weekNumber } from "./injuries.js";
+import { injuryRiskRule, spotOf, spotRisk, type InjuryRisk } from "./injurySpot.js";
 import { INJURY_KINDS, INJURY_RATES } from "./injuryTables.js";
 import type { PastInjury } from "./types.js";
 
@@ -92,6 +96,15 @@ export interface AvailabilityOptions {
   readonly rules?: LeagueRules;
   /** His past injuries (his `PlayerMemory.injuries` entry), for the recent-return factor. Absent = none. */
   readonly history?: readonly PastInjury[];
+  /**
+   * ADR-087 §12.1 (AB5): where his risk comes from, as `injuries.ts` reads it. Absent or `"group"`,
+   * his listed position's group (today's); `"spot"`, the spot below.
+   */
+  readonly injuryRisk?: InjuryRisk;
+  /** On the spot path, the chart key he is played at. Absent: his key on `chart`, else none (factor 1, the league's kind mix). */
+  readonly spot?: Position;
+  /** On the spot path with no `spot`, his team's depth chart: his spot is the first key that lists him (`spotOf`). */
+  readonly chart?: Team["depthChart"];
 }
 
 export interface Availability {
@@ -117,8 +130,8 @@ const SLOTS = RECENT_WEEKS + 2;
 /** The most weeks any new injury can cost (the longest bucket of any kind). */
 const LONGEST = Math.max(...Object.values(INJURY_KINDS).flatMap((k) => k.weeks.map((b) => b[1])));
 
-/** P(a new injury costs k weeks), k = 0..LONGEST, for a setting and group: the draw's own mix. Undefined when nothing can be drawn. */
-function weeksLost(setting: InjurySetting, group: PositionGroup): Float64Array | undefined {
+/** P(a new injury costs k weeks), k = 0..LONGEST, for a setting and group (none: the league's mix): the draw's own mix. Undefined when nothing can be drawn. */
+function weeksLost(setting: InjurySetting, group: PositionGroup | undefined): Float64Array | undefined {
   const kinds = kindWeights(setting, group);
   const total = kinds.reduce((n, [, w]) => n + w, 0);
   if (!(total > 0)) return undefined;
@@ -138,8 +151,8 @@ function weeksLost(setting: InjurySetting, group: PositionGroup): Float64Array |
 }
 
 const WEEKS_LOST = new Map<string, Float64Array | undefined>();
-function weeksLostCached(setting: InjurySetting, group: PositionGroup): Float64Array | undefined {
-  const key = `${setting}/${group}`;
+function weeksLostCached(setting: InjurySetting, group: PositionGroup | undefined): Float64Array | undefined {
+  const key = `${setting}/${group ?? "league"}`;
   if (!WEEKS_LOST.has(key)) WEEKS_LOST.set(key, weeksLost(setting, group));
   return WEEKS_LOST.get(key);
 }
@@ -377,11 +390,15 @@ function byeShape(firstWeek: number, rules: LeagueRules): { game: number; pendin
 export function expectedAvailability(player: PlayerState, options: AvailabilityOptions): Availability {
   const rules = options.rules ?? DEFAULT_LEAGUE_RULES;
   const at = options.at;
-  const group = POSITION_GROUP[player.bio.position];
+  const rule = injuryRiskRule(options.injuryRisk);
+  // The spot path never reads his listed position: the spot passed, else his chart key, else none.
+  const risk = rule === "spot"
+    ? spotRisk(options.spot ?? (options.chart === undefined ? undefined : spotOf(options.chart, player.bio.id)))
+    : groupRisk(player);
   const snaps = (options.starter ?? true) ? EXPECTED_STARTER_SNAPS_PER_GAME : EXPECTED_BACKUP_SNAPS_PER_GAME;
   const exposure = gameExposure({ offense: snaps, defense: 0, special: 0 });
   const lost: Lost = {
-    game: weeksLostCached("GAME", group), practice: weeksLostCached("PRACTICE", group), away: weeksLostCached("AWAY", group),
+    game: weeksLostCached("GAME", risk.kinds), practice: weeksLostCached("PRACTICE", risk.kinds), away: weeksLostCached("AWAY", risk.kinds),
   };
 
   // The start: his injury today, with `toCount` weeks to count down (a playable one with no weeks
@@ -411,22 +428,21 @@ export function expectedAvailability(player: PlayerState, options: AvailabilityO
 
   // His risk factor by age, recent return or not: `riskFactor` itself, with a history that is or is not recent.
   const factors = new Map<number, readonly [number, number]>();
-  const g = INJURY_RATES.game;
   const pr = INJURY_RATES.practice;
   const riskOf = (week: WalkWeek): WeekRisk => {
     let f = factors.get(week.age);
     if (!f) {
       const aged: PlayerState = { ...player, bio: { ...player.bio, age: week.age } };
       const back: PastInjury[] = [{ kind: "recent", band: "SHORT", at: week.at, healed: week.at }];
-      f = [riskFactor(aged, undefined, week.at, rules), riskFactor(aged, back, week.at, rules)];
+      f = [riskFactor(aged, undefined, week.at, rules, rule), riskFactor(aged, back, week.at, rules, rule)];
       factors.set(week.age, f);
     }
     const [plain, recent] = f;
     const phase = week.at.phase;
     // With his team in every phase it practices, the playoffs aside (a team that misses them).
     const load = PRACTICE_PHASES.has(phase) && phase !== "PLAYOFFS" ? pr.phaseLoad[phase] : 0;
-    const gameRate = (k: number) => g.perSnap * exposure * g.byGroup[group] * k;
-    const practiceRate = (practiced: number, k: number) => pr.perWeek * load * practiced * pr.byGroup[group] * k;
+    const gameRate = (k: number) => risk.level * exposure * risk.game * k;
+    const practiceRate = (practiced: number, k: number) => pr.perWeek * load * practiced * risk.practice * k;
     return {
       qGame: [chance(gameRate(plain), lost.game), chance(gameRate(recent), lost.game)],
       qPractice: [
