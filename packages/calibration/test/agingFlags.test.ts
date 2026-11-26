@@ -17,9 +17,10 @@ import {
   type AgingFlags,
 } from "../src/season/agingFlags.js";
 import { draftClassOptions, runCapCheck, type CapCheckInput } from "../src/season/capCheck.js";
-import { ABILITY_GROUP_COPY, ABILITY_GROUP_DIGEST } from "../src/season/careerAging.js";
+import { ABILITY_GROUP_COPY, ABILITY_GROUP_DIGEST, CONTACT_ROLL_SETS, CONTACT_ROLL_SETS_DIGEST, contactOf } from "../src/season/careerAging.js";
 import { ARMS, agingActsOn, agingForArms, armRules, armSwitches, injuryRiskActsOn } from "../src/season/playerChecksRun.js";
 import { agingOf, runRealSeason } from "../src/season/realSeason.js";
+import { participationFrom } from "../src/season/participation.js";
 import { readStandInFile } from "../src/season/standInLeague.js";
 import type { SeasonPeople } from "../src/season/realSeason.js";
 
@@ -272,6 +273,122 @@ describe("--injury-risk (§12.1, AB5)", () => {
   });
 });
 
+describe("the spot path's two tuning flags (§12.3.3, §12.3.6; AB6, AB9-T5 and -T6)", () => {
+  const typed = (...argv: string[]) => { const into: AgingFlags = {}; for (let i = 0; i < argv.length; i++) readAgingFlag(argv[i]!, () => argv[++i]!, into); return into; };
+  const SPOT = { aging: "ability", injuryRisk: "spot" } as const;
+  const KNOBS = { ...SPOT, healingByAge: false, perContact: 0.002 } as const;
+
+  it("reads --no-healing-by-age and --per-contact <n> on the spot path, and drops the defaults", () => {
+    expect(flags("--ability-rules", "--no-healing-by-age")).toStrictEqual({ ...SPOT, healingByAge: false });
+    expect(flags("--injury-risk", "spot", "--no-healing-by-age")).toStrictEqual({ injuryRisk: "spot", healingByAge: false });
+    expect(flags("--ability-rules", "--per-contact", "0.002")).toStrictEqual({ ...SPOT, perContact: 0.002 });
+    expect(flags("--aging", "ability", "--injury-risk", "spot", "--per-contact", "1e-3")).toStrictEqual({ ...SPOT, perContact: 0.001 });
+    expect(flags("--ability-rules", "--per-contact", "0.002", "--no-healing-by-age")).toStrictEqual(KNOBS);
+    // --per-contact 0 is the default: dropped, one name for one set of rules.
+    expect(flags("--ability-rules", "--per-contact", "0")).toStrictEqual(SPOT);
+    expect(flags("--ability-rules", "--ability-curves", "B", "--per-contact", "0.01")).toStrictEqual({ ...SPOT, abilityCurves: "B", perContact: 0.01 });
+  });
+
+  it("refuses a value --per-contact does not take, and either flag off the spot path (--per-contact off the ability path too)", () => {
+    // A plain decimal only (the AB6 review): no hex, binary or octal form, no sign, no padding.
+    for (const bad of ["-1", "", " ", "x", "NaN", "Infinity", "0x10", "0b1", "0o7", "+0.002", " 0.002", "0.002 ", "1e", ".", "1_000", "-0"]) {
+      expect(() => flags("--ability-rules", "--per-contact", bad), bad).toThrow(/--per-contact is years of wear per contest, a plain decimal 0 or more/);
+    }
+    for (const [good, v] of [["2e-3", 0.002], [".5", 0.5], ["5.", 5], ["0.0020", 0.002], ["1E-3", 0.001]] as const) {
+      expect(flags("--ability-rules", "--per-contact", good), good).toStrictEqual({ ...SPOT, perContact: v });
+    }
+    expect(() => flags("--ability-rules", "--per-contact")).toThrow(/requires a value/);
+    expect(() => flags("--no-healing-by-age")).toThrow(/--no-healing-by-age act only on the spot path; add --injury-risk spot/);
+    expect(() => flags("--aging", "ability", "--per-contact", "0.002")).toThrow(/--per-contact act only on the spot path/);
+    expect(() => flags("--aging", "ability", "--injury-risk", "group", "--no-healing-by-age", "--per-contact", "0")).toThrow(/--no-healing-by-age, --per-contact act only on the spot path/);
+    expect(() => flags("--injury-risk", "spot", "--per-contact", "0.002")).toThrow(/--per-contact wears the ability path's curves.*add --aging ability/);
+  });
+
+  it("is refused by the season command without --injuries and with --load, and a save's own carries on", () => {
+    expect(seasonAging(typed("--ability-rules", "--no-healing-by-age", "--per-contact", "0.002"), { load: false, development: true, injuries: true })).toStrictEqual(KNOBS);
+    expect(() => seasonAging(typed("--ability-rules", "--per-contact", "0.002"), { load: false, development: true, injuries: false })).toThrow(/add --injuries/);
+    expect(() => seasonAging(typed("--ability-rules", "--no-healing-by-age"), { load: false, development: true })).toThrow(/add --injuries/);
+    expect(() => seasonAging(typed("--injury-risk", "spot", "--no-healing-by-age"), { load: false, development: false, injuries: false })).toThrow(/--injury-risk spot acts on injuries; add --injuries/);
+    expect(() => seasonAging(typed("--no-healing-by-age"), { load: false, development: true, injuries: false })).toThrow(/act only on the spot path/);
+    expect(() => seasonAging(typed("--ability-rules", "--per-contact", "0.002"), { load: true, development: false, injuries: false })).toThrow(/--load carries on/);
+    expect(() => seasonAging(typed("--no-healing-by-age"), { load: true, development: false, injuries: false })).toThrow(/act only on the spot path/);
+    // A new league's switches, and a save's own carried on, knobs and all.
+    expect(seasonPlayers({ loaded: false, development: true, injuries: true, aging: KNOBS })).toStrictEqual({ development: true, injuries: true, ...KNOBS });
+    const saved = { development: true, injuries: true, ...KNOBS };
+    expect(seasonPlayers({ loaded: true, saved, development: false, injuries: false, aging: {} })).toStrictEqual(saved);
+    expect(seasonPlayers({ loaded: true, saved: { development: false, injuries: true, injuryRisk: "spot", healingByAge: false }, development: false, injuries: false, aging: {} }))
+      .toStrictEqual({ development: false, injuries: true, injuryRisk: "spot", healingByAge: false });
+  });
+
+  it("names them on the spot path (healflat, wear<n>) for cache keys and file names, and nothing at their defaults", () => {
+    expect(agingLabel({ injuryRisk: "spot", healingByAge: false })).toBe("spot-healflat");
+    expect(agingLabel({ ...SPOT, perContact: 0.002 })).toBe("ability-spot-wear0.002");
+    expect(agingLabel(KNOBS)).toBe("ability-spot-healflat-wear0.002");
+    expect(agingLabel({ ...KNOBS, abilityCurves: "B", techniqueKnee: true })).toBe("ability-B-knee-spot-healflat-wear0.002");
+    expect(agingLabel({ ...SPOT, healingByAge: true, perContact: 0 })).toBe("ability-spot");
+    expect(agingLabel({ injuryRisk: "spot", healingByAge: true })).toBe("spot");
+    expect(sameAging({ ...SPOT, perContact: 0.002 }, SPOT)).toBe(false);
+    expect(sameAging({ ...SPOT, perContact: 0.002 }, { ...SPOT, perContact: 0.003 })).toBe(false);
+    expect(sameAging({ ...SPOT, healingByAge: false }, SPOT)).toBe(false);
+    expect(sameAging({ ...SPOT, healingByAge: true, perContact: 0 }, SPOT)).toBe(true);
+  });
+
+  it("is read back from a record, dropped at the defaults, refused when it is not a value it takes, and handed on by agingOf", () => {
+    expect(agingFromRecord({ development: true, injuries: true, ...KNOBS })).toStrictEqual(KNOBS);
+    expect(agingFromRecord({ development: true, injuries: true, ...SPOT, healingByAge: true, perContact: 0 })).toStrictEqual(SPOT);
+    expect(agingFromRecord({ development: false, injuries: true, injuryRisk: "spot", healingByAge: false })).toStrictEqual({ injuryRisk: "spot", healingByAge: false });
+    expect(() => agingFromRecord({ ...SPOT, healingByAge: "no" })).toThrow(/healingByAge is "no", not true or false/);
+    expect(() => agingFromRecord({ ...SPOT, perContact: -0.1 })).toThrow(/perContact is -0.1, not a number of years 0 or more/);
+    expect(() => agingFromRecord({ ...SPOT, perContact: "0.1" })).toThrow(/not a number of years/);
+    expect(agingOf({ development: true, injuries: true, ...KNOBS })).toStrictEqual(KNOBS);
+    expect(Object.keys(agingOf({ development: true, injuries: true, ...SPOT }))).toStrictEqual(["aging", "injuryRisk"]);
+  });
+
+  it("acts where its switches are on (actingRules: healing with injuries, wear with both), and is refused where it would not (assertRulesAct)", () => {
+    expect(actingRules(KNOBS, { development: true, injuries: true })).toStrictEqual(KNOBS);
+    expect(actingRules(KNOBS, { development: true, injuries: false })).toStrictEqual({ aging: "ability" });
+    expect(actingRules(KNOBS, { development: false, injuries: true })).toStrictEqual({ injuryRisk: "spot", healingByAge: false });
+    expect(actingRules(KNOBS, { development: false, injuries: false })).toStrictEqual({});
+    expect(() => assertRulesAct(KNOBS, { development: true, injuries: true }, "this run")).not.toThrow();
+    expect(() => assertRulesAct({ healingByAge: false }, { development: true, injuries: false }, "the development arm")).toThrow(/--no-healing-by-age acts on injuries, which the development arm has off/);
+    expect(() => assertRulesAct({ perContact: 0.002 }, { development: false, injuries: true }, "this run")).toThrow(/--per-contact acts with growth and injuries both on, which this run does not have/);
+    expect(() => assertRulesAct({ perContact: 0.002 }, { development: true, injuries: false }, "this run")).toThrow(/--per-contact acts with growth and injuries both on/);
+  });
+
+  it("plays in player-checks' arms where they act, cached under the name of what acts on each arm", () => {
+    expect(armSwitches("both", KNOBS)).toStrictEqual({ development: true, injuries: true, ...KNOBS });
+    expect(armSwitches("injuries", KNOBS)).toStrictEqual({ development: false, injuries: true, injuryRisk: "spot", healingByAge: false });
+    expect(armSwitches("development", KNOBS)).toStrictEqual({ development: true, injuries: false, aging: "ability" });
+    expect(armSwitches("off", KNOBS)).toBeUndefined();
+    expect(agingLabel(armRules("both", KNOBS))).toBe("ability-spot-healflat-wear0.002");
+    expect(agingLabel(armRules("injuries", KNOBS))).toBe("spot-healflat");
+    expect(agingLabel(armRules("development", KNOBS))).toBe("ability");
+    // Refused when no chosen arm plays them.
+    expect(() => agingForArms(["development", "injuries"], KNOBS)).toThrow(/--per-contact acts only on the arm with growth and injuries both on \(both\)/);
+    expect(() => agingForArms(["off", "development"], { ...SPOT, healingByAge: false })).toThrow(/--injury-risk spot acts only on the arms with injuries on/);
+    expect(agingForArms(["injuries"], { injuryRisk: "spot", healingByAge: false })).toStrictEqual({ injuryRisk: "spot", healingByAge: false });
+    expect(agingForArms(["off", "both"], KNOBS)).toBe(KNOBS);
+  });
+});
+
+describe("the calibration copy of the contact roll sets (§12.3.6, AB1 and AB6)", () => {
+  it("is franchise's own table: the digest franchise's wear test pins is calibration's", () => {
+    // Franchise's wear.ts copies the reader's table (calibration may not import it, nor franchise this
+    // one); franchise's test pins sha256(JSON.stringify(CONTACT_ROLL_SETS)) to a literal, and this reads that literal.
+    const pinned = readFileSync(join(__dirname, "..", "..", "franchise", "test", "players.wear.test.ts"), "utf8");
+    const m = /JSON\.stringify\(CONTACT_ROLL_SETS\)\)\.digest\("hex"\)\)\s*\.toBe\("([0-9a-f]{64})"\)/.exec(pinned);
+    expect(m, "franchise's pin of CONTACT_ROLL_SETS").not.toBeNull();
+    expect(m![1]).toBe(CONTACT_ROLL_SETS_DIGEST);
+    expect(createHash("sha256").update(JSON.stringify(CONTACT_ROLL_SETS)).digest("hex")).toBe(CONTACT_ROLL_SETS_DIGEST);
+    // And franchise's counter is the reader's count: the same function body, roll sets and all.
+    const wear = readFileSync(join(__dirname, "..", "..", "franchise", "src", "players", "wear.ts"), "utf8");
+    const body = (text: string) => /export function contactOf\([^)]*\): number \{([\s\S]*?)\n\}/.exec(text)?.[1]?.replace("contests ?? []", "contests");
+    const own = readFileSync(join(__dirname, "..", "src", "season", "careerAging.ts"), "utf8");
+    expect(body(wear)).toBeDefined();
+    expect(body(wear)).toBe(body(own));
+  });
+});
+
 describe("the walk's draft classes with aging \"ability\" (runCapCheck's makeClass)", () => {
   it("asks the generator for every prospect's fade shifts with development on and aging ability, and for none at the default", () => {
     const used = new Set<string>();
@@ -427,4 +544,29 @@ describe("a run with injury-risk \"spot\" (AB5): the option reaches the steps an
     expect(seen!.playerMemory!.switches).toStrictEqual(players);
     expect(seen!.players.filter((p) => p.teamId !== undefined && !allShifts(p)).length).toBe(0);
   }, 300_000);
+});
+
+describe("a run with the spot path's tuning options (AB6): they reach the steps, and the count is the engine's who-played reports'", () => {
+  it("records them in a generated league's memory, and keeps each man's contact as the reader counts the games' reports", () => {
+    const players = { development: true, injuries: true, aging: "ability", injuryRisk: "spot", healingByAge: false, perContact: 0.002 } as const;
+    const week1 = { season: 2027, phase: "REGULAR_SEASON", week: 1, day: 7 } as const;
+    const count = new Map<string, number>();
+    const { run } = runRealSeason({
+      seed: "wear-made-up", season: 2027, players, stopAfter: week1,
+      onGame: (observation, _game, snapshot) => {
+        for (const r of participationFrom(observation.events, snapshot)) {
+          const n = contactOf(r.contests);
+          if (n > 0) count.set(String(r.player), (count.get(String(r.player)) ?? 0) + n);
+        }
+      },
+    });
+    const memory = run.people!.playerMemory!;
+    expect(memory.switches).toStrictEqual(players);
+    expect(count.size).toBeGreaterThan(300);
+    expect(memory.contact).toStrictEqual(Object.fromEntries(count));
+    // At the defaults the memory keeps no count.
+    const plain = runRealSeason({ seed: "wear-made-up", season: 2027, players: { development: true, injuries: true }, stopAfter: { season: 2027, phase: "TRAINING_CAMP", week: 1, day: 7 } }).run;
+    expect(plain.people!.playerMemory!.switches).toStrictEqual({ development: true, injuries: true });
+    expect("contact" in plain.people!.playerMemory!).toBe(false);
+  }, 600_000);
 });

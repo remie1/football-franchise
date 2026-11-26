@@ -168,7 +168,8 @@ export function unsignedDay(input: UnsignedInput): UnsignedResult {
 
 /**
  * Take retired players out of the steps' memory: their injury history and grades, any position battle's
- * list, any injured-starter record of theirs and any weeks-in-job count (key `team/position/player`).
+ * list, any injured-starter record of theirs, any weeks-in-job count (key `team/position/player`) and
+ * their contact count (AB6, kept only on the ability path).
  */
 function forget(memory: PlayerMemory, gone: ReadonlySet<string>): PlayerMemory {
   const drop = <T>(record: Record<string, T>): Record<string, T> =>
@@ -180,5 +181,7 @@ function forget(memory: PlayerMemory, gone: ReadonlySet<string>): PlayerMemory {
     battles: memory.battles.map((b) => (b.players.some((id) => gone.has(String(id))) ? { ...b, players: b.players.filter((id) => !gone.has(String(id))) } : b)),
     injuredStarters: memory.injuredStarters.filter((s) => !gone.has(String(s.player))),
     weeksInJob: Object.fromEntries(Object.entries(memory.weeksInJob).filter(([k]) => !gone.has(k.split("/").slice(2).join("/")))),
+    // ADR-087 §12.3.6 (AB6): his contact count, where one is kept (the ability path); absent stays absent.
+    ...(memory.contact === undefined ? {} : { contact: drop(memory.contact) }),
   };
 }

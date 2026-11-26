@@ -58,6 +58,12 @@ export interface DevelopmentWeekInput extends AgingOptions {
   readonly seed: string;
   /** Each player's week, by player id. Missing = a free agent's week: workouts only. */
   readonly weeks: ReadonlyMap<string, PlayerWeek>;
+  /**
+   * ADR-087 §12.3.6 (AB6): each man's wear from contact, in years (`wear.ts` `wearYears`), by player
+   * id; read only on the ability path, added to the body groups' and DURABILITY's years past. Missing
+   * (the map, or a man) = 0, no wear.
+   */
+  readonly wear?: ReadonlyMap<string, number>;
 }
 
 export interface DevelopmentWeekResult {
@@ -215,7 +221,8 @@ function weekInputs(player: PlayerState, week: PlayerWeek, at: CalendarStamp, ru
 
 /**
  * Wear from contact taken (ADR-087 §12.3.6), in years added to the body groups' and DURABILITY's years
- * past. Nothing counts contact before AB6 (`PlayerMemory.contact`), so it is 0 for everyone.
+ * past. The development week takes each man's from its input (`DevelopmentWeekInput.wear`, AB6); with
+ * none, and in the expected walk (the money side sees no contact count, NEW-4), it is 0.
  */
 const NO_WEAR = 0;
 
@@ -229,7 +236,7 @@ const NO_WEAR = 0;
  * capped at 1; not `PlayerWeek.playShare` (his side's snaps over the team's busiest man's), which the
  * play points read. So a kicker's 10 snaps are about 0.15 of a starter's, however few his side has.
  */
-function abilityWeekInputs(player: PlayerState, week: PlayerWeek, at: CalendarStamp, rules: LeagueRules, growth: number, ability: AbilityRules): AbilityWeekInputs {
+function abilityWeekInputs(player: PlayerState, week: PlayerWeek, at: CalendarStamp, rules: LeagueRules, growth: number, ability: AbilityRules, wear = NO_WEAR): AbilityWeekInputs {
   const base = weekInputs(player, week, at, rules, growth, ability);
   const dev = player.attributes.development!;
   const c = ability.curves.slowSmarts;
@@ -241,7 +248,7 @@ function abilityWeekInputs(player: PlayerState, week: PlayerWeek, at: CalendarSt
     performance: base.performance,
     smartsSnaps: base.snaps,
     passingSnaps: growth * ability.curves.passingSnaps * Math.max(0, week.snaps) / 1000,
-    slowSmarts: c === 0 ? 0 : slowSmartsWeek(c, legLossYear(player.bio.age, dev, player.bio.weightLb, growth, ability, NO_WEAR), share, rules),
+    slowSmarts: c === 0 ? 0 : slowSmartsWeek(c, legLossYear(player.bio.age, dev, player.bio.weightLb, growth, ability, wear), share, rules),
     ageShare: base.ageShare,
   };
 }
@@ -300,9 +307,9 @@ interface Grown {
 /**
  * One player's week. `root` is `createRng(seed, "franchise:development")`; his stream is its fork by the
  * week and his id (contracts' `fork` reads only the labels, so this is the same stream however many
- * players come before him).
+ * players come before him). `wear` (years, ADR-087 §12.3.6) is read only on the ability path.
  */
-function developOne(player: PlayerState, week: PlayerWeek | undefined, at: CalendarStamp, rules: LeagueRules, root: Rng, half: number, ability?: AbilityRules): Grown {
+function developOne(player: PlayerState, week: PlayerWeek | undefined, at: CalendarStamp, rules: LeagueRules, root: Rng, half: number, ability?: AbilityRules, wear = NO_WEAR): Grown {
   const dev = player.attributes.development;
   if (!dev || player.bio.draft === "PROSPECT") return { player, changes: [], body: [] };
   const w = week ?? ON_HIS_OWN;
@@ -314,11 +321,11 @@ function developOne(player: PlayerState, week: PlayerWeek | undefined, at: Calen
   // position; the same wobble stream, in the same order.
   const delta = ability === undefined
     ? bodyWeek(player.bio.position, player.bio.age, growth, w.withTeam, at.phase, rules)
-    : abilityBodyWeek(player.bio.age, dev, growth, w.withTeam, at.phase, rules, ability, NO_WEAR);
+    : abilityBodyWeek(player.bio.age, dev, growth, w.withTeam, at.phase, rules, ability, wear);
   const wobble = () => (rng.next() * 2 - 1) * half;
   const deltas = ability === undefined
     ? ratingDeltas(player, weekInputs(player, w, at, rules, growth), wobble, growth)
-    : abilityRatingDeltas(player.bio.age, dev, abilityWeekInputs(player, w, at, rules, growth, ability), wobble, growth, ability, NO_WEAR);
+    : abilityRatingDeltas(player.bio.age, dev, abilityWeekInputs(player, w, at, rules, growth, ability, wear), wobble, growth, ability, wear);
   if (Object.keys(delta).length === 0 && deltas.every((d) => d === 0) && w.snaps <= 0) return { player, changes: [], body: [] };
 
   const moved = (ability === undefined ? changeBody(player, delta) : changeBody(player, delta, ABILITY_FOLLOWS)).player;
@@ -369,7 +376,7 @@ export function developmentWeek(input: DevelopmentWeekInput): DevelopmentWeekRes
   const root = createRng(seed, "franchise:development");
   const ability = abilityRules(input);
   for (const p of input.players) {
-    const grown = developOne(p, weeks.get(String(p.bio.id)), at, rules, root, half, ability);
+    const grown = developOne(p, weeks.get(String(p.bio.id)), at, rules, root, half, ability, input.wear?.get(String(p.bio.id)) ?? NO_WEAR);
     players.push(grown.player);
     if (grown.changes.length === 0 && grown.body.length === 0) continue;
     const key = p.teamId === undefined ? NO_TEAM : String(p.teamId);

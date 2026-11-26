@@ -245,9 +245,9 @@ export const CONTACT_ROLL_SETS_DIGEST = "6a0b977a173d5523165035535e299f1c21652b3
 /**
  * Contact one man took in one game's contests (`GameParticipation.contests`, each contest credited
  * once to every rating its roll named): for each roll set, the largest won + lost among its ratings,
- * summed over the sets. A lower bound on his contact contests that never counts one twice. The
- * regular season plays one game a team a week, so this is also the week's count AB6's counter keeps
- * (it merges a week's contests by rating first).
+ * summed over the sets. A lower bound on his contact contests that never counts one twice. AB6's
+ * counter (franchise `players/wear.ts`, the same body) adds this for each who-played report, game by
+ * game, as this reader does; a man plays one game a week, so it is also §12.3.6's week's count.
  */
 export function contactOf(contests: GameParticipation["contests"]): number {
   const by = new Map<string, number>();

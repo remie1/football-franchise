@@ -130,7 +130,7 @@ export function standInOfficialsLine(
  * fade shifts only with development on and `aging: "ability"`), and to the generator for the made-up
  * league, the reserve pool and the walk's draft classes, which draw the shifts (and, from AB4, §12.5's
  * ages) only then. `injuryRisk` (AB5) goes with them to franchise's steps, which play it only with
- * injuries on.
+ * injuries on, and so do AB6's `healingByAge` and `perContact`, which act only on the spot path.
  */
 export interface PlayerSwitches extends AgingSwitches {
   readonly development?: boolean;
@@ -148,6 +148,8 @@ export function agingOf(s: PlayerSwitches | undefined): AgingSwitches {
     ...(s.techniqueKnee === undefined ? {} : { techniqueKnee: s.techniqueKnee }),
     ...(s.smartsSnaps === undefined ? {} : { smartsSnaps: s.smartsSnaps }),
     ...(s.injuryRisk === undefined ? {} : { injuryRisk: s.injuryRisk }),
+    ...(s.healingByAge === undefined ? {} : { healingByAge: s.healingByAge }),
+    ...(s.perContact === undefined ? {} : { perContact: s.perContact }),
   };
 }
 const switchedOn = (s: PlayerSwitches | undefined): boolean => s?.development === true || s?.injuries === true;

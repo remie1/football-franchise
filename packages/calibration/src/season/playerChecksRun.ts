@@ -8,8 +8,9 @@
  * the starters the engine fields from the teams' real depth charts (`fieldedStarters`).
  *
  * `aging` (ADR-087 §12.1, AB3; settled, `settleAging`) joins the switches of the arms with
- * development on, the only ones it acts on; `injuryRisk` (AB5) the arms with injuries on. At the
- * defaults (`{}`) every arm is as before.
+ * development on, the only ones it acts on; `injuryRisk` (AB5) the arms with injuries on, and so does
+ * AB6's `healingByAge`; AB6's `perContact` only the arm with both on (`both`). At the defaults (`{}`)
+ * every arm is as before.
  */
 import { buildLeague, buildStaff } from "@ff/franchise";
 import { runRealSeason, type PlayerSwitches } from "./realSeason.js";
@@ -65,17 +66,21 @@ export function armSwitches(arm: Arm, aging: AgingSwitches = {}): PlayerSwitches
 
 /**
  * The options, checked against the arms chosen (`--arms`): the aging options refused when none of
- * them has development on, `injuryRisk` when none has injuries on, since no arm would play them while
- * the report and caches would carry their name.
+ * them has development on, `injuryRisk` (and AB6's `healingByAge`) when none has injuries on, and
+ * AB6's `perContact` when none has both on, since no arm would play them while the report and caches
+ * would carry their name.
  */
 export function agingForArms(arms: readonly string[], aging: AgingSwitches): AgingSwitches {
-  const { injuryRisk, ...rest } = aging;
+  const { injuryRisk, healingByAge: _healing, perContact, ...rest } = aging;
   const name = agingLabel(rest);
   if (name !== undefined && !arms.some((a) => isArm(a) && agingActsOn(a))) {
     throw new SyntaxError(`the aging options (${name}) act only on the arms with development on (development, both); add one to --arms or drop them`);
   }
   if (injuryRisk === "spot" && !arms.some((a) => isArm(a) && injuryRiskActsOn(a))) {
     throw new SyntaxError("--injury-risk spot acts only on the arms with injuries on (injuries, both); add one to --arms or drop it");
+  }
+  if (perContact !== undefined && !arms.some((a) => isArm(a) && agingActsOn(a) && injuryRiskActsOn(a))) {
+    throw new SyntaxError("--per-contact acts only on the arm with growth and injuries both on (both); add it to --arms or drop it");
   }
   return aging;
 }
