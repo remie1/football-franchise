@@ -21,7 +21,7 @@ import {
   teamStarters, unsignedWaits, usagePeak, waitClass, type BusiestSnaps, type CareerCheckpoint, type SideSnaps, type UsageCell,
   addAvailability, apyOfDeal, backOnA53, cutFileDeal, EXPIRY_MIN_CAP_SHARE, expiryWindow, followExpiries, leagueYearOf, liveAt, nflCount, nflRosterIds,
   openExpiries, outFourWeeksBand, outFourWeeksLeft, retiredNextYear, retirementsOf, STARTER_SHARE, startersGone, type AgeCounts, type CareerReaderState,
-  draftByAge, RETIREMENT_MOMENTS, retiredHow, teamOverallRow, teamOveralls, type RetirementRead, type SeasonRow,
+  draftByAge, RETIREMENT_MOMENTS, retiredHow, teamOverallRow, teamOveralls, type RetirementRead, type SeasonRow, readerInjuryRisk,
 } from "../src/season/careerCheck.js";
 import { OTC_SIGNED_AGAIN, STARTER_MIN_SHARE } from "../src/careers/nflCareers.js";
 import { careerValues } from "../src/careers/measure.js";
@@ -31,6 +31,7 @@ import { draftReader, runDraftCheck, STARTING } from "../src/season/draftCheck.j
 import { fieldedStarters } from "../src/season/playerChecks.js";
 import type { SeasonPeople } from "../src/season/realSeason.js";
 import { readStandInFile } from "../src/season/standInLeague.js";
+import { pastInjurySeed } from "../src/season/careerAging.js";
 
 type SeasonInput = Parameters<typeof runSeason>[0];
 
@@ -631,6 +632,46 @@ describe("the owner's aging rulings: the reader's new pieces", () => {
     // No men: every share 0.
     expect(rosterPicture({ teams: [], players: [] }).groups.QB).toMatchObject({ n: 0, upTo22: 0, from31: 0, from34: 0 });
     expect(rosterPicture({ teams: [], players: [] }).rookieAge).toEqual({ n: 0, mean: 0, histogram: {} });
+    // By draft status (rows version 7): both rookies are undrafted.
+    expect(pic.rookieAgeByDraft).toEqual({ drafted: { n: 0, mean: 0, histogram: {} }, undrafted: { n: 2, mean: 22, histogram: { "22": 2 } } });
+    expect(rosterPicture({ teams: [], players: [] }).rookieAgeByDraft).toEqual({ drafted: { n: 0, mean: 0, histogram: {} }, undrafted: { n: 0, mean: 0, histogram: {} } });
+  });
+
+  it("the rookies by draft status (rows version 7, ADR-087 §12.5 AB4b): drafted by a draft line, undrafted by \"UDFA\" (as undraftedShare reads it), as the ledger reads a rookie", () => {
+    const a = squad("T01", 70, 60);
+    const b = squad("T02", 66, 60);
+    // Two of T01's starters came in this season: one drafted at 21, one undrafted at 24; a man out 4+ weeks drops from the NFL count.
+    const players = [...a.players, ...b.players].map((p) => {
+      const id = String(p.bio.id);
+      if (id === "T01-s0") return { ...p, bio: { ...p.bio, age: 21, draft: { year: 2027, round: 1, pick: 5 } } };
+      if (id === "T01-s1") return { ...p, bio: { ...p.bio, age: 24, draft: "UDFA" as const } };
+      if (id === "T02-s2") return hurt({ ...p, bio: { ...p.bio, age: 23, draft: { year: 2027, round: 4, pick: 110 } } }, "LONG", 5);
+      return p;
+    });
+    const firsts = new Map([["T01-s0", 2027], ["T01-s1", 2027], ["T02-s2", 2027], ["T01-b0", 2025], ["T02-b0", 2027]]);
+    const rookies = { season: 2027, firstSeasonOf: (id: string) => firsts.get(id) ?? 2020 };
+    const teams = [a.team, b.team];
+    const pic = rosterPicture({ teams, players }, rookies);
+    // Rookies: T01-s0 (drafted, 21), T02-s2 (drafted, 23), T01-s1 (undrafted, 24), T02-b0 (undrafted, 22); T01-b0 came in 2025.
+    expect(pic.rookieAge).toEqual({ n: 4, mean: 22.5, histogram: { "21": 1, "22": 1, "23": 1, "24": 1 } });
+    expect(pic.rookieAgeByDraft).toEqual({
+      drafted: { n: 2, mean: 22, histogram: { "21": 1, "23": 1 } },
+      undrafted: { n: 2, mean: 23, histogram: { "22": 1, "24": 1 } },
+    });
+    // Counted like the NFL, the drafted man out 4+ weeks is left out of both.
+    const nfl = rosterPicture({ teams, players }, rookies, outFourWeeksBand);
+    expect(nfl.rookieAge.n).toBe(3);
+    expect(nfl.rookieAgeByDraft.drafted).toEqual({ n: 1, mean: 21, histogram: { "21": 1 } });
+    expect(nfl.rookieAgeByDraft.undrafted).toEqual(pic.rookieAgeByDraft.undrafted);
+    // The split adds up to the whole.
+    for (const p of [pic, nfl]) {
+      const { drafted: d, undrafted: u } = p.rookieAgeByDraft;
+      expect(d.n + u.n).toBe(p.rookieAge.n);
+      expect(d.n * d.mean + u.n * u.mean).toBeCloseTo(p.rookieAge.n * p.rookieAge.mean, 12);
+    }
+    // A man still a prospect is on no team's 53; the reader refuses one rather than count him either way.
+    const withProspect = players.map((p) => (String(p.bio.id) === "T02-b0" ? { ...p, bio: { ...p.bio, draft: "PROSPECT" as const } } : p));
+    expect(() => rosterPicture({ teams, players: withProspect }, rookies)).toThrow(/T02-b0 is on T02's 53 still a prospect/);
   });
 
   it("the 53 counted like the NFL: an unhealed LONG or MAJOR injury leaves a man out; the variant reads the weeks still to go", () => {
@@ -759,6 +800,39 @@ describe("the owner's aging rulings: the reader's new pieces", () => {
     expect(tally.ownSigned).toEqual({ n: 3, byAge: { "29": 1, "33": 1, "35": 1 }, byCredited: { "10": 1, "12": 1, "6": 1 }, byGroup: { K: 1, QB: 1, TE: 1 } });
     expect(tally.ownUnsigned).toEqual({ n: 2, byAge: { "28": 1, "31": 1 }, byCredited: { "3": 1, "8": 1 }, byGroup: { CB: 1, RB: 1 } });
     expect(reads.map((r) => `${r.player}:${r.way}`)).toEqual(["U:unsigned", "S:ownSigned", "O:ownUnsigned", "Q:ownSigned", "X:unsigned", "E:ownUnsigned", "L:ownSigned"]);
+  });
+
+  it("an OWN_CHOICE retirement (E6, AB8) is read by the team it names: signed with one, unsigned with none, whatever the book says", () => {
+    const before = { players: [
+      man("A", { age: 31, cs: 9, position: "WR", team: "T01" }), man("B", { age: 27, cs: 4, position: "CB" }),
+      man("C", { age: 34, cs: 12, position: "QB", team: "T02" }),
+    ] };
+    const own = (player: string, timing: "IMMEDIATE" | "SLOW" | "LATE", team?: string): FranchiseEvent =>
+      ({ type: "PLAYER_RETIRED", payload: { player, timing, reason: "OWN_CHOICE", ...(team ? { team } : {}) } } as FranchiseEvent);
+    const events = [
+      env(0, stamp(2026, "OFF_EVAL", 1, 7), own("A", "IMMEDIATE", "T01")),
+      env(1, stamp(2026, "OFF_RESET_FA", 1, 2), own("B", "SLOW")),
+      env(2, stamp(2026, "OFF_RESET_FA", 1, 2), own("C", "SLOW", "T02")),
+    ];
+    // B holds a live deal in the book, C none: the event's team decides, not the book.
+    const after = { contracts: [dealOf("B", "T03", { seasons: [2026, 2027], hit: 1e6, at: stamp(2025, "OFF_RESET_FA", 1, 1) })] };
+    const { tally, reads } = retirementsOf(2026, events, before, after);
+    expect(reads.map((r) => `${r.player}:${r.way}:${r.timing}`)).toEqual(["A:ownSigned:IMMEDIATE", "B:ownUnsigned:SLOW", "C:ownSigned:SLOW"]);
+    expect(tally.ownSigned.n).toBe(2);
+    expect(tally.ownUnsigned.n).toBe(1);
+    expect(tally.unsigned.n).toBe(0);
+    // By moment, as the v6 rows count them.
+    const how = retiredHow(reads, (id) => ({ A: 9, B: 4, C: 12 })[id]);
+    expect(how.byMoment.IMMEDIATE).toEqual({ unsigned: 0, ownSigned: 1, ownUnsigned: 0 });
+    expect(how.byMoment.SLOW).toEqual({ unsigned: 0, ownSigned: 1, ownUnsigned: 1 });
+    expect(how.byMoment.LATE).toEqual({ unsigned: 0, ownSigned: 0, ownUnsigned: 0 });
+    // Each moment falls in the cohort's year: from Y's season end to Y + 1's.
+    const late = { player: "D", at: stamp(2027, "TRAINING_CAMP", 1, 1), way: "ownSigned" as const, timing: "LATE" as const };
+    const counts = retiredNextYear(
+      [{ id: "A", age: 31, starter: true }, { id: "D", age: 30, starter: true }],
+      new Map([["A", reads[0]!], ["D", late]]), 2026,
+    );
+    expect(counts).toEqual({ "30": { n: 1, unsigned: 0, ownSigned: 1, ownUnsigned: 0 }, "31": { n: 1, unsigned: 0, ownSigned: 1, ownUnsigned: 0 } });
   });
 
   it("a deal live at a moment: signed by then and not ended before it; one ended that moment only if it ended RETIRED", () => {
@@ -1328,6 +1402,33 @@ describe("runCareerCheck: one walk, both readers", () => {
     // The draft reader carried on too: one draft a season, three in all.
     expect(resumed.draft.drafts).toBe(3);
   }, 300_000);
+
+  it("hands the reader the spot path only with injuries on and played on it: p8 in those rows alone (ADR-087 AB7 review, finding 13)", () => {
+    expect(readerInjuryRisk({ development: true, injuries: true })).toBeUndefined();
+    expect(readerInjuryRisk({ development: true, injuries: true, injuryRisk: "group" })).toBeUndefined();
+    expect(readerInjuryRisk({ development: true, injuries: true, injuryRisk: "spot" })).toBe("spot");
+    expect(readerInjuryRisk({ development: true, injuryRisk: "spot" })).toBeUndefined();
+    expect(readerInjuryRisk(undefined)).toBeUndefined();
+    // Through runCareerCheck: each made-up season walks its first camp day and week 1's first day (the reader's
+    // first day is where it seeds), with no games; the file's copied injuries are there on every path with injuries on.
+    const twoDays = (i: SeasonInput): SeasonRun => {
+      for (const at of [{ phase: "TRAINING_CAMP", week: 1 }, { phase: "REGULAR_SEASON", week: 1 }] as const) {
+        for (const step of i.daySteps ?? []) step.run(i.people!, { day: { season: i.season, phase: at.phase, week: at.week, day: 1 }, games: [] } as never);
+      }
+      return madeUp(i);
+    };
+    const rowsUnder = (players: CapCheckInput["players"]) => {
+      hook.runSeason = twoDays as never;
+      try { return runCareerCheck({ seed: "career-check-p8", file, seasons: 1, ...(players === undefined ? {} : { players }) }); } finally { hook.runSeason = undefined; }
+    };
+    // (Counts that hold before and after the custody run gives the file its histories: the copied injuries stay.)
+    const spot = rowsUnder({ development: true, injuries: true, injuryRisk: "spot" });
+    expect(spot.p8).toBeDefined();
+    expect(spot.p8!.copiedMapped).toBeGreaterThan(0);
+    for (const players of [{ development: true, injuries: true }, { development: true, injuries: true, injuryRisk: "group" }, { development: true, injuryRisk: "spot" }] as const) {
+      expect("p8" in rowsUnder(players), JSON.stringify(players)).toBe(false);
+    }
+  }, 300_000);
 });
 
 // --- one real season -----------------------------------------------------------------------------
@@ -1417,4 +1518,70 @@ describe("runCareerCheck on the real walk: one switched-on season of the stand-i
     expect(y0!.rookieCut).toBeNull();
     expect(JSON.parse(JSON.stringify(rows))).toEqual(rows);
   }, 900_000);
+});
+
+describe("test 22: the reader's starting concussion counts on the spot path (ADR-087 AB7)", () => {
+  /** A made-up P8 record: two weeks out from `week` of `season`. */
+  const rec = (kind: string, season: number, week: number) => ({ kind, weeks: 2, since: stamp(season, "REGULAR_SEASON", week, 1), healed: stamp(season, "REGULAR_SEASON", week + 2, 1) });
+  /** A copied current injury, as standin-development writes one (its kind made of report text). */
+  const copied = (kind: string, setting: "GAME" | "AWAY") => ({ kind, weeksRemaining: 3, playable: false, setting, band: "SHORT", since: stamp(2025, "OFF_SUMMER", 1, 1) });
+  const withCondition = (p: PlayerState, c: Record<string, unknown>): PlayerState => ({ ...p, condition: { ...p.condition, ...c } } as PlayerState);
+
+  it("pastInjurySeed: P8 concussions both ways, a copied concussion in prior and, unless copied away from football, in seen", () => {
+    const players = [
+      withCondition(man("A"), { injuryHistory: [rec("real:concussion-head", 2023, 3), rec("real:knee", 2024, 5), rec("real:concussion-head", 2025, 7)] }),
+      withCondition(man("B"), { injuryHistory: [rec("real:ankle", 2024, 2)], injury: copied("real:concussion", "GAME") }),
+      withCondition(man("C"), { injury: copied("real:head", "AWAY") }),
+      withCondition(man("D"), { injury: copied("real:reserve-injured-reserve", "GAME") }),
+      withCondition(man("E"), { injury: copied("knee", "GAME") }),
+      man("F"),
+    ];
+    const s = pastInjurySeed(players);
+    expect([...s.counts]).toEqual([["A", 2], ["B", 1], ["C", 1]]);
+    expect([...s.seen]).toEqual([["A", 2], ["B", 1]]);
+    expect(s.p8).toEqual({ seededMen: 2, seededRecords: 4, seededConcussions: 4, copiedMapped: 3 });
+    expect(pastInjurySeed([man("F")])).toEqual({ counts: new Map(), seen: new Map(), p8: { seededMen: 0, seededRecords: 0, seededConcussions: 0, copiedMapped: 0 } });
+  });
+
+  it("seeds the starting maps and adds p8 to the rows on the spot path only; on the group path they start empty and the rows are as before", () => {
+    const a = squad("T01", 70, 60);
+    const b = squad("T02", 66, 60);
+    const players = [...a.players, ...b.players].map((p, i) => (i === 0 ? withCondition(p, { injuryHistory: [rec("real:concussion-head", 2024, 4)] })
+      : i === 30 ? withCondition(p, { injury: copied("real:concussion", "GAME") }) : p));
+    const start = {
+      teams: [a.team, b.team], players, picks: [], classes: [], freeAgents: [],
+      playerMemory: { injuries: {}, grades: {}, battles: [], injuredStarters: [], weeksInJob: {}, unsignedSince: {} },
+    } as unknown as SeasonPeople;
+    const run = { state: { standings: [] }, events: [], stepEvents: [] } as unknown as SeasonRun;
+    const draft = { drafts: 2, roundOneShare: {}, starterRate: {}, everStarter: {}, perYear: [] };
+    /** Two seasons with nobody hurt; `split`: saved after the first and restored into a fresh reader (a checkpoint). */
+    const drive = (injuryRisk?: "spot", split = false) => {
+      const make = () => careerReader({ seed: "s", firstSeason: 2026, seasons: 2, switches: { development: true, injuries: true }, ...(injuryRisk ? { injuryRisk } : {}) });
+      let reader = make();
+      reader.onDay(2026, stamp(2026, "TRAINING_CAMP", 1, 1), start, []);
+      reader.onDay(2026, stamp(2026, "REGULAR_SEASON", 1, 1), start, []);
+      reader.onRun(2026, [], start, { run, before: start });
+      const first: CareerReaderState = JSON.parse(JSON.stringify(reader.save()));
+      if (split) { reader = make(); reader.restore(first); }
+      reader.onDay(2027, stamp(2027, "TRAINING_CAMP", 1, 1), start, []);
+      reader.onDay(2027, stamp(2027, "REGULAR_SEASON", 1, 1), start, []);
+      reader.onRun(2027, [], start, { run, before: start });
+      return { first, rows: reader.rows(draft) };
+    };
+    const spot = drive("spot");
+    const group = drive();
+    const ids = [String(players[0]!.bio.id), String(players[30]!.bio.id)];
+    expect(spot.first.concussions).toEqual([[ids[0], 1], [ids[1], 1]]);
+    expect(spot.first.concussionsSeen).toEqual([[ids[0], 1], [ids[1], 1]]);
+    expect(spot.first.p8).toEqual({ seededMen: 1, seededRecords: 1, seededConcussions: 2, copiedMapped: 1 });
+    expect(spot.rows.p8).toEqual(spot.first.p8);
+    expect(group.first.concussions).toEqual([]);
+    expect(group.first.concussionsSeen).toEqual([]);
+    expect(group.first.p8).toBeUndefined();
+    expect("p8" in group.rows).toBe(false);
+    const { p8: _p8, ...rest } = spot.rows;
+    expect(JSON.stringify(rest)).toBe(JSON.stringify(group.rows));
+    // A checkpoint after the first season carries the seed, so a resumed reader neither loses it nor seeds again.
+    expect(JSON.stringify(drive("spot", true).rows)).toBe(JSON.stringify(spot.rows));
+  });
 });

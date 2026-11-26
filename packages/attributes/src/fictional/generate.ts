@@ -19,16 +19,25 @@
  * so changing one position's count never reshuffles another position's players.
  *
  * With `development` on (ADR-087), each player also gets his growth rate, career snaps, body and
- * patience (`development.ts`), from another fork of his own (`development/<player id>`).
+ * patience (`development.ts`), from another fork of his own (`development/<player id>`); with the
+ * `aging` option at `"ability"` too, his fade shifts (§12.2.3), on that fork's `"aging"` fork.
+ *
+ * Ages (ADR-087 §12.5 and §12.2.6, AB4). Today a man is 21 plus a draw (`ageSpread`), two years more
+ * at K, P and LS, and the men his draw leaves at 22 or under come into the league this season. With
+ * growth on and `aging` at `"ability"`, no position is read: the specialists' two years are dropped,
+ * the older men keep today's spread, and the rookies-to-be (that same draw at 22 or under) take the
+ * league's own rookie age (`drawRookieAge` by `ROOKIE_AGE_ON_53`, the ages of rookies already on a 53;
+ * the orchestrator's ruling on §12.5) on the `"age"` fork of their development stream, with no
+ * credited seasons yet.
  */
 import {
   ATTRIBUTE_REGISTRY_V1, clampRating, createRng, playerId, positionOverall,
   type AttributeMap, type PlayerId, type PlayerState, type Position, type RatedLeague, type Rng, type Team,
 } from "@ff/contracts";
 import { physicalRatings, type Measurements } from "./derive.js";
-import { withDevelopment } from "./development.js";
+import { drawRookieAge, ROOKIE_AGE_ON_53, withDevelopment, type AgingOption } from "./development.js";
 import { drawName } from "./names.js";
-import { PHYSICAL, PROFILES, TIERS, UNIVERSAL, type Tier } from "./profiles.js";
+import { PHYSICAL, PROFILES, TIERS, isDrawnAtCore, UNIVERSAL, type Tier } from "./profiles.js";
 import { BODY, POSITION_ORDER, ROSTER_SHAPE, type Dist } from "./shape.js";
 
 /**
@@ -54,6 +63,27 @@ export interface GenerateLeagueInput {
    * stream (`development.ts`). Off by default; off, the league is exactly what it was before.
    */
   readonly development?: boolean;
+  /**
+   * ADR-087 §12.1: how the players age. `"ability"` gives each player his fade shifts (P7,
+   * `development.ts` `drawFadeShift`) on a fork of his development stream, and §12.5's ages (AB4: no
+   * specialists' two years, the rookies-to-be by the league's own rookie ages, `ROOKIE_AGE_ON_53`); `"position"`, the
+   * default, gives none, and the league is exactly what it was before the option. Acts only with
+   * `development` on.
+   */
+  readonly aging?: AgingOption;
+}
+
+/**
+ * A made-up man's age with `aging` at `"ability"` (§12.5, §12.2.6), reading no position: `age` on his
+ * bio, `draftAge` for his draft line (`draftFor`'s seasons in the league) and whether he is a rookie.
+ * A man the draw leaves at 22 or under comes in this season, as today (`draftFor`: drafted this
+ * season, or undrafted with none played), and takes the league's own rookie age (`ROOKIE_AGE_ON_53`:
+ * the ages of rookies already on a 53, since every rookie-to-be starts on one), from `rng`, his own
+ * `"age"` stream; an older man keeps the draw.
+ */
+function abilityAge(p: Pick<Drawn, "talentZ" | "unlistedAge">, rng: Rng): { age: number; draftAge: number; rookie: boolean } {
+  const rookie = p.unlistedAge <= ENTRY_AGE;
+  return { age: rookie ? drawRookieAge(rng, p.talentZ, ROOKIE_AGE_ON_53) : p.unlistedAge, draftAge: p.unlistedAge, rookie };
 }
 
 /** What `RatedLeague.provenance` holds for a generated league. */
@@ -110,7 +140,7 @@ export function rateAttributes(rng: Rng, position: Position, talent: number, m: 
   for (const id of ACTIVE) {
     if ((PHYSICAL as readonly string[]).includes(id)) out[id] = physical[id]!;
     else if (id in UNIVERSAL) out[id] = tierRating(rng, UNIVERSAL[id]!, talent);
-    else if (profile.core.includes(id)) out[id] = tierRating(rng, TIERS.core, talent);
+    else if (isDrawnAtCore(position, id)) out[id] = tierRating(rng, TIERS.core, talent);
     else if (profile.secondary.includes(id)) out[id] = tierRating(rng, TIERS.secondary, talent);
     else out[id] = tierRating(rng, TIERS.rest, talent);
   }
@@ -124,19 +154,36 @@ export function rateAttributes(rng: Rng, position: Position, talent: number, m: 
  */
 export const overallAt = (position: Position, ratings: AttributeMap): number => positionOverall(position, ratings);
 
+/**
+ * The age at which `draftFor` dates a man's draft line this season: one older came in `age − 22`
+ * seasons ago. So a man of 22 or under is a rookie, drafted this season or undrafted with none played.
+ */
+const ENTRY_AGE = 22;
+
+/**
+ * The made-up league's age draw: 21 plus this many years (the generator's own spread, half-normal).
+ * Today's rule adds two at K, P and LS; with `aging` at `"ability"` none is added (§12.2.6).
+ */
+const ageSpread = (rng: Rng): number => Math.floor(Math.abs(gauss(rng)) * 4.5);
+
 function draftFor(rng: Rng, talent: number, age: number, season: number): PlayerState["bio"]["draft"] {
   const z = talent + 0.5 * gauss(rng);
   const cuts = [1.5, 1.0, 0.6, 0.25, -0.1, -0.45, -0.8];
   const round = cuts.findIndex((c) => z > c) + 1;
   if (round === 0) return "UDFA";
-  return { year: season - Math.max(0, age - 22), round, pick: (round - 1) * 32 + rng.int(1, 32) };
+  return { year: season - Math.max(0, age - ENTRY_AGE), round, pick: (round - 1) * 32 + rng.int(1, 32) };
 }
 
 interface Drawn {
   readonly talent: number;
+  /** His talent's own standard score (the draw his talent is made from), §12.5's z_talent. */
+  readonly talentZ: number;
   readonly measurements: Measurements;
   readonly ratings: AttributeMap;
+  /** Today's age (the specialists' two years in it). */
   readonly age: number;
+  /** The age draw with no position read: 21 plus `ageSpread` (aging "ability"; §12.2.6). */
+  readonly unlistedAge: number;
   readonly rng: Rng;
   /** The roster slot he was drawn for (0 = drafted to start), for his career snaps (ADR-087). */
   readonly slot: number;
@@ -145,6 +192,8 @@ interface Drawn {
 export function generateLeagueRosters(input: GenerateLeagueInput): RatedLeague {
   const sd = input.teamStrengthSd ?? DEFAULT_TEAM_STRENGTH_SD;
   const root = createRng(input.seed, "attributes:fictional");
+  // ADR-087 §12.5 (AB4): the ages with no position read, with growth on only.
+  const ability = input.development === true && input.aging === "ability";
   const usedNames = new Set<string>();
   const teamStrength: Record<string, number> = {};
   const measurements: Record<string, Measurements> = {};
@@ -162,11 +211,14 @@ export function generateLeagueRosters(input: GenerateLeagueInput): RatedLeague {
       const drawn: Drawn[] = [];
       for (let slot = 0; slot < ROSTER_SHAPE[position]; slot++) {
         const rng = root.fork(`${key}/${position}/${slot}`);
-        const talent = strength + (SLOT_TALENT[slot] ?? SLOT_TALENT[SLOT_TALENT.length - 1]!) + gauss(rng);
+        const talentZ = gauss(rng);
+        const talent = strength + (SLOT_TALENT[slot] ?? SLOT_TALENT[SLOT_TALENT.length - 1]!) + talentZ;
         const m = measure(rng, position, talent);
         const specialist = position === "K" || position === "P" || position === "LS";
-        const age = Math.min(36, 21 + (specialist ? 2 : 0) + Math.floor(Math.abs(gauss(rng)) * 4.5));
-        drawn.push({ talent, measurements: m, ratings: rateAttributes(rng, position, talent, m), age, rng, slot });
+        const spread = ageSpread(rng);
+        const age = Math.min(36, 21 + (specialist ? 2 : 0) + spread);
+        const unlistedAge = Math.min(36, 21 + spread);
+        drawn.push({ talent, talentZ, measurements: m, ratings: rateAttributes(rng, position, talent, m), age, unlistedAge, rng, slot });
       }
       // The depth chart: best overall first. Ties keep slot order (sort is stable).
       drawn.sort((a, b) => overallAt(position, b.ratings) - overallAt(position, a.ratings));
@@ -176,15 +228,18 @@ export function generateLeagueRosters(input: GenerateLeagueInput): RatedLeague {
         measurements[String(id)] = p.measurements;
         roster.push(id);
         depthChart[position]!.push(id);
+        const age = ability ? abilityAge(p, root.fork(`development/${String(id)}`).fork("age")) : { age: p.age, draftAge: p.age, rookie: false };
         const player: PlayerState = {
           bio: {
             id,
             displayName: drawName(p.rng, usedNames),
             position,
-            age: p.age,
+            age: age.age,
             heightIn: p.measurements.heightIn,
             weightLb: p.measurements.weightLb,
-            draft: draftFor(p.rng, p.talent, p.age, input.season),
+            draft: draftFor(p.rng, p.talent, age.draftAge, input.season),
+            // A rookie starts with no credited seasons, whatever his age (ADR-085 K5, as the draft signs one).
+            ...(age.rookie ? { creditedSeasons: 0 } : {}),
           },
           attributes: { kind: "true", values: p.ratings, traits: new Set<string>() },
           condition: { stamina: 100, morale: 0 },
@@ -196,6 +251,7 @@ export function generateLeagueRosters(input: GenerateLeagueInput): RatedLeague {
         players.push(input.development
           ? withDevelopment(player, root.fork(`development/${String(id)}`), {
             measurements: p.measurements, career: { slot: p.slot, season: input.season },
+            ...(input.aging === "ability" ? { aging: "ability" as const } : {}),
           })
           : player);
       });

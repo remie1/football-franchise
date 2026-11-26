@@ -77,6 +77,10 @@
  *    the walk's own entrants in the later window). The roster way's retired-within-a-year cohorts are
  *    also read by years in the league (`exits.retiredNextYearByYears`).
  *
+ * Added for the made-up rookies' ages (ADR-087 §12.5, AB4b; rows version 7): each week-8 picture's
+ * rookies by draft status, drafted and undrafted (`rookieAgeByDraft`), so the undrafted rookies' extra
+ * age is read on the 53s, where the real side counts it.
+ *
  * Ages. A man's age is his `bio.age` during the season (as read at week 8); the year turn at the end
  * of each walk adds one, so an age read after it (in `onRun`'s people) is next season's (`seasonAge`).
  *
@@ -107,9 +111,9 @@ import { MIN_PAIRS_PER_AGE } from "../careers/usage.js";
 import { lastTeams, limboPlayers, runCapCheck, VETERAN_DEAL_KINDS, type CapCheckDayGames, type CapCheckInput, type CapCheckRun } from "./capCheck.js";
 import { draftReader, STARTING, type DraftCheckResult, type DraftReaderState } from "./draftCheck.js";
 import {
-  abilityPicture, addGameWeeks, chartSpots, concussionLengths, contactOf, durabilityByConcussions, injuryExposure, injuryReads, readPicks, rookieCutOf,
-  rookieWeekOne, sortNumericKeys, SPOT_ORDER, type AbilityPicture, type ConcussionTally, type ExposureCells, type PendingPick, type PlayedGame, type RookieCut,
-  type WeekOneRead,
+  abilityPicture, addGameWeeks, chartSpots, concussionLengths, contactOf, durabilityByConcussions, injuryExposure, injuryReads, pastInjurySeed, readPicks,
+  rookieCutOf, rookieWeekOne, sortNumericKeys, SPOT_ORDER, type AbilityPicture, type ConcussionTally, type ExposureCells, type P8Seed, type PendingPick,
+  type PlayedGame, type RookieCut, type WeekOneRead,
 } from "./careerAging.js";
 import { fieldedStarters } from "./playerChecks.js";
 import type { SeasonPeople } from "./realSeason.js";
@@ -279,8 +283,19 @@ export interface RosterPicture {
   /** Share whose draft line is UDFA. */
   readonly undraftedShare: number;
   /** The rookies (as `rookieShare` reads them): how many, their mean age, men by age (whole years, as read). Rows version 5. */
-  readonly rookieAge: { readonly n: number; readonly mean: number; readonly histogram: Record<string, number> };
+  readonly rookieAge: RookieAgeTally;
+  /**
+   * The same rookies by draft status (rows version 7; ADR-087 §12.5, AB4b): drafted (a draft line)
+   * and undrafted (`"UDFA"`, as `undraftedShare` reads it), each as `rookieAge` is read; the two sum
+   * to it, since no man still a prospect (`"PROSPECT"`) is on a team's 53 (the reader refuses one).
+   * The real side gives the gap on fractional ages (drafted 23.01, undrafted 23.63); the grader sets
+   * the whole-year means' gap beside it.
+   */
+  readonly rookieAgeByDraft: { readonly drafted: RookieAgeTally; readonly undrafted: RookieAgeTally };
 }
+
+/** Rookies' ages as read (whole years): how many, their mean, men by age. */
+export interface RookieAgeTally { readonly n: number; readonly mean: number; readonly histogram: Record<string, number> }
 
 /**
  * A team's starters as the engine fields them (`fieldedStarters`). In season the depth chart leaves
@@ -386,9 +401,17 @@ export function rosterPicture(
     const first = rookies?.firstSeasonOf(String(r.p.bio.id));
     return first === undefined ? (r.p.bio.creditedSeasons ?? 0) === 0 : first === rookies!.season;
   };
-  const rookieAges = rows.filter(isRookie).map((r) => r.p.bio.age);
-  const rookieHistogram: Record<string, number> = {};
-  for (const a of [...rookieAges].sort((x, y) => x - y)) bump(rookieHistogram, String(a));
+  const tallyOf = (ages: readonly number[]): RookieAgeTally => {
+    const histogram: Record<string, number> = {};
+    for (const a of [...ages].sort((x, y) => x - y)) bump(histogram, String(a));
+    return { n: ages.length, mean: mean(ages), histogram };
+  };
+  const rookieRows = rows.filter(isRookie);
+  // One reading of "undrafted", `undraftedShare`'s; a prospect is on no team's 53, so the split is whole.
+  const prospect = rookieRows.find((r) => r.p.bio.draft === "PROSPECT");
+  if (prospect !== undefined) throw new Error(`career check: ${String(prospect.p.bio.id)} is on ${prospect.team}'s 53 still a prospect (draft "PROSPECT")`);
+  const drafted = (r: (typeof rows)[number]) => typeof r.p.bio.draft === "object";
+  const undrafted = (r: (typeof rows)[number]) => r.p.bio.draft === "UDFA";
   return {
     players: rows.length,
     overall: {
@@ -409,7 +432,11 @@ export function rosterPicture(
     rookieShare: share(isRookie),
     noCreditShare: share((r) => (r.p.bio.creditedSeasons ?? 0) === 0),
     undraftedShare: share((r) => r.p.bio.draft === "UDFA"),
-    rookieAge: { n: rookieAges.length, mean: mean(rookieAges), histogram: rookieHistogram },
+    rookieAge: tallyOf(rookieRows.map((r) => r.p.bio.age)),
+    rookieAgeByDraft: {
+      drafted: tallyOf(rookieRows.filter(drafted).map((r) => r.p.bio.age)),
+      undrafted: tallyOf(rookieRows.filter(undrafted).map((r) => r.p.bio.age)),
+    },
   };
 }
 
@@ -806,7 +833,9 @@ export function followExpiries(open: readonly OpenExpiry[], season: number, even
  * How a man retired: the unsigned rule (`PLAYER_RETIRED` with reason UNSIGNED, ADR-087 E4); his own
  * choice while signed (any other reason, and a deal of his was live when he retired, `liveAt`, or
  * ended RETIRED that season; a man with no deal in the book at all is read by his team when the
- * season began); his own choice while unsigned (the rest).
+ * season began); his own choice while unsigned (the rest). A retirement by his own choice that names
+ * it (reason OWN_CHOICE, ADR-087 E6, §12.4.1; AB8) is read by its `team`: signed when it names the
+ * team he left, unsigned when it names none.
  */
 export type RetirementWay = "unsigned" | "ownSigned" | "ownUnsigned";
 export const RETIREMENT_WAYS: readonly RetirementWay[] = ["unsigned", "ownSigned", "ownUnsigned"];
@@ -868,7 +897,9 @@ export function retirementsOf(
     if (e.type !== "PLAYER_RETIRED") continue;
     const id = String(e.payload.player);
     const p = was.get(id);
-    const way: RetirementWay = e.payload.reason === "UNSIGNED" ? "unsigned" : wasSigned(id, at, p) ? "ownSigned" : "ownUnsigned";
+    // E6 (AB8): an OWN_CHOICE retirement says whether he was signed (`team`, the team he left); older ones are worked out.
+    const signed = e.payload.reason === "OWN_CHOICE" ? e.payload.team !== undefined : wasSigned(id, at, p);
+    const way: RetirementWay = e.payload.reason === "UNSIGNED" ? "unsigned" : signed ? "ownSigned" : "ownUnsigned";
     const t = raw[way];
     t.n++;
     bump(t.byAge, p === undefined ? "?" : String(p.bio.age));
@@ -1631,8 +1662,11 @@ export interface SeasonRow {
   readonly rookieCut: RookieCut | null;
 }
 
-/** What the rows hold and the reader saves: a change to either starts a fresh version. */
-export const CAREER_ROWS_VERSION = 6;
+/**
+ * What the rows hold and the reader saves: a change to either starts a fresh version. 7: the week-8
+ * pictures' rookies by draft status (`RosterPicture.rookieAgeByDraft`, ADR-087 §12.5, AB4b).
+ */
+export const CAREER_ROWS_VERSION = 7;
 
 export interface CareerCheckRows {
   readonly version: typeof CAREER_ROWS_VERSION;
@@ -1640,6 +1674,12 @@ export interface CareerCheckRows {
   readonly firstSeason: number;
   readonly seasons: number;
   readonly switches: { readonly development: boolean; readonly injuries: boolean };
+  /**
+   * ADR-087 AB7 (ruling D5, no version bump): on a spot-path walk only, what its first day seeded from the
+   * file's past injuries (P8) and copied injuries, so rows from before and after AB7 cannot be pooled
+   * unseen; absent on the group path and at the defaults, so their rows are as before.
+   */
+  readonly p8?: P8Seed;
   /** The league file as loaded (its 53s; ages as of the file's 23 October), the cross-check beside year 0. */
   readonly file: RosterPicture | null;
   /** One row a season; index 0 is year 0 (the walk's own first week-8 picture). */
@@ -1705,6 +1745,12 @@ export interface CareerReaderInput {
   readonly firstSeason: number;
   readonly seasons: number;
   readonly switches: { readonly development: boolean; readonly injuries: boolean };
+  /**
+   * ADR-087 AB7: `"spot"` when the walk plays injuries on the spot path, where franchise seeds each man's
+   * past injuries (P8): the reader then seeds its concussion counts from the file at the first day
+   * (`pastInjurySeed`) and its rows carry `p8`. Absent on the group path and with injuries off.
+   */
+  readonly injuryRisk?: "spot";
 }
 
 /** One man's season of snaps as the usage pairs read it: share, group and age in that season. */
@@ -1747,6 +1793,8 @@ export interface CareerReaderState {
   readonly concussionsSeen: [string, number][];
   readonly contactCareer: [string, number][];
   readonly pendingPicks: [string, PendingPick][];
+  /** ADR-087 AB7: what the first day seeded on the spot path; absent otherwise. */
+  readonly p8?: P8Seed;
 }
 
 /** The reader's watchers and what they wrote down; `rows` takes the draft check's rows to put beside its own. */
@@ -1851,6 +1899,8 @@ export function careerReader(input: CareerReaderInput): CareerReader {
   let concussionCounts = new Map<string, number>();
   let concussionsSeen = new Map<string, number>();
   let contactCareer = new Map<string, number>();
+  /** ADR-087 AB7: what the first day seeded on the spot path. */
+  let p8: P8Seed | undefined;
   /** The salary-cap thread's measure: the new picks waiting for their first week 1. */
   let pendingPicks = new Map<string, PendingPick>();
   /** The cap by league year, as the walk's own (`capForecast` of the same seed: real history, then the seed's projection). */
@@ -1938,6 +1988,13 @@ export function careerReader(input: CareerReaderInput): CareerReader {
       // The first day of the walk: the people it starts with, the league file as loaded.
       file = rosterPicture(people);
       ledger.start(people.players, season);
+      // ADR-087 AB7: on the spot path, the real concussions the file holds are each man's priors from the start.
+      if (input.injuryRisk === "spot") {
+        const seeded = pastInjurySeed(people.players);
+        concussionCounts = seeded.counts;
+        concussionsSeen = seeded.seen;
+        p8 = seeded.p8;
+      }
     }
     const waitsToday = () => tally.waits.set(stampToString(day), unsignedWaits(people, today, (s) => dayNumber.get(stampToString(s))));
     if (isDay(day, CAMP_OPENS)) { tally.faCamp = people.freeAgents.length; waitsToday(); }
@@ -2177,6 +2234,7 @@ export function careerReader(input: CareerReaderInput): CareerReader {
       firstSeason: input.firstSeason,
       seasons: input.seasons,
       switches: input.switches,
+      ...(p8 === undefined ? {} : { p8 }),
       file,
       perSeason: rows,
       careers: {
@@ -2227,6 +2285,7 @@ export function careerReader(input: CareerReaderInput): CareerReader {
       concussionsSeen: [...concussionsSeen],
       contactCareer: [...contactCareer],
       pendingPicks: [...pendingPicks],
+      ...(p8 === undefined ? {} : { p8 }),
     })) as CareerReaderState;
   };
 
@@ -2258,6 +2317,7 @@ export function careerReader(input: CareerReaderInput): CareerReader {
     concussionsSeen = new Map(copy.concussionsSeen);
     contactCareer = new Map(copy.contactCareer);
     pendingPicks = new Map(copy.pendingPicks);
+    p8 = copy.p8;
   };
 
   return { onDay, onRun, rows: rowsOf, save, restore };
@@ -2288,6 +2348,16 @@ export interface CareerCheckOptions {
 }
 
 /**
+ * The reader's `injuryRisk` for a walk's switches (ADR-087 AB7, ruling D5): `"spot"` only when injuries are
+ * on and played on the spot path, where franchise seeds the past injuries, so only then does the reader
+ * seed its concussion counts and its rows carry `p8`; undefined otherwise (the group path, injuries off,
+ * the defaults), so those rows are as before.
+ */
+export function readerInjuryRisk(players: CapCheckInput["players"]): "spot" | undefined {
+  return players?.injuries === true && players.injuryRisk === "spot" ? "spot" : undefined;
+}
+
+/**
  * One seed of the 20-season check: the cap check's walk (`runCapCheck`) with the D5b reader and the
  * draft check's reader (`draftReader`) watching the same walk. The walk takes the input as given
  * (seed, league file, seasons, switches, staff transform, caller, `onYear`); only the watchers are
@@ -2295,9 +2365,11 @@ export interface CareerCheckOptions {
  * walk gives.
  */
 export function runCareerCheck(input: Omit<CapCheckInput, "onRun" | "onDay" | "onEvent" | "resume" | "onSeasonEnd">, options: CareerCheckOptions = {}): CareerCheckResult {
+  const injuryRisk = readerInjuryRisk(input.players);
   const reader = careerReader({
     seed: input.seed, firstSeason: input.file.season, seasons: input.seasons,
     switches: { development: input.players?.development === true, injuries: input.players?.injuries === true },
+    ...(injuryRisk === undefined ? {} : { injuryRisk }),
   });
   const draft = draftReader();
   const { resume, onCheckpoint } = options;

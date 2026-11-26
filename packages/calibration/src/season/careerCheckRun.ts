@@ -48,6 +48,7 @@ import { join, sep } from "node:path";
 import { threadId } from "node:worker_threads";
 import type { StaffState } from "@ff/contracts";
 import { DEFAULT_CALLER_VERSION, type CallerVersion } from "../caller/anticipate.js";
+import { agingFromRecord, agingLabel, assertRulesAct, sameAging, type AgingSwitches } from "./agingFlags.js";
 import type { CapCheckInput } from "./capCheck.js";
 import { CAREER_ROWS_VERSION, runCareerCheck, type CareerCheckpoint, type CareerCheckRows, type CareerReaderState } from "./careerCheck.js";
 import type { DraftReaderState } from "./draftCheck.js";
@@ -55,11 +56,13 @@ import type { SeasonPeople } from "./realSeason.js";
 
 /**
  * This check's own version: a change to what a record holds starts a fresh cache. 6: the aging
- * redesign's measure-only rows (ADR-087 §12, AB1; `CAREER_ROWS_VERSION` 6). A record of another
- * version, or whose rows are of another rows version, is never read beside these
- * (`checkRecordVersion`): the fingerprint already holds this number, and the loader refuses too.
+ * redesign's measure-only rows (ADR-087 §12, AB1; `CAREER_ROWS_VERSION` 6). 7: the week-8 rookies by
+ * draft status (ADR-087 §12.5, AB4b; `CAREER_ROWS_VERSION` 7). A record of another version, or whose
+ * rows are of another rows version, is never read beside these (`checkRecordVersion`): the
+ * fingerprint already holds this number, and the loader refuses too. So the v6 baseline (AB1, build
+ * 6b118e35f8d06440) is graded from a tree of version 6, as its own record.
  */
-export const CAREER_CHECK_VERSION = 6;
+export const CAREER_CHECK_VERSION = 7;
 
 /** The engine rules the walk plays (`runCapCheck` plays the default, `legacy`). */
 export const CAREER_ENGINE_RULES = "legacy";
@@ -91,15 +94,22 @@ export function withHeadCoachLineups(staff: readonly StaffState[], lineup: NonNu
   return staff.map((s) => (isHeadCoach(s) ? { ...s, lineup: { ...lineup } } : s));
 }
 
-/** What an arm changes in the walk's input: the switches, and for the coach-style arms the staff. */
-export function armInput(arm: CareerArm): Pick<CapCheckInput, "players" | "staffTransform"> {
+/**
+ * What an arm changes in the walk's input: the switches, and for the coach-style arms the staff.
+ * `aging` (ADR-087 §12.1, AB3 and AB5; settled, `settleAging`) joins every arm's switches; at the
+ * defaults (`{}`) nothing is added, so the walk's input is what it was before AB3. Options the arm
+ * would not play are refused (`--injury-risk spot` on the `development` arm, which has injuries off),
+ * so a record never names rules its walk did not play.
+ */
+export function armInput(arm: CareerArm, aging: AgingSwitches = {}): Pick<CapCheckInput, "players" | "staffTransform"> {
+  assertRulesAct(aging, { development: true, injuries: arm !== "development" }, `the ${arm} arm`);
   switch (arm) {
-    case "both": return { players: { development: true, injuries: true } };
-    case "development": return { players: { development: true, injuries: false } };
+    case "both": return { players: { development: true, injuries: true, ...aging } };
+    case "development": return { players: { development: true, injuries: false, ...aging } };
     case "incumbent":
     case "form": {
       const lineup = COACH_STYLE_LINEUPS[arm];
-      return { players: { development: true, injuries: true }, staffTransform: (staff) => withHeadCoachLineups(staff, lineup) };
+      return { players: { development: true, injuries: true, ...aging }, staffTransform: (staff) => withHeadCoachLineups(staff, lineup) };
     }
   }
 }
@@ -129,6 +139,12 @@ export interface CareerFingerprintInput {
   readonly leagueSha256: string;
   readonly engineRules: string;
   readonly callerVersion: string;
+  /**
+   * The aging options (ADR-087 §12.1, AB3; settled). Joined to the fingerprint by their name
+   * (`agingLabel`) only when not the default, so a default run's fingerprint, and its cache folder,
+   * are what they were before AB3.
+   */
+  readonly aging?: AgingSwitches;
 }
 
 /**
@@ -170,8 +186,8 @@ function filesUnder(dir: string): string[] {
 /**
  * The sha256 (first 16 hex digits) over every workspace package's source but the files left out
  * (`CAREER_FINGERPRINT_LEAVES_OUT`), each file framed as `path NUL length NUL bytes` in sorted
- * order, then the league file's sha256, the engine rules, the caller version and
- * `CAREER_CHECK_VERSION`, each framed the same way.
+ * order, then the league file's sha256, the engine rules, the caller version, the aging options'
+ * name when they are not the default (AB3), and `CAREER_CHECK_VERSION`, each framed the same way.
  */
 export function careerFingerprint(input: CareerFingerprintInput): { fingerprint: string; files: number } {
   const hash = createHash("sha256");
@@ -196,6 +212,8 @@ export function careerFingerprint(input: CareerFingerprintInput): { fingerprint:
   add("league", input.leagueSha256);
   add("engineRules", input.engineRules);
   add("callerVersion", input.callerVersion);
+  const aging = input.aging === undefined ? undefined : agingLabel(input.aging);
+  if (aging !== undefined) add("aging", aging);
   add("version", String(CAREER_CHECK_VERSION));
   return { fingerprint: hash.digest("hex").slice(0, 16), files };
 }
@@ -336,6 +354,8 @@ export interface CareerSeedRecord {
   readonly league: { readonly path: string; readonly sha256: string };
   readonly engineRules: string;
   readonly callerVersion: string;
+  /** The aging options the walk played under (AB3), only when not the default. */
+  readonly aging?: AgingSwitches;
   /** Real seconds each season took (a resumed seed's seasons before the checkpoint are the run's that took it). */
   readonly seconds: number[];
   /** The rows (no timing in them: a resumed seed's rows are the unbroken walk's). */
@@ -349,6 +369,8 @@ interface CheckpointFile {
   readonly arm: CareerArm;
   readonly seasons: number;
   readonly fingerprint: string;
+  /** The aging options the walk played under (AB3), only when not the default; a resume plays under them. */
+  readonly aging?: AgingSwitches;
   readonly seasonsDone: number;
   readonly seconds: number[];
   readonly reader: CareerReaderState;
@@ -376,6 +398,11 @@ export interface CareerSeedOptions {
   readonly cacheDir: string;
   readonly fingerprint: string;
   readonly callerVersion?: CallerVersion;
+  /**
+   * The aging options (ADR-087 §12.1, AB3; settled), which the fingerprint must cover
+   * (`CareerFingerprintInput.aging`). Absent, the defaults.
+   */
+  readonly aging?: AgingSwitches;
   /** After each season played here, with its real seconds. */
   readonly onSeason?: (season: number, seconds: number) => void;
   /** Test hook: stop (throw `CareerCheckStopped`) once this many seasons are done and checkpointed. */
@@ -400,26 +427,51 @@ export function writeWhole(path: string, text: string): void {
   }
 }
 
-function readCheckpoint(path: string, o: CareerSeedOptions): CareerCheckpoint & { seconds: number[] } {
+function readCheckpoint(path: string, o: CareerSeedOptions): CareerCheckpoint & { seconds: number[]; aging: AgingSwitches } {
   const c = JSON.parse(readFileSync(path, "utf8")) as CheckpointFile;
+  const refuse = (what: string): never => {
+    throw new Error(`career check: the checkpoint ${path} is for another ${what}; remove it to start the seed again`);
+  };
+  // The plain fields first, so a checkpoint for another build is refused by name before its people are read.
   const mismatch = c.version !== CAREER_CHECK_VERSION ? "version" : c.seed !== o.seed ? "seed" : c.arm !== o.arm ? "arm"
     : c.seasons !== o.seasons ? "seasons" : c.fingerprint !== o.fingerprint ? "fingerprint" : undefined;
-  if (mismatch !== undefined) throw new Error(`career check: the checkpoint ${path} is for another ${mismatch}; remove it to start the seed again`);
-  return { seasonsDone: c.seasonsDone, people: decodePeople(c.people, c.sharedStaff), reader: c.reader, draft: c.draft, seconds: [...c.seconds] };
+  if (mismatch !== undefined) refuse(mismatch);
+  // AB3: the aging options it recorded, then (its people read) the ones the players' memory says the steps ran with.
+  const aging = agingFromRecord(c.aging as Readonly<Record<string, unknown>> | undefined);
+  if (!sameAging(aging, o.aging ?? {})) refuse("set of aging options");
+  const people = decodePeople(c.people, c.sharedStaff);
+  const ran = people.playerMemory?.switches;
+  if (ran !== undefined && !sameAging(agingFromRecord(ran), aging)) refuse("set of aging options");
+  return { seasonsDone: c.seasonsDone, people, reader: c.reader, draft: c.draft, seconds: [...c.seconds], aging };
 }
 
 /**
  * A record read from the cache, refused unless it is this check's version with rows of this rows
  * version: rows of two versions are never pooled or graded together (a record of version 5 lacks
  * version 6's rows, and its rows would read as no data in some rows and as values in others).
+ * A record of an older version is graded from a tree of that version (the v6 baseline, AB1's build
+ * 6b118e35f8d06440, from a version-6 tree), so the refusal says so; any other is played again.
  */
 export function checkRecordVersion(record: CareerSeedRecord, path: string): CareerSeedRecord {
   const v = (record as { version?: unknown }).version, rv = (record as { rows?: { version?: unknown } }).rows?.version;
-  if (v !== CAREER_CHECK_VERSION || rv !== CAREER_ROWS_VERSION) {
-    throw new Error(`career check: ${path} holds a record of check version ${String(v)} (rows version ${String(rv)}), not ${CAREER_CHECK_VERSION} (rows ${CAREER_ROWS_VERSION}); ` +
-      "records of two versions are never read together: play the seed again on this build");
-  }
+  if (v !== CAREER_CHECK_VERSION || rv !== CAREER_ROWS_VERSION) throw new CareerRecordVersionError(path, v, rv);
   return record;
+}
+
+/**
+ * A cached record of another check or rows version, as `checkRecordVersion` refuses it. `older`: its
+ * check version is a number under this tree's, so a tree of its own version can grade it.
+ */
+export class CareerRecordVersionError extends Error {
+  readonly older: boolean;
+  constructor(readonly path: string, readonly check: unknown, readonly rows: unknown) {
+    const older = typeof check === "number" && check < CAREER_CHECK_VERSION;
+    super(`career check: ${path} holds a record of check version ${String(check)} (rows version ${String(rows)}), not ${CAREER_CHECK_VERSION} (rows ${CAREER_ROWS_VERSION}); ` +
+      "records of two versions are never read together: " +
+      (older ? `grade it from a tree of check version ${String(check)} (check one out and grade there), or play the seed again on this build` : "play the seed again on this build"));
+    this.name = "CareerRecordVersionError";
+    this.older = older;
+  }
 }
 
 /**
@@ -431,14 +483,23 @@ export function runCareerSeed(o: CareerSeedOptions): { record: CareerSeedRecord;
   if (!Number.isInteger(o.seasons) || o.seasons < 1) throw new RangeError(`seasons must be a whole number, 1 or more, not ${o.seasons}`);
   mkdirSync(o.cacheDir, { recursive: true });
   const paths = careerCachePaths(o.cacheDir, o.arm, o.seed, o.seasons);
-  if (existsSync(paths.rows)) return { record: checkRecordVersion(JSON.parse(readFileSync(paths.rows, "utf8")) as CareerSeedRecord, paths.rows), from: "cache" };
+  if (existsSync(paths.rows)) {
+    const cached = checkRecordVersion(JSON.parse(readFileSync(paths.rows, "utf8")) as CareerSeedRecord, paths.rows);
+    if (!sameAging(agingFromRecord(cached.aging as Readonly<Record<string, unknown>> | undefined), o.aging ?? {})) {
+      throw new Error(`career check: ${paths.rows} was played under other aging options than these; its folder's fingerprint should have told them apart`);
+    }
+    return { record: cached, from: "cache" };
+  }
   const resume = existsSync(paths.checkpoint) ? readCheckpoint(paths.checkpoint, o) : undefined;
   const seconds: number[] = resume?.seconds ?? [];
   const callerVersion = o.callerVersion ?? DEFAULT_CALLER_VERSION;
+  // AB3: a resumed walk plays under the options its checkpoint recorded (checked against these above).
+  const aging: AgingSwitches = resume?.aging ?? o.aging ?? {};
+  const agingRecord = agingLabel(aging) === undefined ? {} : { aging };
   const rows = runCareerCheck({
     seed: o.seed, file: o.file, seasons: o.seasons,
     ...(o.callerVersion === undefined ? {} : { callerVersion: o.callerVersion }),
-    ...armInput(o.arm),
+    ...armInput(o.arm, aging),
     onYear: (y) => {
       seconds.push(y.seconds);
       o.onSeason?.(y.leagueYear - 1, y.seconds);
@@ -449,7 +510,7 @@ export function runCareerSeed(o: CareerSeedOptions): { record: CareerSeedRecord;
       if (cp.seasonsDone < o.seasons) {
         const encoded = encodePeople(cp.people);
         const file: CheckpointFile = {
-          version: CAREER_CHECK_VERSION, seed: o.seed, arm: o.arm, seasons: o.seasons, fingerprint: o.fingerprint,
+          version: CAREER_CHECK_VERSION, seed: o.seed, arm: o.arm, seasons: o.seasons, fingerprint: o.fingerprint, ...agingRecord,
           seasonsDone: cp.seasonsDone, seconds: [...seconds], reader: cp.reader, draft: cp.draft, ...encoded,
         };
         const text = JSON.stringify(file);
@@ -464,7 +525,7 @@ export function runCareerSeed(o: CareerSeedOptions): { record: CareerSeedRecord;
   });
   const record: CareerSeedRecord = {
     version: CAREER_CHECK_VERSION, seed: o.seed, arm: o.arm, seasons: o.seasons, firstSeason: o.file.season,
-    fingerprint: o.fingerprint, league: o.league, engineRules: CAREER_ENGINE_RULES, callerVersion, seconds, rows,
+    fingerprint: o.fingerprint, league: o.league, engineRules: CAREER_ENGINE_RULES, callerVersion, ...agingRecord, seconds, rows,
   };
   writeWhole(paths.rows, JSON.stringify(record));
   rmSync(paths.checkpoint, { force: true });
@@ -485,10 +546,38 @@ export function readCareerRecords(cacheDir: string, arm: CareerArm, seeds: reado
   return { records, missing };
 }
 
+/**
+ * The aging options a grade reads (ADR-087 AB3): every record's own (`CareerSeedRecord.aging`), which
+ * must all be one set. `asked` (settled) is what the grade was asked for: the typed flags, or for a
+ * grade of the tree's own build the defaults when none were typed; a record played under others is
+ * refused. With `asked` undefined (a `--build` grade with no aging flags) the records' own options are
+ * taken, so the report is named and headed by the rules its rows were played under.
+ */
+export function gradedAging(records: readonly Pick<CareerSeedRecord, "aging" | "arm" | "seed">[], asked: AgingSwitches | undefined): AgingSwitches {
+  let found: { aging: AgingSwitches; from: string } | undefined;
+  for (const r of records) {
+    const own = agingFromRecord(r.aging as Readonly<Record<string, unknown>> | undefined);
+    const from = `${r.arm}-${r.seed}`;
+    if (asked !== undefined && !sameAging(own, asked)) {
+      throw new Error(`career-check: ${from} was played under aging options ${agingLabel(own) ?? "position (the default)"}, not the ${agingLabel(asked) ?? "position (the default)"} asked for`);
+    }
+    if (found !== undefined && !sameAging(own, found.aging)) {
+      throw new Error(`career-check: the rows mix aging options (${found.from} ${agingLabel(found.aging) ?? "position"}, ${from} ${agingLabel(own) ?? "position"}); grade one set at a time`);
+    }
+    found ??= { aging: own, from };
+  }
+  return asked ?? found?.aging ?? {};
+}
+
 /** One build's folder in the cache: its finished rows by arm, and the versions its first finished record holds. */
 export interface CareerBuild {
   readonly fingerprint: string;
   readonly rows: Record<string, number>;
+  /**
+   * The aging options' name (`agingLabel`) the folder's first finished record played under (AB3):
+   * undefined at the defaults or with no finished record; `"unknown"` for options this version does not know.
+   */
+  readonly aging?: string;
   /**
    * The check version and rows version of the folder's first finished record (by file name), null
    * with no finished record; a field the record lacks, or a record that does not parse, reads null.
@@ -515,16 +604,22 @@ export function listCareerBuilds(cacheRoot: string): CareerBuild[] {
       first ??= f;
     }
     let version: CareerBuild["version"] = null;
+    let aging: string | undefined;
     if (first !== undefined) {
       const num = (x: unknown) => (typeof x === "number" ? x : null);
       try {
-        const r = JSON.parse(readFileSync(join(cacheRoot, fingerprint, first), "utf8")) as { version?: unknown; rows?: { version?: unknown } };
+        const r = JSON.parse(readFileSync(join(cacheRoot, fingerprint, first), "utf8")) as { version?: unknown; rows?: { version?: unknown }; aging?: unknown };
         version = { check: num(r?.version), rows: num(r?.rows?.version) };
+        try {
+          aging = agingLabel(agingFromRecord(r?.aging as Readonly<Record<string, unknown>> | undefined));
+        } catch {
+          aging = "unknown";
+        }
       } catch {
         version = { check: null, rows: null };
       }
     }
     const gradable = version !== null && version.check === CAREER_CHECK_VERSION && version.rows === CAREER_ROWS_VERSION;
-    return { fingerprint, rows, version, gradable };
+    return { fingerprint, rows, ...(aging === undefined ? {} : { aging }), version, gradable };
   });
 }

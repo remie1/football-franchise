@@ -99,11 +99,22 @@ export interface ReleaseResult {
  * guaranteed salary still owed. Before June 1 it all lands in this league year; after June 1 (or with
  * the designation) this year keeps only its own share and the rest lands next year.
  *
+ * A retirement (`reason: "RETIRED"`; ADR-087 §12.4.4, the money thread's answer to M1): he forfeits
+ * his salary, guaranteed or not, and every bonus not yet earned (roster, workout, per game). A bonus
+ * this league year has already earned stays charged, as a release charges it: the roster bonus once
+ * the league year has opened, the workout bonus from the summer on. Only the proration not yet
+ * counted accelerates (the signing bonus's and any option bonus's, void years' included), split at
+ * June 1 by the date alone (the post-June-1 designation is a release's, so it is not read), and
+ * nothing is clawed back (`springBonus.clawbackOnRetirement` is not modeled). It sends no
+ * `PLAYER_RELEASED`.
+ *
  * Simplification (ADR-085 §2): a player cut in season costs his whole season's cap number; the real
  * league pays non-vested players only for weeks already played.
  */
 export function releasePlayer(c: PlayerContract, at: CalendarStamp, opts: ReleaseOptions = {}): ReleaseResult {
   if (c.ended) throw new Error(`contract for ${c.player} already ended`);
+  const reason = opts.reason ?? "RELEASED";
+  if (reason === "RETIRED") return retiredFrom(c, at);
   const year = transactionYear(at);
   const postJune1 = isAfterJune1(at) || !!opts.designatedPostJune1;
   const thisYear = c.years.find((y) => y.season === year);
@@ -119,7 +130,6 @@ export function releasePlayer(c: PlayerContract, at: CalendarStamp, opts: Releas
   }
   const later = c.years.filter((y) => y.season > year)
     .reduce((s, y) => s + proration(y) + (y.voidYear ? 0 : guaranteedOf(y, opts.injured)), 0);
-  const reason = opts.reason ?? "RELEASED";
   const charges = [
     { season: year, amount: postJune1 ? now : now + later },
     { season: year + 1, amount: postJune1 ? later : 0 },
@@ -129,6 +139,45 @@ export function releasePlayer(c: PlayerContract, at: CalendarStamp, opts: Releas
     ? [{ type: "PLAYER_RELEASED", payload: { player: c.player, team: c.team, postJune1 } }]
     : [];
   return { contract, charges, events };
+}
+
+/**
+ * The bonuses of this league year's `y` already earned at `at`, which a retirement does not give back:
+ * the roster bonus once the league year has opened (not in OFF_EVAL, which counts in the coming year
+ * and is processed when it opens), the workout bonus from the summer on. These are a release's rules
+ * (`releasePlayer`'s offseason branch), so a retiring team saves no cap room on money already paid
+ * (confirmed by the money thread, ADR-087 §12.9's AB8 note). No moment falls in the regular season or
+ * the playoffs (ADR-087 §12.4.2), where the weeks already paid would count too; there both bonuses
+ * count as earned and nothing else does. The one definition: `retiredFrom` charges these, and
+ * retirement's money ahead (`players/retirement.ts` `cashOwed`) leaves them out, so the two agree.
+ */
+export function earnedBonuses(y: ContractYear, at: CalendarStamp): number {
+  const roster = at.phase === "OFF_EVAL" ? 0 : (y.rosterBonus ?? 0);
+  const workout = WORKOUT_EARNED.has(at.phase) ? (y.workoutBonus ?? 0) : 0;
+  return roster + workout;
+}
+/** Phases by which this league year's workout bonus has been earned. */
+const WORKOUT_EARNED: ReadonlySet<CalendarPhase> = new Set(["OFF_SUMMER", "TRAINING_CAMP", "PRESEASON", "REGULAR_SEASON", "PLAYOFFS"]);
+
+/**
+ * A retirement's money (ADR-087 §12.4.4; `releasePlayer` with `reason: "RETIRED"`): this league year's
+ * proration and every later year's (void years' too) become dead money, with this year's bonuses
+ * already earned (`earnedBonuses`), all in this league year before June 1, and this year's part now
+ * with the rest next year from June 1 on. No salary, no guarantee and no unearned bonus is charged:
+ * he forfeits them.
+ */
+function retiredFrom(c: PlayerContract, at: CalendarStamp): ReleaseResult {
+  const year = transactionYear(at);
+  const postJune1 = isAfterJune1(at);
+  const thisYear = c.years.find((y) => y.season === year);
+  const now = thisYear ? proration(thisYear) + earnedBonuses(thisYear, at) : 0;
+  const later = c.years.filter((y) => y.season > year).reduce((s, y) => s + proration(y), 0);
+  const charges = [
+    { season: year, amount: postJune1 ? now : now + later },
+    { season: year + 1, amount: postJune1 ? later : 0 },
+  ].filter((x) => x.amount > 0).map((x) => ({ team: c.team, player: c.player, reason: "RETIRED" as const, ...x }));
+  const contract: PlayerContract = { ...c, ended: { at, reason: "RETIRED", ...(postJune1 ? { postJune1: true } : {}) } };
+  return { contract, charges, events: [] };
 }
 
 /**

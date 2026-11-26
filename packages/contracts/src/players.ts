@@ -7,10 +7,11 @@ import type { CalendarStamp } from "./calendar.js";
 import type { DefensiveDisguiseTendency, StaffJob } from "./staff.js";
 
 /**
- * Ground truth. Only engine, attributes pipeline, and calibration consume this, plus four franchise
+ * Ground truth. Only engine, attributes pipeline, and calibration consume this, plus five franchise
  * steps until perception exists (ADR-087 §7): the development week, the injury draws (true
- * `durability`), the coordinators' read for the weekly depth chart (through their own blur) and the
- * morale step (true `volatility`).
+ * `durability`), the coordinators' read for the weekly depth chart (through their own blur), the
+ * morale step (true `volatility`) and the retirement review's rating-fall term (true overall,
+ * ADR-087 §12.4.3, NEW-1).
  */
 export interface TrueAttributes {
   readonly kind: "true";

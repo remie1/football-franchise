@@ -13,6 +13,14 @@
  * player's growth record, patience and combine record are left out, and with `injuries` off, his
  * copied injury, so a switched-off run (and an `--injuries`-only run's development) is exactly what
  * it was before the records existed. With `development` on, every player must have a growth record.
+ * His fade shifts (ADR-087 §12.2.3, P7, from `standin-development/2`) are read only with development
+ * on and `aging: "ability"` (§12.1), and then every growth record must hold all 12; at the default
+ * `aging` they are left out too, so a growth-on run is what it was before the file had them.
+ *
+ * Each man's real injuries before the league's first day (ADR-087 §12.3.7, P8, `condition.injuryHistory`,
+ * from `standin-development/3`) are read only with injuries on and `injuryRisk: "spot"`, where franchise
+ * seeds them into its injury memory once, and then each record is checked (`assertInjuryHistory`); on
+ * every other run they are left out, so a group-path run is what it was before the file had them.
  *
  * The practice squads (the file's `provenance.practiceSquad`) go on the teams only with a switch on
  * (ADR-087 §11): a team short of a player calls one up before it signs from the street. Switched off,
@@ -28,7 +36,10 @@
  * `{ id, referee, leans }`, so nothing else from the file rides into a season. Only a season that
  * asks for crews plays them (`officiatingFor`); the rated league never sees them.
  */
-import { officiatingCrewId, type CrewLeanFamily, type OfficiatingCrew, type PlayerId, type PlayerState, type RatedLeague, type Team } from "@ff/contracts";
+import {
+  ABILITY_GROUPS, CALENDAR_PHASE_ORDER, compareStamps, officiatingCrewId,
+  type CalendarStamp, type CrewLeanFamily, type OfficiatingCrew, type PlayerId, type PlayerState, type RatedLeague, type Team,
+} from "@ff/contracts";
 import type { League } from "@ff/franchise";
 import { makeProvenancedLeague, type ProvenancedLeague } from "../league/provenance.js";
 
@@ -40,9 +51,23 @@ export const STANDIN_FILE_FORMAT = "ff-standin-league/1";
  * The starting-development records `forSwitches` knows how to leave out (the file's
  * `startingDevelopment.version`, attributes' `STARTING_DEVELOPMENT_VERSION`, copied, since
  * calibration may not import it). A file with any other version is refused: records this loader does
- * not know would reach a switched-off run.
+ * not know would reach a switched-off run. `/2` (ADR-087 AB2) adds each player's `fadeShift` to his
+ * growth record, which `forSwitches` leaves out unless development is on with `aging: "ability"`. `/3`
+ * (AB7) adds each man's `condition.injuryHistory` (P8), which it leaves out unless injuries are on with
+ * `injuryRisk: "spot"`.
  */
-export const KNOWN_STARTING_DEVELOPMENT = ["standin-development/1"] as const;
+export const KNOWN_STARTING_DEVELOPMENT = ["standin-development/1", "standin-development/2", "standin-development/3"] as const;
+
+/**
+ * The 17 kinds a P8 record may carry (attributes' `REAL_INJURY_KINDS`, copied, since calibration may not
+ * import it; pinned against the shared fixture's `kinds` in `injurySpellRules.test.ts`): `real:` and each of
+ * `injuries/classify.ts`'s body-part classes, "/" written "-".
+ */
+export const REAL_INJURY_KINDS = [
+  "real:knee", "real:ankle", "real:hamstring", "real:concussion-head", "real:shoulder", "real:groin-hip", "real:foot-toe",
+  "real:calf-shin", "real:achilles", "real:quad-thigh", "real:back-neck", "real:hand-wrist", "real:elbow-arm",
+  "real:chest-ribs-abdomen", "real:illness", "real:other", "real:unknown",
+] as const;
 
 /**
  * The officials blocks this loader knows (the file's `officiating.version`, attributes'
@@ -83,6 +108,17 @@ interface StandInFile {
 export interface StandInSwitches {
   readonly development?: boolean;
   readonly injuries?: boolean;
+  /**
+   * ADR-087 §12.1: how the players age, `"position"` (absent: the default) or `"ability"`. Acts only
+   * with `development` on: then `"ability"` keeps each player's fade shifts and needs all 12 on
+   * every growth record. AB2 reads it here alone; the season's own steps take it at AB3.
+   */
+  readonly aging?: "position" | "ability";
+  /**
+   * ADR-087 AB5: injury risk by the listed group (`"group"`, absent: the default) or by the depth-chart
+   * spot (`"spot"`). AB7: only `"spot"` with injuries on keeps each man's past injuries (P8).
+   */
+  readonly injuryRisk?: "group" | "spot";
 }
 
 /**
@@ -202,7 +238,40 @@ function readOfficials(block: unknown, season: number): StandInOfficiating {
   };
 }
 
-/** A player as a run with these switches sees him: what a switched-off step would read, left out. */
+/** The values `StandInSwitches.aging` may take; absent is `"position"`. */
+export const STAND_IN_AGING = ["position", "ability"] as const;
+
+/**
+ * Throws unless `aging` is absent, `"position"` or `"ability"`. `forSwitches` reads anything but
+ * `"ability"` as the default, so a misspelled value (from a flag or a file) would play the position
+ * path silently; it is refused here instead.
+ */
+export function assertAging(aging: unknown): void {
+  if (aging !== undefined && !(STAND_IN_AGING as readonly unknown[]).includes(aging)) {
+    throw new SyntaxError(`aging is "position" or "ability", not ${JSON.stringify(aging)}`);
+  }
+}
+
+/** The values `StandInSwitches.injuryRisk` may take; absent is `"group"`. */
+export const STAND_IN_INJURY_RISK = ["group", "spot"] as const;
+
+/** Throws unless `injuryRisk` is absent, `"group"` or `"spot"`: a misspelled value would play the group path silently. */
+export function assertInjuryRisk(injuryRisk: unknown): void {
+  if (injuryRisk !== undefined && !(STAND_IN_INJURY_RISK as readonly unknown[]).includes(injuryRisk)) {
+    throw new SyntaxError(`injuryRisk is "group" or "spot", not ${JSON.stringify(injuryRisk)}`);
+  }
+}
+
+/** Whether a run with these switches reads P8 (ADR-087 AB7): injuries on, on the spot path. */
+export const readsPastInjuries = (switches: StandInSwitches | undefined): boolean => switches?.injuries === true && switches.injuryRisk === "spot";
+
+/**
+ * A player as a run with these switches sees him: what a switched-off step would read, left out.
+ * Development off takes off his whole growth record (his fade shifts with it); development on at the
+ * default `aging` takes off only his fade shifts, which nothing but the ability path reads. Injuries off
+ * take off his copied injury and his past injuries (P8) together; injuries on keep the past injuries only
+ * on the spot path.
+ */
 export function forSwitches(p: PlayerState, switches: StandInSwitches | undefined): PlayerState {
   let out = p;
   if (switches?.development !== true) {
@@ -210,18 +279,88 @@ export function forSwitches(p: PlayerState, switches: StandInSwitches | undefine
     const { patience: _p, ...personality } = out.personality;
     const { combine: _c, ...bio } = out.bio;
     out = { ...out, bio, attributes, personality };
+  } else if (switches.aging !== "ability" && out.attributes.development?.fadeShift !== undefined) {
+    const { fadeShift: _f, ...development } = out.attributes.development;
+    out = { ...out, attributes: { ...out.attributes, development } };
   }
   if (switches?.injuries !== true) {
-    const { injury: _i, ...condition } = out.condition;
+    const { injury: _i, injuryHistory: _h, ...condition } = out.condition;
+    out = { ...out, condition };
+  } else if (!readsPastInjuries(switches) && out.condition.injuryHistory !== undefined) {
+    const { injuryHistory: _h, ...condition } = out.condition;
     out = { ...out, condition };
   }
   return out;
 }
 
+const RECORD_KEYS = ["kind", "weeks", "since", "healed"];
+const STAMP_KEYS = ["season", "phase", "week", "day"];
+const exactly = (o: unknown, keys: readonly string[]): boolean => {
+  if (o === null || typeof o !== "object") return false;
+  const k = Object.keys(o);
+  return k.length === keys.length && keys.every((x) => k.includes(x));
+};
+const stampOk = (s: unknown): s is CalendarStamp => exactly(s, STAMP_KEYS) && CALENDAR_PHASE_ORDER.includes((s as CalendarStamp).phase)
+  && [(s as CalendarStamp).season, (s as CalendarStamp).week, (s as CalendarStamp).day].every((x) => Number.isInteger(x))
+  && (s as CalendarStamp).week >= 1 && (s as CalendarStamp).day >= 1 && (s as CalendarStamp).day <= 7;
+
+/**
+ * Throws unless every man's past injuries (P8) are records this loader knows (ADR-087 AB7): exactly
+ * the four keys, a kind of the 17, whole weeks of 1 or more, valid stamps with `since` no later than
+ * `healed`, every stamp before the league's first day `{season, TRAINING_CAMP, 1, 1}` and none at the
+ * copied injury's `{season − 1, OFF_SUMMER, 1, 1}` (so franchise's `heal` never takes a record for it),
+ * oldest first. The message names the check and the stand-in id, never a value.
+ */
+export function assertInjuryHistory(players: readonly PlayerState[], season: number): void {
+  const first: CalendarStamp = { season, phase: "TRAINING_CAMP", week: 1, day: 1 };
+  const copied: CalendarStamp = { season: season - 1, phase: "OFF_SUMMER", week: 1, day: 1 };
+  const kinds = REAL_INJURY_KINDS as readonly string[];
+  for (const p of players) {
+    const records = p.condition.injuryHistory;
+    if (records === undefined) continue;
+    const id = String(p.bio.id);
+    const bad = (why: string) => new Error(`the stand-in league file's past injuries (P8) of ${id}: ${why}; re-run attributes' standin-injuries on this file`);
+    if (!Array.isArray(records) || records.length === 0) throw bad("not a non-empty list");
+    for (let i = 0; i < records.length; i++) {
+      const r = records[i]!;
+      if (!exactly(r, RECORD_KEYS)) throw bad("a record without exactly kind, weeks, since and healed");
+      if (!kinds.includes(r.kind)) throw bad("a record whose kind is not one of the 17 classes");
+      if (!Number.isInteger(r.weeks) || r.weeks < 1) throw bad("a record whose weeks is not a whole number of 1 or more");
+      if (!stampOk(r.since) || !stampOk(r.healed)) throw bad("a record with an invalid stamp");
+      if (compareStamps(r.since, r.healed) > 0) throw bad("a record healed before it began");
+      if (compareStamps(r.healed, first) >= 0) throw bad("a record on or after the league's first day");
+      if (compareStamps(r.since, copied) === 0 || compareStamps(r.healed, copied) === 0) throw bad("a record stamped as the copied injury is");
+      const prev = records[i - 1];
+      if (prev !== undefined && (compareStamps(prev.since, r.since) || compareStamps(prev.healed, r.healed) || (prev.kind < r.kind ? -1 : prev.kind > r.kind ? 1 : 0)) > 0) {
+        throw bad("records not oldest first");
+      }
+    }
+  }
+}
+
+/**
+ * The season command's one line on P8 (ADR-087 AB7, stdout only): on a stand-in run that reads it
+ * (`readsPastInjuries`), how many men's histories franchise seeds, or that the file has none. None on
+ * any other run.
+ */
+export function pastInjuriesLine(
+  file: Pick<StandInFile, "league" | "startingDevelopment"> | undefined, switches: StandInSwitches | undefined,
+): string | undefined {
+  if (file === undefined || !readsPastInjuries(switches)) return undefined;
+  const men = file.league.players.filter((p) => (p.condition.injuryHistory?.length ?? 0) > 0).length;
+  return men > 0
+    ? `Past injuries (P8): ${men} men's histories, seeded into injury memory once`
+    : `Past injuries (P8): none in this league file (${file.startingDevelopment?.version ?? "no starting development"})`;
+}
+
 const finite = (x: unknown): boolean => typeof x === "number" && Number.isFinite(x);
 
-/** Throws unless every player can grow: a finite growth rate and career snaps, and all four body numbers. */
-function assertGrowthRecords(players: readonly PlayerState[]): void {
+/**
+ * Throws unless every player can grow: a finite growth rate and career snaps, and all four body
+ * numbers; with `aging: "ability"`, a finite fade shift for each of the 12 ability groups too
+ * (ADR-087 §12.2.3; a file before `standin-development/2` has none).
+ */
+function assertGrowthRecords(players: readonly PlayerState[], aging: StandInSwitches["aging"]): void {
   const missing = players.filter((p) => {
     const d = p.attributes.development;
     return d === undefined || !finite(d.growth) || !finite(d.snaps) || d.body === undefined
@@ -230,6 +369,15 @@ function assertGrowthRecords(players: readonly PlayerState[]): void {
   if (missing.length > 0) {
     throw new Error(`the stand-in league file's players have no growth records (${missing.length} of ${players.length}, first ${String(missing[0]!.bio.id)}); ` +
       "no growth records; run standin-development (pnpm --filter @ff/attributes standin-development)");
+  }
+  if (aging !== "ability") return;
+  const unshifted = players.filter((p) => {
+    const shift = p.attributes.development!.fadeShift;
+    return shift === undefined || ABILITY_GROUPS.some((g) => !finite(shift[g]));
+  });
+  if (unshifted.length > 0) {
+    throw new Error(`the stand-in league file's players have no fade shifts for every ability group (${unshifted.length} of ${players.length}, ` +
+      `first ${String(unshifted[0]!.bio.id)}); aging "ability" needs all 12; run standin-development (pnpm --filter @ff/attributes standin-development)`);
   }
 }
 
@@ -300,6 +448,8 @@ export function standInPracticeSquads(file: Pick<StandInFile, "league">): Map<st
  * both off, no team has one, as before.
  */
 export function buildStandInLeague(base: League, file: StandInFile, switches?: StandInSwitches): { league: League; rated: StandInLeague } {
+  assertAging(switches?.aging);
+  assertInjuryRisk(switches?.injuryRisk);
   const byId = new Map(file.league.teams.map((t) => [String(t.id), t]));
   const switched = switches?.development === true || switches?.injuries === true;
   const squads = switched ? standInPracticeSquads(file) : undefined;
@@ -310,7 +460,8 @@ export function buildStandInLeague(base: League, file: StandInFile, switches?: S
     return { ...t, displayName: s.displayName, city: s.city, roster: s.roster, depthChart: s.depthChart, ...(practiceSquad ? { practiceSquad } : {}) };
   });
   const players = file.league.players.map((p) => forSwitches(p, switches));
-  if (switches?.development === true) assertGrowthRecords(players);
+  if (switches?.development === true) assertGrowthRecords(players, switches.aging);
+  if (readsPastInjuries(switches)) assertInjuryHistory(players, file.season);
   const rated = makeProvenancedLeague(
     "REAL_STAND_IN",
     `standin-${file.snapshotDate}`,

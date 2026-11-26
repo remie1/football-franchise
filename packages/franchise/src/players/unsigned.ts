@@ -168,9 +168,14 @@ export function unsignedDay(input: UnsignedInput): UnsignedResult {
 
 /**
  * Take retired players out of the steps' memory: their injury history and grades, any position battle's
- * list, any injured-starter record of theirs and any weeks-in-job count (key `team/position/player`).
+ * list, any injured-starter record of theirs, any weeks-in-job count (key `team/position/player`), when
+ * he became unsigned (`unsignedSince`), and (ADR-087 §12.4.4, AB8) his starts and last review
+ * (`starts`, `lastReview`) and his contact taken (`contact`, AB6's wear count, kept only on the ability
+ * path), each only where the memory holds it: a field the memory lacks stays absent, so a memory
+ * without them comes back with the same keys. Used by the unsigned rule here and by retirement by
+ * choice (`retirement.ts`).
  */
-function forget(memory: PlayerMemory, gone: ReadonlySet<string>): PlayerMemory {
+export function forget(memory: PlayerMemory, gone: ReadonlySet<string>): PlayerMemory {
   const drop = <T>(record: Record<string, T>): Record<string, T> =>
     Object.fromEntries(Object.entries(record).filter(([id]) => !gone.has(id)));
   return {
@@ -180,5 +185,10 @@ function forget(memory: PlayerMemory, gone: ReadonlySet<string>): PlayerMemory {
     battles: memory.battles.map((b) => (b.players.some((id) => gone.has(String(id))) ? { ...b, players: b.players.filter((id) => !gone.has(String(id))) } : b)),
     injuredStarters: memory.injuredStarters.filter((s) => !gone.has(String(s.player))),
     weeksInJob: Object.fromEntries(Object.entries(memory.weeksInJob).filter(([k]) => !gone.has(k.split("/").slice(2).join("/")))),
+    unsignedSince: drop(memory.unsignedSince),
+    // ADR-087 §12.3.6 (AB6): his contact count, where one is kept (the ability path); absent stays absent.
+    ...(memory.contact === undefined ? {} : { contact: drop(memory.contact) }),
+    ...(memory.starts === undefined ? {} : { starts: drop(memory.starts) }),
+    ...(memory.lastReview === undefined ? {} : { lastReview: drop(memory.lastReview) }),
   };
 }

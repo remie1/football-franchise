@@ -4,20 +4,27 @@
  * Each spring, about 900 made-up college players: about 260 are drafted, several hundred more sign
  * undrafted to fill 90-man offseason rosters, and the rest go home. Each prospect is made the way a
  * league player is (generate.ts): a hidden talent, measurements from his position's body, ratings on
- * ADR-079's absolute scale. Prospects are 21 to 23 and carry draft status "PROSPECT".
+ * ADR-079's absolute scale. Prospects are 21 to 23 and carry draft status "PROSPECT" (with growth on
+ * and the `aging` option at `"ability"`, 20 to 25 by ADR-087 §12.5's draft-day shares, below).
  *
  * The position mix follows a roster's shape; each class's overall strength and its depth at each
  * position wobble a little from year to year. Same seed and draft year → the same class.
  *
  * Growth is ADR-087's: with `development` on, each prospect also gets his growth rate, body and
  * patience, and his combine drills go on his bio (P2), from another fork of his own
- * (`development/<player id>`, `development.ts`). His talent is drawn from the growth-on class talent
- * (`PROSPECT_TALENT_WITH_GROWTH`, D5b), from the same draw, so switching it on moves no name,
+ * (`development/<player id>`, `development.ts`); with the `aging` option at `"ability"` too, his
+ * fade shifts (§12.2.3), on that fork's `"aging"` fork. His talent is drawn from the growth-on class
+ * talent (`PROSPECT_TALENT_WITH_GROWTH`, D5b), from the same draw, so switching it on moves no name,
  * position or age here; only the ratings that follow from his talent.
+ *
+ * Rookie ages (ADR-087 §12.5, AB4): with growth on and `aging` at `"ability"`, his age is drawn on his
+ * development stream's `"age"` fork, linked to his talent so the less talented, who go undrafted, run
+ * older (`drawRookieAge`). Today's `21 + rng.int(0, 2)` is still drawn, and thrown away, so every value
+ * after it in his stream is unchanged; every other field of the class is what `"position"` makes.
  */
 import { createRng, playerId, type DraftClass, type PlayerState, type Position, type Rng } from "@ff/contracts";
 import type { Measurements } from "./derive.js";
-import { withDevelopment } from "./development.js";
+import { drawRookieAge, ROOKIE_AGE, withDevelopment, type AgingOption } from "./development.js";
 import { gauss, measure, overallAt, rateAttributes } from "./generate.js";
 import { drawName } from "./names.js";
 import { POSITION_ORDER, ROSTER_SHAPE, ROSTER_SIZE } from "./shape.js";
@@ -54,6 +61,12 @@ export interface GenerateDraftClassInput {
   readonly usedNames?: ReadonlySet<string>;
   /** ADR-087: give each prospect his development record (P1, no snaps), combine record (P2) and patience (P6). Off by default. */
   readonly development?: boolean;
+  /**
+   * ADR-087 §12.1: how the prospects age. `"ability"` gives each his fade shifts (P7) and §12.5's
+   * rookie age (AB4); `"position"`, the default, gives none, and the class is exactly what it was
+   * before the option. Acts only with `development` on.
+   */
+  readonly aging?: AgingOption;
 }
 
 export interface GeneratedDraftClass {
@@ -84,24 +97,32 @@ export function generateDraftClass(input: GenerateDraftClassInput): GeneratedDra
   for (const p of POSITION_ORDER) depth[p] = CLASS_WOBBLE.position * gauss(root.fork(`depth/${p}`));
 
   const classTalent = input.development ? PROSPECT_TALENT_WITH_GROWTH : PROSPECT_TALENT;
+  // ADR-087 §12.5 (AB4): rookie ages by the draft-day shares, with growth on only.
+  const ability = input.development === true && input.aging === "ability";
   const players: PlayerState[] = [];
   const combine: Record<string, Measurements> = {};
   const overall: Record<string, number> = {};
   for (let i = 0; i < size; i++) {
     const rng = root.fork(`prospect/${i}`);
     const position = drawPosition(rng);
-    const talent = classTalent.mean + yearLevel + depth[position]! + classTalent.sd * gauss(rng);
+    // His talent's own standard score: the copula's z_talent (§12.5), with no class year or position depth in it.
+    const talentZ = gauss(rng);
+    const talent = classTalent.mean + yearLevel + depth[position]! + classTalent.sd * talentZ;
     const m = measure(rng, position, talent);
     const ratings = rateAttributes(rng, position, talent, m);
     const id = playerId(`d:${input.draft}:${String(i).padStart(4, "0")}`);
     combine[String(id)] = m;
     overall[String(id)] = overallAt(position, ratings);
+    const displayName = drawName(rng, used);
+    // Today's age draw, made on either path in its place in his stream (thrown away under "ability").
+    const drawnAge = 21 + rng.int(0, 2);
+    const age = ability ? drawRookieAge(root.fork(`development/${String(id)}`).fork("age"), talentZ, ROOKIE_AGE) : drawnAge;
     const prospect: PlayerState = {
       bio: {
         id,
-        displayName: drawName(rng, used),
+        displayName,
         position,
-        age: 21 + rng.int(0, 2),
+        age,
         heightIn: m.heightIn,
         weightLb: m.weightLb,
         draft: "PROSPECT",
@@ -112,7 +133,9 @@ export function generateDraftClass(input: GenerateDraftClassInput): GeneratedDra
       personality: { needs: {}, type: "quiet" },
     };
     players.push(input.development
-      ? withDevelopment(prospect, root.fork(`development/${String(id)}`), { measurements: m })
+      ? withDevelopment(prospect, root.fork(`development/${String(id)}`), {
+        measurements: m, ...(input.aging === "ability" ? { aging: "ability" as const } : {}),
+      })
       : prospect);
   }
   return { draftClass: { draft: input.draft, prospects: players.map((p) => p.bio.id) }, players, combine, overall };

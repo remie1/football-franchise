@@ -15,7 +15,7 @@ import {
   type UsageCell,
 } from "../src/season/careerCheck.js";
 import {
-  agingRedesignRows, bandCounts, CAREER_BANDS, groupSeasonReference, NFL_ROOKIE_CUTS, PLAN_WINDOWS, signedAgainCounts, WEEK_EIGHT_LEAGUE_YEARS, expectedCareer, familyLabel, gradeCareerCheck, gradeCheck,
+  agingRedesignRows, bandCounts, CAREER_BANDS, gradedLeague, groupSeasonReference, NFL_ROOKIE_CUTS, PLAN_WINDOWS, signedAgainCounts, WEEK_EIGHT_LEAGUE_YEARS, expectedCareer, familyLabel, gradeCareerCheck, gradeCheck,
   medianOf, notResolvable, outsideBand, poolSeeds, renderGradeJson, renderGradeMarkdown, rowStatus, slopeOf, trendShare, weekEightLeagueReference, type BandRule, type CareerGrade,
   type GradeInput, type NflRookieCuts,
 } from "../src/season/careerGrade.js";
@@ -47,6 +47,7 @@ function picture(k: Knobs): RosterPicture {
     noCreditShare: 0.17,
     undraftedShare: 0.274,
     rookieAge: { n: 270, mean: 22.67, histogram: { "21": 35, "22": 85, "23": 96, "24": 45, "25": 9 } },
+    rookieAgeByDraft: { drafted: { n: 200, mean: 22.52, histogram: {} }, undrafted: { n: 70, mean: 23.14, histogram: {} } },
   };
 }
 
@@ -735,6 +736,16 @@ describe("the grade on made-up seeds", () => {
     expect(gradeCareerCheck(passingInput(passing(), { meta: { ...meta, smoke: true } })).flip.recommended).toBe(false);
   });
 
+  it("names the new rules the rows were played under on the Aging line: ability, spot, both, and none at the defaults (AB3, AB5)", () => {
+    const line = (aging?: string) => renderGradeMarkdown(gradeCareerCheck(input(steady(), { meta: { ...meta, ...(aging ? { aging } : {}) } })))
+      .split("\n").find((l) => l.startsWith("**Aging:**"));
+    expect(line()).toBeUndefined();
+    expect(line("ability")).toBe("**Aging:** the players aged by ability group, not by position (ADR-087 §12), under `ability`, as the rows' records name it.");
+    expect(line("spot")).toBe("**Aging:** injury risk followed the depth-chart spot, with the measured age factor (§12.3.1-12.3.2) (ADR-087 §12), under `spot`, as the rows' records name it.");
+    expect(line("ability-B-spot")).toBe("**Aging:** the players aged by ability group, not by position; injury risk followed the depth-chart spot, " +
+      "with the measured age factor (§12.3.1-12.3.2) (ADR-087 §12), under `ability-B-spot`, as the rows' records name it.");
+  });
+
   it("lists the checks the reference's own SE leaves unresolvable, even with no sim value", () => {
     const g = gradeCareerCheck(input(steady()));
     const ids = g.unresolvable.map((u) => u.split(":")[0]);
@@ -765,6 +776,40 @@ describe("the grade on made-up seeds", () => {
     const json = JSON.parse(renderGradeJson(a)) as { bands: unknown[]; rows: unknown[] };
     expect(json.bands).toHaveLength(CAREER_BANDS.length);
     expect(json.rows).toHaveLength(CAREER_BANDS.length);
+  });
+});
+
+describe("the league a grade names: the one the rows were played on (gradedLeague)", () => {
+  // ADR-087 AB2 rewrote the league file at /2 while the AB1 baseline played on /1: a --build grade of
+  // those rows from a later tree must name /1's file, as the rows' own records do.
+  const v1 = { path: "packages/attributes/leagues/standin-2026-10-23.json", sha256: "b".repeat(64) };
+  const v2 = { path: "packages/attributes/leagues/standin-2026-10-23.json", sha256: "c".repeat(64) };
+  const rec = (seed: string, arm: string, league: { path: string; sha256: string }) => ({ seed, arm, league });
+
+  it("reads the league from the records, not the tree's file, and names the tree's file beside it when they differ", () => {
+    const played = gradedLeague([rec("d5b-g1", "both", v1), rec("d5b-t1", "incumbent", v1)], v2);
+    expect(played).toEqual({ league: v1, treeLeague: v2 });
+    // The same file: no second name.
+    expect(gradedLeague([rec("d5b-g1", "both", v2)], v2)).toEqual({ league: v2 });
+    // The path is the records' too (a record names the path it was played from).
+    expect(gradedLeague([rec("d5b-g1", "both", { path: "old/league.json", sha256: v2.sha256 })], v2).league.path).toBe("old/league.json");
+  });
+
+  it("refuses rows played on two league files", () => {
+    expect(() => gradedLeague([rec("d5b-g1", "both", v1), rec("d5b-t2", "form", v2)], v2)).toThrow(/two league files: both-d5b-g1 .* form-d5b-t2/);
+  });
+
+  it("falls back to the tree's file with no record (every seed missing)", () => {
+    expect(gradedLeague([], v2)).toEqual({ league: v2 });
+  });
+
+  it("puts the rows' league in the report's header, and the tree's beside it only when they differ", () => {
+    const old = renderGradeMarkdown(gradeCareerCheck(input(steady(), { meta: { ...meta, ...gradedLeague([rec("s1", "both", v1)], v2) } })));
+    expect(old).toContain(`sha256 \`${v1.sha256.slice(0, 12)}\`, as the rows' records name it), not the tree's file now`);
+    expect(old).toContain(`sha256 \`${v2.sha256.slice(0, 12)}\``);
+    const same = renderGradeMarkdown(gradeCareerCheck(input(steady())));
+    expect(same).toContain(`sha256 \`${meta.league.sha256.slice(0, 12)}\`, as the rows' records name it), 20 seasons a seed`);
+    expect(same).not.toContain("not the tree's file now");
   });
 });
 
@@ -905,6 +950,41 @@ describe("the rows added for the owner's aging rulings (rows version 5)", () => 
     const nfl = gradeCareerCheck(passingInput(withNfl(passing(), (p) => ({ ...p, rookieAge: { n: 10, mean: 24, histogram: { "24": 10 } } }))));
     expect(check(nfl, "rookie-age", "mean age (whole years)").sim).toBe(24);
     expect(check(nfl, "rookie-age", "share age24").sim).toBe(1);
+    // By draft status (rows version 7): the gap against the real fractional gap; the means against the real ones less the pooled offset.
+    const rk = NFL_CAREERS.weekEight.rookieAge;
+    expect(check(g, "rookie-age", "undrafted less drafted (years)")).toMatchObject({
+      sim: expect.closeTo(0.62, 12), ref: expect.closeTo(rk.undraftedMeanFractional - rk.draftedMeanFractional, 12), halfWidth: 0.2, status: "PASS",
+    });
+    expect(check(g, "rookie-age", "undrafted less drafted (years)").seRef).toBeCloseTo(rk.sd * Math.sqrt(1 / rk.draftedN + 1 / rk.undraftedN), 12);
+    expect(check(g, "rookie-age", "drafted, mean age (whole years)")).toMatchObject({
+      sim: expect.closeTo(22.52, 12), ref: expect.closeTo(rk.draftedMeanFractional - (rk.meanFractional - rk.meanWhole), 12), halfWidth: 0.3,
+    });
+    expect(check(g, "rookie-age", "undrafted, mean age (whole years)").ref).toBeCloseTo(rk.undraftedMeanFractional - (rk.meanFractional - rk.meanWhole), 12);
+    expect(check(g, "rookie-age", "undrafted less drafted (years), later window 2033-2045").status).toBe("REPORTED");
+    // The drafted share of the rookies, from the same counts, against REAL's 1,442 of 1,891 (76.3%), ±5 pts.
+    const realDrafted = rk.draftedN / (rk.draftedN + rk.undraftedN);
+    expect(realDrafted).toBeCloseTo(1442 / 1891, 12);
+    expect(check(g, "rookie-age", "drafted share of the rookies")).toMatchObject({
+      sim: expect.closeTo(200 / 270, 12), ref: expect.closeTo(realDrafted, 12), halfWidth: 0.05, status: "PASS",
+    });
+    expect(check(g, "rookie-age", "drafted share of the rookies").seRef).toBeCloseTo(Math.sqrt((realDrafted * (1 - realDrafted)) / 1891), 12);
+    expect(check(g, "rookie-age", "drafted share of the rookies, later window 2033-2045").status).toBe("REPORTED");
+    // Pooled over the men of a seed's window (2029-45), not the mean of its seasons' gaps: the 8 even years hold
+    // 300 drafted at 22 and 100 undrafted at 23, the 9 odd years 100 of each at 23. Drafted (8·300·22 + 9·100·23) /
+    // 3,300 = 22.2727, so the gap is 0.7273 (the seasons' gaps would average 8/17 = 0.47).
+    const tally = (n: number, mean: number) => ({ n, mean, histogram: {} });
+    const split = gradeCareerCheck(passingInput(new Map([...passing()].map(([s, r]) => [s, {
+      ...r, perSeason: r.perSeason.map((x) => ({
+        ...x, week8Nfl: x.week8 === null ? undefined : {
+          ...x.week8, rookieAgeByDraft: x.season % 2 === 0 ? { drafted: tally(300, 22), undrafted: tally(100, 23) } : { drafted: tally(100, 23), undrafted: tally(100, 23) },
+        },
+      })),
+    } as CareerCheckRows]))));
+    expect(check(split, "rookie-age", "drafted, mean age (whole years)").sim).toBeCloseTo(73500 / 3300, 12);
+    expect(check(split, "rookie-age", "undrafted, mean age (whole years)").sim).toBeCloseTo(23, 12);
+    expect(check(split, "rookie-age", "undrafted less drafted (years)").sim).toBeCloseTo(23 - 73500 / 3300, 12);
+    // The share pooled the same way: (8·300 + 9·100) drafted of (8·400 + 9·200) = 3,300 of 5,000.
+    expect(check(split, "rookie-age", "drafted share of the rookies").sim).toBeCloseTo(3300 / 5000, 12);
     expect(check(g, "availability", "upTo25")).toMatchObject({ sim: expect.closeTo(0.9, 12), ref: null, status: "REPORTED" });
     expect(check(g, "availability", "from33").sim).toBeCloseTo(0.8, 12);
     expect(check(g, "availability", "every age").sim).toBeCloseTo(1 - 20 / 150, 12);

@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { ATTRIBUTE_REGISTRY_V1, teamId, type PlayerState, type Position, type RatedLeague, type Team } from "@ff/contracts";
-import { generateLeagueRosters, overallAt, ROSTER_SHAPE, ROSTER_SIZE, type FictionalProvenance } from "../src/index.js";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { ATTRIBUTE_REGISTRY_V1, createRng, teamId, type PlayerState, type Position, type RatedLeague, type Team } from "@ff/contracts";
+import {
+  drawRookieAge, generateLeagueRosters, overallAt, ROOKIE_AGE, ROOKIE_AGE_ON_53, ROSTER_SHAPE, ROSTER_SIZE, type FictionalProvenance,
+} from "../src/index.js";
+import { gauss, measure, SLOT_TALENT } from "../src/fictional/generate.js";
 
 const teams: Team[] = Array.from({ length: 32 }, (_, i) => ({
   id: teamId(`T${String(i + 1).padStart(2, "0")}`),
@@ -118,5 +123,193 @@ describe("generateLeagueRosters (ADR-079)", () => {
     expect(strip(generateLeagueRosters({ seed: "rosters-1", season: 2027, teams }))).toBe(strip(league));
     const other = generateLeagueRosters({ seed: "rosters-2", season: 2027, teams });
     expect(other.players.map((p) => p.bio.displayName)).not.toEqual(league.players.map((p) => p.bio.displayName));
+  });
+});
+
+// --- ADR-087 §12.5 and §12.2.6 (AB4): the made-up league's ages with growth on and aging "ability" ---
+
+describe("the made-up league's ages under aging \"ability\" (ADR-087 §12.5, §12.2.6; AB4)", () => {
+  const KICKING = new Set<Position>(["K", "P", "LS"]);
+  const SEASON = 2027;
+  const leagues = Array.from({ length: 20 }, (_, k) => `ages-${k + 1}`).map((seed) => ({
+    seed,
+    ability: generateLeagueRosters({ seed, season: SEASON, teams, development: true, aging: "ability" }),
+    position: generateLeagueRosters({ seed, season: SEASON, teams, development: true, aging: "position" }),
+    off: generateLeagueRosters({ seed, season: SEASON, teams }),
+  }));
+  /** Each man under "ability" beside himself under "position" (the same ids, in the same order). */
+  const pairs = leagues.flatMap((l) => l.ability.players.map((a, i) => ({ a, p: l.position.players[i]! })));
+  const rookie = (p: PlayerState) => p.bio.creditedSeasons === 0;
+  const mean = (xs: readonly number[]) => xs.reduce((s, x) => s + x, 0) / xs.length;
+
+  it("pairs each man with himself: the same id, name and position under either option", () => {
+    expect(pairs).toHaveLength(20 * 32 * 53);
+    for (const { a, p } of pairs) {
+      expect(String(a.bio.id)).toBe(String(p.bio.id));
+      expect(a.bio.displayName).toBe(p.bio.displayName);
+    }
+  });
+
+  it("keeps the specialists' two years on the position path (the default and \"position\"): K, P and LS are 23 or older", () => {
+    for (const l of leagues) {
+      for (const league of [l.position, l.off]) {
+        const kicking = league.players.filter((p) => KICKING.has(p.bio.position));
+        expect(kicking.every((p) => p.bio.age >= 23)).toBe(true);
+        expect(league.players.some((p) => !KICKING.has(p.bio.position) && p.bio.age === 21)).toBe(true);
+      }
+      // Growth off, the option does nothing: the league is today's to the byte.
+      const strip = (x: RatedLeague) => JSON.stringify(x, (_k, v) => (v instanceof Set ? [...v] : v));
+      expect(strip(generateLeagueRosters({ seed: l.seed, season: SEASON, teams, aging: "ability" }))).toBe(strip(l.off));
+    }
+    const kickingP = pairs.filter(({ p }) => KICKING.has(p.bio.position)).map(({ p }) => p.bio.age);
+    const othersP = pairs.filter(({ p }) => !KICKING.has(p.bio.position)).map(({ p }) => p.bio.age);
+    expect(mean(kickingP) - mean(othersP)).toBeGreaterThan(1.5);
+  });
+
+  it("drops the specialists' two years under \"ability\": an older man keeps today's draw, a specialist two years younger", () => {
+    for (const { a, p } of pairs) {
+      if (rookie(a)) continue;
+      const id = String(a.bio.id);
+      if (KICKING.has(p.bio.position)) {
+        // Today's 36 is a cap (min(36, 23 + draw)): without the two years the same draw may give 34 to 36.
+        if (p.bio.age < 36) expect(a.bio.age, id).toBe(p.bio.age - 2);
+        else expect(a.bio.age >= 34 && a.bio.age <= 36, id).toBe(true);
+        // His draft line comes from his age: as many seasons later, the same round and pick.
+        if (typeof p.bio.draft === "object") expect(a.bio.draft, id).toEqual({ ...p.bio.draft, year: p.bio.draft.year + (p.bio.age - a.bio.age) });
+        else expect(a.bio.draft, id).toBe(p.bio.draft);
+      } else {
+        expect(a.bio.age, id).toBe(p.bio.age);
+        expect(a.bio.draft, id).toEqual(p.bio.draft);
+        expect(a.attributes.development!.snaps, id).toBe(p.attributes.development!.snaps);
+      }
+      expect(a.bio.age, id).toBeGreaterThanOrEqual(23);
+      expect(a.bio.creditedSeasons, id).toBeUndefined();
+    }
+    // So no position shows in the ages: K, P and LS run as old as everyone else.
+    const kicking = pairs.filter(({ a }) => KICKING.has(a.bio.position)).map(({ a }) => a.bio.age);
+    const others = pairs.filter(({ a }) => !KICKING.has(a.bio.position)).map(({ a }) => a.bio.age);
+    expect(kicking.length).toBeGreaterThan(1900);
+    expect(Math.abs(mean(kicking) - mean(others))).toBeLessThan(0.3);
+  });
+
+  it("makes the rookies-to-be the men today's draw leaves at 22 or under (24 at K, P, LS), with no credited seasons", () => {
+    for (const { a, p } of pairs) {
+      const id = String(a.bio.id);
+      const today = p.bio.age - (KICKING.has(p.bio.position) ? 2 : 0);
+      expect(rookie(a), id).toBe(today <= 22);
+      if (!rookie(a)) continue;
+      // Drafted this season, or undrafted, with the round and pick today's draw gives; no snaps played yet.
+      if (typeof p.bio.draft === "object") expect(a.bio.draft, id).toEqual({ ...p.bio.draft, year: SEASON });
+      else expect(a.bio.draft, id).toBe("UDFA");
+      expect(a.attributes.development!.snaps, id).toBe(0);
+      expect(a.bio.age >= 20 && a.bio.age <= 26, id).toBe(true);
+    }
+  });
+
+  it("holds the league's own table: REAL's week-8 shares (copied) and its fitted ρ", () => {
+    // REAL (copied): the week-8 rookies' whole-year shares, 2018-24, rounded to tenths of a point; they sum to 1.
+    expect(ROOKIE_AGE_ON_53.shares).toEqual([
+      { age: 20, share: 0.002 }, { age: 21, share: 0.128 }, { age: 22, share: 0.315 }, { age: 23, share: 0.354 },
+      { age: 24, share: 0.166 }, { age: 25, share: 0.029 }, { age: 26, share: 0.006 },
+    ]);
+    expect(ROOKIE_AGE_ON_53.shares.reduce((s, x) => s + x.share, 0)).toBeCloseTo(1, 12);
+    expect(ROOKIE_AGE_ON_53.shares.reduce((s, x) => s + x.age * x.share, 0)).toBeCloseTo(22.665, 12);
+    // CHOSEN (fitted, ADR-087 §12.9's AB4b note, its refit): the undrafted rookies 0.62 older at week 8 of the league's
+    // first season (calibration's leagueRookieAges.test.ts checks that reading).
+    expect(ROOKIE_AGE_ON_53.rho).toBe(0.46);
+    // Not the class's table: a class is cut down to its 53s, the league's rookies-to-be start on them.
+    expect(ROOKIE_AGE_ON_53).not.toEqual(ROOKIE_AGE);
+  });
+
+  it("gives the rookies-to-be the league's own table (ROOKIE_AGE_ON_53): within ±1 pt of each share", () => {
+    const ages = pairs.filter(({ a }) => rookie(a)).map(({ a }) => a.bio.age);
+    expect(ages.length).toBeGreaterThan(10_000);
+    for (const { age, share } of ROOKIE_AGE_ON_53.shares) {
+      const got = ages.filter((x) => x === age).length / ages.length;
+      expect(Math.abs(got - share), `age ${age}: ${got}`).toBeLessThan(0.01);
+    }
+    // Each from his own development stream's "age" fork, against his talent's own draw, exactly. His slot
+    // (the generator's, before the depth sort) is recovered: each slot's stream is replayed as the
+    // generator draws it (his talent's own draw, then his measurements, which read his talent), and his
+    // slot is the one whose measurements are his (the league's provenance), one slot each.
+    const l = leagues[0]!.ability;
+    const prov = l.provenance as FictionalProvenance;
+    const root = createRng("ages-1", "attributes:fictional");
+    const byId = new Map(l.players.map((p) => [String(p.bio.id), p]));
+    let checked = 0;
+    for (const t of l.teams) {
+      const key = String(t.id);
+      for (const position of Object.keys(ROSTER_SHAPE) as Position[]) {
+        const slots = Array.from({ length: ROSTER_SHAPE[position] }, (_, slot) => {
+          const rng = root.fork(`${key}/${position}/${slot}`);
+          const talentZ = gauss(rng);
+          const talent = prov.teamStrength[key]! + (SLOT_TALENT[slot] ?? SLOT_TALENT[SLOT_TALENT.length - 1]!) + talentZ;
+          return { talentZ, measurements: JSON.stringify(measure(rng, position, talent)) };
+        });
+        for (const id of t.depthChart[position]!) {
+          const mine = slots.filter((s) => s.measurements === JSON.stringify(prov.measurements[String(id)]));
+          expect(mine, String(id)).toHaveLength(1);
+          const p = byId.get(String(id))!;
+          if (!rookie(p)) continue;
+          const e = root.fork(`development/${String(id)}`).fork("age");
+          expect(p.bio.age, String(id)).toBe(drawRookieAge(e, mine[0]!.talentZ, ROOKIE_AGE_ON_53));
+          checked++;
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(400);
+  });
+
+  it("runs the less talented rookies-to-be older: the undrafted ones are older than those drafted", () => {
+    const rookies = pairs.filter(({ a }) => rookie(a)).map(({ a }) => a);
+    const udfa = rookies.filter((p) => p.bio.draft === "UDFA").map((p) => p.bio.age);
+    const drafted = rookies.filter((p) => p.bio.draft !== "UDFA").map((p) => p.bio.age);
+    expect(udfa.length).toBeGreaterThan(1000);
+    // By the league's own table at its start: 0.656 older over these 20 leagues (MEASURED; 2,952 undrafted at 23.13,
+    // 8,726 drafted at 22.47). The band (CHOSEN) is ±0.1, about 5 standard errors of a 20-league reading (league sd
+    // 0.083, MEASURED on the fit's and the confirming run's 32 leagues). AB4b's draw here (the class's table at
+    // ρ 0.70, a year on) read about 1.2 and AB4's about 0.8 (MEASURED, ADR-087 §12.9's AB4b note).
+    expect(mean(udfa) - mean(drafted)).toBeGreaterThan(0.556);
+    expect(mean(udfa) - mean(drafted)).toBeLessThan(0.756);
+    // On the position path today's rookies do not follow talent this way.
+    const todays = pairs.filter(({ a }) => rookie(a)).map(({ p }) => p);
+    const nonKicking = (ps: PlayerState[]) => ps.filter((p) => !KICKING.has(p.bio.position));
+    const u0 = nonKicking(todays.filter((p) => p.bio.draft === "UDFA")).map((p) => p.bio.age);
+    const d0 = nonKicking(todays.filter((p) => p.bio.draft !== "UDFA")).map((p) => p.bio.age);
+    expect(Math.abs(mean(u0) - mean(d0))).toBeLessThan(0.1);
+  });
+
+  it("reads no position on the ability path (the owner's rule): its age code names none", () => {
+    const src = readFileSync(join(__dirname, "..", "src", "fictional", "generate.ts"), "utf8");
+    const strip = (code: string) => code.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+    /** A declaration's text: a function to its closing brace, a one-line const to its semicolon. */
+    const fn = (name: string) => {
+      const at = src.indexOf(name);
+      expect(at, name).toBeGreaterThan(0);
+      return strip(src.slice(at, name.startsWith("function") ? src.indexOf("\n}\n", at) + 2 : src.indexOf(";\n", at) + 1));
+    };
+    for (const code of [fn("function abilityAge("), fn("const ageSpread ="), fn("const ENTRY_AGE =")]) {
+      expect(code).not.toMatch(/position|POSITION|specialist|bio\b|"K"|"P"|"LS"/);
+    }
+    // The ability path's own age reads only the unlisted draw: `unlistedAge` is today's draw with no position term.
+    expect(src).toMatch(/const unlistedAge = Math\.min\(36, 21 \+ spread\);/);
+  });
+
+  it("moves nothing else: with the ages and what follows from them taken off, every field is \"position\"'s", () => {
+    const nonAge = (p: PlayerState) => {
+      const { age: _a, creditedSeasons: _c, draft, ...bio } = p.bio;
+      const { fadeShift: _f, snaps: _s, ...development } = p.attributes.development!;
+      return { ...p, bio: { ...bio, draft: typeof draft === "object" ? { round: draft.round, pick: draft.pick } : draft }, attributes: { ...p.attributes, development } };
+    };
+    const strip = (x: unknown) => JSON.stringify(x, (_k, v) => (v instanceof Set ? [...v] : v));
+    for (const l of leagues.slice(0, 5)) {
+      expect(strip({ ...l.ability, players: l.ability.players.map(nonAge) })).toBe(strip({ ...l.position, players: l.position.players.map(nonAge) }));
+    }
+    // Same seed, same league; fewer teams moves no one's age.
+    const again = generateLeagueRosters({ seed: "ages-1", season: SEASON, teams, development: true, aging: "ability" });
+    expect(strip(again)).toBe(strip(leagues[0]!.ability));
+    const four = generateLeagueRosters({ seed: "ages-1", season: SEASON, teams: teams.slice(0, 4), development: true, aging: "ability" });
+    const ageOf = new Map(leagues[0]!.ability.players.map((p) => [String(p.bio.id), p.bio.age]));
+    for (const p of four.players) expect(p.bio.age).toBe(ageOf.get(String(p.bio.id)));
   });
 });

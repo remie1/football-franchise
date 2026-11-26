@@ -98,8 +98,10 @@
  *    sim's 53s counted like the NFL as the real side's leave out injured reserve.
  *  - Retirements: by his own choice while signed within a year of a final-week 53, against the
  *    reserve/retired list (a lower bound); starters gone two seasons (`exitsByAge.startersGone`).
- *  - Rookies' ages on the week-8 53s (`weekEight.rookieAge`); availability by age (ours only: no real
- *    availability by age is merged).
+ *  - Rookies' ages on the week-8 53s (`weekEight.rookieAge`), and from rows version 7 by draft status
+ *    (`rookieAgeByDraft`: the undrafted less the drafted against the real fractional gap, and the drafted
+ *    share of the rookies against the real one); availability
+ *    by age (ours only: no real availability by age is merged).
  *  - The NFL count itself (`nfl-count`): the NFL rows' league readings on the weeks-left variant
  *    (`week8NflWeeksLeft`) and on the whole 53s beside the band reading they are graded on, and the
  *    men each reading leaves out with the teams' sizes (`nflCount`), so the CHOSEN band can be judged.
@@ -232,7 +234,7 @@ export const CAREER_BANDS: readonly CareerBand[] = [
   { id: "back-on-53", row: "Back on a 53 within two seasons, by age", reference: "NFL final-week 53s, Y 2016-22", band: "±5 pts (reported)", mark: "REPORT", judged: "final-week 53s of 2029-45 with two seasons followed", rule: { kind: "abs", half: 0.05 } },
   { id: "starters-gone", row: "Starters on no team's list for two seasons, by age", reference: "NFL starters (50%+ of snaps), Y 2016-22", band: "±3 pts (reported)", mark: "REPORT", judged: "final-week 53s of 2029-45 with two seasons followed", rule: { kind: "abs", half: 0.03 } },
   { id: "retired-signed", row: "Retired by his own choice while signed, within a year of a final-week 53, by age", reference: "NFL reserve/retired list, Y 2021-24 (a lower bound)", band: "Reported", mark: "REPORT", judged: "final-week 53s of 2029-45 with a year followed", rule: { kind: "report" } },
-  { id: "rookie-age", row: "Rookies' ages on the week-8 53s (the 53 counted like the NFL)", reference: "NFL wk 8 rookies, 2018-24 (pooled over the men)", band: "mean ±0.3 years; whole-year shares ±5 pts (reported)", mark: "REPORT", judged: "mean of 2029-45; 2033-45 beside it", rule: { kind: "abs", half: 0.05, halfFor: { mean: 0.3 } } },
+  { id: "rookie-age", row: "Rookies' ages on the week-8 53s (the 53 counted like the NFL)", reference: "NFL wk 8 rookies, 2018-24 (pooled over the men)", band: "mean ±0.3 years; whole-year shares ±5 pts; undrafted less drafted ±0.2 years; drafted share ±5 pts (reported)", mark: "REPORT", judged: "mean of 2029-45; 2033-45 beside it", rule: { kind: "abs", half: 0.05, halfFor: { mean: 0.3, gap: 0.2 } } },
   { id: "availability", row: "Expected availability by age (man-weeks on a 53 not out injured)", reference: "None on this definition (REAL on its own definition: see availability-aligned)", band: "Reported", mark: "REPORT", judged: "2029-45; 2033-45 beside it", rule: { kind: "report" } },
   { id: "nfl-count", row: "The 53 counted like the NFL: the weeks-left variant, the whole 53s, the men left out", reference: "The band reading (week8Nfl) the NFL rows are graded on", band: "Reported", mark: "REPORT", judged: "mean of 2029-45; 2033-45 beside it", rule: { kind: "report" } },
   // Added for the aging redesign (ADR-087 §12, AB1; rows version 6): measure-only, all REPORT with no band.
@@ -463,10 +465,19 @@ export interface GradeInput {
   /** What the rows were made with, for the report's header. */
   readonly meta: {
     readonly seasons: number;
-    readonly league: { readonly path: string; readonly sha256: string };
+    /** The league file the graded rows were played on, as their records name it (`gradedLeague`). */
+    readonly league: LeagueFileName;
+    /** The tree's league file, when it is not the one the rows were played on (a `--build` grade of older rows). */
+    readonly treeLeague?: LeagueFileName;
     readonly fingerprints: Readonly<Record<string, string>>;
     readonly engineRules: string;
     readonly callerVersion: string;
+    /**
+     * ADR-087 §12.1 (AB3, AB5): the new rules' name (`agingFlags.ts` `agingLabel`) the rows were played
+     * under, read from their records; absent at the defaults (players aging by position, injury risk
+     * by the listed position's group).
+     */
+    readonly aging?: string;
     /** A smoke run: windows clipped to the seasons there are; never a graded report. */
     readonly smoke?: boolean;
   };
@@ -1141,7 +1152,8 @@ export function agingRedesignRows(
       "The season's retirements by moment (PLAYER_RETIRED.timing: IMMEDIATE, SLOW, LATE, SEASON_END) and way (unsigned, his own choice while signed, his own choice unsigned), " +
       "and by way and years in the league (the season less his first, as the real rosters' years_exp; bands as nfl-careers'), each a season over the window. Then the final-week " +
       "cohorts of the retired-signed row by years in the league, against the reserve/retired list by years in the league (Y 2021-24, a lower bound: only men under contract are placed on it). " +
-      "The walk's first season has no retirements (MEASURED: none in the 2-season and 3-season smokes, and none in the v5 count of the same season), so a window holding it " +
+      "At the defaults the walk's first season has no retirements (MEASURED: none in the 2-season and 3-season smokes, and none in the v5 count of the same season); with " +
+      "--retirement choice (AB8) it has own-choice ones but still none unsigned (MEASURED: 23 own choice and 0 unsigned in the 3-season smoke of d5b-t1), so a window holding it " +
       "(a smoke run's) reads each per-season count low; pass 1's windows start in 2029."));
   }
   // The teams' overall: its spread and how it carries, beside the win spread and win r.
@@ -1238,6 +1250,35 @@ export function agingRedesignRows(
       "that day, the median over the window's classes; negative = he rated below the weakest man kept. The real reference SEs are binomial, lower bounds."));
   }
   return rows;
+}
+
+/** A league file as a career-check record names it: repository-relative path and sha256. */
+export interface LeagueFileName {
+  readonly path: string;
+  readonly sha256: string;
+}
+
+/**
+ * The league file the graded rows were played on, read from their records (each names its own,
+ * `CareerSeedRecord.league`), never from the file on disk now: a `--build` grade of an older build's
+ * rows names the file those rows were played on, though the tree's file has moved since (ADR-087
+ * AB2 rewrote it at `/2` while the AB1 baseline was playing on `/1`). Records naming two different
+ * league files (by sha256) are refused: one grade is one league. With no record (every seed
+ * missing), the tree's file, `tree`. `treeLeague` is set when the tree's file is not the rows'.
+ */
+export function gradedLeague(
+  records: Iterable<{ readonly seed: string; readonly arm: string; readonly league: LeagueFileName }>, tree: LeagueFileName,
+): { league: LeagueFileName; treeLeague?: LeagueFileName } {
+  let league: LeagueFileName | undefined, from = "";
+  for (const r of records) {
+    if (league === undefined) { league = { path: r.league.path, sha256: r.league.sha256 }; from = `${r.arm}-${r.seed}`; continue; }
+    if (r.league.sha256 !== league.sha256) {
+      throw new Error(`career-check: the rows were played on two league files: ${from} on ${league.path} (sha256 ${league.sha256.slice(0, 12)}), ` +
+        `${r.arm}-${r.seed} on ${r.league.path} (sha256 ${r.league.sha256.slice(0, 12)}); grade one league at a time`);
+    }
+  }
+  if (league === undefined) return { league: tree };
+  return league.sha256 === tree.sha256 ? { league } : { league, treeLeague: tree };
 }
 
 export function gradeCareerCheck(input: GradeInput): CareerGrade {
@@ -1601,7 +1642,7 @@ export function gradeCareerCheck(input: GradeInput): CareerGrade {
     "Of the men on a final-week 53 in Y (counted like the NFL), the share who retired from that day (after the 53 is read; a retirement at Y's season end is Y's) " +
     "and before Y + 1's, by age in Y: his own choice while signed (a deal of his live when he retired, or ended RETIRED that season), against the real men on a " +
     "final-week 53 placed on the reserve/retired list the next season. " + nfl.retiredList.note +
-    " Until a build lets a man retire by choice, the sim's own-choice shares are 0. The retirements by age, credited seasons and group, each way, are in the rows (SeasonRow.retirements)."));
+    " At the defaults no man retires by his own choice, so the sim's own-choice shares are 0; --retirement choice (AB8) lets him. The retirements by age, credited seasons and group, each way, are in the rows (SeasonRow.retirements)."));
 
   // Rookies' ages on the week-8 53s (counted like the NFL): the mean, and the whole-year shares.
   const rk = nfl.weekEight.rookieAge;
@@ -1625,10 +1666,46 @@ export function gradeCareerCheck(input: GradeInput): CareerGrade {
       { value: q, se: rk.n > 0 ? Math.sqrt((q * (1 - q)) / rk.n) : null }));
   }
   rookieChecks.push(laterCheck(gradeCheck(rookieRule, `mean age (whole years), ${laterLabel}`, rookieMean(windows.later), meanRef, "mean")));
+  // By draft status (rows version 7): each seed's rookies pooled over the window's seasons, drafted and undrafted.
+  const byDraft = (r: CareerCheckRows, w: readonly [number, number]) => {
+    const sum = { drafted: { n: 0, years: 0 }, undrafted: { n: 0, years: 0 } };
+    for (const s of r.perSeason) {
+      const p = inWindow(s.season, w) ? nflPicture(s) : null;
+      if (p === null || p === undefined || p.rookieAgeByDraft === undefined) continue;
+      for (const k of ["drafted", "undrafted"] as const) { const t = p.rookieAgeByDraft[k]; sum[k].n += t.n; sum[k].years += t.n * t.mean; }
+    }
+    const of = (k: "drafted" | "undrafted") => (sum[k].n === 0 ? null : sum[k].years / sum[k].n);
+    return { drafted: of("drafted"), undrafted: of("undrafted"), nDrafted: sum.drafted.n, nUndrafted: sum.undrafted.n };
+  };
+  const draftedShareOf = (r: CareerCheckRows, w: readonly [number, number]) => { const b = byDraft(r, w); const n = b.nDrafted + b.nUndrafted; return n === 0 ? null : b.nDrafted / n; };
+  const gapOf = (r: CareerCheckRows, w: readonly [number, number]) => { const b = byDraft(r, w); return b.drafted === null || b.undrafted === null ? null : b.undrafted - b.drafted; };
+  // The real side's means are fractional; its whole-year means by status are COMPUTED as each less the
+  // pooled fractional-to-whole offset (meanFractional - meanWhole), so both groups' birthdays are taken to
+  // fall alike across the year. The gap needs no offset. Its SE (CHOSEN): the pooled fractional SD over
+  // √(1/n_drafted + 1/n_undrafted).
+  const offset = rk.meanFractional - rk.meanWhole;
+  const realGap = rk.undraftedMeanFractional - rk.draftedMeanFractional;
+  const gapRef = { value: realGap, se: rk.draftedN > 0 && rk.undraftedN > 0 ? rk.sd * Math.sqrt(1 / rk.draftedN + 1 / rk.undraftedN) : null };
+  rookieChecks.push(gradeCheck(rookieRule, "drafted, mean age (whole years)", perSeed((r) => byDraft(r, windows.early).drafted),
+    { value: rk.draftedMeanFractional - offset, se: rk.draftedN > 0 ? rk.sd / Math.sqrt(rk.draftedN) : null }, "mean"));
+  rookieChecks.push(gradeCheck(rookieRule, "undrafted, mean age (whole years)", perSeed((r) => byDraft(r, windows.early).undrafted),
+    { value: rk.undraftedMeanFractional - offset, se: rk.undraftedN > 0 ? rk.sd / Math.sqrt(rk.undraftedN) : null }, "mean"));
+  rookieChecks.push(gradeCheck(rookieRule, "undrafted less drafted (years)", perSeed((r) => gapOf(r, windows.early)), gapRef, "gap"));
+  rookieChecks.push(laterCheck(gradeCheck(rookieRule, `undrafted less drafted (years), ${laterLabel}`, perSeed((r) => gapOf(r, windows.later)), gapRef, "gap")));
+  // The drafted share of the rookies (the same counts): REAL's drafted of all its week-8 rookies, its SE the binomial's.
+  const rookieN = rk.draftedN + rk.undraftedN;
+  const draftedRef = rookieN === 0 ? { value: null, se: null } : { value: rk.draftedN / rookieN, se: Math.sqrt((rk.draftedN / rookieN) * (1 - rk.draftedN / rookieN) / rookieN) };
+  rookieChecks.push(gradeCheck(rookieRule, "drafted share of the rookies", perSeed((r) => draftedShareOf(r, windows.early)), draftedRef));
+  rookieChecks.push(laterCheck(gradeCheck(rookieRule, `drafted share of the rookies, ${laterLabel}`, perSeed((r) => draftedShareOf(r, windows.later)), draftedRef)));
   rows.push(row("rookie-age", rookieChecks,
     "Rookies as the rookie share reads them (first season in the league), on the 53s counted like the NFL; the sim's ages are bio.age at week 8 (the league file's 23 October), " +
     `the real side's whole years on 23 October, 2018-24 pooled over ${rk.n} rookies (mean ${rk.meanWhole.toFixed(2)} whole, ${rk.meanFractional.toFixed(2)} fractional). ` +
-    "Reference SEs (CHOSEN): the mean's is the real fractional ages' SD over √n; a share's the binomial √(p(1 - p)/n). Measured only: matching the made-up rookies' ages comes later."));
+    `By draft status (rows version 7): drafted (a draft line) and undrafted, each seed's rookies pooled over the window's seasons; the real side's means are fractional (drafted ${rk.draftedMeanFractional.toFixed(2)}, ` +
+    `n ${rk.draftedN}; undrafted ${rk.undraftedMeanFractional.toFixed(2)}, n ${rk.undraftedN}), so its whole-year means are COMPUTED as each less the pooled offset ${offset.toFixed(2)} ` +
+    "(both groups' birthdays taken to fall alike across the year), and the gap, which needs no offset, is set beside the sim's whole-year gap. " +
+    `The drafted share of the rookies (the same counts) is set beside the real side's ${rk.draftedN} of ${rookieN}; from the walk's second draft on, its drafts hold compensatory picks, as the real ones do. ` +
+    "Reference SEs (CHOSEN): the mean's is the real fractional ages' SD over √n; a share's the binomial √(p(1 - p)/n); the gap's the SD over √(1/n_drafted + 1/n_undrafted). " +
+    "The made-up classes' draft-day shares and age-talent link are fitted to these rows on the week-8 53s, on the steady-state class (ADR-087 §12.5, AB4b and its refit)."));
 
   // Expected availability by age: man-weeks on a 53 not out with an injury he cannot play on (ours only).
   const availabilityOf = (r: CareerCheckRows, w: readonly [number, number]) => {
@@ -1784,8 +1861,18 @@ export function renderGradeMarkdown(grade: CareerGrade): string {
     say(`**OWNER rows wait on the owner's answer** (${pending.map((r) => `${r.id}, ${r.card ?? "-"} card`).join("; ")}): until it is given, any of them that does not pass or is not resolvable blocks the flip.`);
   }
   say();
-  say(`The stand-in league \`${m.league.path}\` (sha256 \`${m.league.sha256.slice(0, 12)}\`), ${m.seasons} seasons a seed, engine rules \`${m.engineRules}\`, ` +
+  say(`The stand-in league \`${m.league.path}\` (sha256 \`${m.league.sha256.slice(0, 12)}\`, as the rows' records name it)` +
+    `${m.treeLeague !== undefined ? `, not the tree's file now (\`${m.treeLeague.path}\`, sha256 \`${m.treeLeague.sha256.slice(0, 12)}\`)` : ""}, ` +
+    `${m.seasons} seasons a seed, engine rules \`${m.engineRules}\`, ` +
     `caller \`${m.callerVersion}\`. Fingerprints: ${Object.entries(m.fingerprints).map(([a, f]) => `${a} \`${f}\``).join(", ")}.`);
+  if (m.aging !== undefined) {
+    const parts = m.aging.split("-");
+    const rules = [
+      parts.includes("ability") ? "the players aged by ability group, not by position" : "",
+      parts.includes("spot") ? "injury risk followed the depth-chart spot, with the measured age factor (§12.3.1-12.3.2)" : "",
+    ].filter(Boolean);
+    say(`**Aging:** ${rules.join("; ")} (ADR-087 §12), under \`${m.aging}\`, as the rows' records name it.`);
+  }
   say(`Grade seeds: ${grade.seeds.graded.length} of ${grade.seeds.asked.length} in` +
     `${grade.seeds.missing.length > 0 ? ` (missing: ${grade.seeds.missing.join(", ")})` : ""}. ` +
     `Coach-style seeds: ${grade.coachSeeds.graded.length} of ${grade.coachSeeds.asked.length} in` +

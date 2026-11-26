@@ -109,7 +109,7 @@ export { runCutdown, seasonsIn, LEAN_POINTS, NEWER_PLAYER_SEASONS, CLAIM_MARGIN,
 export {
   draftSteps, turnYear, creditSeason, peopleFromSave, waiverOrderFrom, movesFromPeople, averagePerYear, headCoachEvaluation, DRAFT_DAYS, type DraftStepsConfig, type TurnYearOptions,
 } from "./draft/steps.js";
-export { signRookie, signSquad, signFuture, release, claimedDeal, liveContract, flatCap, type CapForSeason } from "./draft/money.js";
+export { signRookie, signSquad, signFuture, release, retire, claimedDeal, liveContract, flatCap, type CapForSeason } from "./draft/money.js";
 export {
   apyOf, marketCurves, percentileOf, quantile, ageFactor, ageFactorAt, legacyRuleAge, termFor, termAt, structureFor, valuePlayer, veteranContract, guaranteedShare, firstYearShareFor, REAL_FIRST_YEAR,
   type MarketCurve, type MarketCurves, type Valuation, type ValueAhead, type VeteranDeal,
@@ -130,20 +130,37 @@ export { CAP_LEANING, capLeaning, capPlan, floorShortfall, planWithFloor, presid
 // ADR-087: players age, grow and get hurt (off unless runSeason's `players` switches them on).
 export { PLAYER_STEP_PREFIX, playerSteps, playerWeeks, emergencySignings, type PlayerStepsConfig, type PlayerGameExtras } from "./players/steps.js";
 export { developmentWeek, learningRate, RATING_GROUPS, type DevelopmentWeekInput, type DevelopmentWeekResult } from "./players/development.js";
+// ADR-087 §12.2 (AB3): aging by ability, behind `aging: "ability"` (default "position").
+export {
+  ABILITY_CURVES, ABILITY_GROUP_MEMBERS, TECHNIQUE_KNEE, abilityRules,
+  type AbilityCurveName, type AbilityCurves, type AgingOptions, type AgingRule,
+} from "./players/aging.js";
 // ADR-087 §5, for the cap thread: expected availability over the regular-season games ahead (draw-free).
 export {
   EXPECTED_BACKUP_SNAPS_PER_GAME, expectedAvailability, type Availability, type AvailabilityOptions,
 } from "./players/availability.js";
 export {
-  gameInjuries, weekInjuries, healWeek, isAvailable, bandFor,
-  type InjuryResult, type GameInjuryInput, type WeekInjuryInput, type HealInput,
+  gameInjuries, weekInjuries, healWeek, isAvailable, bandFor, seedPastInjuries,
+  type InjuryResult, type GameInjuryInput, type WeekInjuryInput, type HealInput, type InjuryRiskInput,
 } from "./players/injuries.js";
-export { INJURY_RATES, INJURY_KINDS } from "./players/injuryTables.js";
+// ADR-087 §12.3.1 (AB5): injury risk by the depth-chart spot, behind `injuryRisk: "spot"` (default "group").
+export { spotOf, spotAgeFactor, type InjuryRisk, type InjuryRiskProfile } from "./players/injurySpot.js";
+// ADR-087 §12.3.7 (AB7): a copied `real:` kind read as this game's kind on the spot path (heal and the seeded past injuries).
+export { realKindOf } from "./players/injurySpot.js";
+export { REAL_OTHER_KIND, REAL_PART_KINDS } from "./players/injuryTables.js";
+export { INJURY_RATES, INJURY_KINDS, REAL_SPOT_RATES, CONCUSSION_MARK, CONCUSSION_REPEAT, HEALING_BY_AGE } from "./players/injuryTables.js";
+// ADR-087 §12.3.6 (AB6): wear from contact taken, counted on the ability path; `perContact` 0 (no wear) by default.
+export { CONTACT_ROLL_SETS, WEAR } from "./players/wear.js";
 export { depthChartWeek, type DepthWeekInput, type DepthWeekResult, type WeekHope } from "./players/depthChart.js";
-export { unsignedDay, drawPatience, type UnsignedInput, type UnsignedResult } from "./players/unsigned.js";
+export { unsignedDay, drawPatience, forget, type UnsignedInput, type UnsignedResult } from "./players/unsigned.js";
+export {
+  OWN_MOMENTS, RETIREMENT_CHANCE, RETIREMENT_STREAM, ageRate, cashOwed, chanceByAgeBand, countStarts, momentChance, ownMoment, ownRetirements,
+  STARTER_SHARE, bestProfile, mostCharted, retirementChance, retirementInputs, retirementRule, reviewOf, reviewSeason, startedIn,
+  type OwnRetirementInput, type OwnRetirementResult, type OwnTiming, type RetirementChanceModel, type RetirementInputs, type RetirementRule,
+} from "./players/retirement.js";
 export { lineupFor, teamLineup, type Lineup } from "./players/lineup.js";
 export { changeBody, addPoints, type BodyChange } from "./players/body.js";
-export { emptyMemory, type PlayerMemory, type PlayerWeek, type PastInjury, type RatingGroup } from "./players/types.js";
+export { emptyMemory, type PlayerMemory, type PlayerWeek, type PastInjury, type RatingGroup, type RetirementReview, type SeasonStarts } from "./players/types.js";
 // ADR-081 M1: the end-of-season meeting's truth side.
 export { LUCK, pythagorean, seasonLuck, verdictOf, type LuckVerdict, type TeamLuck } from "./meeting/luck.js";
 export {

@@ -20,6 +20,10 @@
  *     played by the snapshot (`snapsThrough`), which the run then plays again; nothing reads the
  *     total yet.
  *   - `attributes.development.carry`: `{}`, nothing earned and unshown yet.
+ *   - `attributes.development.fadeShift` (P7, hidden; ADR-087 §12.2.3, from `/2`): his 12 fade
+ *     shifts, drawn (`drawFadeShift`, the made-up players' own body clock and spread), on his own
+ *     stream. No real data shows a man's own clock. Written for every stand-in whatever the
+ *     switches: the calibration loader reads them only with development on and `aging: "ability"`.
  *   - `bio.combine` (P2, public): only the drills he actually ran; absent when he ran none.
  *   - `personality.patience` (P6, hidden): drawn, `drawPatience`, on his own stream.
  *   - `condition.injury` (P3, public), copied (§2.5 "current injuries"): a player on injured reserve
@@ -28,32 +32,53 @@
  *     left out (they would play, hurt, and the report gives no penalty to copy), and so are R40/R49
  *     (other lists, not injuries) and the practice squad. Weeks out are drawn from `INJURY_WEEKS`,
  *     CHOSEN placeholders until step 2 measures them.
+ *   - `condition.injuryHistory` (P8, public; ADR-087 §12.3.7, from `/3`): his real injuries before the
+ *     league's first day, copied from the file's `pastInjuries` block (`standin-injuries`,
+ *     `pastInjuries.ts`), oldest first, absent for a man with none. Kind, weeks and the two stamps
+ *     only; the block is checked against the file first (`pastInjuriesProblem`).
  *   - `durability`: unchanged (step 2 sets it from his injury history).
  *
  * Every draw comes from `createRng(SEED_LABEL, DEVELOPMENT_STREAM).fork(<stand-in id>)`, split into
- * "growth", "patience" and "injury": no season in the seed, since growth is fixed for life and a
- * stand-in keeps his id from refresh to refresh; and one player's draws never move another's. The
- * ratings' stream (`attributes:real:rate/<id>`) is separate, so no rating moves.
+ * "growth", "patience", "injury" and "aging": no season in the seed, since growth is fixed for life
+ * and a stand-in keeps his id from refresh to refresh; and one player's draws never move another's.
+ * A fork by label takes nothing from the stream it is forked from, so adding "aging" at `/2` moved no
+ * growth, patience or injury draw. The ratings' stream (`attributes:real:rate/<id>`) is separate, so
+ * no rating moves.
  *
  * Pure: the league in, new players out, in the same order; it first takes off any records an
- * earlier run left, so running it on its own output changes nothing. This step owns the four paths
- * it writes (`attributes.development`, `bio.combine`, `personality.patience`, `condition.injury`)
- * outright: `stripStartingDevelopment` takes them off whatever wrote them, so nothing else in the
- * importer may write them (today nothing does).
+ * earlier run left, so running it on its own output changes nothing. This step owns the five paths
+ * it writes (`attributes.development`, `bio.combine`, `personality.patience`, `condition.injury`,
+ * `condition.injuryHistory`) outright: `stripStartingDevelopment` takes them off whatever wrote them,
+ * so nothing else in the importer may write them (today nothing does; `standin-injuries` writes the
+ * block this step copies from, never a player).
  */
 import {
   createRng,
-  type CalendarStamp, type Injury, type InjuryBand, type InjurySetting, type PlayerBio, type PlayerDevelopment,
+  type CalendarStamp, type Injury, type InjuryBand, type InjuryRecord, type InjurySetting, type PlayerBio, type PlayerDevelopment,
   type PlayerState,
 } from "@ff/contracts";
 import type { Measurements } from "../../fictional/derive.js";
-import { bodyFrom, drawGrowth, drawPatience, GROWTH, PATIENCE_SEASONS } from "../../fictional/development.js";
+import { bodyFrom, drawFadeShift, drawGrowth, drawPatience, FADE_SHIFT, GROWTH, PATIENCE_SEASONS } from "../../fictional/development.js";
 import type { CareerHistory } from "./history.js";
+import { pastInjuriesProblem, type PastInjuriesBlock } from "./pastInjuries.js";
 import { fillMeasurements } from "./rate.js";
 import type { RosterStatus } from "./standins.js";
 
-/** The records' own version: a change to what this step writes bumps it. */
-export const STARTING_DEVELOPMENT_VERSION = "standin-development/1";
+/**
+ * The records' own version: a change to what this step writes bumps it, so the calibration loader
+ * never reads records it does not know (ADR-087 §12.2.3). `/2` (AB2) adds `fadeShift`; `/3` (AB7) adds
+ * P8's `injuryHistory`. `/3` is the newest this step writes, and it writes it only for a file with a
+ * `pastInjuries` block: a file without one holds exactly `/2`'s records, so it is written at `/2`, byte
+ * for byte as before (`startingDevelopmentVersion`).
+ */
+export const STARTING_DEVELOPMENT_VERSION = "standin-development/3";
+/** The version of a file with no `pastInjuries` block: its records are `/2`'s. */
+export const NO_PAST_INJURIES_VERSION = "standin-development/2";
+
+/** The version this step writes: `/3` with a `pastInjuries` block, `/2` without one. */
+export function startingDevelopmentVersion(hasPastInjuries: boolean): string {
+  return hasPastInjuries ? STARTING_DEVELOPMENT_VERSION : NO_PAST_INJURIES_VERSION;
+}
 
 /** The seed every stand-in's development draws start from. No season in it: growth is fixed for life (P1). */
 export const SEED_LABEL = "standin";
@@ -104,7 +129,7 @@ export function copiedSince(season: number): CalendarStamp {
 
 /** Every constant the records were made with, recorded in the file so a retune shows it is stale. */
 export function startingConstants() {
-  return { growth: GROWTH, patience: PATIENCE_SEASONS, injuryWeeks: INJURY_WEEKS, bandMinWeeks: BAND_MIN_WEEKS };
+  return { growth: GROWTH, patience: PATIENCE_SEASONS, injuryWeeks: INJURY_WEEKS, bandMinWeeks: BAND_MIN_WEEKS, fadeShift: FADE_SHIFT };
 }
 
 export interface PlayerFlags {
@@ -126,7 +151,9 @@ export interface StartingDevelopment {
    * `mostGames` a team (the most any team had played; most had played fewer).
    */
   readonly snapsThrough: { readonly season: number; readonly mostGames: number };
-  readonly basis: Readonly<Record<"body" | "growth" | "snaps" | "patience" | "injury" | "durability", string>>;
+  readonly basis: Readonly<Record<"body" | "growth" | "snaps" | "patience" | "injury" | "durability" | "fadeShift", string>>
+    /** From `/3`: where each man's `condition.injuryHistory` came from. */
+    & { readonly injuryHistory?: string };
   readonly constants: ReturnType<typeof startingConstants>;
   /**
    * Teams whose latest injury report (the latest week any of its players is listed) has no game
@@ -146,16 +173,28 @@ export interface StandInDevelopmentInput {
   readonly status: Readonly<Record<string, RosterStatus>>;
   readonly measurements: Readonly<Record<string, Partial<Measurements>>>;
   readonly history: Readonly<Record<string, CareerHistory>>;
+  /** The file's `pastInjuries` block (ADR-087 AB7), whole, so its season, version and cut are checked too; absent when the file has none. */
+  readonly pastInjuries?: PastInjuriesBlock;
 }
 
-/** The player without anything this step adds: what an earlier run left, taken off. */
+/**
+ * The player without anything this step adds: what an earlier run left, taken off. The whole
+ * development record goes, so his fade shifts (`/2`) go with it, and his past injuries (`/3`).
+ */
 export function stripStartingDevelopment(p: PlayerState): PlayerState {
   const { development: _d, ...attributes } = p.attributes;
   const { patience: _p, ...personality } = p.personality;
   const { combine: _c, ...bio } = p.bio;
-  const { injury: _i, ...condition } = p.condition;
+  const { injury: _i, injuryHistory: _h, ...condition } = p.condition;
   return { ...p, bio, attributes, condition, personality };
 }
+
+/** A record copied key by key, so nothing but P8's four keys crosses over. */
+const copyRecord = (r: InjuryRecord): InjuryRecord => ({
+  kind: r.kind, weeks: r.weeks,
+  since: { season: r.since.season, phase: r.since.phase, week: r.since.week, day: r.since.day },
+  healed: { season: r.healed.season, phase: r.healed.phase, week: r.healed.week, day: r.healed.day },
+});
 
 /** His public combine record (P2): the drills he ran, none filled in; undefined when he ran none. */
 function combineOf(ran: Partial<Measurements> | undefined): PlayerBio["combine"] {
@@ -186,6 +225,13 @@ function sourceOf(
 
 /** The stand-ins with their records, and the file's `startingDevelopment` key. */
 export function standInDevelopment(input: StandInDevelopmentInput): { players: PlayerState[]; startingDevelopment: StartingDevelopment } {
+  const block = input.pastInjuries;
+  if (block !== undefined) {
+    const problem = pastInjuriesProblem(block, {
+      season: input.season, snapshotDate: input.snapshotDate, ids: new Set(input.players.map((p) => String(p.bio.id))), copiedSince: copiedSince(input.season),
+    });
+    if (problem !== null) throw new Error(`standInDevelopment: ${problem}`);
+  }
   const players = input.players.map(stripStartingDevelopment);
   const rated = fillMeasurements(players, input.measurements);
 
@@ -220,6 +266,8 @@ export function standInDevelopment(input: StandInDevelopmentInput): { players: P
       carry: {},
       // Exactly the drills he was rated from (the one fill): his body and his ratings agree.
       body: bodyFrom(rated.get(id)!.measurements),
+      // ADR-087 §12.2.3 (`/2`): his own fade shifts, on his "aging" fork, whatever the switches.
+      fadeShift: drawFadeShift(rng.fork("aging")),
     };
     const patience = drawPatience(rng.fork("patience"));
     for (const g of h.gamesPlayed) if (g.season === input.season) mostGames = Math.max(mostGames, g.games);
@@ -238,11 +286,15 @@ export function standInDevelopment(input: StandInDevelopmentInput): { players: P
     } else flags[id] = { growth: "draw" };
 
     const combine = combineOf(input.measurements[id]);
+    // P8 (`/3`): his past injuries, copied from the block; the key after `injury`.
+    const past = block?.players[id];
+    const injuryHistory = past === undefined ? undefined : past.map(copyRecord);
     return {
       ...p,
       bio: combine === undefined ? p.bio : { ...p.bio, combine },
       attributes: { ...p.attributes, development },
-      condition: injury === undefined ? p.condition : { ...p.condition, injury },
+      condition: injury === undefined && injuryHistory === undefined ? p.condition
+        : { ...p.condition, ...(injury === undefined ? {} : { injury }), ...(injuryHistory === undefined ? {} : { injuryHistory }) },
       personality: { ...p.personality, patience },
     };
   });
@@ -250,7 +302,7 @@ export function standInDevelopment(input: StandInDevelopmentInput): { players: P
   return {
     players: out,
     startingDevelopment: {
-      version: STARTING_DEVELOPMENT_VERSION,
+      version: startingDevelopmentVersion(block !== undefined),
       seedLabel: SEED_LABEL,
       stream: DEVELOPMENT_STREAM,
       asOf: input.snapshotDate,
@@ -262,6 +314,12 @@ export function standInDevelopment(input: StandInDevelopmentInput): { players: P
         patience: "drawn (drawPatience)",
         injury: "copied: reserve lists R01, R48, R04, R05, and active players Out or Doubtful on their team's latest report; weeks drawn from injuryWeeks (placeholders)",
         durability: "unchanged (the rating's own draw)",
+        fadeShift: "drawn (drawFadeShift: the body clock and spread of ADR-087 §12.2.3), not estimated; no real data shows a man's own clock",
+        ...(block === undefined ? {} : {
+          injuryHistory: `copied from the file's pastInjuries block (${block.version}, asOf ${block.asOf}, through ${block.through}): ` +
+            `time-loss football and illness spells, ${block.seasons[0] ?? block.season} to the season before the file's, ` +
+            "kind real:<body-part class>, weeks out (calendar weeks); none of the file's own season",
+        }),
       },
       constants: startingConstants(),
       teamsWithoutGameStatus: teams.filter((t) => !withStatus.has(t)).map((team) => ({ team, reportWeek: reportWeek.get(team) ?? null })),

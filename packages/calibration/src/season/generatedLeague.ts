@@ -21,6 +21,13 @@ export interface GeneratedLeagueOptions {
    * (ratings, names and depth charts are the same either way). Only with the players' switches on.
    */
   readonly development?: boolean;
+  /**
+   * ADR-087 §12.1 (AB3): with `development` and `"ability"`, each player's fade shifts too, on the
+   * generator's own `"aging"` fork (attributes' `aging` option), and from AB4 §12.5's ages: no
+   * specialists' two years, and the rookies-to-be at the league's own rookie ages (names, ratings and
+   * depth charts do not move). Absent or `"position"`, neither, as before.
+   */
+  readonly aging?: "position" | "ability";
 }
 
 export function buildGeneratedLeague(league: League, opts: GeneratedLeagueOptions): GeneratedLeague {
@@ -30,6 +37,7 @@ export function buildGeneratedLeague(league: League, opts: GeneratedLeagueOption
     teams: league.teams,
     ...(opts.teamStrengthSd === undefined ? {} : { teamStrengthSd: opts.teamStrengthSd }),
     ...(opts.development === true ? { development: true } : {}),
+    ...(opts.development === true && opts.aging === "ability" ? { aging: "ability" as const } : {}),
   });
   return makeProvenancedLeague(
     "GENERATED_FICTIONAL",

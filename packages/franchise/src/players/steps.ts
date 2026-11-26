@@ -7,6 +7,10 @@
  *   healing → practice and away-from-football injuries → the development week → the depth chart →
  *   emergency signings, so every team with a game next week can field a side for it.
  * Every day: unsigned players' patience (§6.1).
+ * With `retirement: "choice"` (ADR-087 §12.4, AB8): each regular-season game week's starts are counted
+ * before the week's chart rebuild, and on the three own-choice days (OFF_EVAL week 1 day 7, OFF_RESET_FA
+ * week 1 day 2, training camp week 1 day 1) men may retire by their own choice (`retirement.ts`),
+ * after the week step and before the unsigned rule's step, which still runs after it on camp's first day.
  *
  * What each player did this week (`PlayerWeek`) is read once, before the day's new injuries: who was
  * with a team still playing, who practised, who played and how (the who-played report, P4, which the
@@ -15,7 +19,8 @@
  * The weekly depth chart and unsigned retirements run whenever either switch is on, since either one
  * changes who can play; growth and aging only with `development`, injuries only with `injuries`.
  * Memory between days lives in `people.playerMemory`, so the steps stay pure functions of the people
- * and the day, and a save carries on exactly.
+ * and the day, and a save carries on exactly. With `aging: "ability"` it also counts each man's contact
+ * taken (ADR-087 §12.3.6, AB6; `wear.ts`), the wear the spot path's `perContact` reads.
  */
 import { lineupHopes } from "../winNow/lineupHopes.js";
 import {
@@ -28,20 +33,61 @@ import { flatCap, type CapForSeason } from "../draft/money.js";
 import type { DayStep, DayStepContext, LeaguePeople } from "../season/people.js";
 import { currentJob, seatOf } from "../staff/world.js";
 import { nextDay } from "../calendar/clock.js";
+import { ABILITY_FOLLOWS, abilityRules, agingSwitches, chartSpots, weekSide, type AgingOptions, type AgingRule } from "./aging.js";
 import { depthChartWeek, readBlur } from "./depthChart.js";
 import { PRACTICE_PHASES, developmentWeek } from "./development.js";
 import { gameInjuries, healWeek, isAvailable, weekInjuries } from "./injuries.js";
+import { injuryRiskRule, type InjuryRisk } from "./injurySpot.js";
+import { countStarts, ownMoment, ownRetirements, retirementRule, type RetirementRule } from "./retirement.js";
 import { emptyMemory, type PlayerMemory, type PlayerWeek } from "./types.js";
 import { unsignedDay } from "./unsigned.js";
+import { addContact, perContactRule, wearYears } from "./wear.js";
 
 /** Every players' step id starts with this, so a save can tell their events from other steps'. */
 export const PLAYER_STEP_PREFIX = "players:";
 
-export interface PlayerStepsConfig {
+/**
+ * ADR-087 §12.1: the aging options (`aging`, default `"position"`; on the ability path `abilityCurves`,
+ * `techniqueKnee` and `smartsSnaps`, `aging.ts` `AgingOptions`) act only with `development` on and
+ * `aging: "ability"`. They are recorded in `PlayerMemory.switches` only then, and only when not the
+ * default, so a run at the defaults is main's to the byte. `injuryRisk` (AB5) likewise acts only with
+ * `injuries` on and is recorded only then, and only when not the default (`"group"`). AB6's tuning
+ * options act only on the spot path and are recorded only where they act and are not the default:
+ * `healingByAge: false` (AB9-T6) with injuries on and `injuryRisk: "spot"`; `perContact` above 0
+ * (AB9-T5) with that and development on with `aging: "ability"` too. `retirement` (AB8) acts with
+ * either switch on and is recorded only when not the default (`"unsigned"`).
+ */
+export interface PlayerStepsConfig extends AgingOptions {
   /** Growth and aging (§2, §4). */
   readonly development?: boolean;
   /** Injuries in games, practice and away from football (§5). */
   readonly injuries?: boolean;
+  /**
+   * ADR-087 §12.1, §12.3.1 (AB5): where injury risk comes from. Default `"group"` (his listed
+   * position's group, today's); `"spot"` reads the chart key his team lists him at this week (the
+   * team's chart as it stands when the draw is made, before the week's rebuild) with §12.3.2's age
+   * factor (`injurySpot.ts`). Acts only with `injuries` on.
+   */
+  readonly injuryRisk?: InjuryRisk;
+  /**
+   * ADR-087 §12.3.3 (AB6; tuning arm AB9-T6): slower healing for back and ribs at 31 and over
+   * (`HEALING_BY_AGE`) on the spot path. Default true there; false turns it off. Acts only with
+   * injuries on and `injuryRisk: "spot"`; the group path never reads it.
+   */
+  readonly healingByAge?: boolean;
+  /**
+   * ADR-087 §12.3.6 (AB6; tuning arm AB9-T5): years of wear per contest of contact past `WEAR.free`
+   * (`wear.ts`), added to the body groups' and DURABILITY's years past on the ability path. Default 0
+   * (no wear). Acts only with development on and `aging: "ability"` (where the contact count is kept)
+   * and injuries on with `injuryRisk: "spot"`.
+   */
+  readonly perContact?: number;
+  /**
+   * ADR-087 §12.1, §12.4 (AB8): how players retire. Default `"unsigned"` (today's: only men nobody
+   * signs in time, §6.1); `"choice"` adds retiring by his own choice at three moments a year
+   * (`retirement.ts`), on top of the unsigned rule. Acts with either switch on.
+   */
+  readonly retirement?: RetirementRule;
   /**
    * The season runner's lineup rule (§10): a position this team cannot fill from these available
    * players, or undefined when it can field a side. Absent = every team can always be fielded, and
@@ -132,8 +178,14 @@ function coordinator(staff: readonly StaffState[] | undefined, team: TeamId, sea
   return staff?.find((s) => seatOf(s) === seat && currentJob(s)?.team === team);
 }
 
-/** Each player's week, read before the day's new injuries (§3; `PlayerWeek`). Free agents and prospects are left out. */
-export function playerWeeks(people: LeaguePeople, ctx: DayStepContext, reports: readonly GameParticipation[]): Map<string, PlayerWeek> {
+/**
+ * Each player's week, read before the day's new injuries (§3; `PlayerWeek`). Free agents and prospects
+ * are left out. His side (which coordinator's `development` coaches him, and which side's snaps make
+ * his `playShare`): with `aging: "position"` (the default) the side of his listed position, as before;
+ * with `"ability"` (ADR-087 §12.2.6) the side of the chart key that lists him this week, else the side
+ * where most of his snaps came, else none (no coordinator, a share of 0), never his listed position.
+ */
+export function playerWeeks(people: LeaguePeople, ctx: DayStepContext, reports: readonly GameParticipation[], aging: AgingRule = "position"): Map<string, PlayerWeek> {
   const phase = ctx.day.phase;
   const playing = teamsStillPlaying(phase, ctx.state, ctx.games, people.teams);
   const byPlayer = new Map<string, GameParticipation[]>();
@@ -146,16 +198,18 @@ export function playerWeeks(people: LeaguePeople, ctx: DayStepContext, reports: 
       sideSnaps.set(k, Math.max(sideSnaps.get(k) ?? 0, r.snaps[side]));
     }
   }
+  // The ability path's chart keys, by team (the charts as they stand this week, before this week's rebuild).
+  const spots = aging === "ability" ? new Map(people.teams.map((t) => [String(t.id), chartSpots(t)])) : undefined;
   const weeks = new Map<string, PlayerWeek>();
   for (const p of people.players) {
     if (p.teamId === undefined || p.bio.draft === "PROSPECT") continue;
     const withTeam = playing.has(String(p.teamId)) && PRACTICE_PHASES.has(phase);
     const hurt = p.condition.injury;
     const practiced = !withTeam ? 0 : !hurt ? 1 : hurt.playable ? 0.5 : 0;
-    const side = sideOf(p.bio.position);
     const mine = byPlayer.get(String(p.bio.id)) ?? [];
-    const ownSnaps = mine.reduce((n, r) => n + r.snaps[side], 0);
-    const teamSnaps = sideSnaps.get(`${String(p.teamId)}/${side}`) ?? 0;
+    const side = spots === undefined ? sideOf(p.bio.position) : weekSide(spots.get(String(p.teamId))?.get(String(p.bio.id)), mine);
+    const ownSnaps = side === undefined ? 0 : mine.reduce((n, r) => n + r.snaps[side], 0);
+    const teamSnaps = side === undefined ? 0 : sideSnaps.get(`${String(p.teamId)}/${side}`) ?? 0;
     const contests = new Map<string, { attr: GameParticipation["contests"][number]["attr"]; won: number; lost: number }>();
     for (const r of mine) {
       for (const c of r.contests) {
@@ -163,7 +217,7 @@ export function playerWeeks(people: LeaguePeople, ctx: DayStepContext, reports: 
         contests.set(String(c.attr), { attr: c.attr, won: (was?.won ?? 0) + c.won, lost: (was?.lost ?? 0) + c.lost });
       }
     }
-    const coach = coordinator(people.staff, p.teamId, SIDE_SEAT[side]);
+    const coach = side === undefined ? undefined : coordinator(people.staff, p.teamId, SIDE_SEAT[side]);
     const dc = coordinator(people.staff, p.teamId, "DC");
     const development = coach?.attributes["development"];
     const teaching = dc?.attributes["teaching"];
@@ -273,16 +327,40 @@ export function playerSteps(config: PlayerStepsConfig): DayStep[] {
   const development = config.development === true;
   const injuries = config.injuries === true;
   if (!development && !injuries) return [];
-  const switches = { development, injuries };
+  // ADR-087 §12.1: the aging options, checked here (a misspelled value throws) and recorded only when they act.
+  const aging: AgingRule = development && abilityRules(config) !== undefined ? "ability" : "position";
+  // AB5: checked here too (a misspelled value throws), and acting (and recorded) only with injuries on.
+  const asked = injuryRiskRule(config.injuryRisk);
+  const injuryRisk: InjuryRisk = injuries && asked === "spot" ? "spot" : "group";
+  // AB6: the two tuning options, checked here (a value they do not take throws), acting only on the spot path.
+  if (config.healingByAge !== undefined && typeof config.healingByAge !== "boolean") {
+    throw new RangeError(`healingByAge is true or false, not ${JSON.stringify(config.healingByAge)}`);
+  }
+  const healingByAge = injuryRisk === "spot" ? config.healingByAge !== false : true;
+  const askedWear = perContactRule(config.perContact);
+  // The contact count is kept on the ability path (§12.3.6); wear reads it only on the spot path too.
+  const countContact = aging === "ability";
+  const perContact = countContact && injuryRisk === "spot" ? askedWear : 0;
+  // AB8: checked here too (a misspelled value throws); it acts with either switch on, so whenever these steps run.
+  const retirement = retirementRule(config.retirement);
+  const switches = {
+    development, injuries, ...agingSwitches(config, development), ...(injuryRisk === "spot" ? { injuryRisk } : {}),
+    ...(healingByAge ? {} : { healingByAge: false }), ...(perContact > 0 ? { perContact } : {}),
+    ...(retirement === "choice" ? { retirement } : {}),
+  };
+  // What the spot path's injury steps take beyond the charts (AB6): the healing switch, only when off.
+  const spotRules = healingByAge ? {} : { healingByAge: false };
 
   const week: DayStep = {
     id: `${PLAYER_STEP_PREFIX}week`,
     run: (people, ctx) => {
       const weekEnd = ctx.day.day === 7;
       if (!weekEnd && (!injuries || ctx.games.length === 0)) return undefined;
-      const memory: PlayerMemory = people.playerMemory ?? emptyMemory();
+      const held: PlayerMemory = people.playerMemory ?? emptyMemory();
+      // AB8: the week's regular-season starts, read off the charts the games were played from (before this week's rebuild).
+      const memory: PlayerMemory = retirement === "choice" && weekEnd ? countStarts(held, ctx.day, people.teams, ctx.games) : held;
       const reports = participationOf(ctx.games);
-      const weeks = weekEnd ? playerWeeks(people, ctx, reports) : new Map<string, PlayerWeek>();
+      const weeks = weekEnd ? playerWeeks(people, ctx, reports, aging) : new Map<string, PlayerWeek>();
       const events: FranchiseEvent[] = [];
       let players = people.players;
       let history = memory.injuries;
@@ -291,20 +369,40 @@ export function playerSteps(config: PlayerStepsConfig): DayStep[] {
         const games = [...ctx.games].sort((a, b) => String(a.game.gameId).localeCompare(String(b.game.gameId)));
         for (const g of games) {
           const own = (g.extras as Partial<PlayerGameExtras> | undefined)?.participation ?? [];
-          const r = gameInjuries({ game: g.game.gameId, at: ctx.day, reports: own, players, history, seed: ctx.seed, rules: ctx.rules });
+          const r = gameInjuries({
+            game: g.game.gameId, at: ctx.day, reports: own, players, history, seed: ctx.seed, rules: ctx.rules,
+            // AB5: on the spot path, each man's key on his team's chart as it stands at the game.
+            ...(injuryRisk === "spot" ? { injuryRisk, teams: people.teams, ...spotRules } : {}),
+          });
           players = r.players; history = r.history; events.push(...r.events);
         }
       }
       if (!weekEnd) return { people: { ...people, players, playerMemory: { ...memory, injuries: history, switches } }, events };
 
       if (injuries) {
-        const healed = healWeek({ at: ctx.day, players, history });
+        // ADR-087 §12.2.1: on the ability path a lasting mark moves what follows the body there (elusiveness and yac too).
+        // AB6: on the spot path a concussion leaves its mark (CONCUSSION_MARK).
+        const healed = healWeek({
+          at: ctx.day, players, history, ...(aging === "ability" ? { follows: ABILITY_FOLLOWS } : {}), ...(injuryRisk === "spot" ? { injuryRisk } : {}),
+        });
         players = healed.players; history = healed.history; events.push(...healed.events);
-        const drawn = weekInjuries({ at: ctx.day, rules: ctx.rules, players, weeks, history, seed: ctx.seed });
+        const drawn = weekInjuries({
+          at: ctx.day, rules: ctx.rules, players, weeks, history, seed: ctx.seed,
+          // AB5: the week's chart, before this week's rebuild below.
+          ...(injuryRisk === "spot" ? { injuryRisk, teams: people.teams, ...spotRules } : {}),
+        });
         players = drawn.players; history = drawn.history; events.push(...drawn.events);
       }
+      // ADR-087 §12.3.6 (AB6): each man's contact this week's games, kept on the ability path only.
+      const contact = countContact ? addContact(memory.contact, reports) : undefined;
       if (development) {
-        const grown = developmentWeek({ players, at: ctx.day, rules: ctx.rules, seed: ctx.seed, weeks });
+        // Wear (years) for the men past `free`, only when `perContact` acts; else none, and nothing moves.
+        const wear = contact !== undefined && perContact > 0
+          ? new Map(Object.entries(contact).map(([id, n]) => [id, wearYears(n, perContact)] as const).filter(([, w]) => w > 0))
+          : undefined;
+        const grown = developmentWeek({
+          players, at: ctx.day, rules: ctx.rules, seed: ctx.seed, weeks, ...agingSwitches(config, development), ...(wear ? { wear } : {}),
+        });
         players = grown.players; events.push(...grown.events);
       }
       const hopes = config.lineupHopes && people.coaching && ctx.day.phase === "REGULAR_SEASON"
@@ -317,7 +415,7 @@ export function playerSteps(config: PlayerStepsConfig): DayStep[] {
         at: ctx.day, rules: ctx.rules, seed: ctx.seed, teams: people.teams, players,
         ...(hopes ? { hopes } : {}),
         ...(people.staff ? { staff: people.staff } : {}),
-        memory: { ...memory, injuries: history }, reports,
+        memory: { ...memory, injuries: history, ...(contact === undefined ? {} : { contact }) }, reports,
         ...(config.ownerTeam ? { ownerTeam: config.ownerTeam } : {}),
       });
       events.push(...depth.events);
@@ -332,6 +430,17 @@ export function playerSteps(config: PlayerStepsConfig): DayStep[] {
     },
   };
 
+  // AB8: retiring by his own choice on the three days (`retirement.ts`), only with `retirement: "choice"`.
+  const retire: DayStep = {
+    id: `${PLAYER_STEP_PREFIX}retire`,
+    run: (people, ctx) => {
+      const timing = ownMoment(ctx.day);
+      if (timing === undefined) return undefined;
+      const r = ownRetirements({ people, at: ctx.day, timing, seed: ctx.seed, rules: ctx.rules, cap: config.cap ?? flatCap(ctx.rules) });
+      return { people: { ...r.people, playerMemory: { ...(r.people.playerMemory ?? emptyMemory()), switches } }, events: r.events };
+    },
+  };
+
   const unsigned: DayStep = {
     id: `${PLAYER_STEP_PREFIX}unsigned`,
     run: (people, ctx) => {
@@ -342,6 +451,6 @@ export function playerSteps(config: PlayerStepsConfig): DayStep[] {
     },
   };
 
-  return [week, unsigned];
+  return retirement === "choice" ? [week, retire, unsigned] : [week, unsigned];
 }
 
