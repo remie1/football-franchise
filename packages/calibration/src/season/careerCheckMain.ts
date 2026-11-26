@@ -2,6 +2,7 @@
  * `pnpm --filter @ff/calibration career-check -- --league <file> (--seed <seed> | --seed-set tune|grade --index <n>) [--arm both|development|incumbent|form] [--seasons 20] [--out <file>]`
  * `pnpm --filter @ff/calibration career-check -- --grade --pass 1|2 --league <file> [--seasons 20] [--seeds a,b] [--coach-seeds a,b] [--build <fingerprint>] [--report <path>] [--smoke]`
  *   either with `[--aging position|ability] [--ability-curves D|B] [--technique-knee] [--smarts-snaps <n>] [--injury-risk group|spot] [--ability-rules]`
+ *   `[--no-healing-by-age] [--per-contact <n>]` (AB6: the spot path's tuning switches, AB9-T6 and T5; they join the rules' label)
  *
  * ADR-087 §9, row D5b: the 20-season check. Plays ONE seed of the stand-in league with growth and
  * injuries switched on (the cap check's walk, `careerCheckRun.ts`) and keeps its rows under

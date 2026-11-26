@@ -15,7 +15,8 @@
  * The weekly depth chart and unsigned retirements run whenever either switch is on, since either one
  * changes who can play; growth and aging only with `development`, injuries only with `injuries`.
  * Memory between days lives in `people.playerMemory`, so the steps stay pure functions of the people
- * and the day, and a save carries on exactly.
+ * and the day, and a save carries on exactly. With `aging: "ability"` it also counts each man's contact
+ * taken (ADR-087 §12.3.6, AB6; `wear.ts`), the wear the spot path's `perContact` reads.
  */
 import { lineupHopes } from "../winNow/lineupHopes.js";
 import {
@@ -35,6 +36,7 @@ import { gameInjuries, healWeek, isAvailable, weekInjuries } from "./injuries.js
 import { injuryRiskRule, type InjuryRisk } from "./injurySpot.js";
 import { emptyMemory, type PlayerMemory, type PlayerWeek } from "./types.js";
 import { unsignedDay } from "./unsigned.js";
+import { addContact, perContactRule, wearYears } from "./wear.js";
 
 /** Every players' step id starts with this, so a save can tell their events from other steps'. */
 export const PLAYER_STEP_PREFIX = "players:";
@@ -44,7 +46,10 @@ export const PLAYER_STEP_PREFIX = "players:";
  * `techniqueKnee` and `smartsSnaps`, `aging.ts` `AgingOptions`) act only with `development` on and
  * `aging: "ability"`. They are recorded in `PlayerMemory.switches` only then, and only when not the
  * default, so a run at the defaults is main's to the byte. `injuryRisk` (AB5) likewise acts only with
- * `injuries` on and is recorded only then, and only when not the default (`"group"`).
+ * `injuries` on and is recorded only then, and only when not the default (`"group"`). AB6's tuning
+ * options act only on the spot path and are recorded only where they act and are not the default:
+ * `healingByAge: false` (AB9-T6) with injuries on and `injuryRisk: "spot"`; `perContact` above 0
+ * (AB9-T5) with that and development on with `aging: "ability"` too.
  */
 export interface PlayerStepsConfig extends AgingOptions {
   /** Growth and aging (§2, §4). */
@@ -58,6 +63,19 @@ export interface PlayerStepsConfig extends AgingOptions {
    * factor (`injurySpot.ts`). Acts only with `injuries` on.
    */
   readonly injuryRisk?: InjuryRisk;
+  /**
+   * ADR-087 §12.3.3 (AB6; tuning arm AB9-T6): slower healing for back and ribs at 31 and over
+   * (`HEALING_BY_AGE`) on the spot path. Default true there; false turns it off. Acts only with
+   * injuries on and `injuryRisk: "spot"`; the group path never reads it.
+   */
+  readonly healingByAge?: boolean;
+  /**
+   * ADR-087 §12.3.6 (AB6; tuning arm AB9-T5): years of wear per contest of contact past `WEAR.free`
+   * (`wear.ts`), added to the body groups' and DURABILITY's years past on the ability path. Default 0
+   * (no wear). Acts only with development on and `aging: "ability"` (where the contact count is kept)
+   * and injuries on with `injuryRisk: "spot"`.
+   */
+  readonly perContact?: number;
   /**
    * The season runner's lineup rule (§10): a position this team cannot fill from these available
    * players, or undefined when it can field a side. Absent = every team can always be fielded, and
@@ -302,7 +320,21 @@ export function playerSteps(config: PlayerStepsConfig): DayStep[] {
   // AB5: checked here too (a misspelled value throws), and acting (and recorded) only with injuries on.
   const asked = injuryRiskRule(config.injuryRisk);
   const injuryRisk: InjuryRisk = injuries && asked === "spot" ? "spot" : "group";
-  const switches = { development, injuries, ...agingSwitches(config, development), ...(injuryRisk === "spot" ? { injuryRisk } : {}) };
+  // AB6: the two tuning options, checked here (a value they do not take throws), acting only on the spot path.
+  if (config.healingByAge !== undefined && typeof config.healingByAge !== "boolean") {
+    throw new RangeError(`healingByAge is true or false, not ${JSON.stringify(config.healingByAge)}`);
+  }
+  const healingByAge = injuryRisk === "spot" ? config.healingByAge !== false : true;
+  const askedWear = perContactRule(config.perContact);
+  // The contact count is kept on the ability path (§12.3.6); wear reads it only on the spot path too.
+  const countContact = aging === "ability";
+  const perContact = countContact && injuryRisk === "spot" ? askedWear : 0;
+  const switches = {
+    development, injuries, ...agingSwitches(config, development), ...(injuryRisk === "spot" ? { injuryRisk } : {}),
+    ...(healingByAge ? {} : { healingByAge: false }), ...(perContact > 0 ? { perContact } : {}),
+  };
+  // What the spot path's injury steps take beyond the charts (AB6): the healing switch, only when off.
+  const spotRules = healingByAge ? {} : { healingByAge: false };
 
   const week: DayStep = {
     id: `${PLAYER_STEP_PREFIX}week`,
@@ -323,7 +355,7 @@ export function playerSteps(config: PlayerStepsConfig): DayStep[] {
           const r = gameInjuries({
             game: g.game.gameId, at: ctx.day, reports: own, players, history, seed: ctx.seed, rules: ctx.rules,
             // AB5: on the spot path, each man's key on his team's chart as it stands at the game.
-            ...(injuryRisk === "spot" ? { injuryRisk, teams: people.teams } : {}),
+            ...(injuryRisk === "spot" ? { injuryRisk, teams: people.teams, ...spotRules } : {}),
           });
           players = r.players; history = r.history; events.push(...r.events);
         }
@@ -332,17 +364,28 @@ export function playerSteps(config: PlayerStepsConfig): DayStep[] {
 
       if (injuries) {
         // ADR-087 §12.2.1: on the ability path a lasting mark moves what follows the body there (elusiveness and yac too).
-        const healed = healWeek({ at: ctx.day, players, history, ...(aging === "ability" ? { follows: ABILITY_FOLLOWS } : {}) });
+        // AB6: on the spot path a concussion leaves its mark (CONCUSSION_MARK).
+        const healed = healWeek({
+          at: ctx.day, players, history, ...(aging === "ability" ? { follows: ABILITY_FOLLOWS } : {}), ...(injuryRisk === "spot" ? { injuryRisk } : {}),
+        });
         players = healed.players; history = healed.history; events.push(...healed.events);
         const drawn = weekInjuries({
           at: ctx.day, rules: ctx.rules, players, weeks, history, seed: ctx.seed,
           // AB5: the week's chart, before this week's rebuild below.
-          ...(injuryRisk === "spot" ? { injuryRisk, teams: people.teams } : {}),
+          ...(injuryRisk === "spot" ? { injuryRisk, teams: people.teams, ...spotRules } : {}),
         });
         players = drawn.players; history = drawn.history; events.push(...drawn.events);
       }
+      // ADR-087 §12.3.6 (AB6): each man's contact this week's games, kept on the ability path only.
+      const contact = countContact ? addContact(memory.contact, reports) : undefined;
       if (development) {
-        const grown = developmentWeek({ players, at: ctx.day, rules: ctx.rules, seed: ctx.seed, weeks, ...agingSwitches(config, development) });
+        // Wear (years) for the men past `free`, only when `perContact` acts; else none, and nothing moves.
+        const wear = contact !== undefined && perContact > 0
+          ? new Map(Object.entries(contact).map(([id, n]) => [id, wearYears(n, perContact)] as const).filter(([, w]) => w > 0))
+          : undefined;
+        const grown = developmentWeek({
+          players, at: ctx.day, rules: ctx.rules, seed: ctx.seed, weeks, ...agingSwitches(config, development), ...(wear ? { wear } : {}),
+        });
         players = grown.players; events.push(...grown.events);
       }
       const hopes = config.lineupHopes && people.coaching && ctx.day.phase === "REGULAR_SEASON"
@@ -355,7 +398,7 @@ export function playerSteps(config: PlayerStepsConfig): DayStep[] {
         at: ctx.day, rules: ctx.rules, seed: ctx.seed, teams: people.teams, players,
         ...(hopes ? { hopes } : {}),
         ...(people.staff ? { staff: people.staff } : {}),
-        memory: { ...memory, injuries: history }, reports,
+        memory: { ...memory, injuries: history, ...(contact === undefined ? {} : { contact }) }, reports,
         ...(config.ownerTeam ? { ownerTeam: config.ownerTeam } : {}),
       });
       events.push(...depth.events);
