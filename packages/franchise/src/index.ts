@@ -140,11 +140,14 @@ export {
   EXPECTED_BACKUP_SNAPS_PER_GAME, expectedAvailability, type Availability, type AvailabilityOptions,
 } from "./players/availability.js";
 export {
-  gameInjuries, weekInjuries, healWeek, isAvailable, bandFor,
+  gameInjuries, weekInjuries, healWeek, isAvailable, bandFor, seedPastInjuries,
   type InjuryResult, type GameInjuryInput, type WeekInjuryInput, type HealInput, type InjuryRiskInput,
 } from "./players/injuries.js";
 // ADR-087 §12.3.1 (AB5): injury risk by the depth-chart spot, behind `injuryRisk: "spot"` (default "group").
 export { spotOf, spotAgeFactor, type InjuryRisk, type InjuryRiskProfile } from "./players/injurySpot.js";
+// ADR-087 §12.3.7 (AB7): a copied `real:` kind read as this game's kind on the spot path (heal and the seeded past injuries).
+export { realKindOf } from "./players/injurySpot.js";
+export { REAL_OTHER_KIND, REAL_PART_KINDS } from "./players/injuryTables.js";
 export { INJURY_RATES, INJURY_KINDS, REAL_SPOT_RATES, CONCUSSION_MARK, CONCUSSION_REPEAT, HEALING_BY_AGE } from "./players/injuryTables.js";
 // ADR-087 §12.3.6 (AB6): wear from contact taken, counted on the ability path; `perContact` 0 (no wear) by default.
 export { CONTACT_ROLL_SETS, WEAR } from "./players/wear.js";

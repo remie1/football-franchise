@@ -71,7 +71,8 @@ async function main(argv: readonly string[]) {
   console.log(changed.length > 0 ? `  wrote ${path}` : `  unchanged: ${path}`);
 }
 
+// A refusal prints its message alone, never the error object or its stack (ADR-087 AB7 review, finding 5).
 main(process.argv.slice(2).filter((a) => a !== "--")).catch((e: unknown) => {
-  console.error(e);
+  console.error(e instanceof Error ? e.message : "standin-contracts stopped");
   process.exit(1);
 });

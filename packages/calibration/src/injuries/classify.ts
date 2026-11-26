@@ -124,9 +124,10 @@ export function onRoster(kind: RosterKind): boolean {
  */
 export type ReportTextKind = "FOOTBALL" | "ILLNESS" | "NON_INJURY" | "COVID" | "NONE";
 
-const NON_INJURY = /not injury|non-injury|non injury|\brest\b|\bresting\b|personal|coach|team decision|did not travel|suspen|load management|family|birth|bereavement|ramp up|no game status|expected to (be available|play)/;
-const COVID = /covid/;
-const ILLNESS = /illness|\bill\b|\bsick|\bflu\b/;
+/** The keyword tables are exported for one pin: the copies' tests (attributes' importer, franchise's `realParts.ts`) and this package's hash them to one `KEYWORD_TABLES_SHA256`. */
+export const NON_INJURY = /not injury|non-injury|non injury|\brest\b|\bresting\b|personal|coach|team decision|did not travel|suspen|load management|family|birth|bereavement|ramp up|no game status|expected to (be available|play)/;
+export const COVID = /covid/;
+export const ILLNESS = /illness|\bill\b|\bsick|\bflu\b/;
 
 export function reportTextKind(text: string | null): ReportTextKind {
   if (text === null) return "NONE";
@@ -149,7 +150,7 @@ export type BodyPart =
  * Keywords for each class. The class whose keyword appears EARLIEST in the text wins, so "back,
  * ankle, knee" reads as back and "left Knee" as knee.
  */
-const BODY_KEYWORDS: readonly (readonly [Exclude<BodyPart, "illness" | "other" | "unknown">, RegExp])[] = [
+export const BODY_KEYWORDS: readonly (readonly [Exclude<BodyPart, "illness" | "other" | "unknown">, RegExp])[] = [
   ["achilles", /achilles/],
   ["concussion/head", /concussion|\bhead\b/],
   ["hamstring", /hamstring/],

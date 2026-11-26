@@ -96,7 +96,7 @@ import { buildLeague, buildStaff, makeSave, readSave } from "@ff/franchise";
 import { createNewsDesk, formatEdition } from "@ff/narrative";
 import { CALLER_VERSIONS, DEFAULT_CALLER_VERSION, type CallerVersion } from "../caller/anticipate.js";
 import { agingOf, officiatingFor, runRealSeason, seasonToPlay, standInOfficialsLine, type SeasonRosters } from "./realSeason.js";
-import { readStandInFile } from "./standInLeague.js";
+import { pastInjuriesLine, readStandInFile } from "./standInLeague.js";
 import { agingLabel, readAgingFlag, seasonAging, seasonPlayers, type AgingFlags } from "./agingFlags.js";
 import { checkStamp, engineRulesDigestOf, LEGACY_RULES, rulesTunables } from "../pocket/rules.js";
 import { savePlayedWith, seasonOutStamp, seasonRules } from "./stamp.js";
@@ -270,6 +270,9 @@ const printNews = (editions: ReturnType<Desk["take"]>) => {
 const officiating = officiatingFor(loaded?.save, standIn === undefined ? undefined : { file: standIn, season });
 const officialsLine = standInOfficialsLine(standIn, officiating, season);
 if (officialsLine !== undefined) console.log(officialsLine);
+// ADR-087 AB7: on the spot path, how many men's past injuries (P8) franchise seeds from the file.
+const pastLine = pastInjuriesLine(standIn, players);
+if (pastLine !== undefined) console.log(pastLine);
 const { league, rated, run } = runRealSeason({
   seed, season, callerVersion, rosters, league: base,
   ...(standIn === undefined ? {} : { standIn }),

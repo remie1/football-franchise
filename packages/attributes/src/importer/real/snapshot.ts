@@ -14,11 +14,13 @@
  *
  * The officials snapshot (ADR-093 step 1b, `officialsFiles`) is a second kind, fetched into its own
  * root, `data-cache/real/officials/<YYYY-MM-DD>/`, with the same manifest; `verifySnapshot` checks a
- * kept folder against that manifest before anything reads it.
+ * kept folder against that manifest before anything reads it. The injuries snapshot (ADR-087 AB7,
+ * `injuryHistoryFiles`) is a third, in `data-cache/real/injuries/<YYYY-MM-DD>/`. Both are fetched
+ * staged (`fetchStagedSnapshot`), so a failed fetch leaves no dated folder.
  */
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { parquetReadObjects } from "hyparquet";
 
@@ -77,6 +79,29 @@ export function officialsFiles(season: number): Readonly<Record<string, string>>
   };
 }
 
+/**
+ * The first season the injuries snapshot holds (ADR-087 AB7, CHOSEN): the seasons calibration's
+ * `injury-rates` reads, so nothing before 2019 is known of a man's injuries.
+ */
+export const INJURY_HISTORY_FIRST_SEASON = 2019;
+
+/**
+ * The files one injuries snapshot holds (ADR-087 AB7, §12.3.7): the schedules (each game's week and
+ * date, for the cut), and for each season from `INJURY_HISTORY_FIRST_SEASON` to `season` the injury
+ * reports, the weekly rosters and the snap counts. No players list: nothing reads one. The columns
+ * read are `injuryRows.ts`'s. Cadence: fetched on demand (`standin-injuries -- --fetch`), never on a
+ * schedule; a kept folder is read again with `--snapshot`.
+ */
+export function injuryHistoryFiles(season: number): Readonly<Record<string, string>> {
+  const out: Record<string, string> = { schedules: "schedules/games.parquet" };
+  for (let y = INJURY_HISTORY_FIRST_SEASON; y <= season; y++) {
+    out[`injuries${y}`] = `injuries/injuries_${y}.parquet`;
+    out[`rosters${y}`] = `weekly_rosters/roster_weekly_${y}.parquet`;
+    out[`snaps${y}`] = `snap_counts/snap_counts_${y}.parquet`;
+  }
+  return out;
+}
+
 export interface ManifestEntry {
   readonly url: string;
   readonly bytes: number;
@@ -122,6 +147,43 @@ export async function fetchSnapshot(opts: {
   const manifest: SnapshotManifest = { season: opts.season, date, fetchedAt: opts.now.toISOString(), files };
   await writeFile(join(dir, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
   return { dir, manifest };
+}
+
+/** Where a staged fetch writes before the files are whole: its name is no date, so `latestSnapshot` never picks it. */
+export const FETCHING = ".fetching";
+
+/**
+ * A staged fetch (ADR-093 step 1b, ADR-087 AB7): today's snapshot (the UTC date) of `files`, fetched into
+ * `<root>/.fetching` and moved to `<root>/<today>` only once every file and the manifest are written, so a
+ * failed fetch leaves no dated folder for `latestSnapshot` to find. Refuses when `<root>/<today>` is there
+ * already, before any download: a kept folder is never written over, and a re-run on it names it with
+ * `--snapshot`. `what` names the kind of snapshot in that refusal.
+ */
+export async function fetchStagedSnapshot(opts: {
+  readonly root: string;
+  readonly season: number;
+  readonly now: Date;
+  readonly files: Readonly<Record<string, string>>;
+  readonly what: string;
+  readonly download?: Download;
+}): Promise<{ dir: string; manifest: SnapshotManifest }> {
+  const dir = join(opts.root, opts.now.toISOString().slice(0, 10));
+  if (existsSync(dir)) {
+    throw new Error(`the ${opts.what} snapshot ${dir} is there already, and a fetch today would write over it: ` +
+      `to read it again, run with --snapshot ${dir}; to fetch afresh, move it out of ${opts.root} first`);
+  }
+  const staging = join(opts.root, FETCHING);
+  await rm(staging, { recursive: true, force: true });
+  try {
+    const fetched = await fetchSnapshot({
+      root: staging, season: opts.season, now: opts.now, files: opts.files,
+      ...(opts.download === undefined ? {} : { download: opts.download }),
+    });
+    await rename(fetched.dir, dir);
+    return { dir, manifest: fetched.manifest };
+  } finally {
+    await rm(staging, { recursive: true, force: true });
+  }
 }
 
 /** The newest dated snapshot folder under `root`, or null. */

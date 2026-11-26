@@ -164,4 +164,5 @@ async function main(argv: readonly string[]) {
   }
 }
 
-main(process.argv.slice(2).filter((a) => a !== "--")).catch((e: unknown) => { console.error(e); process.exit(1); });
+// A refusal prints its message alone, never the error object or its stack (ADR-087 AB7 review, finding 5).
+main(process.argv.slice(2).filter((a) => a !== "--")).catch((e: unknown) => { console.error(e instanceof Error ? e.message : "standin-officials stopped"); process.exit(1); });

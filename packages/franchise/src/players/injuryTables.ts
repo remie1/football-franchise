@@ -600,3 +600,18 @@ export const INJURY_KINDS: Readonly<Record<string, InjuryKind>> = {
     playingHurt: { armStrength: -3, catching: -2, tackling: -2 },
   },
 };
+
+/**
+ * ADR-087 §12.3.7 (AB7): the franchise kind each of P8's body-part classes is recorded under on the
+ * spot path (`realKindOf`), as `real:` and the class with "/" written "-" names it. CHOSEN: knee goes to
+ * `knee-mcl`, so a real knee history (ACLs among it) counts as a prior for `knee-mcl` draws only, never
+ * for `acl` draws (AB9 notes it). The other classes go to the kind of the same body part.
+ */
+export const REAL_PART_KINDS: Readonly<Record<string, string>> = {
+  knee: "knee-mcl", ankle: "ankle", hamstring: "hamstring", "concussion-head": "concussion", shoulder: "shoulder", "groin-hip": "groin",
+  "foot-toe": "foot", "calf-shin": "calf", achilles: "achilles", "quad-thigh": "quad", "back-neck": "back", "hand-wrist": "hand-wrist",
+  "elbow-arm": "elbow-arm", "chest-ribs-abdomen": "ribs", illness: "illness",
+};
+
+/** Every other class (other, unknown) and every text no keyword matches (CHOSEN): a kind no draw has, so never drawn and never a repeat. */
+export const REAL_OTHER_KIND = "other";
