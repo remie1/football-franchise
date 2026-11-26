@@ -15,7 +15,7 @@ import {
   type UsageCell,
 } from "../src/season/careerCheck.js";
 import {
-  agingRedesignRows, bandCounts, CAREER_BANDS, groupSeasonReference, NFL_ROOKIE_CUTS, PLAN_WINDOWS, signedAgainCounts, WEEK_EIGHT_LEAGUE_YEARS, expectedCareer, familyLabel, gradeCareerCheck, gradeCheck,
+  agingRedesignRows, bandCounts, CAREER_BANDS, gradedLeague, groupSeasonReference, NFL_ROOKIE_CUTS, PLAN_WINDOWS, signedAgainCounts, WEEK_EIGHT_LEAGUE_YEARS, expectedCareer, familyLabel, gradeCareerCheck, gradeCheck,
   medianOf, notResolvable, outsideBand, poolSeeds, renderGradeJson, renderGradeMarkdown, rowStatus, slopeOf, trendShare, weekEightLeagueReference, type BandRule, type CareerGrade,
   type GradeInput, type NflRookieCuts,
 } from "../src/season/careerGrade.js";
@@ -765,6 +765,40 @@ describe("the grade on made-up seeds", () => {
     const json = JSON.parse(renderGradeJson(a)) as { bands: unknown[]; rows: unknown[] };
     expect(json.bands).toHaveLength(CAREER_BANDS.length);
     expect(json.rows).toHaveLength(CAREER_BANDS.length);
+  });
+});
+
+describe("the league a grade names: the one the rows were played on (gradedLeague)", () => {
+  // ADR-087 AB2 rewrote the league file at /2 while the AB1 baseline played on /1: a --build grade of
+  // those rows from a later tree must name /1's file, as the rows' own records do.
+  const v1 = { path: "packages/attributes/leagues/standin-2026-10-23.json", sha256: "b".repeat(64) };
+  const v2 = { path: "packages/attributes/leagues/standin-2026-10-23.json", sha256: "c".repeat(64) };
+  const rec = (seed: string, arm: string, league: { path: string; sha256: string }) => ({ seed, arm, league });
+
+  it("reads the league from the records, not the tree's file, and names the tree's file beside it when they differ", () => {
+    const played = gradedLeague([rec("d5b-g1", "both", v1), rec("d5b-t1", "incumbent", v1)], v2);
+    expect(played).toEqual({ league: v1, treeLeague: v2 });
+    // The same file: no second name.
+    expect(gradedLeague([rec("d5b-g1", "both", v2)], v2)).toEqual({ league: v2 });
+    // The path is the records' too (a record names the path it was played from).
+    expect(gradedLeague([rec("d5b-g1", "both", { path: "old/league.json", sha256: v2.sha256 })], v2).league.path).toBe("old/league.json");
+  });
+
+  it("refuses rows played on two league files", () => {
+    expect(() => gradedLeague([rec("d5b-g1", "both", v1), rec("d5b-t2", "form", v2)], v2)).toThrow(/two league files: both-d5b-g1 .* form-d5b-t2/);
+  });
+
+  it("falls back to the tree's file with no record (every seed missing)", () => {
+    expect(gradedLeague([], v2)).toEqual({ league: v2 });
+  });
+
+  it("puts the rows' league in the report's header, and the tree's beside it only when they differ", () => {
+    const old = renderGradeMarkdown(gradeCareerCheck(input(steady(), { meta: { ...meta, ...gradedLeague([rec("s1", "both", v1)], v2) } })));
+    expect(old).toContain(`sha256 \`${v1.sha256.slice(0, 12)}\`, as the rows' records name it), not the tree's file now`);
+    expect(old).toContain(`sha256 \`${v2.sha256.slice(0, 12)}\``);
+    const same = renderGradeMarkdown(gradeCareerCheck(input(steady())));
+    expect(same).toContain(`sha256 \`${meta.league.sha256.slice(0, 12)}\`, as the rows' records name it), 20 seasons a seed`);
+    expect(same).not.toContain("not the tree's file now");
   });
 });
 

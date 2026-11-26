@@ -19,14 +19,15 @@
  * so changing one position's count never reshuffles another position's players.
  *
  * With `development` on (ADR-087), each player also gets his growth rate, career snaps, body and
- * patience (`development.ts`), from another fork of his own (`development/<player id>`).
+ * patience (`development.ts`), from another fork of his own (`development/<player id>`); with the
+ * `aging` option at `"ability"` too, his fade shifts (§12.2.3), on that fork's `"aging"` fork.
  */
 import {
   ATTRIBUTE_REGISTRY_V1, clampRating, createRng, playerId, positionOverall,
   type AttributeMap, type PlayerId, type PlayerState, type Position, type RatedLeague, type Rng, type Team,
 } from "@ff/contracts";
 import { physicalRatings, type Measurements } from "./derive.js";
-import { withDevelopment } from "./development.js";
+import { withDevelopment, type AgingOption } from "./development.js";
 import { drawName } from "./names.js";
 import { PHYSICAL, PROFILES, TIERS, UNIVERSAL, type Tier } from "./profiles.js";
 import { BODY, POSITION_ORDER, ROSTER_SHAPE, type Dist } from "./shape.js";
@@ -54,6 +55,12 @@ export interface GenerateLeagueInput {
    * stream (`development.ts`). Off by default; off, the league is exactly what it was before.
    */
   readonly development?: boolean;
+  /**
+   * ADR-087 §12.1: how the players age. `"ability"` gives each player his fade shifts (P7,
+   * `development.ts` `drawFadeShift`) on a fork of his development stream; `"position"`, the default,
+   * gives none, and the league is exactly what it was before the option. Acts only with `development` on.
+   */
+  readonly aging?: AgingOption;
 }
 
 /** What `RatedLeague.provenance` holds for a generated league. */
@@ -196,6 +203,7 @@ export function generateLeagueRosters(input: GenerateLeagueInput): RatedLeague {
         players.push(input.development
           ? withDevelopment(player, root.fork(`development/${String(id)}`), {
             measurements: p.measurements, career: { slot: p.slot, season: input.season },
+            ...(input.aging === "ability" ? { aging: "ability" as const } : {}),
           })
           : player);
       });

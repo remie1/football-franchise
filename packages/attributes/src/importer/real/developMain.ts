@@ -2,7 +2,8 @@
  * `pnpm --filter @ff/attributes standin-development -- [--league <file>]`
  *
  * Gives every stand-in in a league file his starting development (ADR-087 §2.5, step 1;
- * `development.ts`): growth rate, body, career snaps, patience, combine record and today's injury.
+ * `development.ts`): growth rate, body, career snaps, fade shifts (§12.2.3), patience, combine
+ * record and today's injury.
  * Takes off any records an earlier run left and writes the new ones into the same file, through the
  * serializer `import-real` writes with, so a second run changes nothing. Reads only the league file
  * (made-up names; no raw data, no name table). Prints counts only.
@@ -38,7 +39,8 @@ function main(argv: readonly string[]) {
   const bySource = [...COPIED_RESERVE, ...COPIED_REPORT].map((s) => `${s} ${sources.filter((x) => x === s).length}`).join(", ");
   const noStatus = file.startingDevelopment!.teamsWithoutGameStatus.length;
   console.log(`standin-development ${file.snapshotDate}: ${withRecords} of ${players.length} players with growth records, ` +
-    `${players.filter((p) => p.bio.combine !== undefined).length} with a combine record`);
+    `${players.filter((p) => p.bio.combine !== undefined).length} with a combine record, ` +
+    `${players.filter((p) => p.attributes.development?.fadeShift !== undefined).length} with fade shifts (${file.startingDevelopment!.version})`);
   console.log(`  injuries copied: ${sources.length} (${bySource})`);
   console.log(`  teams without game statuses on their latest injury report: ${noStatus} of ${new Set(players.map((p) => String(p.teamId))).size}`);
   if (after === before) console.log(`  unchanged: ${path}`);

@@ -25,9 +25,11 @@ const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
  * The committed league file before `standin-officials` wrote its officiating block (the file at
  * 87681e2, with its growth records, and its estimated deals rebuilt by `standin-contracts` on
  * 2026-11-07), by its sha256: only a new snapshot of the league, a refresh of its contracts, or new
- * growth records (`standin-development`) may change this.
+ * growth records (`standin-development`) may change this. ADR-087 AB2's new growth records did: at
+ * `standin-development/2` every man has his fade shifts, so the file without its block moved from
+ * main's d9102480… to e5cd6230…, and the block itself is main's to the byte.
  */
-const FILE_BEFORE_OFFICIALS_SHA256 = "d9102480a2db6e889935cb15eb832eedf5cd63227417ea999db23831b376b7eb";
+const FILE_BEFORE_OFFICIALS_SHA256 = "e5cd62309b8186fe6607d25292df3945c081abdc8c2f8d26c234c9cc7474c2d5";
 
 describe("the committed league file's copied crews (ADR-093 step 1b)", () => {
   it("are 17 crews o:01 to o:17 in id order, with 17 made-up referees and five whole leans each, every family averaging 50", () => {
