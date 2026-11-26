@@ -1152,7 +1152,8 @@ export function agingRedesignRows(
       "The season's retirements by moment (PLAYER_RETIRED.timing: IMMEDIATE, SLOW, LATE, SEASON_END) and way (unsigned, his own choice while signed, his own choice unsigned), " +
       "and by way and years in the league (the season less his first, as the real rosters' years_exp; bands as nfl-careers'), each a season over the window. Then the final-week " +
       "cohorts of the retired-signed row by years in the league, against the reserve/retired list by years in the league (Y 2021-24, a lower bound: only men under contract are placed on it). " +
-      "The walk's first season has no retirements (MEASURED: none in the 2-season and 3-season smokes, and none in the v5 count of the same season), so a window holding it " +
+      "At the defaults the walk's first season has no retirements (MEASURED: none in the 2-season and 3-season smokes, and none in the v5 count of the same season); with " +
+      "--retirement choice (AB8) it has own-choice ones but still none unsigned (MEASURED: 23 own choice and 0 unsigned in the 3-season smoke of d5b-t1), so a window holding it " +
       "(a smoke run's) reads each per-season count low; pass 1's windows start in 2029."));
   }
   // The teams' overall: its spread and how it carries, beside the win spread and win r.
@@ -1641,7 +1642,7 @@ export function gradeCareerCheck(input: GradeInput): CareerGrade {
     "Of the men on a final-week 53 in Y (counted like the NFL), the share who retired from that day (after the 53 is read; a retirement at Y's season end is Y's) " +
     "and before Y + 1's, by age in Y: his own choice while signed (a deal of his live when he retired, or ended RETIRED that season), against the real men on a " +
     "final-week 53 placed on the reserve/retired list the next season. " + nfl.retiredList.note +
-    " Until a build lets a man retire by choice, the sim's own-choice shares are 0. The retirements by age, credited seasons and group, each way, are in the rows (SeasonRow.retirements)."));
+    " At the defaults no man retires by his own choice, so the sim's own-choice shares are 0; --retirement choice (AB8) lets him. The retirements by age, credited seasons and group, each way, are in the rows (SeasonRow.retirements)."));
 
   // Rookies' ages on the week-8 53s (counted like the NFL): the mean, and the whole-year shares.
   const rk = nfl.weekEight.rookieAge;

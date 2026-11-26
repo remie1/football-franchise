@@ -109,6 +109,24 @@ describe("summariseSeason", () => {
   });
 });
 
+describe("summariseSeason with retirements (AB8)", () => {
+  const retired = (who: string, reason: "UNSIGNED" | "OWN_CHOICE", timing: "LATE" | "SEASON_END" | "IMMEDIATE"): FranchiseEventEnvelope =>
+    ({ seq: seq++, at: at("OFF_EVAL", 1), event: { type: "PLAYER_RETIRED", payload: { player: playerId(who), timing, reason, ...(reason === "OWN_CHOICE" ? { team: A } : {}) } } as FranchiseEvent });
+  const run = (extra: FranchiseEventEnvelope[]) =>
+    summariseSeason({ seed: "s", arm: "both", state, events: [...events, ...extra], startTeams: [team(A, ["qb1", "qb2", "qb3"])], startPlayers: start, endPlayers: end });
+
+  it("counts retirements by his own choice apart from the unsigned rule's, and names them only when there were some", () => {
+    const own = run([retired("qb2", "OWN_CHOICE", "IMMEDIATE"), retired("qb3", "OWN_CHOICE", "IMMEDIATE"), retired("fa", "UNSIGNED", "SEASON_END")]);
+    expect(own.roster.unsignedRetired).toBe(1);
+    expect(own.roster.ownRetired).toBe(2);
+    const none = run([retired("fa", "UNSIGNED", "SEASON_END")]);
+    expect(none.roster.unsignedRetired).toBe(1);
+    expect("ownRetired" in none.roster).toBe(false);
+    expect(summariseArm([own, none]).roster.ownRetiredPerSeason).toBe(1);
+    expect("ownRetiredPerSeason" in summariseArm([none, none]).roster).toBe(false);
+  });
+});
+
 describe("summariseSeason on the stand-in league (roster groups given)", () => {
   // qb1-qb3 are the 53; ps1 is on the practice squad, ir1 on a reserve list and hurt at camp; fa is the street.
   const withGrowth = (p: PlayerState, growth: number): PlayerState =>

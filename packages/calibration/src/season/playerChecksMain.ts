@@ -67,7 +67,7 @@ for (let i = 0; i < argv.length; i++) {
 // Refused when no chosen arm has development on: none would play them (AB3 review).
 const aging = agingForArms(arms, settleAging(agingFlags));
 const agingName = agingLabel(aging);
-if (agingName !== undefined) console.log(`New rules ${agingName} in the arms they act on (aging with development on, injury risk with injuries on; ADR-087 §12)`);
+if (agingName !== undefined) console.log(`New rules ${agingName} in the arms they act on (aging with development on, injury risk with injuries on, retirement with either; ADR-087 §12)`);
 const root = fileURLToPath(new URL("../..", import.meta.url));
 // The stand-in league, when asked for: a path from the folder the command was typed in.
 const leagueAt = argv.indexOf("--league");
@@ -153,7 +153,7 @@ if (standIn === undefined) {
 }
 if (agingName !== undefined) {
   say();
-  const { injuryRisk, ...agingPart } = aging;
+  const { injuryRisk, retirement, ...agingPart } = aging;
   const agingPartName = agingLabel(agingPart);
   if (agingPartName !== undefined) {
     say(`The arms with development on (\`development\`, \`both\`) age the players by ability group, not by position (ADR-087 §12; \`${agingPartName}\`, ` +
@@ -167,6 +167,10 @@ if (agingName !== undefined) {
   }
   if (aging.perContact !== undefined) {
     say(`The \`both\` arm wears the players by the contact they take, ${aging.perContact} years a contest past the free count (ADR-087 §12.3.6; \`--per-contact\`).`);
+  }
+  if (retirement === "choice") {
+    say("The arms with a players' switch on (`development`, `injuries`, `both`) let players retire by their own choice too, at three moments a year " +
+      "(ADR-087 §12.4; `--retirement choice`); the `off` arm is as in a default run.");
   }
 }
 say();
@@ -319,6 +323,12 @@ if (grown.length > 0) {
     say(`| ${s.arm} | ${r.emergencySigningsPerSeason.toFixed(1)}${calledUp} | ${r.unsignedRetiredPerSeason.toFixed(1)} | ${r.battlesPerTeamSeason.toFixed(2)} | ${Object.entries(r.depthChangesPerTeamSeason).map(([k, v]) => `${k} ${v.toFixed(1)}`).join(", ")} |`);
   }
   say();
+  // AB8: retirements by his own choice, only when an arm played them (`--retirement choice`).
+  const own = grown.filter((s) => s.roster.ownRetiredPerSeason !== undefined);
+  if (own.length > 0) {
+    say(`Retired by their own choice a season (ADR-087 §12.4; IMMEDIATE, SLOW and LATE): ${own.map((s) => `${s.arm} ${s.roster.ownRetiredPerSeason!.toFixed(1)}`).join(", ")}.`);
+    say();
+  }
 }
 const report = `${standIn === undefined ? "player-checks" : "player-checks-standin"}${agingName === undefined ? "" : `-${agingName}`}`;
 writeFileSync(join(root, "reports", `${report}.md`), lines.join("\n"));

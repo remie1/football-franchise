@@ -109,7 +109,7 @@ export { runCutdown, seasonsIn, LEAN_POINTS, NEWER_PLAYER_SEASONS, CLAIM_MARGIN,
 export {
   draftSteps, turnYear, creditSeason, peopleFromSave, waiverOrderFrom, movesFromPeople, averagePerYear, headCoachEvaluation, DRAFT_DAYS, type DraftStepsConfig, type TurnYearOptions,
 } from "./draft/steps.js";
-export { signRookie, signSquad, signFuture, release, claimedDeal, liveContract, flatCap, type CapForSeason } from "./draft/money.js";
+export { signRookie, signSquad, signFuture, release, retire, claimedDeal, liveContract, flatCap, type CapForSeason } from "./draft/money.js";
 export {
   apyOf, marketCurves, percentileOf, quantile, ageFactor, ageFactorAt, legacyRuleAge, termFor, termAt, structureFor, valuePlayer, veteranContract, guaranteedShare, firstYearShareFor, REAL_FIRST_YEAR,
   type MarketCurve, type MarketCurves, type Valuation, type ValueAhead, type VeteranDeal,
@@ -149,10 +149,15 @@ export { INJURY_RATES, INJURY_KINDS, REAL_SPOT_RATES, CONCUSSION_MARK, CONCUSSIO
 // ADR-087 §12.3.6 (AB6): wear from contact taken, counted on the ability path; `perContact` 0 (no wear) by default.
 export { CONTACT_ROLL_SETS, WEAR } from "./players/wear.js";
 export { depthChartWeek, type DepthWeekInput, type DepthWeekResult, type WeekHope } from "./players/depthChart.js";
-export { unsignedDay, drawPatience, type UnsignedInput, type UnsignedResult } from "./players/unsigned.js";
+export { unsignedDay, drawPatience, forget, type UnsignedInput, type UnsignedResult } from "./players/unsigned.js";
+export {
+  OWN_MOMENTS, RETIREMENT_CHANCE, RETIREMENT_STREAM, ageRate, cashOwed, chanceByAgeBand, countStarts, momentChance, ownMoment, ownRetirements,
+  STARTER_SHARE, bestProfile, mostCharted, retirementChance, retirementInputs, retirementRule, reviewOf, reviewSeason, startedIn,
+  type OwnRetirementInput, type OwnRetirementResult, type OwnTiming, type RetirementChanceModel, type RetirementInputs, type RetirementRule,
+} from "./players/retirement.js";
 export { lineupFor, teamLineup, type Lineup } from "./players/lineup.js";
 export { changeBody, addPoints, type BodyChange } from "./players/body.js";
-export { emptyMemory, type PlayerMemory, type PlayerWeek, type PastInjury, type RatingGroup } from "./players/types.js";
+export { emptyMemory, type PlayerMemory, type PlayerWeek, type PastInjury, type RatingGroup, type RetirementReview, type SeasonStarts } from "./players/types.js";
 // ADR-081 M1: the end-of-season meeting's truth side.
 export { LUCK, pythagorean, seasonLuck, verdictOf, type LuckVerdict, type TeamLuck } from "./meeting/luck.js";
 export {

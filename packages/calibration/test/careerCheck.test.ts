@@ -801,6 +801,39 @@ describe("the owner's aging rulings: the reader's new pieces", () => {
     expect(reads.map((r) => `${r.player}:${r.way}`)).toEqual(["U:unsigned", "S:ownSigned", "O:ownUnsigned", "Q:ownSigned", "X:unsigned", "E:ownUnsigned", "L:ownSigned"]);
   });
 
+  it("an OWN_CHOICE retirement (E6, AB8) is read by the team it names: signed with one, unsigned with none, whatever the book says", () => {
+    const before = { players: [
+      man("A", { age: 31, cs: 9, position: "WR", team: "T01" }), man("B", { age: 27, cs: 4, position: "CB" }),
+      man("C", { age: 34, cs: 12, position: "QB", team: "T02" }),
+    ] };
+    const own = (player: string, timing: "IMMEDIATE" | "SLOW" | "LATE", team?: string): FranchiseEvent =>
+      ({ type: "PLAYER_RETIRED", payload: { player, timing, reason: "OWN_CHOICE", ...(team ? { team } : {}) } } as FranchiseEvent);
+    const events = [
+      env(0, stamp(2026, "OFF_EVAL", 1, 7), own("A", "IMMEDIATE", "T01")),
+      env(1, stamp(2026, "OFF_RESET_FA", 1, 2), own("B", "SLOW")),
+      env(2, stamp(2026, "OFF_RESET_FA", 1, 2), own("C", "SLOW", "T02")),
+    ];
+    // B holds a live deal in the book, C none: the event's team decides, not the book.
+    const after = { contracts: [dealOf("B", "T03", { seasons: [2026, 2027], hit: 1e6, at: stamp(2025, "OFF_RESET_FA", 1, 1) })] };
+    const { tally, reads } = retirementsOf(2026, events, before, after);
+    expect(reads.map((r) => `${r.player}:${r.way}:${r.timing}`)).toEqual(["A:ownSigned:IMMEDIATE", "B:ownUnsigned:SLOW", "C:ownSigned:SLOW"]);
+    expect(tally.ownSigned.n).toBe(2);
+    expect(tally.ownUnsigned.n).toBe(1);
+    expect(tally.unsigned.n).toBe(0);
+    // By moment, as the v6 rows count them.
+    const how = retiredHow(reads, (id) => ({ A: 9, B: 4, C: 12 })[id]);
+    expect(how.byMoment.IMMEDIATE).toEqual({ unsigned: 0, ownSigned: 1, ownUnsigned: 0 });
+    expect(how.byMoment.SLOW).toEqual({ unsigned: 0, ownSigned: 1, ownUnsigned: 1 });
+    expect(how.byMoment.LATE).toEqual({ unsigned: 0, ownSigned: 0, ownUnsigned: 0 });
+    // Each moment falls in the cohort's year: from Y's season end to Y + 1's.
+    const late = { player: "D", at: stamp(2027, "TRAINING_CAMP", 1, 1), way: "ownSigned" as const, timing: "LATE" as const };
+    const counts = retiredNextYear(
+      [{ id: "A", age: 31, starter: true }, { id: "D", age: 30, starter: true }],
+      new Map([["A", reads[0]!], ["D", late]]), 2026,
+    );
+    expect(counts).toEqual({ "30": { n: 1, unsigned: 0, ownSigned: 1, ownUnsigned: 0 }, "31": { n: 1, unsigned: 0, ownSigned: 1, ownUnsigned: 0 } });
+  });
+
   it("a deal live at a moment: signed by then and not ended before it; one ended that moment only if it ended RETIRED", () => {
     const at = stamp(2027, "OFF_DRAFT", 1, 1);
     const d = (signedOn: CalendarStamp, ended?: { at: CalendarStamp; reason: string }) => dealOf("p", "T01", { seasons: [2027], hit: 1, at: signedOn, ...(ended ? { ended } : {}) });

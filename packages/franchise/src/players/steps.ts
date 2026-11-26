@@ -7,6 +7,10 @@
  *   healing → practice and away-from-football injuries → the development week → the depth chart →
  *   emergency signings, so every team with a game next week can field a side for it.
  * Every day: unsigned players' patience (§6.1).
+ * With `retirement: "choice"` (ADR-087 §12.4, AB8): each regular-season game week's starts are counted
+ * before the week's chart rebuild, and on the three own-choice days (OFF_EVAL week 1 day 7, OFF_RESET_FA
+ * week 1 day 2, training camp week 1 day 1) men may retire by their own choice (`retirement.ts`),
+ * after the week step and before the unsigned rule's step, which still runs after it on camp's first day.
  *
  * What each player did this week (`PlayerWeek`) is read once, before the day's new injuries: who was
  * with a team still playing, who practised, who played and how (the who-played report, P4, which the
@@ -34,6 +38,7 @@ import { depthChartWeek, readBlur } from "./depthChart.js";
 import { PRACTICE_PHASES, developmentWeek } from "./development.js";
 import { gameInjuries, healWeek, isAvailable, weekInjuries } from "./injuries.js";
 import { injuryRiskRule, type InjuryRisk } from "./injurySpot.js";
+import { countStarts, ownMoment, ownRetirements, retirementRule, type RetirementRule } from "./retirement.js";
 import { emptyMemory, type PlayerMemory, type PlayerWeek } from "./types.js";
 import { unsignedDay } from "./unsigned.js";
 import { addContact, perContactRule, wearYears } from "./wear.js";
@@ -49,7 +54,8 @@ export const PLAYER_STEP_PREFIX = "players:";
  * `injuries` on and is recorded only then, and only when not the default (`"group"`). AB6's tuning
  * options act only on the spot path and are recorded only where they act and are not the default:
  * `healingByAge: false` (AB9-T6) with injuries on and `injuryRisk: "spot"`; `perContact` above 0
- * (AB9-T5) with that and development on with `aging: "ability"` too.
+ * (AB9-T5) with that and development on with `aging: "ability"` too. `retirement` (AB8) acts with
+ * either switch on and is recorded only when not the default (`"unsigned"`).
  */
 export interface PlayerStepsConfig extends AgingOptions {
   /** Growth and aging (§2, §4). */
@@ -76,6 +82,12 @@ export interface PlayerStepsConfig extends AgingOptions {
    * and injuries on with `injuryRisk: "spot"`.
    */
   readonly perContact?: number;
+  /**
+   * ADR-087 §12.1, §12.4 (AB8): how players retire. Default `"unsigned"` (today's: only men nobody
+   * signs in time, §6.1); `"choice"` adds retiring by his own choice at three moments a year
+   * (`retirement.ts`), on top of the unsigned rule. Acts with either switch on.
+   */
+  readonly retirement?: RetirementRule;
   /**
    * The season runner's lineup rule (§10): a position this team cannot fill from these available
    * players, or undefined when it can field a side. Absent = every team can always be fielded, and
@@ -329,9 +341,12 @@ export function playerSteps(config: PlayerStepsConfig): DayStep[] {
   // The contact count is kept on the ability path (§12.3.6); wear reads it only on the spot path too.
   const countContact = aging === "ability";
   const perContact = countContact && injuryRisk === "spot" ? askedWear : 0;
+  // AB8: checked here too (a misspelled value throws); it acts with either switch on, so whenever these steps run.
+  const retirement = retirementRule(config.retirement);
   const switches = {
     development, injuries, ...agingSwitches(config, development), ...(injuryRisk === "spot" ? { injuryRisk } : {}),
     ...(healingByAge ? {} : { healingByAge: false }), ...(perContact > 0 ? { perContact } : {}),
+    ...(retirement === "choice" ? { retirement } : {}),
   };
   // What the spot path's injury steps take beyond the charts (AB6): the healing switch, only when off.
   const spotRules = healingByAge ? {} : { healingByAge: false };
@@ -341,7 +356,9 @@ export function playerSteps(config: PlayerStepsConfig): DayStep[] {
     run: (people, ctx) => {
       const weekEnd = ctx.day.day === 7;
       if (!weekEnd && (!injuries || ctx.games.length === 0)) return undefined;
-      const memory: PlayerMemory = people.playerMemory ?? emptyMemory();
+      const held: PlayerMemory = people.playerMemory ?? emptyMemory();
+      // AB8: the week's regular-season starts, read off the charts the games were played from (before this week's rebuild).
+      const memory: PlayerMemory = retirement === "choice" && weekEnd ? countStarts(held, ctx.day, people.teams, ctx.games) : held;
       const reports = participationOf(ctx.games);
       const weeks = weekEnd ? playerWeeks(people, ctx, reports, aging) : new Map<string, PlayerWeek>();
       const events: FranchiseEvent[] = [];
@@ -413,6 +430,17 @@ export function playerSteps(config: PlayerStepsConfig): DayStep[] {
     },
   };
 
+  // AB8: retiring by his own choice on the three days (`retirement.ts`), only with `retirement: "choice"`.
+  const retire: DayStep = {
+    id: `${PLAYER_STEP_PREFIX}retire`,
+    run: (people, ctx) => {
+      const timing = ownMoment(ctx.day);
+      if (timing === undefined) return undefined;
+      const r = ownRetirements({ people, at: ctx.day, timing, seed: ctx.seed, rules: ctx.rules, cap: config.cap ?? flatCap(ctx.rules) });
+      return { people: { ...r.people, playerMemory: { ...(r.people.playerMemory ?? emptyMemory()), switches } }, events: r.events };
+    },
+  };
+
   const unsigned: DayStep = {
     id: `${PLAYER_STEP_PREFIX}unsigned`,
     run: (people, ctx) => {
@@ -423,6 +451,6 @@ export function playerSteps(config: PlayerStepsConfig): DayStep[] {
     },
   };
 
-  return [week, unsigned];
+  return retirement === "choice" ? [week, retire, unsigned] : [week, unsigned];
 }
 

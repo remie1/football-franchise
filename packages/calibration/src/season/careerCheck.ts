@@ -833,7 +833,9 @@ export function followExpiries(open: readonly OpenExpiry[], season: number, even
  * How a man retired: the unsigned rule (`PLAYER_RETIRED` with reason UNSIGNED, ADR-087 E4); his own
  * choice while signed (any other reason, and a deal of his was live when he retired, `liveAt`, or
  * ended RETIRED that season; a man with no deal in the book at all is read by his team when the
- * season began); his own choice while unsigned (the rest).
+ * season began); his own choice while unsigned (the rest). A retirement by his own choice that names
+ * it (reason OWN_CHOICE, ADR-087 E6, §12.4.1; AB8) is read by its `team`: signed when it names the
+ * team he left, unsigned when it names none.
  */
 export type RetirementWay = "unsigned" | "ownSigned" | "ownUnsigned";
 export const RETIREMENT_WAYS: readonly RetirementWay[] = ["unsigned", "ownSigned", "ownUnsigned"];
@@ -895,7 +897,9 @@ export function retirementsOf(
     if (e.type !== "PLAYER_RETIRED") continue;
     const id = String(e.payload.player);
     const p = was.get(id);
-    const way: RetirementWay = e.payload.reason === "UNSIGNED" ? "unsigned" : wasSigned(id, at, p) ? "ownSigned" : "ownUnsigned";
+    // E6 (AB8): an OWN_CHOICE retirement says whether he was signed (`team`, the team he left); older ones are worked out.
+    const signed = e.payload.reason === "OWN_CHOICE" ? e.payload.team !== undefined : wasSigned(id, at, p);
+    const way: RetirementWay = e.payload.reason === "UNSIGNED" ? "unsigned" : signed ? "ownSigned" : "ownUnsigned";
     const t = raw[way];
     t.n++;
     bump(t.byAge, p === undefined ? "?" : String(p.bio.age));

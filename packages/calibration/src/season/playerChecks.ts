@@ -141,6 +141,8 @@ export interface SeasonCheck {
   readonly roster: {
     readonly emergencySignings: number;
     readonly unsignedRetired: number;
+    /** AB8: retirements by his own choice (`PLAYER_RETIRED` reason OWN_CHOICE); present only when there were some. */
+    readonly ownRetired?: number;
     readonly depthChanges: Record<string, number>;
     readonly battles: number;
   };
@@ -226,7 +228,7 @@ export function summariseSeason(input: {
     regularGameByGroup: Record<string, number>; regularGame: number; longInSeason: number; weeksLost: number; regular: SeasonCheck["injuries"]["regular"];
   };
   const depthChanges: Record<string, number> = {};
-  let emergencySignings = 0, unsignedRetired = 0, battles = 0;
+  let emergencySignings = 0, unsignedRetired = 0, ownRetired = 0, battles = 0;
   const groupOf = (id: string): RosterGroup => input.groups?.get(id) ?? "street";
   const injuriesByGroup: Record<string, number> = {};
   // Practice-squad players called up to the 53 so far (stand-ins only).
@@ -293,6 +295,7 @@ export function summariseSeason(input: {
         break;
       case "PLAYER_RETIRED":
         if (event.payload.reason === "UNSIGNED") unsignedRetired++;
+        else if (event.payload.reason === "OWN_CHOICE") ownRetired++;
         break;
       case "DEPTH_CHART_CHANGED":
         bump(depthChanges, event.payload.situation);
@@ -336,7 +339,7 @@ export function summariseSeason(input: {
 
   return {
     seed: input.seed, arm: input.arm, wins, betterRecord: { games, won }, regularSeasonGames, injuries, movement, gap,
-    roster: { emergencySignings, unsignedRetired, depthChanges, battles },
+    roster: { emergencySignings, unsignedRetired, ...(ownRetired > 0 ? { ownRetired } : {}), depthChanges, battles },
     ...(input.groups ? { standIn: standInCounts(input.startPlayers, input.groups, injuriesByGroup, callUps) } : {}),
   };
 }
@@ -409,7 +412,12 @@ export interface ArmSummary {
   };
   readonly movement: Record<string, Record<string, { n: number; mean: number; sd: number; p10: number; p90: number }>>;
   readonly gap: { starterStart: number; starterEnd: number; backupStart: number; backupEnd: number };
-  readonly roster: { emergencySigningsPerSeason: number; unsignedRetiredPerSeason: number; depthChangesPerTeamSeason: Record<string, number>; battlesPerTeamSeason: number };
+  readonly roster: {
+    emergencySigningsPerSeason: number; unsignedRetiredPerSeason: number;
+    /** AB8: present only when some season of the arm had a retirement by his own choice. */
+    ownRetiredPerSeason?: number;
+    depthChangesPerTeamSeason: Record<string, number>; battlesPerTeamSeason: number;
+  };
   /** Stand-in league only: `SeasonCheck.standIn` over the arm's seasons. */
   readonly standIn?: {
     /** INJURY_OCCURRED per team-season, and per player-season, by roster group. */
@@ -497,6 +505,7 @@ export function summariseArm(checks: readonly SeasonCheck[]): ArmSummary {
     roster: {
       emergencySigningsPerSeason: mean(checks.map((c) => c.roster.emergencySignings)),
       unsignedRetiredPerSeason: mean(checks.map((c) => c.roster.unsignedRetired)),
+      ...(checks.some((c) => c.roster.ownRetired !== undefined) ? { ownRetiredPerSeason: mean(checks.map((c) => c.roster.ownRetired ?? 0)) } : {}),
       depthChangesPerTeamSeason: Object.fromEntries(Object.entries(sumBy((c) => c.roster.depthChanges)).sort().map(([k, v]) => [k, v / Math.max(1, teams * checks.length)])),
       battlesPerTeamSeason: checks.reduce((n, c) => n + c.roster.battles, 0) / Math.max(1, teams * checks.length),
     },

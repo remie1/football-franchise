@@ -18,7 +18,7 @@ import {
 } from "../src/season/agingFlags.js";
 import { draftClassOptions, runCapCheck, type CapCheckInput } from "../src/season/capCheck.js";
 import { ABILITY_GROUP_COPY, ABILITY_GROUP_DIGEST, CONTACT_ROLL_SETS, CONTACT_ROLL_SETS_DIGEST, contactOf } from "../src/season/careerAging.js";
-import { ARMS, agingActsOn, agingForArms, armRules, armSwitches, injuryRiskActsOn } from "../src/season/playerChecksRun.js";
+import { ARMS, agingActsOn, agingForArms, armRules, armSwitches, injuryRiskActsOn, retirementActsOn } from "../src/season/playerChecksRun.js";
 import { agingOf, runRealSeason } from "../src/season/realSeason.js";
 import { participationFrom } from "../src/season/participation.js";
 import { readStandInFile } from "../src/season/standInLeague.js";
@@ -45,13 +45,13 @@ describe("the aging flags (§12.1)", () => {
     expect(flags()).toEqual({});
     expect(flags("--aging", "position")).toEqual({});
     expect(flags("--aging", "ability")).toEqual({ aging: "ability" });
-    // AB5: --ability-rules sets --injury-risk spot beside --aging ability.
-    expect(flags("--ability-rules")).toStrictEqual({ aging: "ability", injuryRisk: "spot" });
-    expect(flags("--aging", "ability", "--ability-rules")).toStrictEqual({ aging: "ability", injuryRisk: "spot" });
+    // AB5 and AB8: --ability-rules sets --injury-risk spot and --retirement choice beside --aging ability.
+    expect(flags("--ability-rules")).toStrictEqual({ aging: "ability", injuryRisk: "spot", retirement: "choice" });
+    expect(flags("--aging", "ability", "--ability-rules")).toStrictEqual({ aging: "ability", injuryRisk: "spot", retirement: "choice" });
     expect(flags("--aging", "ability", "--ability-curves", "D")).toEqual({ aging: "ability" });
     expect(flags("--aging", "ability", "--ability-curves", "B", "--technique-knee", "--smarts-snaps", "0.225"))
       .toEqual({ aging: "ability", abilityCurves: "B", techniqueKnee: true, smartsSnaps: 0.225 });
-    expect(flags("--ability-rules", "--smarts-snaps", "0")).toStrictEqual({ aging: "ability", smartsSnaps: 0, injuryRisk: "spot" });
+    expect(flags("--ability-rules", "--smarts-snaps", "0")).toStrictEqual({ aging: "ability", smartsSnaps: 0, injuryRisk: "spot", retirement: "choice" });
     // A smarts-snaps value equal to the chosen set's own is that set's rules: dropped, one name for one set of rules.
     expect(flags("--aging", "ability", "--smarts-snaps", "0.45")).toStrictEqual({ aging: "ability" });
     expect(flags("--aging", "ability", "--ability-curves", "B", "--smarts-snaps", "0.45")).toStrictEqual({ aging: "ability", abilityCurves: "B" });
@@ -168,8 +168,8 @@ describe("--injury-risk (§12.1, AB5)", () => {
     expect(flags("--injury-risk", "spot")).toStrictEqual({ injuryRisk: "spot" });
     expect(flags("--aging", "ability", "--injury-risk", "spot")).toStrictEqual({ aging: "ability", injuryRisk: "spot" });
     expect(flags("--aging", "ability", "--injury-risk", "group")).toStrictEqual({ aging: "ability" });
-    expect(flags("--ability-rules", "--injury-risk", "spot")).toStrictEqual({ aging: "ability", injuryRisk: "spot" });
-    expect(flags("--ability-rules", "--ability-curves", "B")).toStrictEqual({ aging: "ability", abilityCurves: "B", injuryRisk: "spot" });
+    expect(flags("--ability-rules", "--injury-risk", "spot")).toStrictEqual({ aging: "ability", injuryRisk: "spot", retirement: "choice" });
+    expect(flags("--ability-rules", "--ability-curves", "B")).toStrictEqual({ aging: "ability", abilityCurves: "B", injuryRisk: "spot", retirement: "choice" });
     expect(() => flags("--injury-risk", "Spot")).toThrow(/group or spot/);
     expect(() => flags("--injury-risk", "")).toThrow(/group or spot/);
     expect(() => flags("--injury-risk")).toThrow(/requires a value/);
@@ -185,7 +185,7 @@ describe("--injury-risk (§12.1, AB5)", () => {
     expect(() => seasonAging(typed("--injury-risk", "spot"), { load: false, development: true })).toThrow(/add --injuries/);
     expect(() => seasonAging(typed("--injury-risk", "spot"), { load: true, development: false, injuries: true })).toThrow(/--load carries on/);
     expect(() => seasonAging(typed("--injury-risk", "group"), { load: true, development: false, injuries: false })).toThrow(/--load carries on/);
-    expect(seasonAging(typed("--ability-rules"), { load: false, development: true, injuries: true })).toStrictEqual({ aging: "ability", injuryRisk: "spot" });
+    expect(seasonAging(typed("--ability-rules"), { load: false, development: true, injuries: true })).toStrictEqual({ aging: "ability", injuryRisk: "spot", retirement: "choice" });
     expect(() => seasonAging(typed("--ability-rules"), { load: false, development: true, injuries: false })).toThrow(/--ability-rules sets --injury-risk spot too/);
     expect(() => seasonAging(typed("--ability-rules"), { load: false, development: false, injuries: true })).toThrow(/add --development/);
     // --aging ability alone still needs development only.
@@ -277,16 +277,18 @@ describe("the spot path's two tuning flags (§12.3.3, §12.3.6; AB6, AB9-T5 and 
   const typed = (...argv: string[]) => { const into: AgingFlags = {}; for (let i = 0; i < argv.length; i++) readAgingFlag(argv[i]!, () => argv[++i]!, into); return into; };
   const SPOT = { aging: "ability", injuryRisk: "spot" } as const;
   const KNOBS = { ...SPOT, healingByAge: false, perContact: 0.002 } as const;
+  // --ability-rules sets AB8's --retirement choice too (§12.1).
+  const RULES = { ...SPOT, retirement: "choice" } as const;
 
   it("reads --no-healing-by-age and --per-contact <n> on the spot path, and drops the defaults", () => {
-    expect(flags("--ability-rules", "--no-healing-by-age")).toStrictEqual({ ...SPOT, healingByAge: false });
+    expect(flags("--ability-rules", "--no-healing-by-age")).toStrictEqual({ ...RULES, healingByAge: false });
     expect(flags("--injury-risk", "spot", "--no-healing-by-age")).toStrictEqual({ injuryRisk: "spot", healingByAge: false });
-    expect(flags("--ability-rules", "--per-contact", "0.002")).toStrictEqual({ ...SPOT, perContact: 0.002 });
+    expect(flags("--ability-rules", "--per-contact", "0.002")).toStrictEqual({ ...RULES, perContact: 0.002 });
     expect(flags("--aging", "ability", "--injury-risk", "spot", "--per-contact", "1e-3")).toStrictEqual({ ...SPOT, perContact: 0.001 });
-    expect(flags("--ability-rules", "--per-contact", "0.002", "--no-healing-by-age")).toStrictEqual(KNOBS);
+    expect(flags("--ability-rules", "--per-contact", "0.002", "--no-healing-by-age")).toStrictEqual({ ...KNOBS, retirement: "choice" });
     // --per-contact 0 is the default: dropped, one name for one set of rules.
-    expect(flags("--ability-rules", "--per-contact", "0")).toStrictEqual(SPOT);
-    expect(flags("--ability-rules", "--ability-curves", "B", "--per-contact", "0.01")).toStrictEqual({ ...SPOT, abilityCurves: "B", perContact: 0.01 });
+    expect(flags("--ability-rules", "--per-contact", "0")).toStrictEqual(RULES);
+    expect(flags("--ability-rules", "--ability-curves", "B", "--per-contact", "0.01")).toStrictEqual({ ...RULES, abilityCurves: "B", perContact: 0.01 });
   });
 
   it("refuses a value --per-contact does not take, and either flag off the spot path (--per-contact off the ability path too)", () => {
@@ -295,7 +297,7 @@ describe("the spot path's two tuning flags (§12.3.3, §12.3.6; AB6, AB9-T5 and 
       expect(() => flags("--ability-rules", "--per-contact", bad), bad).toThrow(/--per-contact is years of wear per contest, a plain decimal 0 or more/);
     }
     for (const [good, v] of [["2e-3", 0.002], [".5", 0.5], ["5.", 5], ["0.0020", 0.002], ["1E-3", 0.001]] as const) {
-      expect(flags("--ability-rules", "--per-contact", good), good).toStrictEqual({ ...SPOT, perContact: v });
+      expect(flags("--ability-rules", "--per-contact", good), good).toStrictEqual({ ...RULES, perContact: v });
     }
     expect(() => flags("--ability-rules", "--per-contact")).toThrow(/requires a value/);
     expect(() => flags("--no-healing-by-age")).toThrow(/--no-healing-by-age act only on the spot path; add --injury-risk spot/);
@@ -305,7 +307,7 @@ describe("the spot path's two tuning flags (§12.3.3, §12.3.6; AB6, AB9-T5 and 
   });
 
   it("is refused by the season command without --injuries and with --load, and a save's own carries on", () => {
-    expect(seasonAging(typed("--ability-rules", "--no-healing-by-age", "--per-contact", "0.002"), { load: false, development: true, injuries: true })).toStrictEqual(KNOBS);
+    expect(seasonAging(typed("--ability-rules", "--no-healing-by-age", "--per-contact", "0.002"), { load: false, development: true, injuries: true })).toStrictEqual({ ...KNOBS, retirement: "choice" });
     expect(() => seasonAging(typed("--ability-rules", "--per-contact", "0.002"), { load: false, development: true, injuries: false })).toThrow(/add --injuries/);
     expect(() => seasonAging(typed("--ability-rules", "--no-healing-by-age"), { load: false, development: true })).toThrow(/add --injuries/);
     expect(() => seasonAging(typed("--injury-risk", "spot", "--no-healing-by-age"), { load: false, development: false, injuries: false })).toThrow(/--injury-risk spot acts on injuries; add --injuries/);
@@ -569,4 +571,174 @@ describe("a run with the spot path's tuning options (AB6): they reach the steps,
     expect(plain.people!.playerMemory!.switches).toStrictEqual({ development: true, injuries: true });
     expect("contact" in plain.people!.playerMemory!).toBe(false);
   }, 600_000);
+});
+
+describe("--retirement (§12.1, AB8)", () => {
+  const typed = (...argv: string[]) => { const into: AgingFlags = {}; for (let i = 0; i < argv.length; i++) readAgingFlag(argv[i]!, () => argv[++i]!, into); return into; };
+
+  it("reads unsigned or choice, drops the default, and is set by --ability-rules beside the other two", () => {
+    expect(flags("--retirement", "unsigned")).toStrictEqual({});
+    expect(flags("--retirement", "choice")).toStrictEqual({ retirement: "choice" });
+    expect(flags("--injury-risk", "spot", "--retirement", "choice")).toStrictEqual({ injuryRisk: "spot", retirement: "choice" });
+    expect(flags("--aging", "ability", "--retirement", "choice")).toStrictEqual({ aging: "ability", retirement: "choice" });
+    expect(flags("--aging", "ability", "--retirement", "unsigned")).toStrictEqual({ aging: "ability" });
+    expect(flags("--ability-rules", "--retirement", "choice")).toStrictEqual({ aging: "ability", injuryRisk: "spot", retirement: "choice" });
+    expect(() => flags("--retirement", "Choice")).toThrow(/unsigned or choice/);
+    expect(() => flags("--retirement", "own")).toThrow(/unsigned or choice/);
+    expect(() => flags("--retirement")).toThrow(/requires a value/);
+    expect(() => flags("--ability-rules", "--retirement", "unsigned")).toThrow(/drop --retirement unsigned/);
+    // Retirement by choice is not the ability path: the tuning flags still need --aging ability.
+    expect(() => flags("--retirement", "choice", "--technique-knee")).toThrow(/act only on the ability path/);
+  });
+
+  it("is refused by the season command with neither switch on and with --load; either switch is enough", () => {
+    expect(seasonAging(typed("--retirement", "choice"), { load: false, development: false, injuries: true })).toStrictEqual({ retirement: "choice" });
+    expect(seasonAging(typed("--retirement", "choice"), { load: false, development: true, injuries: false })).toStrictEqual({ retirement: "choice" });
+    expect(seasonAging(typed("--retirement", "choice"), { load: false, development: true })).toStrictEqual({ retirement: "choice" });
+    expect(seasonAging(typed("--retirement", "unsigned"), { load: false, development: false, injuries: false })).toStrictEqual({});
+    expect(() => seasonAging(typed("--retirement", "choice"), { load: false, development: false, injuries: false })).toThrow(/--retirement choice acts in the players' steps; add --development or --injuries/);
+    expect(() => seasonAging(typed("--retirement", "choice"), { load: false, development: false })).toThrow(/add --development or --injuries/);
+    expect(() => seasonAging(typed("--retirement", "choice"), { load: true, development: false, injuries: true })).toThrow(/--load carries on/);
+    expect(() => seasonAging(typed("--retirement", "unsigned"), { load: true, development: false, injuries: false })).toThrow(/--load carries on/);
+    // --ability-rules still needs both switches (aging and injury risk do).
+    expect(() => seasonAging(typed("--ability-rules"), { load: false, development: true, injuries: false })).toThrow(/--ability-rules sets --injury-risk spot too/);
+    expect(() => seasonAging(typed("--ability-rules"), { load: false, development: false, injuries: true })).toThrow(/add --development/);
+  });
+
+  it("joins a new league's switches, and a save's own carries on", () => {
+    expect(seasonPlayers({ loaded: false, development: false, injuries: true, aging: { retirement: "choice" } }))
+      .toStrictEqual({ development: false, injuries: true, retirement: "choice" });
+    expect(seasonPlayers({ loaded: false, development: true, injuries: true, aging: { aging: "ability", injuryRisk: "spot", retirement: "choice" } }))
+      .toStrictEqual({ development: true, injuries: true, aging: "ability", injuryRisk: "spot", retirement: "choice" });
+    expect(seasonPlayers({ loaded: true, saved: { development: true, injuries: false, retirement: "choice" }, development: false, injuries: false, aging: {} }))
+      .toStrictEqual({ development: true, injuries: false, retirement: "choice" });
+    expect(seasonPlayers({ loaded: true, saved: { development: true, injuries: true, aging: "ability", injuryRisk: "spot", retirement: "choice" }, development: false, injuries: false, aging: {} }))
+      .toStrictEqual({ development: true, injuries: true, aging: "ability", injuryRisk: "spot", retirement: "choice" });
+    expect(() => seasonPlayers({ loaded: true, saved: { development: false, injuries: true, retirement: "own" }, development: false, injuries: false, aging: {} }))
+      .toThrow(/retirement is "own", which this version does not know/);
+  });
+
+  it("names retirement by choice last (choice, spot-choice, ability-spot-choice), and nothing at the default", () => {
+    expect(agingLabel({ retirement: "unsigned" })).toBeUndefined();
+    expect(agingLabel({ aging: "position", injuryRisk: "group", retirement: "unsigned" })).toBeUndefined();
+    expect(agingLabel({ retirement: "choice" })).toBe("choice");
+    expect(agingLabel({ injuryRisk: "spot", retirement: "choice" })).toBe("spot-choice");
+    expect(agingLabel({ aging: "ability", retirement: "choice" })).toBe("ability-choice");
+    expect(agingLabel({ aging: "ability", injuryRisk: "spot", retirement: "choice" })).toBe("ability-spot-choice");
+    expect(agingLabel({ aging: "ability", abilityCurves: "B", techniqueKnee: true, injuryRisk: "spot", retirement: "choice" })).toBe("ability-B-knee-spot-choice");
+    // AB5's names are unchanged.
+    expect(agingLabel({ aging: "ability", injuryRisk: "spot" })).toBe("ability-spot");
+    expect(agingLabel({ injuryRisk: "spot" })).toBe("spot");
+    expect(sameAging({ retirement: "choice" }, {})).toBe(false);
+    expect(sameAging({ retirement: "unsigned" }, {})).toBe(true);
+    expect(sameAging({ aging: "ability", injuryRisk: "spot", retirement: "choice" }, { aging: "ability", injuryRisk: "spot" })).toBe(false);
+    expect(sameAging({ aging: "ability", injuryRisk: "spot", retirement: "choice" }, { aging: "ability", abilityCurves: "D", injuryRisk: "spot", retirement: "choice" })).toBe(true);
+  });
+
+  it("is read back from a record, dropped at the default, refused when unknown, and handed on by agingOf", () => {
+    expect(agingFromRecord({ development: false, injuries: true, retirement: "choice" })).toStrictEqual({ retirement: "choice" });
+    expect(agingFromRecord({ development: false, injuries: true, retirement: "unsigned" })).toStrictEqual({});
+    expect(agingFromRecord({ development: true, injuries: true, aging: "ability", injuryRisk: "spot", retirement: "choice" }))
+      .toStrictEqual({ aging: "ability", injuryRisk: "spot", retirement: "choice" });
+    expect(() => agingFromRecord({ retirement: "CHOICE" })).toThrow(/does not know/);
+    expect(() => agingFromRecord({ retirement: true })).toThrow(/does not know/);
+    expect(agingOf({ development: false, injuries: true, retirement: "choice" })).toStrictEqual({ retirement: "choice" });
+    expect(agingOf({ development: true, injuries: true, aging: "ability", injuryRisk: "spot", retirement: "choice" }))
+      .toStrictEqual({ aging: "ability", injuryRisk: "spot", retirement: "choice" });
+  });
+
+  it("acts with either switch on (actingRules), and is refused with both off (assertRulesAct)", () => {
+    const rules = { aging: "ability", injuryRisk: "spot", retirement: "choice" } as const;
+    expect(actingRules(rules, { development: true, injuries: true })).toStrictEqual(rules);
+    expect(actingRules(rules, { development: true, injuries: false })).toStrictEqual({ aging: "ability", retirement: "choice" });
+    expect(actingRules(rules, { development: false, injuries: true })).toStrictEqual({ injuryRisk: "spot", retirement: "choice" });
+    expect(actingRules(rules, { development: false, injuries: false })).toStrictEqual({});
+    expect(() => assertRulesAct({ retirement: "choice" }, { development: true, injuries: false }, "x")).not.toThrow();
+    expect(() => assertRulesAct({ retirement: "choice" }, { development: false, injuries: true }, "x")).not.toThrow();
+    expect(() => assertRulesAct({ retirement: "choice" }, { development: false, injuries: false }, "this run"))
+      .toThrow(/--retirement choice acts in the players' steps, which this run has off; add --development or --injuries/);
+  });
+
+  it("plays in every player-checks arm with a switch on, cached under the name of what acts on each arm", () => {
+    expect(retirementActsOn("development")).toBe(true);
+    expect(retirementActsOn("injuries")).toBe(true);
+    expect(retirementActsOn("both")).toBe(true);
+    expect(retirementActsOn("off")).toBe(false);
+    const choice = { retirement: "choice" } as const;
+    expect(armSwitches("development", choice)).toStrictEqual({ development: true, injuries: false, retirement: "choice" });
+    expect(armSwitches("injuries", choice)).toStrictEqual({ development: false, injuries: true, retirement: "choice" });
+    expect(armSwitches("both", choice)).toStrictEqual({ development: true, injuries: true, retirement: "choice" });
+    expect(armSwitches("off", choice)).toBeUndefined();
+    const all = { aging: "ability", injuryRisk: "spot", retirement: "choice" } as const;
+    expect(agingLabel(armRules("both", all))).toBe("ability-spot-choice");
+    expect(agingLabel(armRules("development", all))).toBe("ability-choice");
+    expect(agingLabel(armRules("injuries", all))).toBe("spot-choice");
+    expect(agingLabel(armRules("off", all))).toBeUndefined();
+    expect(() => agingForArms(["off"], choice)).toThrow(/--retirement choice acts only on the arms with a players' switch on/);
+    expect(agingForArms(["off", "injuries"], choice)).toBe(choice);
+    expect(agingForArms(["development"], choice)).toBe(choice);
+  });
+});
+
+describe("a run with retirement \"choice\" (AB8): the option reaches the steps and is recorded", () => {
+  it("is recorded in a generated league's memory with either switch on, beside the other rules", () => {
+    const play = (players: NonNullable<Parameters<typeof runRealSeason>[0]["players"]>) =>
+      runRealSeason({ seed: "choice-made-up", season: 2027, players, stopAfter: campWeek1(2027) }).run.people!.playerMemory!.switches;
+    expect(play({ development: false, injuries: true, retirement: "choice" })).toStrictEqual({ development: false, injuries: true, retirement: "choice" });
+    expect(play({ development: true, injuries: false, retirement: "choice" })).toStrictEqual({ development: true, injuries: false, retirement: "choice" });
+    expect(play({ development: false, injuries: true, retirement: "unsigned" })).toStrictEqual({ development: false, injuries: true });
+  }, 300_000);
+
+  it("is recorded with the other two in the cap check's walk (the career check's)", () => {
+    const stop = new Error("seen");
+    let seen: SeasonPeople | undefined;
+    const players = { development: true, injuries: true, aging: "ability", injuryRisk: "spot", retirement: "choice" } as const;
+    try {
+      runCapCheck({
+        seed: "choice-trap", file: file as CapCheckInput["file"], seasons: 1, players,
+        onDay: (_s, _day, people) => { if (people.playerMemory?.switches !== undefined) { seen = people; throw stop; } },
+      });
+    } catch (e) {
+      if (e !== stop) throw e;
+    }
+    expect(seen!.playerMemory!.switches).toStrictEqual(players);
+  }, 300_000);
+});
+
+describe("AB6's two spot-path options with AB8's retirement (the stack, aging-m7)", () => {
+  const typed = (...argv: string[]) => { const into: AgingFlags = {}; for (let i = 0; i < argv.length; i++) readAgingFlag(argv[i]!, () => argv[++i]!, into); return into; };
+  const ALL = { aging: "ability", injuryRisk: "spot", healingByAge: false, perContact: 0.002, retirement: "choice" } as const;
+
+  it("settles together, in AB5's, AB6's and AB8's order, from --ability-rules and from the flags typed one by one", () => {
+    const rules = flags("--ability-rules", "--no-healing-by-age", "--per-contact", "0.002");
+    expect(rules).toStrictEqual(ALL);
+    expect(Object.keys(rules)).toStrictEqual(["aging", "injuryRisk", "healingByAge", "perContact", "retirement"]);
+    expect(flags("--aging", "ability", "--injury-risk", "spot", "--retirement", "choice", "--per-contact", "0.002", "--no-healing-by-age")).toStrictEqual(ALL);
+    expect(flags("--injury-risk", "spot", "--no-healing-by-age", "--retirement", "choice")).toStrictEqual({ injuryRisk: "spot", healingByAge: false, retirement: "choice" });
+    // Each step's refusals stand beside the other's option.
+    expect(() => flags("--retirement", "choice", "--no-healing-by-age")).toThrow(/act only on the spot path/);
+    expect(() => flags("--ability-rules", "--retirement", "unsigned", "--per-contact", "0.002")).toThrow(/drop --retirement unsigned/);
+    expect(seasonAging(typed("--ability-rules", "--no-healing-by-age", "--per-contact", "0.002"), { load: false, development: true, injuries: true })).toStrictEqual(ALL);
+  });
+
+  it("names them in one label, choice after the spot path's parts, and reads them back from a record", () => {
+    expect(agingLabel(ALL)).toBe("ability-spot-healflat-wear0.002-choice");
+    expect(agingLabel({ injuryRisk: "spot", healingByAge: false, retirement: "choice" })).toBe("spot-healflat-choice");
+    expect(agingLabel({ ...ALL, healingByAge: true, perContact: 0 })).toBe("ability-spot-choice");
+    expect(sameAging(ALL, { ...ALL, retirement: "unsigned" })).toBe(false);
+    expect(agingFromRecord({ development: true, injuries: true, ...ALL })).toStrictEqual(ALL);
+    expect(agingOf({ development: true, injuries: true, ...ALL })).toStrictEqual(ALL);
+  });
+
+  it("acts where each acts (actingRules), and plays in player-checks' arms accordingly", () => {
+    expect(actingRules(ALL, { development: true, injuries: true })).toStrictEqual(ALL);
+    expect(actingRules(ALL, { development: true, injuries: false })).toStrictEqual({ aging: "ability", retirement: "choice" });
+    expect(actingRules(ALL, { development: false, injuries: true })).toStrictEqual({ injuryRisk: "spot", healingByAge: false, retirement: "choice" });
+    expect(agingLabel(armRules("both", ALL))).toBe("ability-spot-healflat-wear0.002-choice");
+    expect(agingLabel(armRules("injuries", ALL))).toBe("spot-healflat-choice");
+    expect(agingLabel(armRules("development", ALL))).toBe("ability-choice");
+    expect(armSwitches("off", ALL)).toBeUndefined();
+    expect(() => agingForArms(["development", "injuries"], ALL)).toThrow(/--per-contact acts only on the arm with growth and injuries both on/);
+    expect(agingForArms(["off", "both"], ALL)).toBe(ALL);
+  });
 });
