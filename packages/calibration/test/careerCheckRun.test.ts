@@ -187,6 +187,28 @@ describe("the cache's files", () => {
     }
   });
 
+  it("refuses a cached record of another check or rows version (version 5 rows are never read beside version 6)", () => {
+    const dir = scratch();
+    try {
+      expect(CAREER_CHECK_VERSION).toBe(6);
+      expect(CAREER_ROWS_VERSION).toBe(6);
+      const { rows } = careerCachePaths(dir, "both", "old-seed", 20);
+      const record = (version: number, rowsVersion: number) => JSON.stringify({ version, seed: "old-seed", arm: "both", seasons: 20, rows: { version: rowsVersion } });
+      writeFileSync(rows, record(5, 5));
+      expect(() => readCareerRecords(dir, "both", ["old-seed"], 20)).toThrow(/check version 5 \(rows version 5\), not 6 \(rows 6\)/);
+      writeFileSync(rows, record(6, 5));
+      expect(() => readCareerRecords(dir, "both", ["old-seed"], 20)).toThrow(/rows version 5/);
+      writeFileSync(rows, record(6, 6));
+      expect([...readCareerRecords(dir, "both", ["old-seed"], 20).records.keys()]).toEqual(["old-seed"]);
+      // The seed runner reads its cache through the same guard.
+      writeFileSync(rows, record(5, 5));
+      expect(() => runCareerSeed({ file: {} as never, league: { path: "x", sha256: "y" }, seed: "old-seed", arm: "both", seasons: 20, cacheDir: dir, fingerprint: "f" }))
+        .toThrow(/never read together/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("lists each build's folder and its finished rows by arm", () => {
     const dir = scratch();
     try {
@@ -196,7 +218,29 @@ describe("the cache's files", () => {
       for (const f of ["both-a-20.json", "both-b-20.json", "form-a-20.json", "both-c-20.checkpoint.json", "both-d-20.json.1.0.0.tmp"]) {
         writeFileSync(join(dir, "0123456789abcdef", f), "{}");
       }
-      expect(listCareerBuilds(dir)).toEqual([{ fingerprint: "0123456789abcdef", rows: { both: 2, form: 1 } }]);
+      // A record with no versions in it (or one that does not parse) is no build the grader can read.
+      expect(listCareerBuilds(dir)).toEqual([{ fingerprint: "0123456789abcdef", rows: { both: 2, form: 1 }, version: { check: null, rows: null }, gradable: false }]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("marks a build gradable only when its first finished record has this build's check and rows versions", () => {
+    const dir = scratch();
+    try {
+      const old = join(dir, "00000000000000a5"), now = join(dir, "00000000000000a6"), empty = join(dir, "00000000000000ff"), bad = join(dir, "0000000000000bad");
+      for (const d of [old, now, empty, bad]) mkdirSync(d);
+      writeFileSync(join(old, "both-a-20.json"), JSON.stringify({ version: CAREER_CHECK_VERSION - 1, rows: { version: CAREER_ROWS_VERSION - 1 } }));
+      writeFileSync(join(now, "both-a-20.json"), JSON.stringify({ version: CAREER_CHECK_VERSION, rows: { version: CAREER_ROWS_VERSION } }));
+      writeFileSync(join(now, "both-b-20.checkpoint.json"), "not read");
+      writeFileSync(join(empty, "both-c-20.checkpoint.json"), "not read");
+      writeFileSync(join(bad, "both-a-20.json"), "{ cut off");
+      expect(listCareerBuilds(dir)).toEqual([
+        { fingerprint: "00000000000000a5", rows: { both: 1 }, version: { check: CAREER_CHECK_VERSION - 1, rows: CAREER_ROWS_VERSION - 1 }, gradable: false },
+        { fingerprint: "00000000000000a6", rows: { both: 1 }, version: { check: CAREER_CHECK_VERSION, rows: CAREER_ROWS_VERSION }, gradable: true },
+        { fingerprint: "00000000000000ff", rows: {}, version: null, gradable: false },
+        { fingerprint: "0000000000000bad", rows: { both: 1 }, version: { check: null, rows: null }, gradable: false },
+      ]);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -306,6 +350,45 @@ describe("one seed: the cache and the checkpoint (made-up seasons)", () => {
       expect([...read.records.keys()]).toEqual(["resume-made-up"]);
       expect(read.missing).toEqual(["missing-seed"]);
     } finally {
+      rmSync(dirA, { recursive: true, force: true });
+      rmSync(dirB, { recursive: true, force: true });
+    }
+  }, 300_000);
+
+  it("rows version 6's carried state crosses the checkpoint: a concussion before it makes the one after it a later one, both ways", () => {
+    // Made-up seasons as above, the first and third carrying a regular-season time-loss concussion of the same league-file man,
+    // and the second a draft pick (class 2028, waiting in the reader's state at the checkpoint after 2027).
+    const withConcussions = (i: SeasonInput): SeasonRun => {
+      const run = madeUp(i);
+      const events = i.season === 2027
+        ? [{ seq: 0, at: { season: 2027, phase: "OFF_DRAFT", week: 3, day: 4 }, event: { type: "DRAFT_PICK_MADE", payload: { team: "T01", player: "P-made-up", round: 6, pick: 190 } } }]
+        : [{
+          seq: 0, at: { season: i.season, phase: "REGULAR_SEASON", week: 3, day: 7 },
+          event: { type: "INJURY_OCCURRED", payload: { player: String(i.people!.players[0]!.bio.id), kind: "concussion", weeks: 4, setting: "GAME", band: "SHORT" } },
+        }];
+      return { ...run, events } as unknown as SeasonRun;
+    };
+    const dirA = scratch(), dirB = scratch();
+    try {
+      const opts = { file, league, seed: "resume-v6-state", arm: "both" as const, seasons: 3, fingerprint: "0123456789abcdef" };
+      hook.runSeason = withConcussions as never;
+      const straight = runCareerSeed({ ...opts, cacheDir: dirA });
+      expect(() => runCareerSeed({ ...opts, cacheDir: dirB, stopAfter: 2 })).toThrow(CareerCheckStopped);
+      const cp = JSON.parse(readFileSync(careerCachePaths(dirB, "both", "resume-v6-state", 3).checkpoint, "utf8")) as { reader: unknown };
+      const state = decodeState(cp.reader) as { concussions: [string, number][]; concussionsSeen: [string, number][]; pendingPicks: [string, unknown][] };
+      expect(state.concussions.map(([, n]) => n)).toEqual([1]);
+      expect(state.concussionsSeen.map(([, n]) => n)).toEqual([1]);
+      expect(state.pendingPicks.map(([id]) => id)).toEqual(["P-made-up"]);
+      const resumed = runCareerSeed({ ...opts, cacheDir: dirB });
+      expect(resumed.from).toBe("resumed");
+      expect(JSON.stringify(resumed.record.rows)).toBe(JSON.stringify(straight.record.rows));
+      const [y0, , y2] = straight.record.rows.perSeason;
+      expect(y0!.concussions).toMatchObject({ first: [1, 1], repeat: [0, 0], seen: { first: [1, 1], repeat: [0, 0] } });
+      expect(y2!.concussions).toMatchObject({ first: [0, 0], repeat: [1, 1], seen: { first: [0, 0], repeat: [1, 1] } });
+      // No week 1 walked: no class has a row.
+      expect(straight.record.rows.perSeason.map((r) => r.rookieCut)).toEqual([null, null, null]);
+    } finally {
+      hook.runSeason = undefined;
       rmSync(dirA, { recursive: true, force: true });
       rmSync(dirB, { recursive: true, force: true });
     }

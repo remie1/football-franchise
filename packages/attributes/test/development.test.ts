@@ -49,6 +49,15 @@ function strip(p: PlayerState): PlayerState {
   return { ...p, bio, attributes, personality };
 }
 
+/**
+ * sha256 of the growth-on draft classes with the new fields taken off: PROSPECT_TALENT_WITH_GROWTH's
+ * ratings (ADR-087 D5b). Moves only when that class talent is retuned.
+ */
+const WITH_GROWTH = {
+  draftClass: "ff63aaf6283e0010d0e0c7df5c2975dae3be331d2ddc3a43c22299b45684c161",
+  draftClass2: "318b54e46fd31c9cb880fc0984e55afe11983a90fcb24d2182d8ba40c6a7655d",
+} as const;
+
 const off = generateLeagueRosters(LEAGUE);
 const on = generateLeagueRosters({ ...LEAGUE, development: true });
 const classOff = generateDraftClass(CLASS);
@@ -89,10 +98,21 @@ describe("development on: only the new fields differ (ADR-087 P1, P2, P6)", () =
     expect(hash({ ...on2, players: on2.players.map(strip) })).toBe(BEFORE.league2);
   });
 
-  it("leaves the draft class identical once the new fields are taken off", () => {
-    expect(hash({ ...classOn, players: classOn.players.map(strip) })).toBe(BEFORE.draftClass);
+  it("leaves the draft class's names, positions and ages as they are, and draws talent from the growth-on class", () => {
+    // ADR-087 D5b (Rookies card): with growth on, talent comes from PROSPECT_TALENT_WITH_GROWTH, from
+    // the same draw, so who is in the class does not move; only the ratings that follow from talent.
+    const who = (c: typeof classOn) => c.players.map((p) => [String(p.bio.id), p.bio.displayName, p.bio.position, p.bio.age]);
+    expect(who(classOn)).toEqual(who(classOff));
     const on2 = generateDraftClass({ ...CLASS_2, development: true });
-    expect(hash({ ...on2, players: on2.players.map(strip) })).toBe(BEFORE.draftClass2);
+    expect(who(on2)).toEqual(who(generateDraftClass(CLASS_2)));
+    expect(classOn.draftClass).toEqual(classOff.draftClass);
+    // A lower, wider class (PROSPECT_TALENT_WITH_GROWTH against PROSPECT_TALENT).
+    const overall = (c: typeof classOn) => Object.values(c.overall);
+    expect(mean(overall(classOn))).toBeLessThan(mean(overall(classOff)) - 3);
+    expect(sd(overall(classOn))).toBeGreaterThan(sd(overall(classOff)) + 1.5);
+    // Pinned, so a change to the growth-on class is a change on purpose (it needs the draft re-check).
+    expect(hash({ ...classOn, players: classOn.players.map(strip) })).toBe(WITH_GROWTH.draftClass);
+    expect(hash({ ...on2, players: on2.players.map(strip) })).toBe(WITH_GROWTH.draftClass2);
   });
 
   it("gives every league player a development record: growth, career snaps, no carry yet, his body; and patience", () => {

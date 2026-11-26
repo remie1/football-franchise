@@ -20,6 +20,13 @@ export interface TrueAttributes {
   development?: PlayerDevelopment;
 }
 
+/** ADR-087 P7: the 12 ability groups (names only; the curves live in franchise). */
+export const ABILITY_GROUPS = [
+  "SPEED", "QUICKNESS", "SPRING", "STRENGTH", "ARM", "LEG",
+  "STAMINA", "DURABILITY", "TECHNIQUE", "PASSING", "KICKING", "SMARTS",
+] as const;
+export type AbilityGroup = (typeof ABILITY_GROUPS)[number];
+
 /**
  * ADR-087 P1: a player's hidden development record. `growth`: his own rate, fixed for life (1 = typical).
  * `snaps`: career snaps, which feed his football smarts. `carry`: the fraction of a point each rating
@@ -31,6 +38,11 @@ export interface PlayerDevelopment {
   snaps: number;
   carry: Partial<Record<string, number>>;
   body: { forty: number; cone: number; vertical: number; bench: number };
+  /**
+   * ADR-087 P7: years earlier (minus) or later (plus) than usual each ability starts to fade, fixed
+   * for life. Missing, or a group missing, reads 0 (typical), so old saves and files load.
+   */
+  fadeShift?: Partial<Record<AbilityGroup, number>>;
 }
 
 /** One observer's belief about one player. All the UI and AI teams ever see. */
@@ -130,10 +142,20 @@ export interface Injury {
   since: CalendarStamp;
 }
 
+/** ADR-087 P8: one past injury, public like an injury report. */
+export interface InjuryRecord {
+  kind: string;          // the importer's kind, e.g. "real:knee" (franchise maps it)
+  weeks: number;         // game weeks missed
+  since: CalendarStamp;  // when it started
+  healed: CalendarStamp; // when he was back
+}
+
 export interface PlayerCondition {
   stamina: number;  // 0..100 current
   morale: number;   // -100..100
   injury?: Injury;
+  /** ADR-087 P8: injuries before the league's first day, oldest first. Absent = none known. */
+  injuryHistory?: InjuryRecord[];
 }
 
 /** Weighted need dimensions (Spec #14 §2). Hidden information. */

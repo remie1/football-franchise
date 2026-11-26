@@ -179,8 +179,12 @@ if (!args.grade) {
   for (const r of grade.flip.reasons.slice(0, 12)) console.log(`  - ${r}`);
   if (grade.seeds.missing.length > 0 || grade.coachSeeds.missing.length > 0) {
     const builds = listCareerBuilds(cacheRoot);
-    console.log(builds.length === 0 ? "The cache holds no build's rows." : "Builds in the cache (finished rows by arm; grade one with --build <fingerprint>):");
-    for (const b of builds) console.log(`  ${b.fingerprint}${b.fingerprint === treeFingerprint ? " (the tree's)" : ""}: ${Object.entries(b.rows).map(([a, n]) => `${a} ${n}`).join(", ") || "none"}`);
+    console.log(builds.length === 0 ? "The cache holds no build's rows." : "Builds in the cache (finished rows by arm; grade one of this check's version with --build <fingerprint>):");
+    for (const b of builds) {
+      const other = b.version !== null && !b.gradable
+        ? ` (check version ${String(b.version.check)}, rows ${String(b.version.rows)}: not gradable on this build; play again on it)` : "";
+      console.log(`  ${b.fingerprint}${b.fingerprint === treeFingerprint ? " (the tree's)" : ""}: ${Object.entries(b.rows).map(([a, n]) => `${a} ${n}`).join(", ") || "none"}${other}`);
+    }
   }
   console.log(`Wrote ${base}.md and ${base}.json`);
 }
