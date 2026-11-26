@@ -32,6 +32,7 @@ import {
   type RealInput,
 } from "./realInput.js";
 import type { Eligibility } from "../ingest/seasons.js";
+import { isFtnChartedPressureRow } from "../ingest/sources/participation.js";
 import {
   absoluteBand,
   categorical,
@@ -235,6 +236,17 @@ export const sackRate: Metric = registerMetric({
  * nflverse/NGS artefact, at a stated revision, that states which NGS pressure product populates
  * `was_pressure` and since when, or documents a source/methodology change across seasons —
  * `participation.ts` §4 states the exact bar. Absent that, this metric's real side stays retired.
+ *
+ * ⚠ 2026-10-23 (CALIBRATION-BACKLOG entry 173): an artefact of the second kind now exists in
+ * substance, and it does NOT lift this. It is a live nflverse page with no stated revision
+ * (retrieved 2026-10-23), and it covers the participation dataset, not the column; the cache
+ * corroborates it (`participation.ts` §4 status, §6). nflverse documents participation as NGS's
+ * before 2023 and FTN's from 2023, which shows the column is two sources. It does not show what
+ * either charters, which is what this retirement waits on (`participation.ts` §4 status note). This
+ * metric reads no `was_pressure` row, so entry 173's FTN-seasons rule changes nothing here; were
+ * the old comparison computed under it, today's join gives 12,363 / 40,982 = 30.17% (2023-2024)
+ * against the retired 29.23% (OLD join, 2022-2024 pooled). Recorded so it is not re-derived as
+ * news; not a grade.
  *
  * ================== THE RED THIS STRIPPING DELETES — NAMED SO IT IS NOT MISTAKEN FOR A FIX ======
  *
@@ -686,7 +698,9 @@ export const pressureToSackRate: Metric = registerMetric({
     "— one arm's count, not a claim about the general rate. Denominator is " +
     "dropbacks whose worst POCKET_STATUS was not CLEAN. Real side: numerator is `sack` among " +
     "participation rows where `was_pressure` is true, joined to play-by-play dropbacks; " +
-    "denominator is those same `was_pressure`-true participation rows. Only the two sides' " +
+    "denominator is those same `was_pressure`-true participation rows, from FTN-charted seasons " +
+    "only (2023 on; nflverse's participation data is NGS's before 2023, CALIBRATION-BACKLOG entry " +
+    "173). Only the two sides' " +
     "underlying definition of 'pressure' may still differ from each other — `was_pressure`'s " +
     "own semantics are not determinable from inside this repo (backlog 87 item 4) — but within " +
     "each side, numerator and denominator now share one population by construction.",
@@ -732,6 +746,9 @@ export const pressureToSackRate: Metric = registerMetric({
     // identical old/new), real pressure_to_sack 16.371% -> 15.464%. Sim side UNCHANGED. Verdict
     // unaffected: old relative deviation 0.0349, new 0.0956, both well inside the 0.15 band — still
     // PASS+.
+    // ⚠ 2026-10-23 (entry 173): "still PASS+" was wrong when written. PASS+ needs |deviation| <=
+    // 0.075 (COMFORT_FRACTION 0.5, report/bands.ts), and 0.0956 is above it: PASS, not PASS+. The
+    // note and its string below are left as history; entry 173's note below has today's verdict.
     //
     // TWO SEPARATE FACTS. DO NOT LET ONE READ AS PROGRESS ON THE OTHER: the POPULATION this row
     // conditions on MOVED (measured, above, and it is this fact alone that this dispatch
@@ -745,6 +762,36 @@ export const pressureToSackRate: Metric = registerMetric({
       "unchanged 2,722, real pressure_to_sack 16.371%->15.464%; verdict unchanged (PASS+, still " +
       "well inside band). The population moved; was_pressure's semantics did NOT — that question " +
       "(caveat above) is unchanged and still open; do not read this note as progress on it.",
+    // ONE SOURCE (CALIBRATION-BACKLOG entry 173, owner ruling 2026-10-23). nflverse documents a
+    // change of source at 2023: "Participation data prior to 2023 is from NFL NGS." "Participation
+    // data from 2023 onwards is courtesy of FTN" (load_participation reference; participation.ts
+    // §6 vendors both quotes and the URLs). The pooled real side mixed the two, and 2022's NGS
+    // column is null on every sack (1,296) and every scramble (905), so 2022 added 5,239 pressured
+    // rows and 0 sacks. WAS: every `wasPressure === true` row, 2022-2024 pooled. IS: only rows
+    // `isFtnChartedPressureRow` admits (2023 on). Measured with this `computeFromReal` on the
+    // 2022-2024 TUNING cache: 2,722 / 17,602 = 15.464% -> 2,722 / 12,363 = 22.017% (2023 alone
+    // 1,409 / 6,123 = 23.01%, 2024 alone 1,313 / 6,240 = 21.04%). Sim side UNCHANGED. VERDICT
+    // FLIPS on baseline-0009's arm (flat-60-32t, 496 games, seed digest fnv1a:020c1dcb#496, sim
+    // 18.91%): relative deviation +0.2231 FAIL (known) -> -0.1409 PASS (not PASS+, which needs
+    // |deviation| <= 0.075). Arithmetic on that report's sim figure, not a re-run.
+    //
+    // A THIN PASS: the new floor is 0.85 x 22.017% = 18.715%, the sim's 18.915% is 0.20pp above
+    // it, and the sim's own 95% interval [18.52%, 19.31%] (baseline-0009.md) crosses it. 2023
+    // alone (23.01%) would read FAIL, -0.178; 2024 alone (21.04%) PASS, -0.101. Inside FTN's first
+    // season the pressured share of dropbacks is 34.0% in weeks 1-4 against 28.1% in weeks 5-18
+    // (z about 8; 2024 shows no such step), observed and unexplained; without 2023 weeks 1-4 the
+    // real is 22.31% and the sim reads FAIL, -0.152 (entry 173's provenance has the counts).
+    //
+    // TWO SEPARATE FACTS AGAIN: the SOURCE question is settled (one source now); the SEMANTICS
+    // question in the caveat above (what FTN's charters record as "pressured") is NOT, and its
+    // lift condition is unchanged.
+    "backlog 173: real side keeps FTN-charted seasons only (2023 on); nflverse's participation " +
+      "data is NGS's before 2023 and FTN's from 2023, and 2022's was_pressure is null on every " +
+      "sack and scramble. Real 2,722/17,602 = 15.464% (2022-2024 pooled) -> 2,722/12,363 = " +
+      "22.017% (2023-2024); sim unchanged. On baseline-0009's sim 18.91% the verdict goes from " +
+      "FAIL (known), +0.2231, to PASS, -0.1409: a thin pass, 0.20pp above the 18.715% floor, " +
+      "which the sim's 95% interval crosses; 2023 alone would read FAIL. One source now; " +
+      "was_pressure's semantics (caveat above) are still unestablished.",
   ],
   computeFromEvents({ accumulator }: SimContext): MetricOutcome {
     const p = accumulator.play;
@@ -769,13 +816,18 @@ export const pressureToSackRate: Metric = registerMetric({
     let sacks = 0;
     for (const row of participation.rows) {
       if (row.wasPressure !== true) continue;
+      // One source: NGS's pre-2023 column is not pooled with FTN's (backlog 173, participation.ts §6).
+      if (!isFtnChartedPressureRow(row)) continue;
       const key = `${row.gameId}|${row.playId}`;
       if (!dropbackKeys.has(key)) continue;
       pressured++;
       if (sackedKeys.has(key)) sacks++;
     }
     return pressured === 0
-      ? noObservations("no pressured participation row joined to a pbp dropback for these seasons")
+      ? noObservations(
+          "no pressured participation row from an FTN-charted season (2023 on; earlier seasons " +
+            "are NGS's and are not read, backlog 173) joined to a pbp dropback for these seasons",
+        )
       : rate(sacks, pressured);
   },
 });

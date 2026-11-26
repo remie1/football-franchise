@@ -1091,22 +1091,24 @@ describe("Tier 1 real-side computations", () => {
   });
 
   it("computes pressure-to-sack over PRESSURED dropbacks, not over all of them", () => {
+    // A 2023 game id, not "g": since backlog 173 the real side reads each row's season from it.
+    const gameId = "2023_01_B_A";
     const input = realInput(
       [
-        pbpRow({ playId: 1, sack: true, passAttempt: false, completePass: false, yardsGained: -7 }),
-        pbpRow({ playId: 2 }),
-        pbpRow({ playId: 3 }),
-        pbpRow({ playId: 4, sack: true, passAttempt: false, completePass: false, yardsGained: -6 }),
+        pbpRow({ gameId, playId: 1, sack: true, passAttempt: false, completePass: false, yardsGained: -7 }),
+        pbpRow({ gameId, playId: 2 }),
+        pbpRow({ gameId, playId: 3 }),
+        pbpRow({ gameId, playId: 4, sack: true, passAttempt: false, completePass: false, yardsGained: -6 }),
       ],
       [scheduleRow({})],
       {
         participation: [
-          participationRow({ playId: 1, wasPressure: true }),
-          participationRow({ playId: 2, wasPressure: true }),
-          participationRow({ playId: 3, wasPressure: false }),
+          participationRow({ gameId, playId: 1, wasPressure: true }),
+          participationRow({ gameId, playId: 2, wasPressure: true }),
+          participationRow({ gameId, playId: 3, wasPressure: false }),
           // Sacked but charted as unpressured: excluded from the denominator AND the numerator,
           // which is what makes this a conversion rate rather than a rearranged sack rate.
-          participationRow({ playId: 4, wasPressure: false }),
+          participationRow({ gameId, playId: 4, wasPressure: false }),
         ],
       },
     );
@@ -1114,6 +1116,52 @@ describe("Tier 1 real-side computations", () => {
     if (isInapplicable(sample)) throw new Error("unexpected");
     expect(sampleSize(sample)).toBe(2);
     expect(pointEstimate(sample)).toBeCloseTo(0.5, 6);
+  });
+
+  /**
+   * BACKLOG 173 — ONE SOURCE. nflverse's participation data is NGS's before 2023 and FTN's from
+   * 2023 on, and 2022's NGS `was_pressure` is null on every sack, so pooling put 2022's pressured
+   * attempts into the denominator with none of its sacks (real 15.464% instead of 22.017%). The
+   * 2022 rows below are built to move the rate if they are read: four more pressured dropbacks,
+   * none sacked, would take 1/2 to 1/6.
+   */
+  it("reads pressure-to-sack from FTN seasons only, ignoring pre-2023 participation rows", () => {
+    const ngs = "2022_01_B_A";
+    const ftn = "2023_01_B_A";
+    const sacked = { sack: true, passAttempt: false, completePass: false, yardsGained: -7 } as const;
+    const pbp = [
+      pbpRow({ gameId: ftn, playId: 1, ...sacked }),
+      pbpRow({ gameId: ftn, playId: 2 }),
+      ...[1, 2, 3, 4].map((playId) => pbpRow({ gameId: ngs, season: 2022, playId })),
+    ];
+    const ftnRows = [
+      participationRow({ gameId: ftn, playId: 1, wasPressure: true }),
+      participationRow({ gameId: ftn, playId: 2, wasPressure: true }),
+    ];
+    const ngsRows = [1, 2, 3, 4].map((playId) => participationRow({ gameId: ngs, playId, wasPressure: true }));
+    const metric = getMetric("pressure_to_sack");
+
+    const pooled = metric.computeFromReal(realInput(pbp, [scheduleRow({})], { participation: [...ngsRows, ...ftnRows] }));
+    if (isInapplicable(pooled)) throw new Error("unexpected");
+    expect(sampleSize(pooled)).toBe(2);
+    expect(pointEstimate(pooled)).toBeCloseTo(0.5, 6);
+
+    // Only NGS rows: no observations, and the detail says why rather than reading 0/4 as 0%.
+    const ngsOnly = metric.computeFromReal(realInput(pbp, [scheduleRow({})], { participation: ngsRows }));
+    expect(isInapplicable(ngsOnly)).toBe(true);
+    if (isInapplicable(ngsOnly)) {
+      expect(ngsOnly.reason).toBe("NO_OBSERVATIONS");
+      expect(ngsOnly.detail).toContain("FTN");
+      expect(ngsOnly.detail).toContain("backlog 173");
+    }
+
+    // A row whose game id names no season is not known to be FTN's, so it is not read either.
+    const unknown = metric.computeFromReal(
+      realInput([pbpRow({ playId: 1, ...sacked })], [scheduleRow({})], {
+        participation: [participationRow({ playId: 1, wasPressure: true })],
+      }),
+    );
+    expect(isInapplicable(unknown)).toBe(true);
   });
 
   it("names the missing source for each ADR-022 row rather than returning a silent zero", () => {
