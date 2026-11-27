@@ -3989,3 +3989,217 @@ AM-10's reading of the curve is the owner's answer recorded in I.9 item 1; the r
 2. **What holds.** Seed set 1 (`pk-01`) is identical: fold `fnv1a:978e3430` under `legacy` and `fnv1a:4a03030f` under E9's tunables on both trees. The golden 50 a league under callers v1 to v7, the season path, and every pocket pin from `POCKET_1_S1_PINS` to `POCKET_1_S5A_PINS` (with `pocket-1.s5a`'s throw-class pins) pass, both as committed and with every arm played. The short corpus on set 1 gives the same streams under `legacy` (callers v1 to v7) and `pocket-1.s1` to `pocket-1.s4` on all three trees, and under `pocket-1.s5a` at `2cc30c5` and `c9570e5` (main has no s5a). The 5a fit record reads gen set 1 only, so the fitted count stands.
 3. **What is now dated history.** The set-2 generated halves of step 0's measures, of step 1's closed records and `test/fixtures/adr089-step1-set2/`, of the records and amendment readings of steps 2 to 4, and of step 5a's records (`reports/adr-089-step5a.json`, the gen half of `E0.set2` to `E10.set2`). They no longer reproduce on a tree with AB-L. Each record carries its commit and fingerprint, so each stays as made: none is re-made and the filing is not re-filled. On step 0 the size of it is exact. Filling a fresh pending filing at `c9570e5` gives the committed `reports/adr-089-step0.filed.json` byte for byte. At `2cc30c5` and at `25827f5` it gives the same file as each other, which differs from the committed one in 95 leaves: M1's gen set 2, M5's gen set-2 rows and totals, M9's gen set-2 rows, M9's gen clock check, and the tolerance of `s8a.q1q3.passRate` and `acc.q1q3.passRate`, which M9 reads from both sets. Every graded reading is read on set 1, with set 2 beside, so no grade moves.
 4. **Who replays set 2's generated season.** No committed test pins it. `pocketStep5.test.ts` plays E0 and E8 on set 2 at its tiny corpus (gen week 1, which holds the first moved game), but it only compares those plays with each other, so it passes on both trees. The 5a gate (`step5GateState`) reads the committed records and replays nothing. Step 5b and the steps after it play set 2 on trees with AB-L, so their set-2 readings are not comparable game for game with those of steps 0 to 5a.
+
+## Appendix J: the step-5a record
+
+*Appended at step 5a's record, after Appendix I, its owner's answers I.9, its amendment records I.10 to I.12 and its record note I.13. Lines 1 to 3,991 of this file are unchanged (line 3,991 is I.13's last paragraph), and lines 1 to 2,018 are still pinned by `C0_DIGEST` (`fnv1a:b175b420`), so every `adrLine` in the step-0 filing still points at the C0 bytes. The step-5 plan's Records list filed this appendix as the whole step's record, "the step-5 record", with J.5 for the 5b selection and J.6 for every 5b clause. Step 5b was not run: on 2026-11-26 the owner chose Wait (J.8), so this appendix covers step 5a only and is titled for it. In the played order the owner's Wait sets, the next records are Appendix K (step 6), Appendix L (step 7) and Appendix M (the relocated step 5b); `pocketBands.test.ts` allows Appendix F, then G, H, I and this one heading after Appendix E, in that order, each once, and refuses K, L and M until their records land. The step's numbers are `packages/calibration/reports/adr-089-step5a.md` (the report) and `.json` (the measures), committed in `05849dc`, and the fit record `reports/adr-089-step5a.fit.json`, committed in `dd79f2c`; this appendix is their human-read record, and every figure below is copied from one of the three unless it names another source. **Every number is ours** (measured on the simulation, by a committed record or the working report named) **unless it is marked REAL** (with its source) **or INFERRED**; the bands are the step-0 filing's. The working reports named below (`plan.md`, `filing.md`, `petitions.md`, the build records, `guardian.md`, `proofs.md`, the five reviews and `review/fix.md`, and `measure/fit.md`, `fit-check.md`, `pins.md`, `arms5a.md` and `arms-check.md`) are in the Orchestrator's step-5 working folder; the main-merge proofs of 2026-11-26 are in the step-5a PR's working notes. Nothing here moves a band, re-files a clause or changes a filed number: the step-0 filing is append-only and `FILED_DIGEST` is still `fnv1a:9a1c90e9`, and the amendments file is as AM-10 left it (`AMENDMENTS_DIGEST`, `STEP5A_AMENDMENTS_PIN` and `STEP5B_AMENDMENTS_PIN` `fnv1a:3f9478eb`; step 4's view `fnv1a:e0c05cf0`, step 3's `fnv1a:517bb9fe`, step 2's `fnv1a:d5f9de6d`). AM-8, AM-9 and AM-10 are I.10's to I.12's and are not restated. Branch `claude/pocket-fix`, built from main `517002e` (after step 4's merge), with main `24a79aa` merged in at `5b9b043`, main `cd2ba28` at `c9570e5` and main `25827f5` at `2cc30c5`; records at `05849dc` and final at `7206d51`. The owner's answers given so far are J.8; his answers to J.6 are appended when they are given.*
+
+### J.1 What landed
+
+All of it sits behind the switch. A bundle plays step 5a's rules only when its tunables carry a `pocket-1` stamp and the clean-pocket block (`pocket.cleanPocket`). `DEFAULT_TUNABLES` does not carry it, not even as an undefined key (census `fnv1a:365da48d`, digest `fnv1a:395a9ae2`, unchanged), and no `pocket-1.s1` to `pocket-1.s4` bundle does, so the default game plays `legacy` with the base's bytes and `pocket-1.s1` to `.s4` replay byte for byte (J.2). The rules bundle is `pocket-1.s5a`: `pocket-1.s4` with the clean-pocket block and his three fitted read-system deltas, on step 4's clock (shape S, theta 11, k 2, beta 0.5, the push window, b 5) (`calibration/src/pocket/rules.ts`). Its digest, `POCKET_1_S5A_DIGEST`, is `fnv1a:972b8b3b`, and a save is stamped `pocket-1.s5a@fnv1a:972b8b3b`. `pocket-1.s5b` is named in the code and refused at play ("not in this build"); F0, G1 and G2 are not defined.
+
+- **The clean-pocket block** (`engine/src/sim/cleanPocket.ts`, called from `sim/passPlay.ts` only when the rules carry it; AM-9's readings, I.11): the drop floor by the first read's depth class (QUICK 1.0 s, SHORT 1.5 s, INTERMEDIATE and DEEP 2.0 s; screens none), the clean expiry (his count or his reads spent, at or past the floor, not forced, not escaped, on a tick published CLEAN with no arrival contest), D23's throw at the bar of 30, the one ranked pick between MOVE and ESCAPE on `movement/t<tick>:clean`, the one clean move with the read restart and the 1.0 s reset, the window bump (TRAILING +10, EVEN +5), and the clean break-out on today's escape roll. No contracts edit: the labels are free strings and every event kind exists (`petitions.md`).
+- **The clean pick's urgency** is 0 by definition (`f83d9d0`, `5b33e94`), the Orchestrator's ruling on D27 after the pre-fit proofs found the plan's assert throwing on the league (J.2, J.6 item 2). The picks on a tick where today's rule would give urgency above 0 are counted and reported, never graded.
+- **The spec:** `docs/design/match-engine.md`'s `pocket-1` section gains the clean-pocket checklist and the drop floor (`89a4c31`), and the renderer prints the clean pick as a `pocket_movement` line "(clean pocket)".
+- **Calibration:** the arm ids E0 to E10 and F0 to F14, G1 and G2 (inert first, `9a31e78`); the stamp predicates from step 4 on (`readsStep3Facts`, `readsStep4Facts`); step 5's class view and AM-8's guard fields (`e8285ab`); the s4 and s5 clean benches and the bundles, refused until recorded (`54b8b5b`); the readers taught the clean pick, the two clean-pocket rows (`row:scramble_rate_by_pocket`, `row:clean_throwaway_in_pocket`) and the step-5 folds (`d7c4c9a`); the 5a fit, the step-5 harness, the selection option and the CLI (`ef93d8a`); the fit record, the literal leaves and `pocket-1.s5a` in `ENGINE_RULES` (`dd79f2c`); `POCKET_1_S5A_PINS` (`b5ec3eb`); the records (`05849dc`) and `STEP5A_RECORDS_FINAL` (`7206d51`).
+- **The amendments.** AM-8, AM-9 and AM-10 were filed together in `554f81e` (I.10 to I.12), before any step-5 arm ran; each was shown to the owner, not asked.
+
+**The arms.** Every E arm plays the clean bench (no rusher reaches him; the s4 bench recipe with the step-5 block's parts) on both leagues and both seed sets, flat and gen, caller v7. E0 is `pocket-1.s4` on that bench; E9 is `pocket-1.s5a` on it (overlay `fnv1a:8aed85d6`); E8, the fit's bench, is `fnv1a:4bfc9e11`.
+
+| arm | parts | role |
+|---|---|---|
+| E0 | none (the s4 bench) | base; the guard's base, played fresh and twice |
+| E1 | the fitted deltas only | the count alone |
+| E2 | the floor only | the floor alone |
+| E3 | D23 only | item b alone |
+| E4 | MOVE only (climb, restart, reset), no bump | item d alone |
+| E5 | E4 with the bump | the bump's price |
+| E6 | the break-out with D23 on the run | item e alone |
+| E7 | the checklist joint, today's deltas, no floor | the checklist joint |
+| E8 | E7 with the floor | the fit's bench |
+| E9 | E8 with the fitted deltas: `pocket-1.s5a` | graded; the guard with E0 |
+| E10 | E9 with no reset | the reset alone (D33) |
+
+**The commits** (`git log --first-parent 517002e..7206d51`, 42): the build `9a31e78`, `e8285ab`, `554f81e`, `d6c51e1`, `54b8b5b`, `32a340a`, `89a4c31`, `d7c4c9a`, `ef93d8a`; the proofs' spelling fix `c94eb65`; the review fixes `f83d9d0` to `058c1ab` (27); main `24a79aa` merged in `5b9b043`; the fit `dd79f2c`; the pins `b5ec3eb`; the records `05849dc` and `7206d51`. Then main `cd2ba28` merged in `c9570e5` (2026-11-26, a run that stopped before its proofs finished), main `25827f5` merged in `2cc30c5`, the record note I.13 `ead7104`, the named refusal of 5b `1bf6283` (J.8), and this record's docs commit.
+
+**The reviews.** Before the fit: contracts-guardian on the label list and the clean pick's mapping (every item approved, four with changes, C1 to C10, all in streams E and A; P18 asked, J.6 item 7), then four lenses on `c94eb65` (code and tests, fidelity, measurement, no play change). The fidelity and no-play-change reviews each found the urgency assert throwing on the league (F-1, NPC5-1), which the Orchestrator's ruling settled; the code-and-tests review's F1 and F2 (the fit landing on today's deltas, S-1's second half) were fixed in `8b5a6f0` and `5d077b3`. Every code fix carries a test that failed before it (`review/fix.md`). After the fit, an independent fit check (`fit-check.md`) and an independent arms check (`arms-check.md`) read the committed records with scripts of their own; neither found a blocking mismatch.
+
+**Each departure from the plan:**
+
+| where | departure |
+|---|---|
+| the Records list | this appendix covers 5a only, titled "the step-5a record"; 5b's record is planned as Appendix M, after K and L (J.8) |
+| backlog | the plan named entry 180 for step 5's record; main's ADR-093 step 1b took 180 (calibration's real names), so step 5a's entry is 181 |
+| plan §2.1 row c | the clean pick's urgency is 0 by definition, not computed and asserted 0 (the Orchestrator's ruling; J.6 item 2) |
+| R-2 | `POCKET_1_S5A_PINS` hold all fourteen grid points F1 to F14 (each stamped `pocket-1.s5a`), not F5 alone, as step 4 pinned D1 to D17 |
+| the arms | four shards at once, not three; the records in two commits (`05849dc` the files, `7206d51` the final marker), as step 4's were |
+| R-6 and S-7 | that the fit's replay and E0's second play ran in separate processes is shown by their logs and process ids, not proven by the records (build departure 1) |
+| the fit | CONCEPT's delta was set by the loss, not by the tie rule as the plan expected (J.3) |
+| step 5b | not run: the owner's Wait (J.8). The 5b code stays dormant and is refused by name (`1bf6283`) |
+| I.13 | the record note on AB-L's set-2 move has no machine entry in the amendments file, so `AMENDMENTS_DIGEST` and the views the final 5a records pin do not move |
+
+### J.2 The proofs and the pins, with times
+
+**The pre-fit OFF proofs at `c94eb65`** (`proofs.md`; base `517002e`; one driver in the background on 4 vCPU, 2026-11-08 01:45:28Z to 04:35:12Z, exit 0): every §7.1 proof held, apart from two known reds identical at head and base (P-15, backlog 175; Q-2e's comparison against the committed step-4 report). P-1 took 92 s. The ON smoke held on the bench and on two of the three league configurations; the third (the checklist without the floor, on the league tunables) threw "a clean pick at tick 1.0 with urgency 1; a CLEAN tick has none", which the ruling settled. **After the review fixes** at `058c1ab` (`review/fix.md`): the ON checks on seed set 1 (flat's first 16 games, gen weeks 1 to 2) all hold, 374 s, no cache file written. **After main `24a79aa`** (`5b9b043`, no conflicts; `review/main-merge.md`): every OFF proof holds against the new base.
+
+**The fit** (`measure/fit.md`): three shards played the 19 offset runs on E8, gen, seed set 1 (fingerprint `77ff1bc21ec02070`, head `5b9b043`), each exit 0; the fresh replay of the winner's three offsets (-1, -0.25, +1) ran as its own process with no cache and matched the record's histograms byte for byte; the second `--fit` played the confirm run and wrote the record. The fit's wall time was not written down (the plan's estimate was about 15 minutes). A plain-Python recompute that reads only the record gives all 6,859 losses bit-equal and the same winner; the independent check (`fit-check.md`) re-played offsets 0 and +3.0 and the confirm run in fresh processes with its own fold and matched the record exactly.
+
+**R-1 and the pins** (`measure/pins.md`): `pocket -- --step 5b --digests` twice at once at `dd79f2c` (fingerprint `41ecb2d591ad3c8d`, Node v22.22.0), 11:05:51Z to about 11:16Z (about 10.8 minutes), both files byte-identical (sha256 `055d9c9c868deaa3f5adb04d4852e6130afa81ba6e17f8415c4a347037cbfbb6`): the golden 50 a league under F1 to F14, E0's and E9's bench tunables. `POCKET_1_S5A_PINS` (`b5ec3eb`) from a third per-game process, checked against both R-1 files (256 checks, 0 mismatches). `pocketS5Pins` 31 of 31 on the first 10 games (150 s) and 31 of 31 under `FF_POCKET_ON=1` (693 s); the s1, base, s2, s3, s4 and s5a pin files together 135 of 135 (247 s). R-4: the engine's roll accounting 50 of 50 (61 s); on the golden streams no roll label twice in a play or a game and no `t<tick>:deadline` on any F arm, E9, D1 or E0, and the only new family of F5 against D1 is `/movement/t#:clean` (E9 against E0 adds `/movement/t#:scramble` as well, today's family, which the s4 bench never draws).
+
+**The arms** (`measure/arms5a.md`): four shards at once at `b5ec3eb` (fingerprint `46b9d8df3c7a1b0f`), 11:41Z to 12:19Z (about 38 minutes), each exit 0, 22 arm-sets cached; E0's two fresh plays as separate processes (about 3.5 minutes each), byte-identical to the shards' E0 records; the graded run from the cache in 3.5 s, exit 0, "0 structural failure(s), 0 fold fault(s), 1 graded failure(s), 0 guard breach(es)"; a re-grade byte-identical to both files. The records: `.md` sha256 `5c338d60c3fb8d1962fa1ae8b57a8d0cb0dd71d37d792b862aa2be634e548592`, `.json` sha256 `db1fd9b7b70aad289850772f8fc0a74328081755eeac74f1344ded0c1d8fc23c`; the fit record sha256 `511a7afdf09a430993e5e2e8d0be5939af1aa42dfe0d9fa7d4aec1806935e61e`. Every arm-set is stamped commit `b5ec3eb`, fingerprint `46b9d8df3c7a1b0f`, `dirty: false`, filing `fnv1a:9a1c90e9`, amendments `fnv1a:3f9478eb`, caller v7. `7206d51` sets `STEP5A_RECORDS_FINAL`, which moves the fingerprint to `9e9926e12320c4db`, as step 4's marker did; since then the graded command refuses to write over the records, and a re-grade at a later head replays the arms into a new cache key.
+
+**After main `25827f5`** (merged at `2cc30c5`; the driver from 2026-11-26 22:39:11Z to 23:54:18Z on 4 vCPU; base `25827f5`; wall seconds):
+
+| proof | what | exit | time |
+|---|---|---|---|
+| P-1, P-1b | golden pins v1 to v7 at 50 games a league, two processes (16 of 16 each) | 0, 0 | 123 s, 123 s |
+| P-1c | the season path (`realSeasonSeam` 6 of 6) | 0 | 75 s |
+| P-3a, P-4, P-5 | `adr089Base`, `pocketLegacyShape`; P-5 red on today's data (below) | 1 (P-5 only) | 250 s |
+| P-6 | the legacy, s3 and s4 clean benches | 0, 0, 0 | 120 s, 120 s, 122 s |
+| P-7 | step 0's command re-fills the filing; at `c9570e5` byte for byte the committed file (407 s); at head and base equal to each other (I.13) | 0 | 377 s, 379 s |
+| P-8 | `pnpm install --frozen-lockfile --offline && pnpm verify` at `ead7104` | 0 | 1,652 s |
+| P-9 | the filing, surface, comparators, bands, amendments, re-grade and step-4 and step-5 suites | 0 | 131 s |
+| P-13, Q-8 | every CLI save, `--out`, export and load byte-identical to the base's (22 files); the s5a save stamped `pocket-1.s5a@fnv1a:972b8b3b` | 0, 0 | 389 s, 156 s |
+| P-14, Q-5 | the engine's legacy and step-2 to step-4 suites (546); the pocket suites (201 and 1 skipped) | 0, 0 | 67 s, 31 s |
+| P-15 | the gated ladder census, the known red (backlog 175), identical at head and base | 1, 1 | 112 s, 109 s |
+| P-16, P-17 | short-corpus streams, snap pictures and key lists equal to the base's (11 runs) | 0 | 52 s + 96 s |
+| PINS | `POCKET_1_S1_PINS` to `POCKET_1_S5A_PINS`, the throw-class pins and the all-off proof (194 tests) | 0 | 495 s |
+| Q-1, Q-6, Q-7 (ON) | S1, S1-base and S2 pins (32); S3 (35); S4 (37), every arm played | 0, 0, 0 | 267 s, 806 s, 867 s |
+| S5A (ON) | `pocketS5Pins` and `pocketThrowClassS5Pins`, every arm played (72) | 0 | 777 s |
+| Q-2f (ON), P-18b (ON) | the re-fold proof (41); s4 with an all-off block replays the s4 pins (18) | 0, 0 | 1,054 s, 1,243 s |
+| R-5 | the step-5 units and stream suites (381) | 0 | 99 s |
+
+- **P-5 and `pocketRowsReal` are red on today's data, not on code.** The 2026-11-26 nflverse ingest gives 40,987 flagged real dropbacks where the design says 40,982, identically at head, base and `c9570e5`. It does not reach the filing: the re-fill at `c9570e5` equals the committed filing byte for byte. They stay red on any fresh ingest until a data snapshot is pinned or the real figures are re-recorded.
+- **Not run at `2cc30c5`:** Q-2d and Q-2e (their scratch scripts did not survive; `pocketStep4` passed in P-9) and R-1 to R-9 for 5b (held).
+- **This record** (`1bf6283` and the docs commit): the 5b command, with and without `--after-owner 2026-11-27T12:00Z`, is refused before anything plays and makes no cache; a full `pocket-1.s5a` season (285 games) takes about 43 s against about 38 s under `legacy`, and an s5a export about 2 s. On this record's tree (`1bf6283` with this commit's docs and `pocketBands.test.ts`), `pnpm -r test` exits 0 in 1,583 s (contracts 110 tests, game 70, narrative 92, attributes 232, playbook 3,275, engine 2,293 and 2 skipped, franchise 915, calibration 2,884 and 115 skipped, its 41 gated files skipped) and `pnpm verify` exits 0 in 1,690 s (2026-11-27, 00:47:15Z to 01:41:48Z, one after the other).
+
+### J.3 The fit
+
+AM-9 item 12's rule, on E8, gen, seed set 1, 272 games, caller v7, step 4's clock; 6,859 combinations of the 19 offsets (-1.5 to +3.0 s by 0.25 s) on the three systems.
+
+| dial | today (s) | offset (s) | fitted delta (s) | on an edge |
+|---|---|---|---|---|
+| HALF_FIELD | -0.5 | +1.0 | **0.5** | no |
+| FULL_FIELD | +1.0 | -1.0 | **0** | no |
+| CONCEPT | -1.0 | -0.25 | **-1.25** | no |
+
+- **Loss** 140.6503 points squared at the winner, against 213.8895 at today's deltas; decided by the loss, no other cell ties, the runner-up (+1, -0.5, +0.5) at 141.3038 (a margin of 0.65). E9 is not E8. `POCKET_1_S5A_FIT_DIGEST` `fnv1a:2874e804`.
+- **CONCEPT was set by the loss, not by the tie rule.** The plan expected its two reads to be spent by about 1.0 s whatever its budget; on the bench CONCEPT's window counts move with its own offset, and at the winner's HALF and FULL offsets CONCEPT -0.25 beats -0.5 by 1.69.
+- **The approximation:** each system's largest relative call-count deviation across the 19 runs is 2.29% (HALF), 2.53% (FULL) and 2.24% (CONCEPT); the confirm run at the winner jointly scores 143.1016, 1.74% over the estimate, under the 20% line, so not named.
+- **Sim against real, percent by window** (real is ADR-089:194 renormalized to 100; sim is the estimate at the winner, today's beside):
+
+| window (s) | 0.5 | 1.0 | 1.5 | 2.0 | 2.5 | 3.0 | 3.5 | 4.0 | 4.5 | 5.0 | over 5.25 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| real | 0.50 | 5.81 | 14.33 | 26.25 | 23.45 | 15.53 | 7.92 | 3.11 | 1.20 | 0.80 | 1.10 |
+| winner | 0.33 | 5.56 | 19.92 | 18.37 | 29.05 | 11.87 | 9.14 | 2.57 | 1.69 | 1.02 | 0.48 |
+| today | 0.36 | 5.50 | 19.40 | 19.00 | 31.75 | 7.65 | 8.24 | 3.22 | 3.27 | 0.57 | 1.05 |
+
+The fit moves weight from the 2.5 s window into the 3.0 s one. The 1.5 s window stays too heavy and the 2.0 s window too light; they are recorded as they are, and no dial moved after they were seen.
+
+### J.4 Every 5a clause, both leagues and both seed sets
+
+From the committed report: E9 unless named, seed set 1 graded and set 2 beside, flat and gen each graded (AM-9 item 14). Rates per 100 dropbacks unless named; release in seconds.
+
+| clause | band (filed) | flat set 1 | flat set 2 | gen set 1 | gen set 2 | verdict |
+|---|---|---|---|---|---|---|
+| `s5a.cleanScramble` (graded) | 2 to 6 | **12.96** | **12.63** | **6.89** | 5.64 | **FAIL**: flat out on both sets; gen **split** (out on set 1, in on set 2), graded on set 1 |
+| `s5a.completion` (graded), E9 minus E0 | at least -2 | -0.92 | -0.48 | +1.04 | +0.64 | PASS |
+| `s5a.int` (graded), E9 against E0 | AM-8 | PASS | | PASS | | PASS (J.5) |
+| `s5a.release` | 2.26 to 2.56 | 2.17 | 2.17 | 2.22 | 2.25 | reported (under the band on every cell) |
+| `s5a.under1` (at or under 1.25 s) | at most 8 | 4.40 | 4.51 | 6.10 | 5.26 | reported; at or under 1.0 s raw beside 4.40, 4.51, 4.93, 4.61 |
+| `s5a.over35` (over 3.25 s) | 8 to 18 | 8.87 | 8.97 | 15.23 | 17.81 | reported; at or over 3.5 s raw beside 6.78, 6.79, 5.90, 7.27 |
+| `s5a.cleanOuts` | 5.17 | 12.96 | 12.63 | 6.89 | 5.64 | reported; `clean_outs_rate` beside 16.32, 15.75, 8.88, 7.87 against 10.63 |
+| `s5a.checkdown` (of aimed throws) | 14.7 | 17.23 | 17.23 | 10.74 | 9.93 | reported |
+| `s5a.laterRead` | 10 | 23.03 | 22.55 | 29.00 | 28.01 | reported |
+| `s5a.nobodyOpen` | 30.2 | 21.28 | 21.33 | 19.65 | 19.31 | reported; gen set 1 split CHECKDOWN 9.70, DESPERATION 8.53, THROWAWAY 0, SACK 1.43 |
+| `s5a.cleanThrowaway` (in, out of the pocket) | 0 | 0, 0 | 0, 0 | 0, 0 | 0, 0 | reported (0 by construction, S-3) |
+| `s5a.removedClass`, E0 | at most 10.1 | 703 (1.33), 47 INT | 782 (1.47), 55 INT | 771 (2.70), 160 INT | 723 (2.55), 160 INT | reported |
+| `s5a.intLeague`, E9 minus E0 (INT per attempt) | at most 0.3 | +0.04 | +0.07 | -0.09 | +0.29 | reported; per aimed throw beside -0.57, -0.50, -0.96, -0.50 |
+| `s5a.reset`, E10 against E9 | reported | moves 8,548 against 8,755; picks 19,678 against 18,607 | 8,771 against 8,718; 20,050 against 18,256 | 2,857 against 2,827; 6,464 against 5,899 | 2,545 against 2,592; 5,764 against 5,375 | reported |
+| `s5a.cleanExpiryBar` (S-1) | structural | | | | | PASS |
+| `s5a.oneCleanMove` (S-2) | structural | | | | | PASS |
+
+- **The graded miss.** E0 has no clean scramble on any league or set (the build check). E9's break-outs on set 1: flat 9,852 attempts (ESCAPED 7,363, CONTAINED 2,014, CAUGHT 475), gen 3,072 (2,279, 592, 201). The clause note's allowance of about 0.5 in 100 high until step 6 (ADR-089 §6.5) does not move the band; even at 6.5 both leagues miss on set 1. The committed report does not print the word "split" for gen; AM-9 item 14 asks for it, and this record carries it (arms check N2).
+- **Structural rows, all PASS:** S-1 (every clean-expiry throw to a man at 30 or more, none from an empty pool; no desperation throw after a clean break-out; rank-pushed throws inside the cut pool printed beside, E9 set 1 380 flat and 516 gen), S-2, S-3 (E9's clean expiries: HOLD 0, throwaway 0), S-4 (no non-screen aimed pocket throw before its floor; throws at or under 0.5 s beside, E9 set 1 1,704 flat and 1,160 gen against E0's 6,355 and 4,001), S-5 (the engine's unit proof, 6 of 6; the harness lists it under "Waiting, by name"), S-6 (no pressured dropback on E9), S-7 (E0's two fresh plays identical on both sets), S-9, the rows' build check, the offered-set check, R-6's confirm (E9's set-1 gen stream equals the fit's confirm run) and `mr.bin20.raw`'s recompute.
+- **Each part alone, then jointly** (set 1, from the measures file; completion and INT per aimed throw, clean scrambles per 100 dropbacks):
+
+| arm | flat release | flat completion | flat INT | flat clean scramble | gen release | gen completion | gen INT | gen clean scramble |
+|---|---|---|---|---|---|---|---|---|
+| E0 | 1.921 | 49.03 | 2.93 | 0 | 2.066 | 45.27 | 7.82 | 0 |
+| E1 | 1.913 | -0.74 | +0.01 | 0 | 2.045 | +0.55 | -0.26 | 0 |
+| E2 | 2.064 | -0.77 | +0.28 | 0 | 2.174 | -0.16 | +0.31 | 0 |
+| E3 | 1.922 | +1.43 | -1.08 | 0 | 2.062 | +2.24 | -1.53 | 0 |
+| E4 | 2.148 | -1.29 | +0.14 | 0 | 2.185 | -0.06 | +0.26 | 0 |
+| E5 | 2.146 | -1.31 | +0.18 | 0 | 2.184 | -0.16 | +0.34 | 0 |
+| E6 | 1.853 | +0.29 | -0.19 | 24.81 | 2.056 | -0.02 | +0.04 | 8.89 |
+| E7 | 2.031 | -0.50 | -0.89 | 14.29 | 2.104 | +1.43 | -1.18 | 6.42 |
+| E8 | 2.197 | -0.69 | -0.57 | 12.34 | 2.236 | +0.89 | -0.83 | 6.35 |
+| E9 | 2.174 | -0.92 | -0.57 | 12.96 | 2.222 | +1.04 | -0.96 | 6.89 |
+| E10 | 2.103 | -0.02 | -0.93 | 14.48 | 2.186 | +1.05 | -0.84 | 8.23 |
+
+E0's row gives its levels (completion and INT in percent of aimed throws); every other row gives its difference from E0. Set 2 moves the same way (the measures file).
+
+- **Reported beside, against §4.6's upper bounds and the real rates:**
+  - **Restarts** (bound 15.0% of gen clean dropbacks): gen holds on every arm and set (E9 10.91% and 9.92%); flat is over on E4, E5, E7, E8 and E9 (E9 18.91% and 18.82%), printed beside because the bound is stated on gen.
+  - **The bump** (bound 2.9% of gen clean dropbacks): over on every bump arm, both leagues and both sets (E9 gen 4.85% and 4.75%, flat 7.93% and 8.05%).
+  - **The caught share** of clean escape attempts on E9: flat 4.82% and 4.97%, gen 6.54% and 8.37%, against the plan's INFERRED 29% at the 70 baseline.
+  - **Coverage sacks:** on the bench every sack is one (no rusher). E9 flat 1.19 per 100 on both sets, gen 1.43 and 1.81, under the plan's INFERRED 2 to 5. Mean time to sack, on the 0.5 s tick labels: flat 3.17 and 3.24 s, gen 4.49 and 4.67 s, against PFF's 3.8 s (REAL, as the design cites it). No clean CAUGHT sack names a rusher.
+  - **Throws on the run** after a clean break-out, INT per aimed throw: E9 flat 6.81% and 6.24%, gen 8.12% and 12.32%, against the real 2.11% clean (REAL, the design's figure); every arm E6 to E10 is two to five times it. None pressured on the bench.
+  - **The clean picks by offered set** (guardian C4): on E9 set 1, flat 6,909 one-option picks (all ESCAPE) and 11,698 two-option picks (ESCAPE 2,943, MOVE 8,755); gen 2,192 and 3,707 (880, 2,827). Picks on a tick where today's rule would give urgency above 0: 0 on every arm, league and set.
+
+### J.5 The guard at step 5a (AM-8)
+
+AM-1's statistic on step 5's class view (I.10), E9 against E0, E0 played fresh, raw release seconds on both sides. **PASS on both leagues, no breach league-wide or in any class.**
+
+| league | reading | Z | minimum breaching mean excess | mean excess | the filed reading beside |
+|---|---|---|---|---|---|
+| flat | league-wide | -11.21 | 0.158 | -0.887 | within |
+| flat | PROGRESSION | -6.33 | 0.116 | -0.245 | within |
+| flat | RANK_PUSHED | -3.82 | 1.145 | -1.461 | within |
+| flat | CHECKDOWN | -11.99 | 0.141 | -0.564 | within |
+| flat | CLEAN_EXPIRY | -11.97 | 1.050 | -4.188 | within |
+| gen | league-wide | -5.34 | 0.337 | -0.896 | within |
+| gen | PROGRESSION | -1.74 | 0.396 | -0.229 | within |
+| gen | RANK_PUSHED | -0.04 | 1.819 | -0.016 | over on set 2 (+0.918 against 0.067) |
+| gen | CHECKDOWN | +1.11 | 1.041 | +0.364 | over on set 1 (+1.066 against 0.266) |
+| gen | CLEAN_EXPIRY | -5.80 | 2.337 | -4.518 | within |
+
+- DESPERATION is REMOVED on both leagues and sets (E9 has none; E0's are `s5a.removedClass`). ON_THE_RUN has no base on the bench (E9 flat 1,454 throws with 99 INT and 1,346 with 84; gen 345 with 28 and 341 with 42) and is reported against the real rates; it is graded at 5b on F5 against D1.
+- The filed reading (no noise term), printed beside, would flag gen's RANK_PUSHED on set 2 and CHECKDOWN on set 1; under AM-1's statistic neither breaches. The arms check recomputed every figure in this table from the measures file to every printed digit.
+- **The alone arms** (E1 to E8 and E10 against E0) are information under AM-8, unguarded. **E2, the floor alone, reads league-wide Z 2.14 on flat and 2.08 on gen, above the 2.0 line**, so it would breach on both leagues were it guarded; no other alone arm crosses a line (E5 gen 1.66 is next; no class reaches 3.0). The committed report prints "breaches none" beside E2 because the harness writes no breach for an information row by construction; that print is not a reading (arms check N1). The joint builds E8 and E9 do not cross.
+- **AM-8's reported splits for E9, set 1** (INT per aimed throw, never graded): flat PROGRESSION after a clean move 6 of 1,275, otherwise 65 of 20,512; CLEAN_EXPIRY after a clean move 37 of 737, otherwise 16 of 1,904; ON_THE_RUN after a clean break-out 99 of 1,454. Gen: 9 of 356 and 346 of 13,816; 46 of 332 and 229 of 1,857; 28 of 345.
+
+### J.6 What goes back to the owner
+
+1. **One graded prediction misses: `s5a.cleanScramble`**, flat 12.96 (set 2 12.63) and gen 6.89 (set 2 5.64, a split) against 2 to 6. Nothing was re-fitted, tuned or re-run, and no band moved (AM-9 item 15). It is a failed prediction, not a build fault: every structural row and fold check holds. The design's choices for it are to accept it as a named miss and go on, or to stop for a design change filed before any re-run. **The miss card is still open.** At 2026-11-26 21:18:55Z the owner was told that "continue everything" had been taken as accepting the miss; that was not a tap, so the card stays open and the next step waits on it. Under the new order its Accept means that step 6's escape cap, caught escape and deadline pick are the named fix (the owner page of 2026-11-26).
+2. **The clean pick's urgency card is still open.** The design's words are "today's appeals at urgency 0" (D27), and the plan read that as computed and asserted. From `pocket-1.s2` on, a threat 1.0 to 1.25 s away publishes CLEAN while the forced pick's rule computes urgency 1 for it, so the assert threw on the league. The Orchestrator ruled that a tick published CLEAN is an unhurried one, and the build is the card's recommended answer, Unhurried: the clean pick and the clean break-out rank and roll at urgency 0 by definition, and such picks are counted, never graded. On the bench no rusher comes, so the count is 0 on every arm; the league arms that would read it are 5b's.
+3. **Reported rows over their bounds** (never graded): the bump on every bump arm (E9 gen 4.85% against 2.9%), flat restarts on the move arms (E9 18.91% against 15.0%, stated on gen, where E9 is 10.91%), throws on the run at 4 to 12% INT against a real 2.11%, and `s5a.release` at 2.17 to 2.25 s against 2.26 to 2.56.
+4. **No AM-8 breach** (J.5). The floor alone would cross the guard's league-wide line on both leagues if it were guarded; the joint build does not.
+5. **The gate.** At `7206d51` the 5b command was refused on the graded miss until `--after-owner <ts>` named the owner's word. Since `1bf6283` it is refused by the owner's Wait whatever `--after-owner` says (J.8).
+6. **The merge, with the switch off.** Step 5a goes up as its own pull request, switched off, and merges only on the owner's word. Default play does not change (J.2). After merge `POCKET_1_S5A_PINS`, `POCKET_1_S5A_DIGEST` and `POCKET_1_S5A_FIT_DIGEST` are never re-recorded under `pocket-1.s5a`: a change that moves a game under that name must give the changed rules a new name with its own pins. Step 5a's records and fit record are final, and the commands refuse to write over them. The filing, the amendments file and this file's appendices stay append-only.
+7. **P18** (the roll-accounting note naming `:clean`, doc only; contracts-guardian asked for it) waits on the owner's typed yes "yes P18". Nothing waits on it and no contracts edit is in this step.
+8. **Still open from the owner page of 2026-11-26:** what counts as pressured (the Q1 card, J.8 item 5); whether shape L stays in the block-clock choice after step 7; whether steps 6 and 7 are graded again at the chosen clock; and, before step 7, "yes P19" for the new rating once its name and how it is handed out are settled.
+
+### J.7 The Orchestrator's readings
+
+**The rulings that bind this step** are recorded where they were made, and not restated: I.10 (AM-8), I.11 (AM-9), I.12 (AM-10) and the urgency ruling (J.1, J.6 item 2).
+
+**Readings of the results.** Each was drafted by the record writer from the committed records and the working reports named, for the Orchestrator to confirm or strike before the merge card; none moves a band, a clause or a pin, and none is a ruling.
+
+1. **The break-out is the clean scramble.** E6, the break-out alone, gives 24.81 per 100 on flat and 8.89 on gen. The joint arms come down only because the clean move takes part of the picks: on E9's two-option picks every SOUND roll took MOVE (8,755 of 8,755 on flat set 1) and every RUSHED or PANICKED roll took ESCAPE (the rank clamp), and one-option picks offer ESCAPE alone. The floor (E8) and the fitted count (E9) barely move it; no reset (E10) raises it. So the step-6 parts named in J.6 item 1 are where the miss would be answered, not the count (INFERRED).
+2. **D23 is the one part that lowers interceptions and raises completion** (E3 gen INT per aimed throw -1.53, completion +2.24), and it removes every desperation throw.
+3. **The floor and the move each lengthen release by about 0.11 to 0.23 s against E0** (E2 gen +0.109 on both sets is the low end, E5 gen set 2 the same; arms check N4 corrects the working report's 0.12). The fitted deltas alone shorten it slightly (gen 2.066 to 2.045 s). Jointly, E9's release is 2.17 s on flat and 2.22 s on gen, still under the filed 2.26 to 2.56.
+4. **The floor alone and the guard (arms check N1).** E2's league-wide Z of 2.14 (flat) and 2.08 (gen) is the one alone-arm reading over a line. AM-8 makes the alone arms information, so the outcome stands; the report's "breaches none" beside it is a fixed print. In the joint builds interceptions per aimed throw stay under E0's on both leagues (E8 flat -0.57 and gen -0.83; E9 -0.57 and -0.96).
+5. **Gen's scramble row is split (arms check N2):** out on set 1 (6.89), in on set 2 (5.64). Set 1 decides, and flat misses on both sets, so the verdict does not move.
+6. **Two completion constructs (arms check N3).** The graded row is the registered `completion_per_aimed_throw` (E9 gen set 1 46.31). The guard's cells count completions from the catch field and read lower (41.67 on the same throws). Read on the cells, the clause still passes on every cell (flat -0.73 and +0.09, gen +1.17 and +1.10). It is a construct difference, not a grading question.
+7. **The bench catches few break-outs** (4.8 to 8.4% of attempts against the INFERRED 29%), so its coverage sacks run under the INFERRED 2 to 5 per 100; on gen they take longer than PFF's 3.8 s mean, on flat less.
+8. **The fit leaves the early windows off** (1.5 s too heavy, 2.0 s too light, J.3), with no grid edge reached and no tie. AM-9 fits the three deltas and nothing else, so the gap stands as recorded.
+9. **Seed set 2's generated halves of these records are dated history on trees with AB-L** (I.13); every graded reading above is read on set 1.
+
+### J.8 The owner's answers
+
+1. **Wait on step 5b.** At 2026-11-26 21:56:54Z the owner answered the card "Run step 5b now on today's count, or wait for the new one?" with **Wait** ("Hold 5b until step 7 builds the new count; steps 6 and 7 lose the block timing they build on, so the plan is reordered"). Step 5b is not run. Since `1bf6283` the step-5 gate refuses the 5b command by that name before anything plays, and `--after-owner` does not lift it (`STEP5B_WAIT_REFUSAL`, tested in `pocketStep5.test.ts`); `--digests` and `--reselect` play no 5b arm and are not held. Only the commit that builds the relocated 5b, under an entry filed before it, lifts the hold.
+2. **New rating.** At 21:58:16Z: **New rating**. A new quarterback rating, working name Pocket Feel, judges how much time a rusher needs to reach him. It needs a contracts edit (P19) with its own typed yes, asked before step 7 once its name and how it is handed out are settled; nothing of it is in this step.
+3. **His clock.** At 21:59:00Z: **His clock**. He must act when his own guess of the time left reaches half a second, so a poor judge can hold the ball into a hit. It is built at step 7; nothing of it is in this step.
+4. **The new order** (the owner page of 2026-11-26, "The pocket plan after your Wait"): step 5a, done and unchanged, then step 6 (the outs: throwaways, failed scrambles, the escape limit, caught escapes and run-or-throw at the deadline), then step 7 in two halves (first as filed, with his guess equal to the truth; then the owner's middle stage, in which he notices a rusher, guesses the time left with Pocket Feel and acts on his guess, checked to play exactly like the first half when the guess equals the truth), then step 5b, the block-clock choice judged on the owner's new count, then steps 8 to 11 as planned. Steps 6 and 7 are built on a stand-in block timing, step 5a's own (shape S, theta 11, grid point F5), written down in advance as a placeholder and chosen by nobody. Normal play changes only at step 11. The entries that file this order (AM-11 onward) are not in this step.
+5. **Open:** what counts as pressured (the Q1 card; until the owner answers, the plan assumes Plus contact: he reacted to a rusher, was hit or was sacked); the 5a miss card (J.6 item 1); the clean pick's urgency card (J.6 item 2); the other questions of J.6 item 8; and the merge of this step.

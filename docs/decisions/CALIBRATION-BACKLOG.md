@@ -13646,3 +13646,103 @@ Derived by grep at this record's head (`228cc19`), not recalled. Each line is `u
   cached arms and changes career-check's build.
 - **Owner and trigger.** Owner: the Orchestrator, then the project owner (the ruling). Trigger: before any ship build,
   or when the next calibration ingest change comes.
+
+## 181. ADR-089 step 5a: his count and the clean-pocket checklist are built behind the switch; default play has not moved; the block-clock choice waits for step 7's count
+
+- **Form.** A ruling entry (`BACKLOG-ENTRY-TEMPLATE.md`): it records step 5a's build behind the `pocket-1` switch,
+  the amendments AM-8 and AM-9 (ADR-089 Appendix I.10 and I.11) and the Orchestrator's urgency ruling on D27, so the
+  four ruling sections follow. ADR-089 Appendix J is the human-read record. Entry 179 is step 4's. The step-5 plan
+  named entry 180 for the whole of step 5; main's ADR-093 step 1b took 180 first, and step 5b was not run (the
+  owner's Wait, below), so this entry is 181 and covers 5a only.
+- **What landed (no play change).** The clean-pocket block (`engine/src/sim/cleanPocket.ts`, called from
+  `sim/passPlay.ts` only when the rules carry `pocket.cleanPocket`): the drop floor by the first read's depth
+  class, the clean expiry, D23's throw at the bar of 30, the one ranked pick between MOVE and ESCAPE on
+  `movement/t<tick>:clean`, the one clean move with the read restart and the 1.0 s reset, the window bump, and the
+  clean break-out on today's escape roll; his three read-system deltas fitted on the clean bench by AM-9's rule
+  (HALF_FIELD 0.5, FULL_FIELD 0, CONCEPT -1.25 s; `reports/adr-089-step5a.fit.json`, `POCKET_1_S5A_FIT_DIGEST`
+  `fnv1a:2874e804`); the rules bundle `pocket-1.s5a` (`POCKET_1_S5A_DIGEST` `fnv1a:972b8b3b`), with a save
+  stamped `pocket-1.s5a@<overlay digest>`; arms E0 to E10 on the clean bench; `pocket -- --step 5a` with
+  `--fit`; the stream pins `POCKET_1_S5A_PINS` for F1 to F14 (`b5ec3eb`); and the arms' numbers,
+  `reports/adr-089-step5a.md` and `.json` (`05849dc`, final at `7206d51`). All of it is behind the switch, which
+  is OFF: `DEFAULT_TUNABLES` is unchanged (census `fnv1a:365da48d`, digest `fnv1a:395a9ae2`), and the golden pins
+  v1 to v7, the season path, the step-0 filing (`FILED_DIGEST` `fnv1a:9a1c90e9`), `pocket-1.s1` to `pocket-1.s4`
+  (their pins replay byte for byte) and every CLI file did not move against main `25827f5`. No contracts edit.
+  `pocket-1.s5b` is named in code and refused at play; the 5b command is refused by name on the owner's Wait
+  (`1bf6283`), even with `--after-owner`.
+- **What the arms showed** (graded as filed; nothing re-filed, tuned or re-run; ADR-089 Appendix J.4). The tool's
+  outcome: 0 structural failures, 0 fold faults, 1 graded failure, 0 guard breaches. Passing: `s5a.completion`
+  (E9 minus E0, flat -0.92, gen +1.04 on set 1) and `s5a.int` under AM-8 (flat Z -11.21, gen -5.34, no class
+  breach). Missing: `s5a.cleanScramble`, flat 12.96 (set 2 12.63) and gen 6.89 (set 2 5.64, a split) against 2
+  to 6. It comes from the clean break-out (E6 alone 24.81 and 8.89). It is a failed prediction for the owner, and
+  its card is open. Reported beside, over their bounds: the bump on every bump arm, flat restarts, throws on the
+  run against the real 2.11%, and `s5a.release` (2.17 and 2.22 s against 2.26 to 2.56).
+- **The block-clock choice waits.** On 2026-11-26 at 21:56:54Z the owner chose Wait on the card "Run step 5b now
+  on today's count, or wait for the new one?": step 5b, the block-clock choice, runs after steps 6 and 7 and is
+  judged on the count step 7 builds. Steps 6 and 7 are built on step 5a's own clock (shape S, theta 11, grid
+  point F5), a placeholder chosen by nobody. He also chose a new quarterback rating (21:58:16Z) and that he acts
+  on his own clock (21:59:00Z), both for step 7 (ADR-089 Appendix J.8).
+
+### Implied scope
+
+Derived by grep at this record's head, not recalled. Each line is `unruled` by this entry.
+
+- **The readers of step 5a's facts outside `calibration/src/pocket`** (pattern `cleanPocket|:clean\b|pocket-1.s5a`
+  over `packages/*/src` and `apps/game/src`): `engine/src/sim/cleanPocket.ts`, `sim/passPlay.ts`,
+  `sim/pocketRules.ts`, `resolve/pocketMovement.ts`, `tunables.ts`, `debug/renderPlay.ts`, and calibration's
+  `export/cli.ts` and `season/main.ts`; the viewer, `narrative` and `franchise` read none. The viewer shows a clean
+  pick as any `pocket_movement` CHECK. `unruled`.
+- **The clean pick's urgency** is 0 by definition on a tick published CLEAN; from `pocket-1.s2` on a threat 1.0
+  to 1.25 s away publishes CLEAN while the forced pick's rule computes urgency 1. The picks such a tick would
+  reach are counted (0 on every bench arm); the league arms that would read them are step 5b's. `unruled` until
+  the owner answers the card.
+- **The bench has no rusher**, so a caught clean break-out is a sack with no sacker, and every pressured row on
+  it is empty. `unruled`.
+- **Seed set 2's generated season moves on trees with AB-L** (main's ADR-087, ADR-089 Appendix I.13): 17 of 272
+  games, all one team's. Step 5a's set-2 gen halves are dated history. `unruled`.
+
+### Provenance of factual claims
+
+- **Default play unchanged:** MEASURED three times. The pre-fit OFF proofs at `c94eb65` against `517002e`
+  (`proofs.md`, 2026-11-08 01:45:28Z to 04:35:12Z, exit 0); after main `24a79aa` (`5b9b043`); and after main
+  `25827f5` at `2cc30c5` (2026-11-26 22:39:11Z to 23:54:18Z), with `pnpm verify` exit 0 at `ead7104` in 1,652 s.
+  ADR-089 Appendix J.2 gives each proof's time.
+- **P-5 and `pocketRowsReal`** fail identically at head, main and the branch before the merge on the 2026-11-26
+  nflverse ingest (40,987 flagged real dropbacks against the design's 40,982), MEASURED; the filing re-fills byte
+  for byte at `c9570e5`, so it is data drift, not code. **P-15** exits 1 at head and base alike, entry 175's
+  Finding 1.
+- **The fit:** MEASURED, 19 runs on E8, gen, seed set 1, a fresh replay byte-equal, a plain-Python recompute of all
+  6,859 losses bit-equal, and an independent check with its own fold (`measure/fit.md`, `fit-check.md`).
+- **The pins:** MEASURED by `pocket -- --step 5b --digests` in two processes at `dd79f2c`, byte-identical (sha256
+  `055d9c9c…fbb6`), and a third per-game process (256 checks, 0 mismatches); `pocketS5Pins` 31 of 31, and 31 of 31
+  under `FF_POCKET_ON=1` (`measure/pins.md`).
+- **The arms:** `reports/adr-089-step5a.md` (sha256 `5c338d60…8592`) and `.json` (sha256 `db1fd9b7…c23c`),
+  stamped commit `b5ec3eb`, fingerprint `46b9d8df3c7a1b0f`, `dirty: false`, amendments `fnv1a:3f9478eb`; four
+  shards in about 38 minutes, E0's two fresh plays in separate processes, a re-grade byte-identical; every
+  verdict and the guard recomputed from the records by an independent check (`measure/arms-check.md`).
+- **The plan's INFERRED figures** (the caught share near 29%, coverage sacks 2 to 5 per 100): INFERRED in the plan,
+  read against the MEASURED 4.8 to 8.4% and 1.19 to 1.81.
+
+### Premise ledger
+
+- **AM-8 and AM-9** (I.10 and I.11; `554f81e`; shown to the owner, not asked): the Orchestrator's, CARRIED AS
+  TESTIMONY until the owner reads them. Their pins CONFIRMED (`AMENDMENTS_DIGEST`, `STEP5A_AMENDMENTS_PIN`
+  `fnv1a:3f9478eb`). Filed before any step-5 arm, CONFIRMED by commit order.
+- **D23, D25, D26, D27 and D33's CHOSEN values** (the bar of 30, the bump's sizes, the floor, the reset 1.0 s):
+  CARRIED AS TESTIMONY; never fitted.
+- **The urgency ruling** (a tick published CLEAN is unhurried): the Orchestrator's, CARRIED AS TESTIMONY; built as
+  the card's recommended answer while the card is open.
+- **The owner's taps of 2026-11-26** (Wait 21:56:54Z, New rating 21:58:16Z, His clock 21:59:00Z): CARRIED AS
+  TESTIMONY. The Wait CONFIRMED in the build: the 5b command is refused by name, with or without `--after-owner`.
+- **The plan's expectations:** "flat is the 5a row most likely to miss, high" CONFIRMED (12.96); "CONCEPT is
+  set by the tie rule" REFUTED (the loss set it).
+
+### What remains unjustified
+
+- **The missed prediction `s5a.cleanScramble`:** ⛔ NEITHER. It goes to the owner as a failed prediction with both
+  seed sets and both leagues; no band moved and nothing was re-fitted (ADR-089 Appendix J.6).
+- **The reported rows over their bounds** (the bump, flat restarts, throws on the run, the release mean): ⛔
+  NEITHER. Never graded at 5a.
+- **The clean pick's urgency:** ⚠ RULED by the Orchestrator, pending the owner's card.
+- **The floor alone against the guard** (E2's league-wide Z 2.14 flat and 2.08 gen, above the 2.0 line): ⚠ RULED
+  information by AM-8, unguarded; the joint build does not cross.
+- **The block clock:** ⛔ NEITHER until step 5b, relocated after step 7, chooses it on the owner's new count.
