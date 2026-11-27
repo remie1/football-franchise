@@ -253,6 +253,10 @@ export interface PlayStep4Options {
   readonly amendments: string;
   /** Tests only: plays the step-3 part (default `playStep3Arm`). */
   readonly playStep3?: (id: ArmId, seedSet: SeedSet, env: Step1Env, opts: PlayStep3Options) => Step3Record;
+  /** Step 5's harness only (`step5.ts`), each defaulting to step 4's own behavior: the log label; a visit after step 4's on every game; step 3's folds and M2 as the arm runs them (default `step4FoldsOf`). */
+  readonly label?: string;
+  readonly visit?: PlayStep3Options["visit"];
+  readonly folds?: Pick<PlayStep3Options, "s3Folds" | "m2" | "m5">;
 }
 
 /** Step 3's folds and M2 STREAM as step 4 runs them on `id`: a base exactly as step 3 played it; a D arm with step 3's folds when it reads step-3 facts from a free-run block, never M2. */
@@ -271,14 +275,15 @@ export function playStep4Arm(id: ArmId, seedSet: SeedSet, env: Step1Env, opts: P
   const r = play(id, seedSet, env, {
     corpus,
     amendments: opts.amendments,
-    label: "pocket step 4",
+    label: opts.label ?? "pocket step 4",
     ...(opts.log === undefined ? {} : { log: opts.log }),
-    ...step4FoldsOf(id),
+    ...(opts.folds ?? step4FoldsOf(id)),
     visit: (league, o, snapshot, tunables) => {
       const L = state[league];
       foldS4Game(L.s4, o.events, tunables);
       foldM3Game(L.m3, o.events, positionsFromSnapshot(snapshot));
       foldM6Step4Game(L.m6, o.events);
+      opts.visit?.(league, o, snapshot, tunables);
     },
   });
   const { format: _format, stamp, ...rest } = r;

@@ -24,6 +24,7 @@ import {
   gridPointId,
   risesFrom2s,
   selectBlockClock,
+  selectWith,
   shapeLoss,
   type BinCount,
   type GridArm,
@@ -226,5 +227,115 @@ describe("the curve helpers", () => {
     expect(attemptWeightedSlope(line, attempts)).toBeCloseTo(2, 12);
     expect(() => attemptWeightedSlope(REAL.hitRaw, [1, 0, 0, 0, 0, 0, 0])).toThrow(/no attempts/);
     expect(() => attemptWeightedSlope(REAL.hitRaw, [0, 1, 0, 0, 0, 0, 0])).toThrow(/one midpoint/);
+  });
+});
+
+describe("selectWith({ curve: \"pressured\" }): step 5b's reading (AM-10)", () => {
+  /** The real pressured curve at a quarter of its level (shape only), so a tilted copy stays under 100%. */
+  const PR = REAL.pressuredRaw.map((x) => x / 4);
+  /** Hit curves separate at theta 8; pressured curves have their minimum at theta 12. */
+  const grid = (): GridArm[] =>
+    GRID_POINTS.map((p) => {
+      const dh = p.shape === "S" ? p.value - 8 : p.value + 3;
+      const dp = p.shape === "S" ? p.value - 12 : p.value + 3;
+      const h = tilt(REAL.hitRaw, dh);
+      const pr = tilt(PR, dp);
+      return arm(p, h, h.map((x, i) => x + (i === 0 ? 0.002 : 0)), pr, pr.map((x, i) => x + (i === 0 ? 0.002 : 0)));
+    });
+
+  it("forces the pressured curve even when the hit curve separates; the hit curve is printed beside", () => {
+    const arms = grid();
+    expect(selectBlockClock(arms).winner).toBe("S:theta=8");
+    const v = selectWith(arms, { curve: "pressured" });
+    expect(v.curve).toBe("pressured_share_by_release_bin");
+    expect(v.winner).toBe("S:theta=12");
+    expect(v.winnerShape).toBe("S");
+    expect(v.stop).toBeUndefined();
+    expect(v.hit.winner).toBe("S:theta=8");
+    expect(v.hit.separated).toBe(true);
+    expect(v.pressured.scorable).toHaveLength(14);
+    expect(v.says.join(" | ")).toMatch(/the hit curve would pick S:theta=8 \(separated\); it decides nothing/);
+    expect(v.says.join(" | ")).toMatch(/moves out of the falsifiers and into the fitted ledger/);
+  });
+
+  it("gives the filed losses: each point's set-1 and set-2 shape loss on the pressured curve against ADR-089:179", () => {
+    const arms = grid();
+    const v = selectWith(arms, { curve: "pressured" });
+    const p = v.pressured.points.find((x) => x.point === "S:theta=10")!;
+    const a = arms.find((x) => gridPointId(x.point) === "S:theta=10")!;
+    expect(p.set1).toBe(shapeLoss(binRates(a.pressured[1]), REAL.pressuredRaw));
+    expect(p.set2).toBe(shapeLoss(binRates(a.pressured[2]), REAL.pressuredRaw));
+    expect(p.attempts[1]).toEqual(a.pressured[1].map((b) => b.attempts));
+  });
+
+  it("scores only points with an attempt in every bin on both sets; names the empty bins; the winner is among the scorable", () => {
+    const arms = grid().map((a) => {
+      if (gridPointId(a.point) !== "S:theta=12") return a;
+      const set2 = a.pressured[2].map((b, i) => (i === 6 ? { events: 0, attempts: 0 } : b));
+      return { ...a, pressured: { 1: a.pressured[1], 2: set2 } };
+    });
+    const v = selectWith(arms, { curve: "pressured" });
+    expect(v.pressured.unscorable).toEqual(["S:theta=12"]);
+    const p = v.pressured.points.find((x) => x.point === "S:theta=12")!;
+    expect(p.emptyBins).toEqual([{ set: 2, bin: ">=5" }]);
+    expect(p.set1).toBeUndefined();
+    expect(["S:theta=11", "S:theta=13"]).toContain(v.winner);
+    expect(v.says.join(" | ")).toMatch(/unscorable on the pressured curve: S:theta=12/);
+  });
+
+  it("a hit curve that cannot be scored anywhere is printed as such and never stops the run", () => {
+    const arms = grid().map((a) => ({ ...a, hit: { 1: a.hit[1].map(() => ({ events: 0, attempts: 0 })), 2: a.hit[2] } }));
+    const v = selectWith(arms, { curve: "pressured" });
+    expect(v.hit.winner).toBeUndefined();
+    expect(v.hit.unscorable).toHaveLength(14);
+    expect(v.winner).toBe("S:theta=12");
+    expect(v.stop).toBeUndefined();
+    expect(v.says.join(" | ")).toMatch(/the hit curve cannot be scored at any point/);
+    // A curve with attempts but no events has no shape: unscorable, never a thrown loss.
+    const flat = grid().map((a) => ({ ...a, hit: { 1: a.hit[1].map((b) => ({ events: 0, attempts: b.attempts })), 2: a.hit[2] } }));
+    const w = selectWith(flat, { curve: "pressured" });
+    expect(w.hit.points.every((x) => x.noShape && !x.scorable)).toBe(true);
+  });
+
+  it("stops when no point is scorable on the pressured curve", () => {
+    const arms = grid().map((a) => ({ ...a, pressured: { 1: a.pressured[1].map((b, i) => (i === 6 ? { events: 0, attempts: 0 } : b)), 2: a.pressured[2] } }));
+    const v = selectWith(arms, { curve: "pressured" });
+    expect(v.winner).toBeUndefined();
+    expect(v.stop).toBe("no point is scorable on the pressured curve");
+  });
+
+  it("stops after the first pass when a shape-L point wins", () => {
+    const arms = GRID_POINTS.map((p) => {
+      const d = p.shape === "L" ? p.value - 6 : p.value;
+      const pr = tilt(PR, d);
+      return arm(p, REAL.hitRaw, REAL.hitRaw, pr, pr);
+    });
+    const v = selectWith(arms, { curve: "pressured" });
+    expect(v.winner).toBe("L:R=6");
+    expect(v.winnerShape).toBe("L");
+    expect(v.stop).toBe("a shape-L point wins");
+  });
+
+  it("reports no separation and the points within twice their own spread of the best, deciding nothing", () => {
+    // Flat pressured losses with a large spread: no separation, the minimum stands, the near points are printed.
+    const arms = GRID_POINTS.map((p, i) => {
+      const pr = tilt(PR, p.shape === "S" ? p.value - 11 : 9);
+      const pr1 = pr.map((x, j) => x * (1 + (j === 6 ? 0.0001 * i : 0)));
+      return arm(p, REAL.hitRaw, REAL.hitRaw, pr1, tilt(PR, 4));
+    });
+    const v = selectWith(arms, { curve: "pressured" });
+    expect(v.pressured.separated).toBe(false);
+    expect(v.winner).toBe("S:theta=11");
+    expect(v.pressured.withinTwiceSpread.length).toBeGreaterThan(0);
+    for (const id of v.pressured.withinTwiceSpread) {
+      const p = v.pressured.points.find((x) => x.point === id)!;
+      expect(p.set1! - v.pressured.best!).toBeLessThanOrEqual(2 * p.spread!);
+    }
+    expect(v.says.join(" | ")).toMatch(/does not separate the scorable points; its minimum stands/);
+  });
+
+  it("refuses any curve but the pressured and any grid but the filed one", () => {
+    expect(() => selectWith(grid(), { curve: "hit" as "pressured" })).toThrow(/pressured curve only/);
+    expect(() => selectWith(grid().slice(1), { curve: "pressured" })).toThrow(/exactly the filed grid/);
   });
 });

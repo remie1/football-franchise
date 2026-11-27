@@ -18,6 +18,12 @@
  * contact time, the race and rho, the arrived list and the rebuild, the contact-time book and the
  * log's three new writers are wrapped the same way; no set of steps 1 to 3 calls any, and
  * `playsTodaysLine` is `playsLegacyRules` under every one of them.
+ *
+ * ADR-089 step 5a (P-18): every export of `sim/cleanPocket.ts` (the floor, D26, the clean expiry,
+ * D23's pool, the pick, the reset and the bump) is wrapped the same way; legacy, every set of
+ * steps 1 to 4 and kind T call none, play (with and without a picture) and game, and the s5 sets
+ * call every one. P-18b at the engine's reach: the s4 bundles with the all-off block, same stamp,
+ * give the s4 stream, play and game (the pinned digests' replay is calibration's, K2b).
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -89,7 +95,24 @@ vi.mock("../src/sim/contactBook.js", async (importOriginal) => {
   return { ...real, ContactBook };
 });
 
+// ADR-089 step 5a (P-18): every export of the clean-pocket module, counted.
+vi.mock("../src/sim/cleanPocket.js", async (importOriginal) => {
+  const real = await importOriginal<typeof import("../src/sim/cleanPocket.js")>();
+  return {
+    ...real,
+    isScreen: vi.fn(real.isScreen),
+    floorSecondsOf: vi.fn(real.floorSecondsOf),
+    mustDecideNow: vi.fn(real.mustDecideNow),
+    cleanExpiry: vi.fn(real.cleanExpiry),
+    d23Pool: vi.fn(real.d23Pool),
+    resolveCleanPick: vi.fn(real.resolveCleanPick),
+    resetAfterMove: vi.fn(real.resetAfterMove),
+    bumpFor: vi.fn(real.bumpFor),
+  };
+});
+
 import { playerId } from "@ff/contracts";
+import * as cleanPocketModule from "../src/sim/cleanPocket.js";
 import { simulateGame, simulatePassPlay } from "../src/index.js";
 import { PlayEventLog } from "../src/events.js";
 import { arrivalContest, contactFrom, secondArrival, tiltOf } from "../src/resolve/contact.js";
@@ -99,6 +122,7 @@ import { arrivedInGridOrder, onFreeRunClockAtSnap, rebuiltTick } from "../src/si
 import { playsLegacyRules, playsTodaysLine } from "../src/sim/pocketRules.js";
 import { PASS_FIXTURES } from "./pocketTunables.js";
 import { S4C_TUNABLES, S4L_TUNABLES, S4M_TUNABLES, S4S_TUNABLES, S4_TUNABLES, T_TUNABLES, playStep4 } from "./step4Fixtures.js";
+import { CLEAN_POCKET_OFF, S5L_TUNABLES, S5S_TUNABLES, S5_TUNABLES, onCleanBench, withCleanPocket } from "./step5Fixtures.js";
 import { drawBeat, resolveBeatTick } from "../src/resolve/beatClock.js";
 import { fromOf, threatApproachOf, threatSideOf, withApproach } from "../src/resolve/approach.js";
 import { freeRunClock } from "../src/resolve/freeRun.js";
@@ -143,6 +167,12 @@ const STEP4_SPY_TABLE = [
 ] as const;
 const STEP4_SPIES = STEP4_SPY_TABLE.map(([, f]) => vi.mocked(f as unknown as (...args: never[]) => unknown));
 
+/** ADR-089 step 5a (P-18): every export of `sim/cleanPocket.ts` that is a function, by name. */
+const STEP5_SPY_TABLE: readonly (readonly [string, (...args: never[]) => unknown])[] = Object.entries(cleanPocketModule as Record<string, unknown>)
+  .flatMap(([name, f]) => (typeof f === "function" ? [[name, f as (...args: never[]) => unknown] as const] : []))
+  .sort(([a], [b]) => a.localeCompare(b));
+const STEP5_SPIES = STEP5_SPY_TABLE.map(([, f]) => vi.mocked(f));
+
 afterEach(() => {
   vi.mocked(drawBeat).mockClear();
   vi.mocked(resolveBeatTick).mockClear();
@@ -152,6 +182,7 @@ afterEach(() => {
   vi.mocked(counterExcludes).mockClear();
   for (const spy of STEP3_SPIES) spy.mockClear();
   for (const spy of STEP4_SPIES) spy.mockClear();
+  for (const spy of STEP5_SPIES) spy.mockClear();
   vi.restoreAllMocks();
 });
 
@@ -446,5 +477,93 @@ describe("ADR-089 step 4 — no rule set before step 4 runs a step-4 entry point
     }
     expect(t["throwingHit"]).toBe(0);
     expect(t["rho"]).toBe(0);
+  });
+});
+
+/**
+ * ADR-089 step 5a, P-18 (plan §7.1): legacy, every set of steps 1 to 4 and kind T call no export
+ * of `sim/cleanPocket.ts`, play (with and without a picture) and game; the s5 sets call every one.
+ * P-18b at the engine's reach: an s4 bundle with the all-off block (same stamp) gives the s4
+ * stream byte for byte, play and game.
+ */
+describe("ADR-089 step 5a: no rule set before step 5 runs a clean-pocket function (P-18)", () => {
+  const named = (): Record<string, number> => Object.fromEntries(STEP5_SPY_TABLE.map(([name, f]) => [name, vi.mocked(f).mock.calls.length]));
+  const zero = (): Record<string, number> => Object.fromEntries(STEP5_SPY_TABLE.map(([name]) => [name, 0]));
+  const pictured = (fixture: ReturnType<typeof buildGameFixture>) => ({
+    ...fixture.inputs,
+    callers: { home: withLineUp(fixture.inputs.callers.home), away: withLineUp(fixture.inputs.callers.away) },
+  });
+
+  it("the module's exports are the eight the plan names, d23Pool added", () => {
+    expect(STEP5_SPY_TABLE.map(([name]) => name)).toEqual([
+      "bumpFor",
+      "cleanExpiry",
+      "d23Pool",
+      "floorSecondsOf",
+      "isScreen",
+      "mustDecideNow",
+      "resetAfterMove",
+      "resolveCleanPick",
+    ]);
+  });
+
+  it("legacy, every s1 to s3 set, S4, S4S, S4L, S4C, S4M and T call none of them, play (with and without a picture) and game", () => {
+    const step4 = [S4_TUNABLES, S4S_TUNABLES, S4L_TUNABLES, S4C_TUNABLES, S4M_TUNABLES, T_TUNABLES];
+    for (const { name, tunables } of [{ name: "default", tunables: DEFAULT_TUNABLES }, ...RULE_SETS, ...step4.map((t) => ({ name: t.engineRules?.name ?? "T", tunables: t }))]) {
+      expect("cleanPocket" in tunables.pocket, name).toBe(false);
+      for (const [, build] of PASS_FIXTURES) {
+        for (let i = 0; i < 12; i++) {
+          const { state, calls } = build();
+          if (!isStep3(name) && tunables !== S4_TUNABLES) simulatePassPlay(state, calls, `isolation-s5-${i}`, tunables);
+          simulatePassPlay(state, withPicture(state, calls), `isolation-s5-${i}`, tunables);
+        }
+      }
+    }
+    const fixture = buildGameFixture({ seed: "isolation-s5-game" });
+    simulateGame(fixture.state, fixture.inputs, fixture.seed);
+    for (const t of [S2_TUNABLES, S3_TUNABLES, S4_TUNABLES, S4S_TUNABLES, T_TUNABLES]) simulateGame(fixture.state, pictured(fixture), fixture.seed, t);
+    expect(named()).toEqual(zero());
+  });
+
+  it("the spies are wired: the s5 sets call every one, play and game", () => {
+    for (const [tunables, picture] of [[S5_TUNABLES, true], [S5S_TUNABLES, false], [S5L_TUNABLES, false], [onCleanBench(S5S_TUNABLES), false]] as const) {
+      for (const [, build] of PASS_FIXTURES) {
+        for (let i = 0; i < 15; i++) {
+          const { state, calls } = build();
+          simulatePassPlay(state, picture ? withPicture(state, calls) : calls, `isolation-s5-on-${i}`, tunables);
+        }
+      }
+    }
+    const plays = named();
+    for (const [name] of STEP5_SPY_TABLE) expect(plays[name], name).toBeGreaterThan(0);
+    for (const spy of STEP5_SPIES) spy.mockClear();
+    const fixture = buildGameFixture({ seed: "isolation-s5-game" });
+    simulateGame(fixture.state, pictured(fixture), fixture.seed, S5_TUNABLES);
+    const game = named();
+    for (const name of ["isScreen", "floorSecondsOf", "mustDecideNow", "cleanExpiry"]) expect(game[name], name).toBeGreaterThan(0);
+  });
+
+  it("P-18b (engine): an s4 bundle with the all-off block, same stamp, gives the s4 stream, play and game", () => {
+    for (const [base, picture] of [[S4_TUNABLES, true], [S4S_TUNABLES, false], [S4L_TUNABLES, false]] as const) {
+      const off = withCleanPocket(base, CLEAN_POCKET_OFF);
+      expect(off.engineRules).toEqual(base.engineRules);
+      for (const [fixture, build] of PASS_FIXTURES) {
+        for (let i = 0; i < 10; i++) {
+          const a = build();
+          const b = build();
+          const without = simulatePassPlay(a.state, picture ? withPicture(a.state, a.calls) : a.calls, `p18b-${fixture}-${i}`, base);
+          const withOff = simulatePassPlay(b.state, picture ? withPicture(b.state, b.calls) : b.calls, `p18b-${fixture}-${i}`, off);
+          expect(JSON.stringify(withOff.events), `p18b-${fixture}-${i}`).toBe(JSON.stringify(without.events));
+        }
+      }
+    }
+    // The all-off block is read (the spy proves the block reaches the checklist) and acts as today's count.
+    expect(vi.mocked(cleanPocketModule.mustDecideNow).mock.calls.length).toBeGreaterThan(0);
+    for (const name of ["isScreen", "floorSecondsOf", "d23Pool", "resolveCleanPick", "resetAfterMove", "bumpFor"]) expect(named()[name], name).toBe(0);
+    const fixture = buildGameFixture({ seed: "isolation-p18b-game" });
+    const inputs = pictured(fixture);
+    const s4 = simulateGame(fixture.state, inputs, fixture.seed, S4_TUNABLES);
+    const s4off = simulateGame(fixture.state, inputs, fixture.seed, withCleanPocket(S4_TUNABLES, CLEAN_POCKET_OFF));
+    expect(JSON.stringify(s4off)).toBe(JSON.stringify(s4));
   });
 });

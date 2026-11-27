@@ -131,18 +131,31 @@ const APPENDICES_AFTER_E = [
   "## Appendix G: the step-2 record",
   "## Appendix H: the step-3 record",
   "## Appendix I: the step-4 record",
+  "## Appendix J: the step-5a record",
+] as const;
+
+/**
+ * The appendices planned after J, in the played order the owner's Wait of 2026-11-26 set (ADR-089
+ * Appendix J.8): K for step 6, L for step 7, M for the relocated step 5b. Each joins
+ * `APPENDICES_AFTER_E` only with its own record's commit, so today every one of them is refused.
+ */
+const PLANNED_AFTER_J = [
+  "## Appendix K: the step-6 record",
+  "## Appendix L: the step-7 record",
+  "## Appendix M: the step-5b record",
 ] as const;
 
 /**
  * The `## ` headings after Appendix E that are not allowed: none, or "## Appendix F: the step-1
  * record" alone, or F and then "## Appendix G: the step-2 record", or F, G and then "## Appendix H:
- * the step-3 record", or F, G, H and then "## Appendix I: the step-4 record", each once and in that
- * order. Anything else (G without F, H without G, I without H, one before the one it follows, a
- * second F, G, H or I, another title, a heading after I) is returned.
+ * the step-3 record", or F, G, H and then "## Appendix I: the step-4 record", or F, G, H, I and then
+ * "## Appendix J: the step-5a record", each once and in that order. Anything else (G without F, H
+ * without G, I without H, J without I, one before the one it follows, a second F, G, H, I or J,
+ * another title, a heading after J) is returned.
  */
 function appendicesAfterE(lines: readonly string[]): string[] {
   const headings = lines.filter((l) => /^## /.test(l));
-  // Past the list's end `APPENDICES_AFTER_E[i]` is undefined, so any heading after I is refused.
+  // Past the list's end `APPENDICES_AFTER_E[i]` is undefined, so any heading after J is refused.
   if (headings.every((h, i) => h === APPENDICES_AFTER_E[i])) return [];
   return headings;
 }
@@ -151,9 +164,10 @@ describe("the completeness list (the C0 bytes)", () => {
   // C3 (plan §7.3 item 6) appends Appendix E after the C0 bytes, step 1's record (plan §11) appends
   // Appendix F after E, step 2's record (step-2 plan §7) appends Appendix G after F, and step 3's
   // record (step-3 plan §9) appends Appendix H after G, and step 4's record (step-4 plan §9) appends
-  // Appendix I after H, so the file is the C0 lines, pinned by digest, then nothing but those
-  // appendices, in that order: every filed adrLine still points at the C0 text.
-  it("reads the C0 bytes at their filed length, with only Appendix E, then F, then G, then H, then I after them", () => {
+  // Appendix I after H, and step 5a's record (the step-5 plan's Records, cut to 5a by the owner's
+  // Wait) appends Appendix J after I, so the file is the C0 lines, pinned by digest, then nothing but
+  // those appendices, in that order: every filed adrLine still points at the C0 text.
+  it("reads the C0 bytes at their filed length, with only Appendix E, then F, then G, then H, then I, then J after them", () => {
     const c0 = ADR_LINES.slice(0, ADR_089_LINES);
     expect(c0).toHaveLength(ADR_089_LINES);
     expect(stableDigest(c0.join("\n")), "ADR-089's C0 lines changed: every filed adrLine reads them").toBe(C0_DIGEST);
@@ -204,7 +218,7 @@ describe("the completeness list (the C0 bytes)", () => {
     expect(appendicesAfterE([F, G, H, "## Appendix J: the step-5 record"])).toHaveLength(4);
   });
 
-  it("lets only Appendix I follow Appendix H, once, with nothing after it", () => {
+  it("lets only Appendix I follow Appendix H, once", () => {
     const F = "## Appendix F: the step-1 record";
     const G = "## Appendix G: the step-2 record";
     const H = "## Appendix H: the step-3 record";
@@ -220,8 +234,36 @@ describe("the completeness list (the C0 bytes)", () => {
     expect(appendicesAfterE([F, G, H, I, I])).toEqual([F, G, H, I, I]);
     // An I with another title: refused.
     expect(appendicesAfterE([F, G, H, "## Appendix I: later"])).toEqual([F, G, H, "## Appendix I: later"]);
-    // A heading after I: refused.
+    // A heading after I other than J: refused (K, or J under the whole-step title the step-5 plan filed).
+    expect(appendicesAfterE([F, G, H, I, "## Appendix K: the step-6 record"])).toHaveLength(5);
     expect(appendicesAfterE([F, G, H, I, "## Appendix J: the step-5 record"])).toHaveLength(5);
+  });
+
+  it("lets only Appendix J, the step-5a record, follow Appendix I, once, with nothing after it", () => {
+    const F = "## Appendix F: the step-1 record";
+    const G = "## Appendix G: the step-2 record";
+    const H = "## Appendix H: the step-3 record";
+    const I = "## Appendix I: the step-4 record";
+    const J = "## Appendix J: the step-5a record";
+    // F, G, H, I and then J, each once, with their own sections inside: allowed.
+    const whole = ["", F, "### F.11", "", G, "### G.11", "", H, "### H.9", "", I, "### I.13", "text", "", J, "### J.1", "text", "### J.8"];
+    expect(appendicesAfterE(whole)).toEqual([]);
+    expect(appendicesAfterE([F, G, H, I, J])).toEqual([]);
+    // J with no I, or J before I: refused.
+    expect(appendicesAfterE([F, G, H, J])).toEqual([F, G, H, J]);
+    expect(appendicesAfterE([F, G, H, J, I])).toEqual([F, G, H, J, I]);
+    expect(appendicesAfterE([J])).toEqual([J]);
+    // Two Js: refused.
+    expect(appendicesAfterE([F, G, H, I, J, J])).toEqual([F, G, H, I, J, J]);
+    // A J with another title, among them the whole-step title the step-5 plan filed before the Wait: refused.
+    expect(appendicesAfterE([F, G, H, I, "## Appendix J: the step-5 record"])).toHaveLength(5);
+    expect(appendicesAfterE([F, G, H, I, "## Appendix J: later"])).toHaveLength(5);
+    // The planned K (step 6), L (step 7) and M (step 5b) are not allowed yet, alone or in order.
+    for (const next of PLANNED_AFTER_J) expect(appendicesAfterE([F, G, H, I, J, next])).toEqual([F, G, H, I, J, next]);
+    expect(appendicesAfterE([F, G, H, I, J, ...PLANNED_AFTER_J])).toHaveLength(8);
+    // The plan's letters follow the played order (6, then 7, then 5b), not the step numbers.
+    expect(PLANNED_AFTER_J.map((h) => h.slice(12, 13))).toEqual(["K", "L", "M"]);
+    expect(PLANNED_AFTER_J.map((h) => /the (step-[0-9a-z]+) record/.exec(h)?.[1])).toEqual(["step-6", "step-7", "step-5b"]);
   });
 
   it("is exactly the plan's ranges less the lines that state no clause, the two disjoint", () => {

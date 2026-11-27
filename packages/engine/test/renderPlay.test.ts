@@ -18,7 +18,9 @@ import {
   withReadOrder,
   withReadSystem,
 } from "./fixtures.js";
-import { S3_TUNABLES, SW_TUNABLES } from "./pocketTunables.js";
+import { PASS_FIXTURES, S3_TUNABLES, SW_TUNABLES } from "./pocketTunables.js";
+import { S4S_TUNABLES } from "./step4Fixtures.js";
+import { S5S_TUNABLES } from "./step5Fixtures.js";
 import { frontWithPicture } from "./snapFixtures.js";
 
 describe("§17.1 debug renderer", () => {
@@ -832,5 +834,40 @@ describe("§17.1 debug renderer — pocket-1.s3's late block", () => {
     }
     expect(lateLines).toBeGreaterThanOrEqual(3);
     expect(beatenLines).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("§17.1 debug renderer: pocket-1.s5a's clean pick (ADR-089 step 5a)", () => {
+  it("prints the clean pick's pocket_movement line with \"(clean pocket)\", read off its die's label, and a forced pick's without", () => {
+    let clean = 0;
+    let forced = 0;
+    for (const [, build] of PASS_FIXTURES) {
+      for (let i = 0; i < 20; i++) {
+        const { state, calls, names } = build();
+        const { events } = simulatePassPlay(state, calls, `clean-render-${i}`, S5S_TUNABLES);
+        const text = renderPlay(events, names);
+        const lines = text.split("\n").filter((l) => / pocket movement/.test(l));
+        const checks = events.flatMap(({ event }) => (event.type === "CHECK" && event.payload.checkKind === "pocket_movement" ? [event.payload] : []));
+        expect(lines.length).toBe(checks.length);
+        checks.forEach((c, k) => {
+          const isClean = (c.roll?.rngLabel ?? "").endsWith(":clean");
+          if (isClean) clean += 1;
+          else forced += 1;
+          expect(lines[k]?.includes("pocket movement (clean pocket)"), lines[k]).toBe(isClean);
+        });
+        expect(text).not.toContain("undefined");
+      }
+    }
+    expect(clean).toBeGreaterThan(10);
+    expect(forced).toBeGreaterThan(10);
+  });
+
+  it("prints a stream with no clean pick as before: no \"(clean pocket)\" under s4", () => {
+    for (const [, build] of PASS_FIXTURES) {
+      for (let i = 0; i < 10; i++) {
+        const { state, calls, names } = build();
+        expect(renderPlay(simulatePassPlay(state, calls, `clean-render-${i}`, S4S_TUNABLES).events, names)).not.toContain("(clean pocket)");
+      }
+    }
   });
 });

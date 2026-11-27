@@ -32,8 +32,8 @@ function game0(league: GoldenLeague, tunables: Tunables, mirror = false): string
 }
 
 describe("ADR-089 step 3: the same seed gives the same stream, per rules version", () => {
-  it("plays every rules name of this build, pocket-1.s4 too since P6, P7 and P8 are in contracts", () => {
-    expect([...PLAYED_RULES]).toEqual(["legacy", "pocket-1.s1", "pocket-1.s2", "pocket-1.s3", "pocket-1.s4"]);
+  it("plays every rules name of this build, pocket-1.s4 too since P6, P7 and P8 are in contracts, and pocket-1.s5a since the 5a fit is recorded", () => {
+    expect([...PLAYED_RULES]).toEqual(["legacy", "pocket-1.s1", "pocket-1.s2", "pocket-1.s3", "pocket-1.s4", "pocket-1.s5a"]);
   });
 
   it("s4 is not s3: the step-4 blocks change golden game 0 in both leagues", () => {

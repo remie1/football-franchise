@@ -72,8 +72,9 @@ import {
   type ClockGrid,
   type ShapeS,
 } from "./clocks.js";
+import { cleanPocketOf, isCleanPickLabel } from "./cleanPick.js";
 import { centerOfEvents, clockKeyOf, onClockUnder, touchOfCheck, type Touch } from "./freeRunKey.js";
-import { overlayDigestOf, readsStep3Facts, rulesOnPlayStart, type PlayStartRules } from "./rules.js";
+import { isStampedRules, overlayDigestOf, readsStep3Facts, rulesOnPlayStart, type PlayStartRules } from "./rules.js";
 import { readS2Play, threatPartAt } from "./s2Stream.js";
 import { playsOf } from "./throwClass.js";
 
@@ -563,7 +564,7 @@ export function reproduceMargins(fold: ReproduceFold, play: S1Play, d: Dials): v
       fail(fold, at(play), `the stream's stamp ${JSON.stringify(play.rules)} is not the bundle's ${JSON.stringify(d.stamp ?? null)}`);
       return;
     }
-    const arm = armOfDigest(play.rules.overlayDigest);
+    const arm = armOfDigest(play.rules.overlayDigest, isStampedRules(play.rules.name) ? play.rules.name : undefined);
     if (overlayDigestOf(d.tunables) !== arm.digest) {
       fail(fold, at(play), `the bundle's dials digest to ${overlayDigestOf(d.tunables)}, not to ${arm.digest}, the dials its stamp names`);
       return;
@@ -1024,6 +1025,10 @@ function step3Hits(hit: Set<Mechanism>, play: S1Play, tunables: Tunables, mechan
   if (wants("LATE_BLOCK") && play.lateBlocks.length > 0) hit.add("LATE_BLOCK");
   if (wants("CLIMB_FRONT")) {
     const maxStepUps = tunables.pocketMovement.stepUp.maxPerPlay;
+    // Step 5a: under the play's `pocket.cleanPocket` only today's picks (`:movement`) count; a clean
+    // pick (`:clean`, `cleanPick.ts`) is not the movement gate's, so the lane rule it reads is not
+    // the one CLIMB_FRONT compares.
+    const block = cleanPocketOf(tunables);
     const live = new Map<string, { readonly alignment: RushAlignment; readonly approach: unknown }>();
     let stepUps = 0;
     for (const { event } of play.events) {
@@ -1033,7 +1038,7 @@ function step3Hits(hit: Set<Mechanism>, play: S1Play, tunables: Tunables, mechan
         else live.set(String(t.rusher), { alignment: t.alignment, approach: t.approach });
       } else if (event.type === "QB_PURSUIT") live.clear();
       else if (event.type === "QB_DECISION" && event.payload.choice === "STEP_UP") stepUps += 1;
-      else if (event.type === "CHECK" && event.payload.checkKind === "pocket_movement" && stepUps < maxStepUps) {
+      else if (event.type === "CHECK" && event.payload.checkKind === "pocket_movement" && stepUps < maxStepUps && (block === undefined || !isCleanPickLabel(event.payload.roll.rngLabel))) {
         const set = [...live.values()];
         const interior = set.some((x) => x.alignment === "INTERIOR");
         const front = set.some((x) => typeof x.approach === "string" && x.approach !== "BLOCKED" && fromOfApproach(x.approach as Exclude<RushApproach, "BLOCKED">, x.alignment) === "FRONT");

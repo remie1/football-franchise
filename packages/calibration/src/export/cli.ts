@@ -7,7 +7,9 @@
  * on their own clock from their snap spots, a touched man is a late, weak block, and any FRONT threat
  * closes the climb lane), never an arm (O26). `pocket-1.s4` (step 4: contact by approach and the
  * throwing motion) is named and refused before any game until petitions P6, P7 and P8 are in
- * contracts; step 4's "today's line plus contact" (kind T) is the pocket harness's only. A non-legacy file is named after its rules too, so it
+ * contracts; step 4's "today's line plus contact" (kind T) is the pocket harness's only. `pocket-1.s5a`
+ * (step 5a: his count's clean-pocket checklist, the drop floor and the three fitted read-system
+ * deltas) is offered since the 5a fit is recorded. A non-legacy file is named after its rules too, so it
  * never overwrites the legacy file of the same seed.
  *
  * Plays one game and saves it where the viewer looks: `apps/game/public/games/` by default,

@@ -24,6 +24,18 @@
  * under the gate it plays the same two corpora on the published picture, every s3 PASS play's
  * `PLAY_START` carrying its snap, with pressured 0 and sacks 0 asserted on both leagues and release
  * and throwaways reported. The legacy bench above stays asserted as it was.
+ *
+ * **Step 4's and step 5's clean benches (ADR-089 step 5, plan §4, §5.1; P-6's s4 row):**
+ * `cleanBenchTunablesS4` (arm E0: `pocket-1.s4` on the four leaves with step 3's three 50 s values) and
+ * `cleanBenchTunablesS5(parts, offsets)` (the same bench with the clean-pocket parts an arm turns on,
+ * stamped `pocket-1.s5a`, and the three read-system deltas moved) are checked always. Under the gate
+ * the s4 bench plays both corpora's seed set 1 and reproduces pkB: step 0's bench decisions exactly
+ * (dropbacks, throwaways 20.625% and 11.127%, decision tick 1.6634 s and 1.7992 s, nobody open and
+ * the class guards, interceptions per attempt 2.32% and 6.95%), the throwing motion moving only the
+ * release (1.9214 s and 2.0655 s), with no pressure and no sack. The s5 bench (every part on) is a
+ * smoke under the gate, gen weeks 1 and 2 and flat's first 32 games: every PASS play stamped
+ * `pocket-1.s5a`, no status above CLEAN and no ARRIVED threat (S-6); its release, throwaways and
+ * sacks are printed, never asserted (a caught clean break-out is a sack with no sacker, AM-9).
  */
 import type { MatchEventEnvelope, PlayerId, Position } from "@ff/contracts";
 import { applyTunablePatch, DEFAULT_TUNABLES, type Tunables } from "@ff/engine";
@@ -31,8 +43,29 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { positionsFromSnapshot } from "../src/knownTruth/pocketChannelShares.js";
 import { emptyAccumulator, foldGame, type SimAccumulator } from "../src/metrics/collect.js";
 import { flatBaseline, genSeason } from "../src/pocket/corpus.js";
-import { CLEAN_BENCH_S3_SECONDS, cleanBenchTunables, cleanBenchTunablesS3 } from "../src/pocket/oneThreatBench.js";
-import { POCKET_1_S2_LEAVES, POCKET_1_S3_DIGEST, POCKET_1_S3_RULES, overlayDigestOf, rulesOnPlayStart, rulesTunables } from "../src/pocket/rules.js";
+import {
+  CLEAN_BENCH_PARTS,
+  CLEAN_BENCH_S3_SECONDS,
+  cleanBenchTunables,
+  cleanBenchTunablesS3,
+  cleanBenchTunablesS4,
+  cleanBenchTunablesS5,
+  cleanPocketBlockOf,
+} from "../src/pocket/oneThreatBench.js";
+import {
+  checkStamp,
+  EngineRulesError,
+  NO_READ_SYSTEM_OFFSETS,
+  POCKET_1_S2_LEAVES,
+  POCKET_1_S3_DIGEST,
+  POCKET_1_S3_RULES,
+  POCKET_1_S4_DIGEST,
+  POCKET_1_S5A_CLEAN_POCKET,
+  POCKET_1_S5A_DROP_FLOOR,
+  overlayDigestOf,
+  rulesOnPlayStart,
+  rulesTunables,
+} from "../src/pocket/rules.js";
 import { emptyRowsFold, foldRowsDropback, type RowsFold } from "../src/pocket/rows.js";
 import { dropbacksOf } from "../src/pocket/throwClass.js";
 
@@ -302,5 +335,242 @@ describe.skipIf(GATED)("ADR-089 step 3: the s3 clean bench (FF_POCKET_BENCH=1)",
     if (r.snapThreats > 0) expect(r.earliestSnapEta).toBeGreaterThan(tunables.clock.maxTick);
     expect(r.acc.play.pressuredDropbacks).toBe(0);
     expect(r.acc.play.sacks).toBe(0);
+  });
+});
+
+// --- step 4's and step 5's clean benches (ADR-089 step 5, plan §4, §5.1) ------------------------------
+
+/** MEASURED: the s4 clean bench's overlay digest on this build (the scratch recipe of plan §4, filing §1.1). */
+const CLEAN_BENCH_S4_DIGEST = "fnv1a:cd268010";
+
+/** Every leaf of a tree, by dotted path. */
+function leafMap(node: unknown, path = ""): Map<string, unknown> {
+  const out = new Map<string, unknown>();
+  if (typeof node !== "object" || node === null) {
+    out.set(path, node);
+    return out;
+  }
+  for (const [k, v] of Object.entries(node)) for (const [p, x] of leafMap(v, path === "" ? k : `${path}.${k}`)) out.set(p, x);
+  return out;
+}
+
+/** The leaf paths where two trees differ (either side). */
+function movedLeaves(a: Tunables, b: Tunables): string[] {
+  const la = leafMap(a);
+  const lb = leafMap(b);
+  return [...new Set([...la.keys(), ...lb.keys()])].filter((p) => la.get(p) !== lb.get(p)).sort();
+}
+
+const BENCH_LEAVES = [
+  "passRush.blockerStructuralAdvantage",
+  "blitzPickup.freeRunnerArrivalSeconds",
+  "blitzPickup.freeRunnerPath.maxArrivalSeconds",
+  "stunt.looperArrivalSeconds",
+  "blitzPickup.freeRun.getOffSeconds",
+  "blitzPickup.freeRun.movingGetOffSeconds",
+  "blitzPickup.lateBlock.engageSeconds",
+];
+
+describe("ADR-089 step 5: the s4 and s5 clean benches' tunables (cleanBenchTunablesS4, cleanBenchTunablesS5)", () => {
+  const s4 = cleanBenchTunablesS4();
+
+  it("the s4 bench is pocket-1.s4 on the four leaves with step 3's three 50 s values, at its measured digest, frozen", () => {
+    expect(s4.engineRules).toEqual({ name: "pocket-1.s4", overlayDigest: CLEAN_BENCH_S4_DIGEST });
+    expect(overlayDigestOf(s4)).toBe(CLEAN_BENCH_S4_DIGEST);
+    expect(CLEAN_BENCH_S4_DIGEST).not.toBe(POCKET_1_S4_DIGEST);
+    expect(movedLeaves(rulesTunables("pocket-1.s4"), s4)).toEqual([...BENCH_LEAVES, "engineRules.overlayDigest"].sort());
+    expect([s4.blitzPickup.freeRun!.getOffSeconds, s4.blitzPickup.freeRun!.movingGetOffSeconds, s4.blitzPickup.lateBlock!.engageSeconds]).toEqual([CLEAN_BENCH_S3_SECONDS, CLEAN_BENCH_S3_SECONDS, CLEAN_BENCH_S3_SECONDS]);
+    // Step 3's bench plus step 4's two blocks, and nothing else.
+    expect(movedLeaves(cleanBenchTunablesS3(), s4).every((p) => p.startsWith("pocket.contact.") || p.startsWith("throwExec.motion.") || p.startsWith("engineRules."))).toBe(true);
+    expect("cleanPocket" in s4.pocket).toBe(false);
+    expect(Object.isFrozen(s4) && Object.isFrozen(s4.pocket) && Object.isFrozen(s4.blitzPickup.freeRun)).toBe(true);
+    expect(cleanBenchTunablesS4().engineRules).toEqual(s4.engineRules);
+    expect(checkStamp(s4, "pocket-1.s4", "w")).toBe(s4);
+  });
+
+  it("the s5 bench with every part on is the s4 bench plus pocket-1.s5a's block, stamped pocket-1.s5a", () => {
+    const all = cleanBenchTunablesS5({ on: CLEAN_BENCH_PARTS });
+    expect([...CLEAN_BENCH_PARTS]).toEqual(["d23", "move", "bump", "breakOut", "d23OnRun", "floor"]);
+    expect(all.engineRules?.name).toBe("pocket-1.s5a");
+    expect(all.engineRules?.overlayDigest).toBe(overlayDigestOf(all));
+    expect(all.pocket.cleanPocket).toEqual(POCKET_1_S5A_CLEAN_POCKET);
+    expect(movedLeaves(s4, all).every((p) => p.startsWith("pocket.cleanPocket.") || p.startsWith("engineRules."))).toBe(true);
+    expect(checkStamp(all, "pocket-1.s5a", "w")).toBe(all);
+    expect(Object.isFrozen(all.pocket.cleanPocket)).toBe(true);
+  });
+
+  it("each part maps to its switch; no part is the block with every part off and no floor; E10's reset 0", () => {
+    const off = cleanPocketBlockOf({ on: [] });
+    expect(off).toEqual({ d23: false, expiryBar: 30, move: false, resetSeconds: 1.0, bump: false, breakOut: false, d23OnRun: false });
+    expect("dropFloor" in off).toBe(false);
+    for (const part of ["d23", "move", "bump", "breakOut", "d23OnRun"] as const) {
+      expect(cleanPocketBlockOf({ on: [part] }), part).toEqual({ ...off, [part]: true });
+    }
+    expect(cleanPocketBlockOf({ on: ["floor"] })).toEqual({ ...off, dropFloor: POCKET_1_S5A_DROP_FLOOR });
+    expect(cleanPocketBlockOf({ on: CLEAN_BENCH_PARTS, resetSeconds: 0 })).toEqual({ ...POCKET_1_S5A_CLEAN_POCKET, resetSeconds: 0 });
+    const builtOff = cleanBenchTunablesS5({ on: [] });
+    const builtE10 = cleanBenchTunablesS5({ on: CLEAN_BENCH_PARTS, resetSeconds: 0 });
+    const builtFloor = cleanBenchTunablesS5({ on: ["floor"] });
+    const digests = [s4, builtOff, builtFloor, builtE10, cleanBenchTunablesS5({ on: CLEAN_BENCH_PARTS })].map((t) => t.engineRules?.overlayDigest);
+    expect(new Set(digests).size).toBe(digests.length);
+    expect(builtOff.pocket.cleanPocket).toEqual(off);
+    expect(() => cleanPocketBlockOf({ on: ["floor", "floor"] })).toThrow("cleanPocketBlockOf: the part floor is named twice");
+    expect(() => cleanPocketBlockOf({ on: ["reset" as never] })).toThrow("cleanPocketBlockOf: no clean-pocket part reset (d23, move, bump, breakOut, d23OnRun, floor)");
+    expect(() => cleanBenchTunablesS5({ on: ["move"], resetSeconds: 0.25 })).toThrow(EngineRulesError);
+    expect(() => cleanBenchTunablesS5({ on: ["move"], resetSeconds: 0.25 })).toThrow(
+      "withOverlay(pocket-1.s5a): pocket.cleanPocket.resetSeconds must be a whole number of tenths of a second (the restated budget is rounded to the tenth), got 0.25",
+    );
+  });
+
+  it("offsets move only the three read-system deltas; with no parts the tree is stamped pocket-1.s4 (E1), and with no offsets either it is the s4 bench", () => {
+    const same = cleanBenchTunablesS5(undefined, NO_READ_SYSTEM_OFFSETS);
+    expect(same.engineRules).toEqual(s4.engineRules);
+    expect(movedLeaves(s4, same)).toEqual([]);
+    const offsets = { HALF_FIELD: 1.0, FULL_FIELD: -0.5, CONCEPT: 0.25 };
+    const e1 = cleanBenchTunablesS5(undefined, offsets);
+    expect(e1.engineRules?.name).toBe("pocket-1.s4");
+    expect(movedLeaves(s4, e1)).toEqual(["engineRules.overlayDigest", "qb.readSystem.CONCEPT.budgetDeltaSeconds", "qb.readSystem.FULL_FIELD.budgetDeltaSeconds", "qb.readSystem.HALF_FIELD.budgetDeltaSeconds"]);
+    expect([e1.qb.readSystem.HALF_FIELD.budgetDeltaSeconds, e1.qb.readSystem.FULL_FIELD.budgetDeltaSeconds, e1.qb.readSystem.CONCEPT.budgetDeltaSeconds]).toEqual([0.5, 0.5, -0.75]);
+    const e9 = cleanBenchTunablesS5({ on: CLEAN_BENCH_PARTS }, offsets);
+    expect(e9.engineRules?.name).toBe("pocket-1.s5a");
+    expect(movedLeaves(cleanBenchTunablesS5({ on: CLEAN_BENCH_PARTS }), e9)).toEqual(["engineRules.overlayDigest", "qb.readSystem.CONCEPT.budgetDeltaSeconds", "qb.readSystem.FULL_FIELD.budgetDeltaSeconds", "qb.readSystem.HALF_FIELD.budgetDeltaSeconds"]);
+    // An offset of 0 patches nothing: E9 at today's deltas is E8 (plan §5: "E9 is E8").
+    expect(cleanBenchTunablesS5({ on: CLEAN_BENCH_PARTS }, { HALF_FIELD: 0, FULL_FIELD: 0, CONCEPT: 0 }).engineRules).toEqual(cleanBenchTunablesS5({ on: CLEAN_BENCH_PARTS }).engineRules);
+    expect(() => cleanBenchTunablesS5(undefined, { ...NO_READ_SYSTEM_OFFSETS, CONCEPT: Number.NaN })).toThrow("readSystemDeltaLeaves: the CONCEPT offset must be a finite number of seconds, got NaN");
+    // DEFAULT_TUNABLES is untouched.
+    expect(DEFAULT_TUNABLES.qb.readSystem.HALF_FIELD.budgetDeltaSeconds).toBe(-0.5);
+    expect("cleanPocket" in DEFAULT_TUNABLES.pocket).toBe(false);
+  });
+});
+
+interface StepBenchRun extends BenchRun {
+  /** PASS plays stamped with the bench's rules name. */
+  stamped: number;
+  /** Mean of each dropback's decision tick (the THROW or THROWAWAY's tick), summed and counted. */
+  decisionSum: number;
+  decisions: number;
+  /** POCKET_STATUS above CLEAN, and ARRIVED threats (S-6). */
+  dirtyStatuses: number;
+  arrived: number;
+}
+
+function emptyStepRun(): StepBenchRun {
+  return { ...emptyRun(), stamped: 0, decisionSum: 0, decisions: 0, dirtyStatuses: 0, arrived: 0 };
+}
+
+function foldStepBench(run: StepBenchRun, events: readonly MatchEventEnvelope[], tunables: Tunables, positions: ReadonlyMap<PlayerId, Position>): void {
+  foldBench(run, events, tunables, positions);
+  const name = tunables.engineRules?.name;
+  for (const { event } of events) {
+    if (event.type === "PLAY_START") {
+      const payload = event.payload as { readonly kind?: unknown } | undefined;
+      if (payload?.kind === "PASS_PLAY_V1" && rulesOnPlayStart(payload)?.name === name) run.stamped += 1;
+    } else if (event.type === "POCKET_STATUS" && (event.payload as { readonly status?: unknown }).status !== "CLEAN") run.dirtyStatuses += 1;
+    else if (event.type === "RUSH_THREAT" && event.payload.state === "ARRIVED") run.arrived += 1;
+  }
+  for (const d of dropbacksOf(events)) {
+    const tick = d.throwTick ?? d.throwawayTick;
+    if (tick === undefined) continue;
+    run.decisionSum += tick;
+    run.decisions += 1;
+  }
+}
+
+function interceptions(run: BenchRun): number {
+  return Object.values(run.rows.byClass).reduce((n, c) => n + c.interceptions, 0);
+}
+
+function playStepBench(tunables: Tunables, opts: { readonly flatFirst?: number; readonly genThroughWeek?: number } = {}): { flat: StepBenchRun; gen: StepBenchRun } {
+  const flat = emptyStepRun();
+  const gen = emptyStepRun();
+  flatBaseline(
+    1,
+    (o, snap) => {
+      flat.acc = foldGame(flat.acc, o);
+      foldStepBench(flat, o.events, tunables, positionsFromSnapshot(snap));
+      flat.games += 1;
+    },
+    { tunables, ...(opts.flatFirst === undefined ? {} : { first: opts.flatFirst }) },
+  );
+  genSeason(
+    1,
+    (o, snap) => {
+      gen.acc = foldGame(gen.acc, o);
+      foldStepBench(gen, o.events, tunables, positionsFromSnapshot(snap));
+      gen.games += 1;
+    },
+    { tunables, ...(opts.genThroughWeek === undefined ? {} : { throughWeek: opts.genThroughWeek }) },
+  );
+  return { flat, gen };
+}
+
+function stepSummary(run: StepBenchRun): Record<string, unknown> {
+  const { seconds: _seconds, ...rest } = summary(run);
+  return {
+    ...rest,
+    stamped: run.stamped,
+    decisionTick: run.decisions === 0 ? null : (run.decisionSum / run.decisions).toFixed(4),
+    intPerAttempt: pct(interceptions(run), run.passStarts).toFixed(2),
+    interceptions: interceptions(run),
+    dirtyStatuses: run.dirtyStatuses,
+    arrived: run.arrived,
+  };
+}
+
+describe.skipIf(GATED)("ADR-089 step 5: the s4 clean bench reproduces pkB (FF_POCKET_BENCH=1; P-6's s4 row)", () => {
+  const tunables = cleanBenchTunablesS4();
+  let flat = emptyStepRun();
+  let gen = emptyStepRun();
+
+  beforeAll(() => {
+    ({ flat, gen } = playStepBench(tunables));
+    process.stdout.write(`ADR-089 s4 clean bench:\n${JSON.stringify({ flat: stepSummary(flat), gen: stepSummary(gen) }, null, 1)}\n`);
+  }, 1_800_000);
+
+  it.each([
+    ["flat", () => flat, { games: 496, dropbacks: 52_882, throwaways: "20.625", decision: "1.6634", release: "1.9214", intPerAttempt: "2.32", interceptions: 1229, nobody: { n: 23064, of: 52882, pct: "43.6" }, desperation: [3594, 204] }],
+    ["gen", () => gen, { games: 272, dropbacks: 28_588, throwaways: "11.127", decision: "1.7992", release: "2.0655", intPerAttempt: "6.95", interceptions: 1987, nobody: { n: 8631, of: 28588, pct: "30.2" }, desperation: [2893, 549] }],
+  ] as const)("%s: step 0's bench decisions exactly, the motion moving only the release; every PASS play s4; no pressure and no sack", (_league, run, want) => {
+    const r = run();
+    expect(r.games).toBe(want.games);
+    expect(r.passStarts).toBe(want.dropbacks);
+    expect(r.rows.dropbacks).toBe(want.dropbacks);
+    expect(r.stamped).toBe(r.passStarts);
+    expect(pct(r.throwaways, r.passStarts).toFixed(3)).toBe(want.throwaways);
+    expect((r.decisionSum / r.decisions).toFixed(4)).toBe(want.decision);
+    expect(mean(r.acc.play.throwTicks).toFixed(4)).toBe(want.release);
+    expect(interceptions(r)).toBe(want.interceptions);
+    expect(pct(interceptions(r), r.passStarts).toFixed(2)).toBe(want.intPerAttempt);
+    expect((summary(r) as { nobodyOpen: unknown }).nobodyOpen).toEqual(want.nobody);
+    expect([r.rows.byClass.DESPERATION.dropbacks, r.rows.byClass.DESPERATION.interceptions]).toEqual([...want.desperation]);
+    expect(r.rows.byClass.CLEAN_EXPIRY.dropbacks).toBe(0);
+    expect(r.acc.play.pressuredDropbacks).toBe(0);
+    expect(r.acc.play.sacks).toBe(0);
+    expect(r.dirtyStatuses).toBe(0);
+    expect(r.arrived).toBe(0);
+  });
+});
+
+describe.skipIf(GATED)("ADR-089 step 5: the s5 clean bench, every part on (FF_POCKET_BENCH=1; a smoke: gen weeks 1 and 2, flat's first 32 games)", () => {
+  const tunables = cleanBenchTunablesS5({ on: CLEAN_BENCH_PARTS });
+  let flat = emptyStepRun();
+  let gen = emptyStepRun();
+
+  beforeAll(() => {
+    ({ flat, gen } = playStepBench(tunables, { flatFirst: 32, genThroughWeek: 2 }));
+    process.stdout.write(`ADR-089 s5 clean bench (smoke):\n${JSON.stringify({ flat: stepSummary(flat), gen: stepSummary(gen) }, null, 1)}\n`);
+  }, 600_000);
+
+  it.each([
+    ["flat", () => flat, 32],
+    ["gen", () => gen, 32],
+  ] as const)("%s: every PASS play stamped pocket-1.s5a; no status above CLEAN, no ARRIVED threat (S-6), no pressured dropback", (_league, run, games) => {
+    const r = run();
+    expect(r.games).toBe(games);
+    expect(r.passStarts).toBeGreaterThan(0);
+    expect(r.stamped).toBe(r.passStarts);
+    expect(r.dirtyStatuses).toBe(0);
+    expect(r.arrived).toBe(0);
+    expect(r.acc.play.pressuredDropbacks).toBe(0);
   });
 });

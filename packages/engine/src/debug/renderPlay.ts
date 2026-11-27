@@ -517,6 +517,11 @@ function renderLineBattle(events: readonly MatchEventEnvelope[], name: NameLooku
  * §7.2's "move" branch. The CHECK is now labelled `pocket_movement` (ADR-007)
  * and the branch it selected is stated by the QB_DECISION next to it, so the
  * printout no longer has to say what the stream could not tell it.
+ *
+ * ADR-089 step 5a: the one ranked pick on a clean expiry is a `pocket_movement`
+ * CHECK of the same form, told apart by its die's label alone
+ * (`movement/t<tick>:clean`), so its line says "(clean pocket)". No payload
+ * field is read for it and none was added.
  */
 function renderPocketMovement(events: readonly MatchEventEnvelope[], name: NameLookup): string[] {
   const out: string[] = [];
@@ -534,7 +539,8 @@ function renderPocketMovement(events: readonly MatchEventEnvelope[], name: NameL
     const p = event.payload;
     if (p.checkKind === "pocket_movement") {
       const actor = p.actors[0];
-      out.push(`  ├─ Tick ${tickLabel(event.tick)}: pocket movement${actor === undefined ? "" : ` (${name(actor)})`}`);
+      const clean = p.roll?.rngLabel.endsWith(":clean") === true ? " (clean pocket)" : "";
+      out.push(`  ├─ Tick ${tickLabel(event.tick)}: pocket movement${clean}${actor === undefined ? "" : ` (${name(actor)})`}`);
       out.push(`  │    ${formatRoll(p.roll)} vs. target ${p.target ?? "-"}`);
       // SOUND / RUSHED / PANICKED — how far down his own preference list the
       // moment pushed him. WHICH response that landed on is the QB_DECISION

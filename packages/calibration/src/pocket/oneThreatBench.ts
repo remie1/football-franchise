@@ -15,6 +15,15 @@
  * today's 50 / 99 / 50 for any record the clock does not time. Built through `withOverlay`, never
  * patched after; `test/cleanBench.test.ts` plays it under `FF_POCKET_BENCH=1` on the published picture.
  *
+ * **Step 4's and step 5's clean benches** (ADR-089 step 5, plan §4, §5.1; filing §1.1) are step 3's
+ * recipe under the later overlays. `cleanBenchTunablesS4` is `pocket-1.s4` on the four leaves with
+ * the same three 50 s values (arm E0, the s4 clean bench: its decisions are step 0's bench's, the
+ * throwing motion moving only the release). `cleanBenchTunablesS5(parts, offsets)` is the same bench
+ * with the parts of the clean-pocket block an arm turns on (stamped `pocket-1.s5a`) and the three
+ * read-system deltas moved by `offsets`; with no parts it carries no block and is stamped
+ * `pocket-1.s4` (arm E1, the fitted deltas alone), and with no parts and no offsets it is the s4
+ * bench itself.
+ *
  * **The one-threat bench** replays captured clean-bench dropbacks with `simulatePlay` (ADR-012
  * items 1 and 2: the entry point, and the types to build its input), each call rebuilt so that
  * EXACTLY ONE rusher is unblocked, at a fixed X seconds:
@@ -68,7 +77,25 @@ import { capturePlays, type CapturedPlay } from "../harness/playScope.js";
 import { buildFixture } from "../harness/schedule.js";
 import { goldenFixtures } from "./corpus.js";
 import type { GoldenLeague } from "./golden.js";
-import { POCKET_1_S2_FORCING, POCKET_1_S2_LEAVES, POCKET_1_S3_FREE_RUN, POCKET_1_S3_LATE_BLOCK, POCKET_1_S3_OVERLAY, POCKET_1_S3_RULES, withOverlay } from "./rules.js";
+import {
+  NO_READ_SYSTEM_OFFSETS,
+  POCKET_1_S2_FORCING,
+  POCKET_1_S2_LEAVES,
+  POCKET_1_S3_FREE_RUN,
+  POCKET_1_S3_LATE_BLOCK,
+  POCKET_1_S3_OVERLAY,
+  POCKET_1_S3_RULES,
+  POCKET_1_S4_OVERLAY,
+  POCKET_1_S4_RULES,
+  POCKET_1_S5A_DROP_FLOOR,
+  POCKET_1_S5A_RESET_SECONDS,
+  POCKET_1_S5A_RULES,
+  readSystemDeltaLeaves,
+  withOverlay,
+  type PocketCleanPocket,
+  type PocketOverlay,
+  type ReadSystemOffsets,
+} from "./rules.js";
 import { readDropback, severity, worstStatus, playsOf } from "./throwClass.js";
 
 // --- the clean bench's tunables --------------------------------------------------------------------
@@ -115,6 +142,81 @@ export function cleanBenchTunablesS3(): Tunables {
     },
     POCKET_1_S2_FORCING,
   );
+}
+
+/** Step 3's clean-bench free-run and late-block blocks on an overlay (plan §2.9): get-offs and engage at 50 s. */
+function withCleanBenchClocks(overlay: PocketOverlay): PocketOverlay {
+  return {
+    ...overlay,
+    blitzPickup: {
+      freeRun: { ...POCKET_1_S3_FREE_RUN, getOffSeconds: CLEAN_BENCH_S3_SECONDS, movingGetOffSeconds: CLEAN_BENCH_S3_SECONDS },
+      lateBlock: { ...POCKET_1_S3_LATE_BLOCK, engageSeconds: CLEAN_BENCH_S3_SECONDS },
+    },
+  };
+}
+
+/**
+ * Step 4's clean bench (ADR-089 step 5, plan §4; filing §1.1; arm E0): `pocket-1.s4` built exactly as
+ * the bundle is (Half and Follows on the base, then the overlay and must act per rusher through
+ * `withOverlay`), on the clean bench's four leaves, with step 3's clean-bench free-run get-offs and
+ * late-block engage time at 50 s. Stamped `pocket-1.s4` at a digest of its own; never patched after.
+ */
+export function cleanBenchTunablesS4(): Tunables {
+  return cleanBenchTunablesS5(undefined, NO_READ_SYSTEM_OFFSETS);
+}
+
+/** A part of the clean-pocket block an arm turns on (plan §1.2, §5.1): the five switches and the drop floor. */
+export type CleanBenchPart = "d23" | "move" | "bump" | "breakOut" | "d23OnRun" | "floor";
+
+/** Every part, in plan §1.2's order: the checklist joint and the floor (arms E8, E9). */
+export const CLEAN_BENCH_PARTS: readonly CleanBenchPart[] = Object.freeze(["d23", "move", "bump", "breakOut", "d23OnRun", "floor"] as const);
+
+/**
+ * The clean-pocket parts a step-5 bench arm carries (plan §5.1): the parts turned on (each once; any
+ * left out is off, the floor absent) and the reset after a clean move, D33's 1.0 s unless given (0 in
+ * arm E10). An empty list is the block with every part off and no floor (it plays today's count).
+ */
+export interface CleanBenchParts {
+  readonly on: readonly CleanBenchPart[];
+  readonly resetSeconds?: number;
+}
+
+/** The clean-pocket block the parts give: the switches on or off, D23's bar 30, the reset, the floor when on. */
+export function cleanPocketBlockOf(parts: CleanBenchParts): PocketCleanPocket {
+  const on = new Set<CleanBenchPart>();
+  for (const part of parts.on) {
+    if (!CLEAN_BENCH_PARTS.includes(part)) throw new RangeError(`cleanPocketBlockOf: no clean-pocket part ${String(part)} (${CLEAN_BENCH_PARTS.join(", ")})`);
+    if (on.has(part)) throw new RangeError(`cleanPocketBlockOf: the part ${part} is named twice`);
+    on.add(part);
+  }
+  return {
+    d23: on.has("d23"),
+    expiryBar: 30,
+    move: on.has("move"),
+    resetSeconds: parts.resetSeconds ?? POCKET_1_S5A_RESET_SECONDS,
+    bump: on.has("bump"),
+    breakOut: on.has("breakOut"),
+    d23OnRun: on.has("d23OnRun"),
+    ...(on.has("floor") ? { dropFloor: { ...POCKET_1_S5A_DROP_FLOOR } } : {}),
+  };
+}
+
+/**
+ * Step 5's clean bench (ADR-089 step 5, plan §4, §5.0, §5.1): step 4's clean bench with the three
+ * read-system deltas moved by `offsets` (leaf patches on Half and Follows, `readSystemDeltaLeaves`;
+ * an offset of 0 patches nothing) and, when `parts` is given, the clean-pocket block those parts give
+ * (`cleanPocketBlockOf`), stamped `pocket-1.s5a`. With no parts the tree carries no block and is
+ * stamped `pocket-1.s4` (E1, the fitted deltas alone); with no parts and no offsets it is
+ * `cleanBenchTunablesS4()`'s tree. Built through `withOverlay`, at a digest of its own, never patched
+ * after.
+ */
+export function cleanBenchTunablesS5(parts: CleanBenchParts | undefined, offsets: ReadSystemOffsets = NO_READ_SYSTEM_OFFSETS): Tunables {
+  const horizons = POCKET_1_S2_LEAVES.reduce(applyTunablePatch, DEFAULT_TUNABLES);
+  const base = cleanBenchTunables(readSystemDeltaLeaves(offsets, horizons).reduce(applyTunablePatch, horizons));
+  const overlay = withCleanBenchClocks(POCKET_1_S4_OVERLAY);
+  if (parts === undefined) return withOverlay(base, POCKET_1_S4_RULES, overlay, POCKET_1_S2_FORCING);
+  const pocket = { ...overlay.pocket, cleanPocket: cleanPocketBlockOf(parts) };
+  return withOverlay(base, POCKET_1_S5A_RULES, { ...overlay, pocket }, POCKET_1_S2_FORCING);
 }
 
 export const ONE_THREAT_SECONDS = Object.freeze([1.5, 2.5, 3.5] as const);

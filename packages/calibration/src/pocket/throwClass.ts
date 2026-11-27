@@ -20,8 +20,9 @@
  *       at 12.4%; open throws 48.0% / 2.66% and 46.8% / 0.38%), and "below the best" does not
  *       (18.3% / 18.9%, 14.9% / 11.8%: `test/cleanBench.test.ts`);
  *     - CHECKDOWN: `QB_DECISION` CHECKDOWN (the outlet competed and won);
- *     - CLEAN_EXPIRY: a clean expiry's throw at 30 (step 5a's D23); **empty until 5a**: no legacy
- *       fact produces it;
+ *     - CLEAN_EXPIRY: a clean expiry's throw at 30 (step 5a's D23); **always empty under this
+ *       function** (`throwClassOf`), which steps 0 to 4 read: no fact it reads produces it. Step 5's
+ *       class view (`throwClassOfS5`, AM-8) is the only reader that fills it;
  *     - DESPERATION: nobody at the bar, thrown at must act at the desperation bar (25) or better;
  *     - ON_THE_RUN: a throw after an escape (`QB_PURSUIT` came first);
  *     - THROWAWAY, SCRAMBLE, SACK.
@@ -442,6 +443,71 @@ export function throwClassOf(d: Dropback, tunables: Tunables): ThrowClassReading
   if (!(best >= bar)) return { cls: "DESPERATION", ...base };
   if (targetEffective !== undefined && targetEffective < bar) return { cls: "RANK_PUSHED", ...base };
   return { cls: "PROGRESSION", ...base };
+}
+
+// --- step 5's class view (AM-8) ----------------------------------------------------------------------
+
+/**
+ * D23's bar (ADR-089 §4.6 item b, :715): on a clean expiry the pool is cut to men at 30 or more. Step
+ * 5's class view keys CLEAN_EXPIRY on it whatever the arm plays (E0 and D1 carry no clean-pocket
+ * block), so it is a constant here, never read from the arm's tunables.
+ */
+export const CLEAN_EXPIRY_BAR = 30;
+
+/**
+ * A guard's class view (AM-8, `rule.classView`): which classifier both sides of a pair are read with.
+ * Steps 1 to 4 have none and read `throwClassOf`; "S5" is step 5's (`throwClassOfS5`).
+ */
+export const THROW_CLASS_VIEWS = ["S5"] as const;
+export type ThrowClassView = (typeof THROW_CLASS_VIEWS)[number];
+
+/** A classifier of one dropback: `throwClassOf` (steps 0 to 4) or `throwClassOfS5` (step 5's view). */
+export type ThrowClassifier = (d: Dropback, tunables: Tunables) => ThrowClassReading;
+
+/**
+ * The last `POCKET_STATUS` published at or before `tick`, or `undefined` when none was by then. The
+ * same reading as `desperationPocketOf`'s (the last status, not the worst), at a tick the caller names.
+ */
+export function lastStatusAtOrBefore(d: Dropback, tick: number): PocketStatus | undefined {
+  let last: PocketStatus | undefined;
+  for (const s of d.statuses) if (s.tick <= tick) last = s.status;
+  return last;
+}
+
+/**
+ * Step 5's class view (ADR-089 step 5; AM-8, `filing.md` §3; plan §3), one classifier for both sides of
+ * every step-5 guard pair. It is `throwClassOf` in every class but one: CLEAN_EXPIRY is an aimed throw,
+ * not on the run, not a CHECKDOWN decision, whose last pocket status at or before the decision is
+ * CLEAN (none published by then reads CLEAN, as in `desperationPocketOf`), whose best read at the
+ * decision is below the normal bar and at `CLEAN_EXPIRY_BAR` (30) or more. Keyed on the situation
+ * (the best read), not the target, so base and arm hold the same plays: on E0 and D1 these are
+ * today's clean desperation throws with someone at 30 or more, D23's population. Every other
+ * DESPERATION throw stays DESPERATION (with best below 30 on a clean pocket, the removed class).
+ * So under this view a play's class is `throwClassOf`'s, except that some DESPERATION plays read
+ * CLEAN_EXPIRY; nothing else moves. Steps 1 to 4 keep `throwClassOf`, so their re-grades do not move.
+ */
+export function throwClassOfS5(d: Dropback, tunables: Tunables): ThrowClassReading {
+  const r = throwClassOf(d, tunables);
+  if (r.cls !== "DESPERATION") return r;
+  const decision = [...d.decisions].reverse().find((x) => x.choice === "THROW" || x.choice === "CHECKDOWN");
+  if (decision === undefined) throw new Error(`throwClassOfS5: play ${d.playId} has a THROW and no THROW or CHECKDOWN decision`);
+  const status = lastStatusAtOrBefore(d, decision.tick);
+  const clean = status === undefined || status === "CLEAN";
+  return clean && r.best !== undefined && r.best >= CLEAN_EXPIRY_BAR ? { ...r, cls: "CLEAN_EXPIRY" } : r;
+}
+
+/** The classifier of a class view: `throwClassOf` with none (steps 0 to 4), `throwClassOfS5` for "S5". */
+export function classifierOfView(view: ThrowClassView | undefined): ThrowClassifier {
+  switch (view) {
+    case undefined:
+      return throwClassOf;
+    case "S5":
+      return throwClassOfS5;
+    default: {
+      const never: never = view;
+      throw new Error(`throwClass: no class view ${String(never)}`);
+    }
+  }
 }
 
 /** An aimed throw: a THROW to a receiver (throwaways are attempts, not aimed throws). */

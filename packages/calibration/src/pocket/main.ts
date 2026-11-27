@@ -1,5 +1,5 @@
 /**
- * The `pocket` script's entry point (ADR-089 steps 0, 1, 2, 3 and 4):
+ * The `pocket` script's entry point (ADR-089 steps 0, 1, 2, 3, 4, 5a and 5b):
  * `pnpm --filter @ff/calibration pocket -- --step 0 [--write-filed <filing.json>] [--out <file.json>]`;
  * `pnpm --filter @ff/calibration pocket -- --step 1 [--arms A1,A2] [--shard i/n] [--cache <dir>] [--seed-set 1|2] [--report <file.md>] [--out <file.json>]`;
  * `pnpm --filter @ff/calibration pocket -- --step 1 --digests --out <file.json>`;
@@ -13,9 +13,17 @@
  * `pnpm --filter @ff/calibration pocket -- --step 4 --digests --out <file.json>`;
  * `pnpm --filter @ff/calibration pocket -- --step 4 [--arms D1,D6] [--cache <dir>] [--seed-set 1|2] --part1`
  * (P6, P7 and P8 are in contracts and AM-6 and AM-7 are filed, ADR-089 Appendix H, H.7 to H.9;
- * a cut amendments file or a withheld petition is still refused by name).
+ * a cut amendments file or a withheld petition is still refused by name);
+ * `pnpm --filter @ff/calibration pocket -- --step 5a --fit [--shard i/n] --out <fit.json>`;
+ * `pnpm --filter @ff/calibration pocket -- --step 5a [--shard i/n] [--report <file.md>] [--out <file.json>]`;
+ * `pnpm --filter @ff/calibration pocket -- --step 5b [--shard i/n] [--after-owner <ts>] [--report <file.md>] [--out <file.json>]`;
+ * `pnpm --filter @ff/calibration pocket -- --step 5b --reselect --from <file.json>`;
+ * `pnpm --filter @ff/calibration pocket -- --step 5b --digests --out <file.json>`
+ * (the 5a and 5b arms are refused by the gate, plan §9 item 10, until the fit and its literal are
+ * recorded; `--step 5` names neither half and is refused).
  * The arguments and step 0 live in `step0.ts`, step 1 in `step1.ts`, step 2 in `step2.ts`, step 3
- * in `step3.ts`, step 4 in `step4.ts`, where they are tested.
+ * in `step3.ts`, step 4 in `step4.ts`, step 5 in `step5.ts` (the fit in `fit5a.ts`, R-7 in
+ * `reselect.ts`), where they are tested.
  */
 import { pocketCommand } from "./step0.js";
 

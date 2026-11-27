@@ -6,7 +6,7 @@ rules live in `ARCHITECTURE_CHARTER.md`, and the full working history lives in `
 This page points into both and should stay short. Update the "Where things stand" section when
 a big piece lands.
 
-_Last updated: 14 November 2026._
+_Last updated: 27 November 2026._
 
 ## What the game is
 
@@ -148,6 +148,22 @@ large a share of hits ending in sacks on both; and later throws do not draw more
 design answers by choosing step 5b's block clock on the pressure curve instead. These go to you
 to accept as they stand or to try a fix first, and to merge with the switch off (numbers in
 `packages/calibration/reports/adr-089-step4.md`; the record is ADR-089 Appendix I).
+
+Step 5a, also behind the switch, gives the quarterback a proper clean-pocket routine: he finishes
+his drop before he throws, and when his count runs out with nobody open he checks down to a man
+who is at least partly open, steps up once and starts his reads again, or breaks out of the pocket.
+His count for each kind of read was fitted to how long real quarterbacks hold the ball in a clean
+pocket. Default play has still not changed. Measured on a test bench where no rusher gets near him,
+he now holds the ball about 2.2 seconds, up from 1.9 to 2.1 (the target is 2.26 to 2.56),
+completions hold, and interceptions fall. One graded prediction missed: he breaks out of a clean pocket far too
+often, about 13 times in 100 dropbacks on the flat-rated test league and 7 on the made-up one,
+against a real-based 2 to 6. That goes to you to accept or to stop for a fix; the next step's
+escape limit is where it would be fixed. Step 5b, choosing how long blocks hold, has not run: on 26
+November 2026 you chose to wait for the new pressure count, so the plan now runs step 6, then step 7
+(with your new rating for how well he judges the time a rusher needs, and his acting on his own
+guess), then 5b on your count, then steps 8 to 11. Step 5a goes up as its own pull request with the
+switch off (numbers in `packages/calibration/reports/adr-089-step5a.md`; the record is ADR-089
+Appendix J).
 
 **Next after the pocket fix:** the made-up league intercepts about 6.8% of passes against the
 NFL's 2.3%, because tipped balls go to the fastest reactor and strong passers throw into covered

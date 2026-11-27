@@ -360,6 +360,154 @@
           "missRule": "no s4 clause is a miss-rule row; a miss is a failed prediction with both sets; no D31 class is printed. A falling curve records default D1's fallback at step 4 for step 5b's selection."
         }
       }
+    },
+    {
+      "id": "AM-8",
+      "name": "the guard at step 5: the clean-pocket build against the s4 clean bench, the checklist on the league against step 4's design, and the clock alone",
+      "filedBeforeStep": "5a",
+      "steps": ["5a", "5b"],
+      "supersedes": ["guard.mix", "guard.byClass", "s5a.int"],
+      "untouched": ["acc.intGuard", "guard.onTheRun.clean", "guard.onTheRun.pressured", "guard.removedClass"],
+      "defaults": ["D9", "D28"],
+      "adrLines": [1306, 1308, 1053],
+      "cites": [945, 946, 1049, 1051, 1159, 1287],
+      "record": "ADR-089 Appendix I, I.10",
+      "reason": "AM-1 (Appendix F, F.11) reads the guard at steps 2 to 10 against the previous step's arm and requires each later step's map filed as a named entry before that step's arms run; this is step 5's, for both halves. At 5a the arms run on the clean bench, which step 4 never played, so the base is the step-4 build on that bench (E0), played fresh and twice in separate processes with identical stream digests; its decisions reproduce step 0's bench exactly and its release adds the motion. The graded 5a pair is the build that can become the game, pocket-1.s5a on the bench (E9), against E0, on both leagues. At 5b the map prices the checklist where throws on the run have a base, pocket-1.s5a on the league (F5) against step 4's design (D1), and the clock alone, the selection's winner restamped (F0) against F5; when F0's dials equal F5's (the winner is S theta 11) that pair compares a build with itself and is skipped by rule. AM-1 left s5a.int to an entry filed before 5a naming its base: its base is E0 and it is E9's by-class reading under this rule, so the clause and the guard cannot disagree on one pair; its filed reading is printed beside. Section 8 says each change is priced at its step under the guard: the checklist and the floor are priced at 5a on the bench and at 5b on the league, the clock at 5b; the alone arms (E1 to E8, E10) are printed beside, unguarded. This entry files step 5's class view, one classifier applied to both sides of every step-5 pair (steps 1 to 4 keep theirs, so their re-grades do not move): CLEAN_EXPIRY is an aimed throw, not on the run, not a CHECKDOWN decision, whose last pocket status at or before the decision is CLEAN, whose best read at the decision is below the normal bar and at 30 or more. On E0 and D1 these are today's clean desperation throws with someone at 30 or more, the very situation D23 changes, so D23's class has a like-for-like base; E0's clean desperation throws with best below 30 stay DESPERATION's clean part and are the removed class (s5a.removedClass). ON_THE_RUN has no base on the bench: it is reported at 5a against the real out-of-pocket rates (2.11% clean, 3.25% pressured) and graded at 5b on F5 against D1, which has escapes. The release clock is each arm's own, raw seconds on both sides. With nothing changed, this map stops the step by chance about 14% of the time (13.9%; 9.3% when F0 against F5 is skipped), less on shared seeds: computed before filing as AM-6's figure was, with AM-1's statistic, step 4's records for D1 and the measured s4 clean bench for E0 standing in for step 5's, on the classes step 5's view scores; I.10 gives the method. A breach stops the step and goes to the owner with both seed sets (D9).",
+      "ownersWord": null,
+      "rule": {
+        "base": "previousStepArm",
+        "pricingBase": "previousStepPricingArm",
+        "bases": {
+          "5a": { "E9": "E0" },
+          "5b": { "F5": "D1", "F0": "F5" }
+        },
+        "laterBases": "filed as a named entry before that step's arms run",
+        "gradedArms": "every arm in the step's map",
+        "replayMustEqualPreviousRecords": true,
+        "freshBases": {
+          "E0": "no earlier record holds the s4 clean bench: played fresh and twice in separate processes, identical stream digests required, both sets, both leagues"
+        },
+        "skipEqualDials": true,
+        "classView": "S5",
+        "allowance": "filed",
+        "se": "binomialIndependent",
+        "statistic": "pooledZ",
+        "seedSets": [1, 2],
+        "zLeague": 2.0,
+        "zClass": 3.0,
+        "breachIf": "greaterThan",
+        "zSetSE0": 0,
+        "classes": "GUARD_CLASSES",
+        "reportedSplits": {
+          "DESPERATION": ["DIRTY", "CLEAN"],
+          "PROGRESSION": ["AFTER_CLEAN_MOVE", "OTHER"],
+          "CLEAN_EXPIRY": ["AFTER_CLEAN_MOVE", "OTHER"],
+          "ON_THE_RUN": ["CLEAN_BREAKOUT", "PRESSURED"]
+        },
+        "dirtyPocket": "lastStatusAtOrBeforeRelease",
+        "onCompositionClassBreach": ["DESPERATION", "CHECKDOWN"],
+        "reportFiledReading": true,
+        "reportMinimumExcess": true,
+        "reportPairedSE": true,
+        "cumulative": { "design": "A0", "pricing": "A14", "graded": false },
+        "acceptedState": { "design": "A1", "pricing": "A11", "fromStep": "3", "graded": false }
+      }
+    },
+    {
+      "id": "AM-9",
+      "name": "step 5a: the clean-pocket checklist and the drop floor as built, the fit rule for the three deltas, and the readings of the 5a clauses",
+      "filedBeforeStep": "5a",
+      "steps": ["5a"],
+      "supersedes": ["s5a.under1", "s5a.over35", "s5a.cleanOuts"],
+      "untouched": ["s5a.release", "s5a.cleanScramble", "s5a.completion", "s5a.checkdown", "s5a.laterRead", "s5a.nobodyOpen", "s5a.cleanExpiryBar", "s5a.oneCleanMove", "s5a.removedClass", "s5a.cleanThrowaway", "s5a.intLeague", "s5a.reset", "s10.dial.deltas", "s10.fittingOrder"],
+      "defaults": ["D23", "D25", "D26", "D27", "D33"],
+      "adrLines": [1049, 1051, 1053, 1124],
+      "cites": [186, 194, 197, 709, 713, 714, 715, 716, 717, 718, 719, 736, 747, 1128],
+      "record": "ADR-089 Appendix I, I.11",
+      "reason": "Step 5a's clauses name the build in words, and the filing gives the fit only its target and its bench (s10.dial.deltas, fittingOrder step 1): no grid, no loss, no league, no seed set, no tie rule. This entry files, before the fit or any 5a arm runs, how the checklist and the floor are read where the design leaves a choice, the one fit rule, the arm each clause reads, the readings of three clauses whose real side is a window sum or a different construct, and what a 5a miss means. It moves no band and no word; the three superseded clauses are superseded for their reading and nothing else.",
+      "ownersWord": null,
+      "rule": {
+        "readings": {
+          "s5a.arm": "E9 (pocket-1.s5a on the clean bench: the checklist joint, the drop floor, the reset 1.0 s and the fitted deltas) against E0 (pocket-1.s4 on the clean bench, the s4 recipe), both leagues, both seed sets. Graded: s5a.cleanScramble, s5a.completion and s5a.int (AM-8). Every other s5a clause reported on E9 with E0 beside. The alone arms E1 to E8 and E10 are information.",
+          "cleanExpiry": "A clean expiry is a tick at which, under the block, his count is spent (tick at or past the play's budget) or his reads are spent (readsUsed at maxReads), the tick is at or past his drop floor, he is not forced, he has not escaped, and the pocket status is CLEAN (item g). It is never before the floor. Its trigger is recorded as count or reads.",
+          "d23": "On a clean expiry with nobody at the normal bar (50, 55 or 45 by read system): today's checkdown look, then the candidates cut to men at 30 or more and today's decision roll; the desperation branch at 25 is not taken; nobody at 30 goes to the pick. Item a (anyone at the normal bar throws) is today's, rank push included. After a clean break-out the desperation throw at 25 is not taken either; the normal-bar throw on the run stays.",
+          "d23.proofScope": "s5a.cleanExpiryBar's proof (S-1) covers every THROW decided from the D23 pool and every throw after a clean break-out; item a's normal-bar throws, rank push included, are out of its scope, because the design keeps item a as today's; rank-pushed throws below 30 after a clean expiry or break-out are printed beside.",
+          "cleanPick": "The one ranked pick on a clean expiry (D27): MOVE when offered (no clean move used this play, step-ups under stepUp.maxPerPlay 2, the climb lane open by step 3's FRONT rule) and ESCAPE; appeals by today's appealFrom at the tick's urgency, which is 0 on a CLEAN tick and asserted so; ESCAPE gains noClimbLaneBonus 20 when the lane is shut; today's band die and rank clamp, one d100 on movement/t<tick>:clean, a pocket_movement CHECK. With one option offered the die is still rolled, as today's pick always rolls; with none, today's path runs and no die is drawn.",
+          "cleanHold": "No clean HOLD and no in-pocket clean throwaway: on a clean expiry the pick always acts. A HOLD before the floor (a floor wait), the escape's CONTAINED HOLD and ticks on the run are not clean HOLDs; they are counted apart.",
+          "oneCleanMove": "MOVE is offered at most once a play. A clean move is today's forced climb in full (QB_DECISION STEP_UP, every live man into liveAtStepUp, edge threats delayed 1.0 s, one tick), then the read list restarts at the first read and the budget becomes the move tick plus one tick step plus the reset, rounded to the tick. A second clean expiry offers ESCAPE only.",
+          "reset": "1.0 s, CHOSEN by D33 and never fitted. E10 (reset 0) against E9 reports it alone; no band is filed.",
+          "bump": "Item d's window bump (D25), openness only: each read-order receiver past his break whose contest position at the move is TRAILING gains 10 and EVEN gains 5 (IN_FRONT nothing; route.opennessGainPerTick 5 times the contest burst 2, 1, 0), for the rest of the play, added inside the decayed openness before the clamp, so reads, the checkdown look, the throw's openness, the catch, the passing lane and the scramble's frozen base all see it, and a misread's delta cancels it. It never writes contestPosition and draws no die.",
+          "breakOut": "ESCAPE at 5a is today's escape roll on movement/t<tick>:scramble with today's terms (urgency 0, asserted; the edge-threat penalty as today on the league): ESCAPED is today's scramble; CONTAINED the escape's own HOLD; CAUGHT today's caught-escape sack (on the bench nobody is eligible, so a sack with no sacker). No drill, no side terms, no out-of-pocket throwaway (step 6). After CONTAINED he may break out again at a later clean expiry; repeated attempts a play are reported. The deadline pick is not built (step 6).",
+          "floor": "The drop floor, CHOSEN (§4.6): by the first read's depth class, QUICK 1.0 s, SHORT 1.5 s, INTERMEDIATE and DEEP 2.0 s. A screen (first read's declared airYards below 0: BUBBLE_NOW and RB_SLIP_SCREEN today) has none. 'The earliest non-screen release' is read as a physical drop: before the floor no aimed pocket throw is decided and no checkdown look is taken, pressured or clean; a pressured must-act before the floor goes to today's movement pick. Throws on the run are not bound. Every pocket throwaway already waits for 2.0 s, so the floor never binds one. E2 prices the floor on the bench and F5 against D1 on the league.",
+          "bench": "The s5 clean bench is the s4 recipe with the step-5 block. Under it the bench's proof that sacks are 0 is restated: a caught clean break-out is a sack with no sacker and is counted as the coverage-sack row; no status above CLEAN and no ARRIVED remain the check (S-6).",
+          "stampReads": "Raw releaseSeconds (tick where absent) and the V1-42 hit construct are read for every stamp from pocket-1.s4 on (pocket-1.s5a and pocket-1.s5b included), never by the exact name pocket-1.s4.",
+          "fit": "See fit.* below: one rule, filed before the fit runs, and the only dials fitted at 5a.",
+          "fit.dials": "qb.readSystem.HALF_FIELD.budgetDeltaSeconds, FULL_FIELD and CONCEPT, and nothing else. Today -0.5, +1.0 and -1.0 s.",
+          "fit.grid": "Offsets from today's values, -1.5 to +3.0 s in 0.25 s steps (19 values). Run k sets all three deltas to today's plus offset k. CHOSEN, asymmetric on purpose: E0's clean release sits under the target mean and its window mass is too heavy near 1.0 s and too light near 3.0 s, so the grid reaches further up than down; that reason is the fit target itself. Never widened; a winner on an edge is reported as on the edge.",
+          "fit.target": "ADR-089:194, the clean attempts row, 11 windows (t - 0.25, t + 0.25] for t = 0.5 to 5.0 by 0.5, the last '> 5.25': 0.5, 5.8, 14.3, 26.2, 23.4, 15.5, 7.9, 3.1, 1.2, 0.8, 1.1 percent, which sum to 99.8 as printed and are renormalized to 100. A release at or under 0.25 s counts in the first window (none is expected; the count is printed).",
+          "fit.population": "Every aimed THROW on the clean bench, in the pocket and on the run, binned on THROW.releaseSeconds, or on its tick where it has none (throws after an escape); keyed to its read system by PLAY_START's readSystem. Runs and sacks are not attempts. The s5 bench has no throwaway (asserted).",
+          "fit.bench": "The s5a bench build without the fitted deltas (E8: the checklist joint, the floor, the reset 1.0 s), the generated league, seed set 1 (D6's order), caller v7, on step 4's clock. Flat cannot identify a delta (one budget per system, a step response) and is played only at the fitted values, as is seed set 2.",
+          "fit.method": "The 19 runs give per-system window counts h_s(g). For every (a, b, c) on the grid (6,859 combinations) the estimate sums h_HALF(a) + h_FULL(b) + h_CONCEPT(c), normalizes to percent, and scores the loss: the sum over the 11 windows of (sim - real)^2, in percentage points squared, at full float precision. The least loss wins; equal losses (to the last bit) go to the least sum of |offset|, then to the lexicographically smallest (HALF, FULL, CONCEPT). CONCEPT's two reads are spent by about 1.0 s whatever its budget, so its offset is expected to be set by the tie rule, not the data; the record says which.",
+          "fit.approximation": "The estimate assumes a system's counts do not depend on the other systems' deltas. It is reported: each system's call count across the 19 runs (the largest relative deviation), and a confirm run at the winning deltas jointly with its full-run loss beside the estimate's; a gap over 20% is named. The estimate decides.",
+          "fit.record": "reports/adr-089-step5a.fit.json, format adr-089-step5a-fit/v1, written once by pocket --step 5a --fit, which refuses to overwrite it; it carries only window counts, call counts, losses and the winner, never a falsifier row by grid value. It is committed with the three fitted values as literal leaves of pocket-1.s5a, POCKET_1_S5A_DIGEST and POCKET_1_S5A_FIT_DIGEST before any 5a arm runs. Before it is written, a fresh process with no cache re-plays the winning offsets' runs (at most three) and must give byte-equal histograms; a second process recomputes the 6,859 losses and the winner from the record exactly. If the winner is offset 0 on all three, E9 is E8 and the record says so.",
+          "fit.withdrawn": "The coordinate descent over 13 values about today's, drafted earlier, is not the rule.",
+          "s5a.release": "The raw mean over the fit's population, against 2.26 to 2.56.",
+          "s5a.under1": "The 0.5 and 1.0 windows: raw releases at or under 1.25 s, as the real 6.3% is a window sum (§2.2:197); the raw-edge share at or under 1.0 s printed beside.",
+          "s5a.over35": "The windows from 3.5 on: raw releases over 3.25 s (real 14.1); the raw-edge share at or over 3.5 s printed beside.",
+          "s5a.cleanScramble": "row:scramble_rate_by_pocket: scrambles per 100 dropbacks whose worst status up to the escape, or to the end of the play, is CLEAN, escapes allowed; pressured likewise; bench and league. On the bench every dropback is clean. E0 reads 0 on both leagues and sets (the build check). Graded 2 to 6 on each league; break-outs 'may run up to about 0.5 in 100 high' until step 6 (§6.5), printed beside.",
+          "s5a.cleanOuts": "The clause's construct, clean scrambles plus clean throwaways (in and out of the pocket) per 100 clean dropbacks, against 5.17; the registered clean_outs_rate (clean escapes per 100 clean dropbacks) beside it against the real out-of-pocket 10.63.",
+          "s5a.cleanThrowaway": "row:clean_throwaway_in_pocket: throwaways per 100 clean dropbacks, in the pocket and outside, against 0.76 and 0.50; 0 at 5a by construction (S-3).",
+          "s5a.checkdown": "Of aimed throws.",
+          "s5a.removedClass": "E0's clean desperation throws with best read below 30, their count and interceptions, against the 10.1% upper bound; all of E0's desperation beside.",
+          "s5a.completion": "Per aimed throw on E9 against E0 on each league, floor E0 - 2.",
+          "seedSets": "Bands graded on seed set 1 with set 2 beside, as at steps 3 and 4; a band in on one set and out on the other is reported as split. 'On either league' means each league graded.",
+          "reportRows": "Beside the clauses: the fit table; affected-play counts per arm (clean expiries by trigger, picks by band and option, clean moves, restarts, bump receivers, floor waits, escape attempts and outcomes, repeated escapes a play, the caught share) against §4.6's upper bounds (restart 15.0%, bump 2.9% of gen clean dropbacks); coverage sacks (sacks after a clean expiry, as a share of sacks, and their mean time against PFF's 3.8 s); throws on the run against 2.11% clean and 3.25% pressured; the guard by class with every split.",
+          "missAt5a": "A graded 5a miss is a failed prediction, not a miss-rule row (D31 item 1): recorded with both sets and both leagues; nothing is re-fitted or re-run. It goes to the owner (accept it as a named miss and go on, or stop for a design change filed before any re-run), and step 5b's grids wait for the owner's word, because every 5b point is built on the fitted count and the checklist. A structural failure is a build fault and stops the step."
+        }
+      }
+    },
+    {
+      "id": "AM-10",
+      "name": "step 5b: the selection on the fallback curve by the owner's word, the league and scorable points, the graded arm, the ledger and the miss split",
+      "filedBeforeStep": "5a",
+      "steps": ["5b", "10"],
+      "supersedes": ["s5b.binsTwiceFtn"],
+      "untouched": ["s5b.sack", "s5b.hitOrSack", "s5b.release", "s5b.clockExpired", "s5b.pressure", "s5b.quick", "s5b.standIn", "s10.dial.blockClock", "s10.fittingOrder", "mr.bin20.raw", "mr.unblockedPressures", "mr.unblockedShare", "mr.unblockedMen", "acc.liveWonRep.push"],
+      "defaults": ["D1", "D6", "D31"],
+      "adrLines": [1063, 1122, 1160, 1172],
+      "cites": [422, 425, 426, 432, 447, 476, 1036, 1040, 1128],
+      "record": "ADR-089 Appendix I, I.12",
+      "reason": "The owner accepted step 4's misses, s4.motion.curveRises among them, and said the falling curve's fallback (default D1) stands for step 5b's selection either way (I.9 item 1). The filed selection code falls back only when the hit loss does not separate, so this entry records the owner's word as the reading of the selection's curve at 5b, and files, before any step-5 arm runs, the league the selection reads, which points can be scored, the arm the 5b clauses read, what the fallback moves into the fitted ledger, the band acc.liveWonRep.push asks for before 5b, and how a 5b miss is classed. It moves no band. s5b.binsTwiceFtn is superseded to reported because the filed fallback block moves the pressured curve into the fitted ledger; mr.bin20.raw, an acceptance clause, stays graded.",
+      "ownersWord": {
+        "ts": "2026-11-07T18:22:30Z",
+        "words": "Accept",
+        "question": {
+          "posted": "2026-11-07 18:16Z",
+          "card": "the step-4 miss card, with the step-4 results page (ADR-089-step-4-results-explained.md), Accept recommended"
+        },
+        "reading": {
+          "record": "ADR-089 Appendix I, I.9 item 1",
+          "words": "The falling curve's fallback (default D1) stands for step 5b's selection either way."
+        }
+      },
+      "rule": {
+        "readings": {
+          "selectionCurve": "At 5b the pressured-by-release curve (the filed fallback, D1) selects, by the owner's word and the accepted miss of s4.motion.curveRises, whose own text says the fallback applies when the curve still falls. The hit curve's losses, separation and would-be winner are printed beside and decide nothing; a hit curve that cannot be scored is printed as such and never stops the run. If the pressured loss does not separate, its minimum stands and the separation is reported (the filed ifNotSeparatedEither).",
+          "selectionLeague": "The generated league (D6: graded on the generated league first). Flat is printed beside, its unscorable points named.",
+          "scorable": "A point is scorable on a curve when each of the seven bins has at least one attempt on both seed sets. The winner is the least set-1 loss among scorable points; unscorable points are listed with their empty bins, and attempts per bin per point are printed. If no point is scorable on the pressured curve, the step stops and goes to the owner. Separation is read over the scorable points. Points within twice their own spread of the best are printed and decide nothing.",
+          "selectionSeeds": "Seed set 1 decides; set 2 gives the spread, as filed.",
+          "ifL": "If a shape-L point wins, the step stops after the first pass: the winner is not restamped, G1 and G2 do not run, and questions 1, 3 and 16 go to the owner with the per-rusher must-act effect (ADR-089:476), then P2r and P3r, then the s1 to s4 pin conflict of deleting the S path (ADR-089:432).",
+          "s5b.arm": "F0: the winner's dials restamped pocket-1.s5b (b 5, caller v7), played on both leagues and both seed sets; every measure equals its grid arm's (R-9). Graded on gen, set 1, with set 2 beside every band; flat printed beside with its direction against D1.",
+          "graded": "s5b.sack, s5b.hitOrSack, s5b.release, s5b.clockExpired, s5b.pressure, mr.bin20.raw, mr.unblockedPressures, mr.unblockedShare.",
+          "reported": "s5b.binsTwiceFtn (under the fallback), s5b.quick, s5b.standIn, mr.unblockedMen; mr.bin20.raw's fitted-shape status printed beside its grade.",
+          "s5b.clockExpired": "The registered row on F0, with a build check: no CLOCK_EXPIRED throwaway on F0 or any F arm comes from a dropback whose status was CLEAN through the throwaway; a failure is a build fault and stops the step. The pressured-only count is printed beside.",
+          "acc.liveWonRep.push.L": "Under shape L, live-WON_REP CLEAN ticks of PUSH reps: at most 0 on each league and seed set, from step 1's count (A3 and A4, L arms: 0 on both leagues, ADR-089 F.8 item 3). Read at 5b on any L grid point and at acceptance if L is the shape; under S the clause stays as filed.",
+          "missSplit": "A 5b miss is classed on F0 by the miss rule with: hitOrSackInBand read on s5b.hitOrSack; sacksShort below 3.9; shareShort false at 5b (the sack share of hit-or-sack is step 10's fit, so it is printed and not read); the quick share read against 30 to 55 for the class conditions though reported. Options A (G1, C15's band edges), B (accept and report) and C (G2, C11's reading (c)) are each priced on both sets, one pass, then back to the owner. Class (iii)'s suppliers, in order: step 6's rescoring, step 6's deadline checklist, step 7's won-rep half of the alarm, step 8b. The free-run clock and the throw bars are never on the list.",
+          "secondProcess": "The selection is reproduced by a second process: the full step 5b at the selection commit re-plays the 30 first-pass arm-sets with no cache at a new source fingerprint and must give identical bin counts; a function written from the filed selectionRule and this entry, not importing the selection code, recomputes the winner exactly and every loss on both curves to 1e-12, both separation flags and the curve used.",
+          "step10": "Step 10's rerun reads the same curve unless an entry filed before step 10 says otherwise.",
+          "seedSets": "Bands graded on seed set 1 with set 2 beside; split reported. The guard is AM-8's."
+        }
+      }
     }
   ]
 }

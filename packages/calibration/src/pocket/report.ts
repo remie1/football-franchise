@@ -1673,3 +1673,86 @@ export function renderStep4Sections(s: Step4Sections): readonly string[] {
   for (const w of s.waits) out.push(`- ${w}`);
   return out;
 }
+
+// --- ADR-089 step 5: the 5a and 5b sections (step-5 plan §7.3) -------------------------------------------
+
+/** One half of step 5 as printed: the clauses, the proofs, the guard under AM-8, the replays and the half's own tables. */
+export interface Step5Sections {
+  readonly half: "5a" | "5b";
+  readonly amendments: { readonly digest: string; readonly guard: string; readonly readings: string };
+  /** Set on a one-set run: reported, never graded. */
+  readonly oneSet?: number;
+  readonly outcome: Step2Outcome;
+  readonly clauses: readonly Step2ClauseResult[];
+  readonly proofs: readonly Step2Proof[];
+  readonly guard: readonly Step4GuardRow[];
+  /** D1 against step 4's records, E0's two fresh plays (S-7). */
+  readonly replay: readonly string[];
+  /** Affected-play counts per arm (s5Stream), each league and set. */
+  readonly affected: readonly string[];
+  /** 5b only: the selection table (both curves, both sets, flat beside) and its verdict. */
+  readonly selection?: readonly string[];
+  /** 5b only: the miss rule's class split on F0 (`classifyMiss`), when a covered row missed. */
+  readonly miss?: readonly string[];
+  /** What this report cannot read yet, by name. */
+  readonly waits: readonly string[];
+}
+
+export function renderStep5Sections(s: Step5Sections): readonly string[] {
+  const out: string[] = [];
+  const o = s.outcome;
+  const a = s.amendments;
+  out.push("## What failed, first");
+  out.push("");
+  if (s.oneSet !== undefined) out.push(`A one-set run (seed set ${String(s.oneSet)}): every reading here is reported, never graded, and the step cannot close on it.`);
+  else if (o.structuralFailures.length === 0 && o.foldFaults.length === 0 && o.gradedFailures.length === 0 && o.guardBreaches.length === 0) {
+    out.push(`Nothing: every structural proof and fold check passes, every graded clause reads as ${a.readings} files it, and the guard as ${a.guard} maps it finds no breach.`);
+  }
+  for (const f of o.structuralFailures) out.push(`- STRUCTURAL (a build fault, fixed before the owner sees anything): ${f}`);
+  for (const f of o.foldFaults) out.push(`- FOLD FAULT (the clause is not judged and the step cannot close until the fold is fixed): ${f}`);
+  for (const f of o.guardBreaches) out.push(`- GUARD BREACH under ${a.guard} (the step stops and goes to the owner): ${f}`);
+  for (const f of o.gradedFailures) out.push(`- GRADED, a failed prediction (taken to the owner; nothing is re-fitted): ${f}`);
+  for (const f of o.next) out.push(`- NEXT: ${f}`);
+  out.push("");
+  out.push(`## The s${s.half} clauses (seed set 1 graded, set 2 beside; amendments at step ${s.half} ${a.digest}, read under ${a.readings})`);
+  out.push("");
+  for (const c of s.clauses) {
+    out.push(`- ${c.id} (${c.kind}; ${c.arms.join(" against ")}; filed ${c.filed}): ${c.verdict}${c.values.length === 0 ? "" : `: ${c.values.join("; ")}`}${c.note === undefined ? "" : ` (${c.note})`}`);
+  }
+  out.push("");
+  if (s.selection !== undefined) {
+    out.push("## The selection (AM-10: the pressured-by-release curve on gen, set 1 decides, set 2 for the spread; the hit curve beside)");
+    out.push("");
+    out.push(...s.selection);
+    out.push("");
+  }
+  if (s.miss !== undefined) {
+    out.push("## The miss rule on F0 (classifyMiss under AM-10's split; decided by the owner)");
+    out.push("");
+    out.push(...s.miss);
+    out.push("");
+  }
+  out.push(`## The guard under ${a.guard} (AM-1's statistic on the S5 class view; equal dials skipped)`);
+  out.push("");
+  for (const g of s.guard) {
+    out.push(`- ${g.arm} against ${g.against}, ${g.league}: ${g.verdict}${g.graded ? "" : " (not graded)"}; Z ${fmt(g.Z)}; breaches ${g.breaches.length === 0 ? "none" : g.breaches.join(", ")}; filed reading beside: ${g.filedBreaches.length === 0 ? "no breach" : g.filedBreaches.join(", ")}`);
+    for (const line of g.ownClock) out.push(`  - ${line}`);
+  }
+  out.push("");
+  out.push("## The structural proofs and fold checks");
+  out.push("");
+  for (const p of s.proofs) out.push(`- ${p.id} (${p.kind === "fold" ? "fold check" : "structural"}; ${p.what}): ${p.verdict === "PASS" ? "PASSES" : p.verdict === "FAIL" ? "FAILS" : p.verdict}. ${p.detail}`);
+  out.push("");
+  out.push("## The replays (S-7)");
+  out.push("");
+  for (const r of s.replay) out.push(`- ${r}`);
+  out.push("");
+  out.push("## Affected plays per arm (s5Stream)");
+  out.push("");
+  for (const r of s.affected) out.push(`- ${r}`);
+  out.push("");
+  out.push("## Waiting, by name");
+  out.push("");
+  for (const w of s.waits) out.push(`- ${w}`);
+  return out;
+}

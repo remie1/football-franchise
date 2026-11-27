@@ -16,7 +16,7 @@ import type { FittedTendencies } from "../caller/tendencies.js";
 import type { SimGameObservation } from "../metrics/collect.js";
 import { mirrorCaller } from "../pocket/mirror.js";
 import { applyRatingOverrides, type RatingOverride } from "../pocket/ratingOverride.js";
-import { checkStamp, engineRulesNamed, LEGACY_RULES } from "../pocket/rules.js";
+import { checkStamp, LEGACY_RULES, stampedRulesNamed } from "../pocket/rules.js";
 import type { BuiltFixture } from "./schedule.js";
 
 export interface RunGameInput {
@@ -71,9 +71,10 @@ export interface RunGameOutput {
 export function runOneGame(input: RunGameInput): RunGameOutput {
   const tunables = input.tunables ?? DEFAULT_TUNABLES;
   // ADR-089 S1 at the one function every calibration game is played through (review NPC-1): the
-  // stamp names rules this build has, and the dials it was handed digest to it, or no play is made.
+  // stamp names rules this build stamps (step 5's two names included, for the step-5 harness's arms;
+  // ADR-089 step 5, plan §1.1), and the dials it was handed digest to it, or no play is made.
   // Legacy tunables (no stamp, no block) return after three property reads, so legacy play is today's.
-  checkStamp(tunables, tunables.engineRules === undefined ? LEGACY_RULES : engineRulesNamed(tunables.engineRules.name, "runOneGame"), "runOneGame");
+  checkStamp(tunables, tunables.engineRules === undefined ? LEGACY_RULES : stampedRulesNamed(tunables.engineRules.name, "runOneGame"), "runOneGame");
   const { seed } = input;
   const built = input.ratings === undefined || input.ratings.length === 0 ? input.built : { ...input.built, snapshot: applyRatingOverrides(input.built.snapshot, input.ratings) };
   const pair = frozenCallerPair({

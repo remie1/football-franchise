@@ -101,7 +101,7 @@ const AM1_RULE_BUT_BASES = {
 };
 
 type AmendmentsJson = Record<string, unknown> & { entries: Record<string, unknown>[] };
-/** The committed amendments file as plain JSON (AM-1 to AM-7; AM-6 and AM-7 filed before step 4, ADR-089 Appendix H, H.8 and H.9). */
+/** The committed amendments file as plain JSON (AM-6 and AM-7 filed before step 4, ADR-089 Appendix H, H.8 and H.9; AM-8 to AM-10 before step 5a, Appendix I, I.10 to I.12). */
 const COMMITTED = JSON.parse(readFileSync(AMENDMENTS, "utf8")) as AmendmentsJson;
 const entryJson = (id: string): Record<string, unknown> => {
   const found = COMMITTED.entries.find((x) => x["id"] === id);
@@ -114,13 +114,14 @@ const AM7 = entryJson("AM-7");
 
 let written = 0;
 /**
- * A temporary copy of the committed amendments file cut to the entries filed before step 4 (AM-1
- * to AM-5), with `entries` appended; its path and its step-4 view's digest. With AM-6 and AM-7 as
- * committed it is the committed file again; a cut or changed copy proves a refusal.
+ * A temporary copy of the committed amendments file cut to the entries filed before step 3 or an
+ * earlier step (AM-1 to AM-5), with `entries` appended; its path and its step-4 view's digest. With
+ * AM-6 and AM-7 as committed it is the committed file's step-4 view (AM-8 onward are filed before
+ * step 5a, so the view never held them); a cut or changed copy proves a refusal.
  */
 function withEntries(...entries: Record<string, unknown>[]): { readonly path: string; readonly pin: string } {
   const json = structuredClone(COMMITTED);
-  json.entries = json.entries.filter((x) => x["id"] !== "AM-6" && x["id"] !== "AM-7");
+  json.entries = json.entries.filter((x) => x["filedBeforeStep"] === "2" || x["filedBeforeStep"] === "3");
   json.entries.push(...structuredClone(entries));
   written += 1;
   const path = join(DIR, `amendments-${String(written)}.json`);
@@ -136,7 +137,7 @@ const granted = { pin: BOTH.pin, petitions: STEP4_PETITIONS_GRANTED };
 describe("the refusals, in order", () => {
   it("the committed file holds AM-6 and AM-7 and is pinned: with P6, P7 and P8 in contracts, nothing is refused", () => {
     expect(STEP4_AMENDMENTS_PIN).toBe("fnv1a:e0c05cf0");
-    expect(BOTH.pin, "the copy with AM-6 and AM-7 as committed is the committed file").toBe(STEP4_AMENDMENTS_PIN);
+    expect(BOTH.pin, "the copy with AM-6 and AM-7 as committed is the committed file's step-4 view").toBe(STEP4_AMENDMENTS_PIN);
     expect(amendmentsDigest(amendmentsAtStep(loadAmendments(AMENDMENTS, loadFiled(FILED)), "4"))).toBe(STEP4_AMENDMENTS_PIN);
     const g = preflightStep4(FILED, AMENDMENTS).guard;
     expect(g).toMatchObject({ am6: "AM-6", am6Record: "ADR-089 Appendix H, H.8", am7: "AM-7", am7Record: "ADR-089 Appendix H, H.9", bases: { D1: "C1", D2: "C2", D6: "C2" }, lines: { zLeague: 2, zClass: 3, zSetSE0: 0 } });

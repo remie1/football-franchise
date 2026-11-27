@@ -29,7 +29,7 @@ import type { GameSummary, StatLine, Tunables } from "@ff/engine";
 import { COVERAGE_MASKS, FRONT_LOOKS, shownRushDiffers } from "@ff/playbook";
 import { approachesOfPlay, LOOPER_FREE_BAND, PICKUP_FREE_BAND } from "../pocket/approach.js";
 import { centerOfPlayStart, clockKeyOf, onClockUnder, touchOfCheck, type ClockKey, type Touch } from "../pocket/freeRunKey.js";
-import { POCKET_1_S4_RULES, rulesOnPlayStart } from "../pocket/rules.js";
+import { readsStep4Facts, rulesOnPlayStart } from "../pocket/rules.js";
 
 /** One simulated game, as it comes back from a worker. */
 export interface SimGameObservation {
@@ -1022,9 +1022,10 @@ interface PocketPlayState {
   /** A threat published ARRIVED with the ball in his hand: the legacy stand-in for `QB_HIT`. */
   hit: boolean;
   /**
-   * ADR-089 step 4 (V1-42, plan §2.4): the play's `PLAY_START.rules` names `pocket-1.s4`. The hit
-   * construct is keyed on it, never on a `QB_HIT` being present: under it a hit is a `QB_HIT` of any
-   * phase (`qbHit`), under every earlier stamp the stand-in (`hit`), so earlier records do not move.
+   * ADR-089 step 4 (V1-42, plan §2.4): the play's `PLAY_START.rules` names `pocket-1.s4` or a later
+   * step's bundle (`readsStep4Facts`; step-5 plan §1.3). The hit construct is keyed on it, never on a
+   * `QB_HIT` being present: under it a hit is a `QB_HIT` of any phase (`qbHit`), under every earlier
+   * stamp the stand-in (`hit`), so earlier records do not move.
    */
   s4: boolean;
   /** A `QB_HIT` (P7) was written on the play. */
@@ -1305,7 +1306,7 @@ function foldPocketPlay(pf: PocketFold, play: PlayState): void {
     sit.releaseSquares += release * release;
   }
 
-  // Hit-or-sack (§4.5): the hit stands in for QB_HIT under legacy to pocket-1.s3; under pocket-1.s4
+  // Hit-or-sack (§4.5): the hit stands in for QB_HIT under legacy to pocket-1.s3; from pocket-1.s4 on
   // it is a QB_HIT of any phase, each dropback once (V1-42, keyed on the stamp; plan §2.4).
   const hit = k.s4 ? k.qbHit : k.hit;
   const hitOnAttempt = hit && attempt;
@@ -1627,7 +1628,7 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation, tunables
         // "excluded from both sides" claim, and the fix is to make the sim side true of it rather
         // than leave the doc string true of neither side.
         const releaseTick = play.threw ? play.throwTick : play.throwawayTick;
-        // ADR-089 step 4 (plan §5): on a pocket-1.s4 play a THROW's release is its raw
+        // ADR-089 step 4 (plan §5): on a play stamped pocket-1.s4 or later a THROW's release is its raw
         // `releaseSeconds` (P8) when it carries one; every earlier stamp keeps the tick, so
         // `knownTruth/pocketLadder.ts` (legacy only) and every earlier record read as before.
         // Throwaways keep their tick (P8 widens THROW only).
@@ -1708,7 +1709,7 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation, tunables
         current = blankPlay();
         current.pk = blankPocketPlay(period, rebuiltClock);
         current.pk.center = centerOfPlayStart(event.payload);
-        current.pk.s4 = rulesOnPlayStart(event.payload)?.name === POCKET_1_S4_RULES;
+        current.pk.s4 = readsStep4Facts(rulesOnPlayStart(event.payload)?.name);
         tick = 0;
         pocket.clockCheck.snaps++;
         if (start !== null) {
