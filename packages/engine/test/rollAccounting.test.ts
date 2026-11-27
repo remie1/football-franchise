@@ -1319,7 +1319,9 @@ describe("ADR-004 roll accounting", () => {
    * the clean bench, where clean expiries come in number), every pass fixture and seed, through the
    * engine's seam with step 6's petitions:
    *  27. the throwaway rule alone draws s5a's rolls, label and value, in order, up to the first tick
-   *      on which the rule is read (the forced pick or the CLOCK_EXPIRED path);
+   *      on which the rule is read (the forced pick or the CLOCK_EXPIRED path); the scramble start
+   *      `ZERO_GAIN_ONLY` draws them all (it moves yards, not dice), and `EVERY_RUN` draws them up to
+   *      the scramble run's first carrier die;
    *  28. after each cut no family is new over s5a's (the carrier's labels left out and the rush
    *      bucket's men read as one, as step 5a's pairing reads them): the parts built so far draw no
    *      new die, and the later parts' families (`:deadline`, `:drill:`, a contest at the escape)
@@ -1340,13 +1342,39 @@ describe("ADR-004 roll accounting", () => {
       { name: "s5a", tunables: S5_TUNABLES, fixtures: () => step3Fixtures() },
       { name: "s5a shape S, clean bench", tunables: onCleanBench(S5S_TUNABLES), fixtures: () => PASS_FIXTURES },
     ];
-    /** The tick at which the part first acts, from its spy, or `undefined` when it never did. */
-    type Part = { readonly name: string; readonly block: OutsTunables; readonly cutTick: () => number | undefined };
+    /** The base's first roll at or past the tick `tick`, or all of them when it drew none there. */
+    const fromTick = (base: Rolls, tick: number): number => {
+      const k = base.findIndex((r) => (r.tick ?? 0) >= tick);
+      return k < 0 ? base.length : k;
+    };
+    /**
+     * A part, and where it first acts in a play: the index of the base's first roll at or past that
+     * point, or `undefined` when it never acts. `dice`: whether the part moves a die after its cut,
+     * `MOVES` (some play parts from the base), `NEVER` (no play does), or `MAY` (EVERY_RUN: a run
+     * that starts behind the line draws the base's zone dice unless a broken tackle carries the base
+     * past a zone the run must still play, or the goal line ends one run and not the other, which
+     * these seeds need not show).
+     */
+    type Part = { readonly name: string; readonly block: OutsTunables; readonly cut: (base: Rolls) => number | undefined; readonly dice: "MOVES" | "NEVER" | "MAY" };
     const PARTS: readonly Part[] = [
       {
         name: "the throwaway rule",
         block: outsParts({ throwawayRule: true }),
-        cutTick: () => vi.mocked(throwawayLegalInPocket).mock.calls[0]?.[0].tick,
+        cut: (base) => {
+          const tick = vi.mocked(throwawayLegalInPocket).mock.calls[0]?.[0].tick;
+          return tick === undefined ? undefined : fromTick(base, tick);
+        },
+        dice: "MOVES",
+      },
+      { name: "the scramble start, ZERO_GAIN_ONLY", block: outsParts({ scrambleStart: "ZERO_GAIN_ONLY" }), cut: () => undefined, dice: "NEVER" },
+      {
+        name: "the scramble start, EVERY_RUN",
+        block: outsParts({ scrambleStart: "EVERY_RUN" }),
+        cut: (base) => {
+          const k = base.findIndex((r) => r.label.includes("/carrier/scramble/"));
+          return k < 0 ? undefined : k;
+        },
+        dice: "MAY",
       },
     ];
     const SEEDS = 30;
@@ -1367,14 +1395,8 @@ describe("ADR-004 roll accounting", () => {
               const arm: Rolls = ticked(playS6(state, calls, seed, withOuts(tunables, part.block)).events);
               for (const r of base) baseKinds.add(kind(family(r.label)));
               for (const r of arm) armFamilies.add(family(r.label));
-              const cutTick = part.cutTick();
-              let cut: number | undefined;
-              if (cutTick !== undefined) {
-                cutPlays += 1;
-                // A base that drew nothing at or past the cut is equal in full.
-                const k = base.findIndex((r) => (r.tick ?? 0) >= cutTick);
-                cut = k < 0 ? base.length : k;
-              }
+              const cut = part.cut(base);
+              if (cut !== undefined) cutPlays += 1;
               const n = cut ?? Math.max(base.length, arm.length);
               expect(arm.slice(0, n).map((r) => [r.label, r.raw]), `${part.name} ${name} ${seed}`).toEqual(base.slice(0, n).map((r) => [r.label, r.raw]));
               if (JSON.stringify(arm.map((r) => [r.label, r.raw])) !== JSON.stringify(base.map((r) => [r.label, r.raw]))) differ += 1;
@@ -1383,14 +1405,16 @@ describe("ADR-004 roll accounting", () => {
         }
         const added = [...armFamilies].filter((f) => !f.includes("/carrier/") && !baseKinds.has(kind(f)));
         expect(added, `${part.name}: ${JSON.stringify(added)}`).toEqual([]);
-        expect(cutPlays, part.name).toBeGreaterThan(50);
+        if (part.dice === "NEVER") expect(differ, part.name).toBe(0);
+        else expect(cutPlays, part.name).toBeGreaterThan(20);
         // The part acts: some plays part from the base after their cut.
-        expect(differ, part.name).toBeGreaterThan(0);
+        if (part.dice === "MOVES") expect(differ, part.name).toBeGreaterThan(0);
       }
     });
 
     it("no RollDetail twice in a play under every part built so far, and no later part's family (29)", () => {
-      const together = outsParts(Object.assign({}, ...PARTS.map((p) => p.block)) as Partial<OutsTunables>);
+      // Every part built so far, the bundles' default leaf where a part has two.
+      const together = outsParts({ throwawayRule: true, scrambleStart: "ZERO_GAIN_ONLY" });
       const LATER = /:deadline$|:drill:|:contact(:|$)|:dodge(:|$)|:alarm(:|$)/;
       let rolls = 0;
       for (const { name, tunables, fixtures } of BASES) {

@@ -22,9 +22,15 @@
  *   pocket a throwaway is legal at the deadline pick by construction (2.11). Under the rule and
  *   under the deadline pick every throwaway carries `THROWAWAY.outsideTackleBox` (P10), false in the
  *   pocket (the call site).
+ * - **2.2 The scramble start** (`scrambleStartYards`, `scrambleRunYards`; AM-13 `scrambleStart`, by
+ *   the owner's answer, `ZERO_GAIN_ONLY` recommended and each bundle's default until then): under
+ *   `ZERO_GAIN_ONLY` a scramble run that gains nothing ends where he is, at minus the card's
+ *   `dropDepthYards` (5.0 shotgun, 7.0 under center, D22), its zone events the run as played; under
+ *   `EVERY_RUN` every run starts there. The run's dice do not change.
  *
  * No die is drawn here.
  */
+import type { ScrambleStart } from "../tunables.js";
 
 // ---- 2.1 the real throwaway rule ---------------------------------------------------------------
 
@@ -59,4 +65,29 @@ export interface ThrowawayFacts {
  */
 export function throwawayLegalInPocket(f: ThrowawayFacts): boolean {
   return f.tick >= f.floorSeconds && f.tracks.some((t) => t.baseOpenness !== undefined && f.tick >= t.readySeconds);
+}
+
+// ---- 2.2 the scramble start --------------------------------------------------------------------
+
+/**
+ * 2.2 (AM-13 `scrambleStart`, by the owner's answer): where a scramble run starts, passed to
+ * `advanceCarrier` as its start. Under `EVERY_RUN` (the design's words, "The run starts where he
+ * is", ADR-089:727, :755) every run starts at minus the card's `dropDepthYards`, so its zone events
+ * count from there and a tackle in the first zone can end behind the line. Under `ZERO_GAIN_ONLY`
+ * the run starts at the line, as today: `undefined`, no start.
+ */
+export function scrambleStartYards(start: ScrambleStart, dropDepthYards: number): number | undefined {
+  return start === "EVERY_RUN" ? -dropDepthYards : undefined;
+}
+
+/**
+ * 2.2: a scramble run's yards as `RUN_RESOLUTION.yards` and the play's result carry them. Under
+ * `ZERO_GAIN_ONLY` (the design's pricing of the clause it grades, "zero-yard scrambles rescored",
+ * ADR-089:754, :774) a run that gains nothing (0 yards or fewer) ends where he is, at minus the
+ * card's `dropDepthYards`, and every other run keeps its yards; its zone events stay the run as
+ * played (zone 1, 0 yards), as a designed run's tackle for loss breaks the zone sum. Under
+ * `EVERY_RUN` the run's own yards, already counted from his start.
+ */
+export function scrambleRunYards(start: ScrambleStart, dropDepthYards: number, runYards: number): number {
+  return start === "ZERO_GAIN_ONLY" && runYards <= 0 ? -dropDepthYards : runYards;
 }

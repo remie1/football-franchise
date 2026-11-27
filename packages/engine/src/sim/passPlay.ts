@@ -79,7 +79,7 @@ import type { RushPlan } from "./preSnap.js";
 import { assertSnapPictureFor, timeFreeRunners } from "./freeRunTiming.js";
 import { pocketRulesOf, pocketRulesUnder } from "./pocketRules.js";
 import { bumpFor, cleanExpiry, d23Pool, floorSecondsOf, isScreen, mustDecideNow, resetAfterMove, resolveCleanPick } from "./cleanPocket.js";
-import { throwawayLegalInPocket } from "./outs.js";
+import { scrambleRunYards, scrambleStartYards, throwawayLegalInPocket } from "./outs.js";
 import { ContactBook } from "./contactBook.js";
 import { arrivedInGridOrder, liveAtTick, onFreeRunClockAtContact, onFreeRunClockAtSnap, rebuiltTick, shedDelaySecondsOf } from "./contactTick.js";
 import type { TickStatusInputs } from "./contactTick.js";
@@ -1931,10 +1931,17 @@ export function simulatePassPlayWith(
       // This replaced a flat five yards; it is not a tuned version of it.
       if (tick >= scramble.pursuitAtTick) {
         log.qbDecision("SCRAMBLE");
+        // ADR-089 step 6 (plan §2.2; AM-13 `scrambleStart`, by the owner's answer): under the
+        // scramble start every run starts where he is (`EVERY_RUN`), or a run that gains nothing
+        // ends there (`ZERO_GAIN_ONLY`); without it, today's run from the line. The run's dice do
+        // not change.
+        const scrambleStart = outs?.scrambleStart;
+        const startYards = scrambleStart === undefined ? undefined : scrambleStartYards(scrambleStart, calls.offense.dropDepthYards);
         const run = advanceCarrier({
           tunables,
           carrier: qb,
           mode: "RUSH",
+          ...(startYards === undefined ? {} : { startYards }),
           pursuers: buildCarrierPursuers(tunables, recoverySpots, state.quarterback, 0),
           yardsToGoalLine: 100 - state.ballOn,
           carrierRng: carrierRng.fork("scramble"),
@@ -1946,9 +1953,14 @@ export function simulatePassPlayWith(
         // `gap` is absent, because he did not run one; `yardsBeforeContact` is
         // zero, because nothing was blocked for him — §14.3's point of attack is
         // a designed-run mechanic and no part of it ran here (ADR-010 item 2).
-        log.runResolution(state.quarterback, "SCRAMBLE", undefined, 0, run.yards);
+        //
+        // ADR-089 step 6 (plan §2.2): under `ZERO_GAIN_ONLY` a failed scramble's yards are the start
+        // rule's, minus the card's drop, while its zone events stay the run as played (zone 1, 0
+        // yards), as a designed run's tackle for loss breaks the zone sum.
+        const scrambleYards = scrambleStart === undefined ? run.yards : scrambleRunYards(scrambleStart, calls.offense.dropDepthYards, run.yards);
+        log.runResolution(state.quarterback, "SCRAMBLE", undefined, 0, scrambleYards);
         outcome = {
-          yards: run.yards,
+          yards: scrambleYards,
           turnover: false,
           clockRunoff: tick + tunables.result.clockRunoff.scrambleRun,
         };
