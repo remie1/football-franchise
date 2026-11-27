@@ -46,7 +46,9 @@ import {
   STEP5A_AMENDMENTS_PIN,
   STEP5A_RECORDS_FINAL,
   STEP5B_AMENDMENTS_PIN,
+  STEP5B_OWNER_WAIT,
   STEP5B_RECORDS_FINAL,
+  STEP5B_WAIT_REFUSAL,
   type Step5GateState,
   type Step5Record,
   type Step5RecordsBySet,
@@ -111,7 +113,7 @@ describe("step 5's pins, preflight and gate", () => {
     expect(() => preflightStep5("5b", FILED, AMEND, { pin: null })).toThrow(/is not pinned/);
   });
 
-  it("this build's gate: the fit is recorded and recomputes, so 5a may play; the 5a records are final and hold a graded miss, so 5b is refused without the owner's word", () => {
+  it("this build's gate: the fit is recorded and recomputes, so 5a may play; the 5a records are final and hold a graded miss, and 5b is held by the owner's Wait", () => {
     const st = step5GateState();
     expect(st.fitPin).toBe("fnv1a:2874e804");
     expect(st.fitRecord).toBe(st.fitPin);
@@ -122,13 +124,37 @@ describe("step 5's pins, preflight and gate", () => {
     expect(st.s5aRecordProblem).toBeUndefined();
     expect(st.s5aOutcome).toEqual({ faults: [], breaches: [], misses: ["s5a.cleanScramble: flat 12.96, gen 6.89 against 2 to 6"] });
     expect(step5GateRefusal("5a", st)).toBeUndefined();
-    expect(step5GateRefusal("5b", st)).toMatch(/^ADR-089 step 5b: refused before anything plays \(the gate, plan §9 item 10\): the 5a records hold a graded miss \(s5a\.cleanScramble/);
+    expect(st.s5bHeld).toBe(STEP5B_WAIT_REFUSAL);
+    // The owner's Wait (2026-11-26 21:56Z) holds 5b, and --after-owner does not lift it.
+    expect(step5GateRefusal("5b", st)).toMatch(/^ADR-089 step 5b: refused before anything plays \(the gate, plan §9 item 10\): step 5b is held by the owner's word: on 2026-11-26 at 21:56Z he chose "Wait"/);
+    expect(step5GateRefusal("5b", st, "2026-11-26T21:56:54Z")).toBe(step5GateRefusal("5b", st));
+    expect(step5GateRefusal("5b", st, "2026-11-27T12:00Z")).toMatch(/--after-owner does not lift this hold\. Nothing has played and no cache was made$/);
+    // Without the hold, 5b would wait on the owner's word for the graded miss, as before the Wait.
+    const { s5bHeld: _held, ...unheld } = st;
+    expect(step5GateRefusal("5b", unheld)).toMatch(/^ADR-089 step 5b: refused before anything plays \(the gate, plan §9 item 10\): the 5a records hold a graded miss \(s5a\.cleanScramble/);
     // Before the 5a records were final, 5b was refused by that name.
-    expect(step5GateRefusal("5b", { ...st, s5aFinal: false })).toMatch(/the 5a records are not final/);
+    expect(step5GateRefusal("5b", { ...unheld, s5aFinal: false })).toMatch(/the 5a records are not final/);
     // Before the fit commit (no pin, no record, no literal) both halves were refused by name.
     const before: Step5GateState = { fitPin: undefined, fitRecord: undefined, s5aDigest: undefined, s5aFinal: false };
     expect(step5GateRefusal("5a", before)).toMatch(/^ADR-089 step 5a: refused before anything plays \(the gate, plan §9 item 10\): the 5a fit is not recorded/);
     expect(step5GateRefusal("5b", before)).toMatch(/^ADR-089 step 5b: refused .*the 5a fit is not recorded/);
+  });
+
+  it("the owner's Wait on 5b (2026-11-26 21:56:54Z) is a named refusal that --after-owner never lifts, and it holds 5b only", () => {
+    expect(STEP5B_OWNER_WAIT).toEqual({ at: "2026-11-26T21:56:54Z", choice: "Wait", card: "Run step 5b now on today's count, or wait for the new one?" });
+    expect(STEP5B_WAIT_REFUSAL).toContain("on 2026-11-26 at 21:56Z he chose \"Wait\"");
+    expect(STEP5B_WAIT_REFUSAL).toContain("ADR-089 Appendix J.8");
+    const held: Step5GateState = { ...OPEN, s5bHeld: STEP5B_WAIT_REFUSAL };
+    // 5a is not held; 5b is, whatever --after-owner names, on an open gate and over a miss or a breach.
+    expect(step5GateRefusal("5a", held)).toBeUndefined();
+    expect(step5GateRefusal("5a", held, "2026-11-27T12:00Z")).toBeUndefined();
+    for (const st of [held, { ...held, s5aOutcome: { faults: [], breaches: [], misses: ["s5a.cleanScramble"] } }, { ...held, s5aOutcome: { faults: [], breaches: ["E9 gen"], misses: [] } }]) {
+      expect(step5GateRefusal("5b", st)).toBe(`ADR-089 step 5b: refused before anything plays (the gate, plan §9 item 10): ${STEP5B_WAIT_REFUSAL}. Nothing has played and no cache was made`);
+      expect(step5GateRefusal("5b", st, "2026-11-27T12:00Z")).toBe(step5GateRefusal("5b", st));
+    }
+    // A build fault in the fit still refuses both halves first; an --after-owner with no time is still refused by its own name.
+    expect(step5GateRefusal("5b", { ...held, fitRecord: undefined })).toMatch(/is not committed/);
+    expect(step5GateRefusal("5b", held, "yes")).toMatch(/--after-owner "yes" is not a timestamp/);
   });
 
   it("the gate's every refusal, and what --after-owner lifts (a breach, a miss; never a fault)", () => {
@@ -169,8 +195,9 @@ describe("step 5's pins, preflight and gate", () => {
     for (const half of ["5a", "5b"] as const) {
       expect(() => runStep5({ half, cacheParent: parent, filedPath: FILED, amendmentsPath: AMEND, env: ENV, gate: before })).toThrow(/the 5a fit is not recorded/);
     }
-    // This build's own gate: 5b waits on the owner's word for 5a's graded miss.
-    expect(() => runStep5({ half: "5b", cacheParent: parent, filedPath: FILED, amendmentsPath: AMEND, env: ENV })).toThrow(/the 5a records hold a graded miss/);
+    // This build's own gate: 5b is held by the owner's Wait, with or without --after-owner.
+    expect(() => runStep5({ half: "5b", cacheParent: parent, filedPath: FILED, amendmentsPath: AMEND, env: ENV })).toThrow(/step 5b is held by the owner's word/);
+    expect(() => runStep5({ half: "5b", cacheParent: parent, filedPath: FILED, amendmentsPath: AMEND, env: ENV, afterOwner: "2026-11-27T12:00Z" })).toThrow(/--after-owner does not lift this hold/);
     expect(existsSync(parent)).toBe(false);
     expect(() => runStep5({ half: "5a", cacheParent: parent, filedPath: FILED, amendmentsPath: AMEND, env: { ...ENV, dirty: true }, gate: OPEN })).toThrow(STEP5_DIRTY_REFUSAL);
     expect(existsSync(parent)).toBe(false);

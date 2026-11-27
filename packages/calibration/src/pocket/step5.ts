@@ -20,7 +20,9 @@
  *    `POCKET_1_S5A_FIT_DIGEST` and `POCKET_1_S5A_DIGEST` recorded; 5b needs all that, the 5a records
  *    final (`STEP5A_RECORDS_FINAL`) with no build fault, and no AM-8 breach and no graded 5a miss
  *    unless `--after-owner <ts>` names the owner's word to go on (a build fault is never lifted). In
- *    this build none of them is recorded, so both halves are refused by name before anything plays.
+ *    this build the fit and the 5a records are recorded, so 5a may play; 5b is refused by name before
+ *    anything plays, held by the owner's Wait of 2026-11-26 (`STEP5B_WAIT_REFUSAL`), which
+ *    `--after-owner` does not lift.
  *  - **Each arm** is step 4's play (`playStep4Arm` through `playStep3Arm`, so every step-1 to step-4
  *    fold runs on every arm), with step 5's visit beside on every game: the s5 stream, the two
  *    clean-pocket rows, the guard's population on the S5 class view, the pressured curve by raw
@@ -79,6 +81,22 @@ export const STEP5B_RECORDS = ["reports/adr-089-step5b.md", "reports/adr-089-ste
 /** False until each half's records are committed (plan §9 items 9 and 13). 5a's are committed (05849dc) and final. */
 export const STEP5A_RECORDS_FINAL: boolean = true;
 export const STEP5B_RECORDS_FINAL: boolean = false;
+
+/**
+ * The owner's hold on step 5b (ADR-089 Appendix J.8). On 2026-11-26 at 21:56:54Z he chose "Wait" on the
+ * card "Run step 5b now on today's count, or wait for the new one?" (the option "Hold 5b until step 7
+ * builds the new count"), so 5b is judged on the count step 7 builds and plays after steps 6 and 7.
+ * The gate refuses 5b by this name before anything plays, and `--after-owner` does not lift it: that
+ * flag names the owner's word on a 5a miss or breach, and his word here is to wait. Only a commit that
+ * builds the relocated 5b, under an entry filed before it, lifts the hold. `--digests` (R-1, read
+ * through the 5a gate) and `--reselect` (which plays nothing) are not 5b plays and are not held.
+ */
+export const STEP5B_OWNER_WAIT = Object.freeze({
+  at: "2026-11-26T21:56:54Z",
+  choice: "Wait",
+  card: "Run step 5b now on today's count, or wait for the new one?",
+});
+export const STEP5B_WAIT_REFUSAL = `step 5b is held by the owner's word: on 2026-11-26 at 21:56Z he chose "Wait" on the card "${STEP5B_OWNER_WAIT.card}", so 5b waits until step 7 builds the new count and is judged on it (ADR-089 Appendix J.8); --after-owner does not lift this hold`;
 
 /**
  * Each half's view of the amendments file, pinned: AM-8, AM-9 and AM-10 are filed together before any
@@ -207,6 +225,8 @@ export interface Step5GateState {
    * step-5 run after the writing process repeats (measurement M6).
    */
   readonly fitVerifyProblem?: string;
+  /** The owner's hold on 5b (`STEP5B_WAIT_REFUSAL`), which `--after-owner` does not lift, when 5b waits for him. */
+  readonly s5bHeld?: string;
 }
 
 const isStringList = (v: unknown): v is readonly string[] => Array.isArray(v) && v.every((x) => typeof x === "string");
@@ -253,10 +273,11 @@ export function step5GateState(pkgRoot: string = PKG_ROOT): Step5GateState {
     ...(s5aRecordProblem === undefined ? {} : { s5aRecordProblem }),
     ...(fitCorpusProblem === undefined ? {} : { fitCorpusProblem }),
     ...(fitVerifyProblem === undefined ? {} : { fitVerifyProblem }),
+    s5bHeld: STEP5B_WAIT_REFUSAL,
   };
 }
 
-/** The gate's refusal for `half`, or undefined when the half may play. `afterOwner` lifts a 5a breach or graded miss, never a build fault. */
+/** The gate's refusal for `half`, or undefined when the half may play. `afterOwner` lifts a 5a breach or graded miss, never a build fault and never the owner's hold on 5b. */
 export function step5GateRefusal(half: Step5Half, st: Step5GateState, afterOwner?: string): string | undefined {
   const refused = (why: string): string => `ADR-089 step ${half}: refused before anything plays (the gate, plan §9 item 10): ${why}. Nothing has played and no cache was made`;
   if (afterOwner !== undefined && !AFTER_OWNER_FORM.test(afterOwner)) return refused(`--after-owner ${JSON.stringify(afterOwner)} is not a timestamp of the owner's word (ISO 8601 UTC, for example 2026-11-08T14:30Z)`);
@@ -267,6 +288,7 @@ export function step5GateRefusal(half: Step5Half, st: Step5GateState, afterOwner
   if (st.fitVerifyProblem !== undefined) return refused(st.fitVerifyProblem);
   if (st.s5aDigest === undefined) return refused("pocket-1.s5a's literal is not recorded (POCKET_1_S5A_DIGEST is unset)");
   if (half === "5a") return undefined;
+  if (st.s5bHeld !== undefined) return refused(st.s5bHeld);
   if (st.s5aRecordProblem !== undefined) return refused(st.s5aRecordProblem);
   if (!st.s5aFinal || st.s5aOutcome === undefined) return refused("the 5a records are not final (STEP5A_RECORDS_FINAL, reports/adr-089-step5a.json): 5b's grids are built on the fitted count and the checklist and wait for them");
   const o = st.s5aOutcome;
