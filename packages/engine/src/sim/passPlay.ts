@@ -79,6 +79,7 @@ import type { RushPlan } from "./preSnap.js";
 import { assertSnapPictureFor, timeFreeRunners } from "./freeRunTiming.js";
 import { pocketRulesOf, pocketRulesUnder } from "./pocketRules.js";
 import { bumpFor, cleanExpiry, d23Pool, floorSecondsOf, isScreen, mustDecideNow, resetAfterMove, resolveCleanPick } from "./cleanPocket.js";
+import { throwawayLegalInPocket } from "./outs.js";
 import { ContactBook } from "./contactBook.js";
 import { arrivedInGridOrder, liveAtTick, onFreeRunClockAtContact, onFreeRunClockAtSnap, rebuiltTick, shedDelaySecondsOf } from "./contactTick.js";
 import type { TickStatusInputs } from "./contactTick.js";
@@ -860,6 +861,20 @@ export function simulatePassPlayWith(
   let cleanMoveUsed = false;
   /** He broke out at a clean pick (D23 on the run reads it). */
   let cleanBreakOut = false;
+
+  // ---- ADR-089 step 6: the outs (`sim/outs.ts`) ------------------------------------------------
+  // Every line below that reads the block is reached only when the rules carry it (`outs !==
+  // undefined`), and each part only behind its own leaf, so `legacy`, s1 to s5a and kind T run none
+  // of it and call nothing in `outs.ts`, and a block with every part off plays step 5a's outs.
+  const outs = rules.kind === "LEGACY" ? undefined : rules.outs;
+  /**
+   * 2.1 (P10): `THROWAWAY.outsideTackleBox` on this play's in-pocket throwaways, false, under the
+   * parts that change where a throwaway may come from, the throwaway rule and the deadline pick
+   * (2.11), so on every such play the flag equals `cause === "OUT_OF_POCKET"` (S-15). `undefined`,
+   * so no flag, under every other rule set and under a block whose parts leave the throwaways as
+   * step 5a has them, so the all-off block replays step 5a's stream (P-18b).
+   */
+  const inPocketTackleBox = outs?.throwawayRule === true || outs?.deadlinePick !== undefined ? false : undefined;
 
   /**
    * ADR-007 — every threat transition is published, not inferred. ADR-022: the
@@ -1894,6 +1909,20 @@ export function simulatePassPlayWith(
     }
 
     const throwawayAvailable = tick >= tunables.qb.throwawayEarliestSeconds;
+    /**
+     * ADR-089 step 6 (plan §2.1; AM-13 `throwawayRule`): whether a throwaway is legal in the pocket,
+     * read where one can be chosen, the forced pick and the CLOCK_EXPIRED path. Under the throwaway
+     * rule it is legal at or past the floor on a tick on which a route has reached its break
+     * (`throwawayLegalInPocket`), in place of the 2.0 s gate, and never on a tick that ran an arrival
+     * contest: a throwaway with a hand on him is the contact choice, step 7's, so at step 6 none
+     * comes on the tick of an `arrival_contest` (S-15's clause as read here; a throwaway on a later
+     * tick stands). The rule is read first, so every reading of it is counted
+     * (R-4's cut). Every other rule set and block keeps today's gate.
+     */
+    const inPocketThrowaway = (): boolean =>
+      outs?.throwawayRule === true
+        ? throwawayLegalInPocket({ tick, floorSeconds, tracks }) && !contestedThisTick
+        : throwawayAvailable;
 
     if (scramble !== undefined) {
       // Outside the pocket the clock is pursuit's, not the rush's. When it runs
@@ -2020,7 +2049,7 @@ export function simulatePassPlayWith(
           // ADR-089 step 3 (E5): FRONT under `pocket-1.s3` with `pocket.climbLane`; INTERIOR otherwise.
           climbLane,
           stepUpsUsed,
-          throwawayAvailable,
+          throwawayAvailable: inPocketThrowaway(),
           movementRng: movementRng.fork(`t${tick.toFixed(1)}:movement`),
         });
       log.check(movement.check);
@@ -2156,7 +2185,8 @@ export function simulatePassPlayWith(
         // ADR-056 Option C — the ACT, distinct from the decision above. This is
         // the POCKET_DURESS path: the pocket_movement CHECK just logged is the
         // roll that produced it, so its rngLabel travels as `rollRef`.
-        log.throwaway("POCKET_DURESS", movement.check.roll.rngLabel);
+        // ADR-089 step 6 (P10): with `outsideTackleBox` false under the parts that write it.
+        log.throwaway("POCKET_DURESS", movement.check.roll.rngLabel, inPocketTackleBox);
         outcome = {
           yards: 0,
           turnover: false,
@@ -2171,14 +2201,14 @@ export function simulatePassPlayWith(
       continue;
     }
 
-    if (mustDecide && throwawayAvailable) {
+    if (mustDecide && inPocketThrowaway()) {
       // The clock ran out rather than the pocket: no duress, so no movement
       // check. No decision-quality roll runs on a throwaway either — there was
       // nobody to pick between — so no tier (ADR-005), and no THROW event.
       log.qbDecision("THROWAWAY");
       // ADR-056 Option C — the ACT. CLOCK_EXPIRED: no roll ran at all, so
       // `rollRef` is omitted entirely rather than invented (ADR-005).
-      log.throwaway("CLOCK_EXPIRED");
+      log.throwaway("CLOCK_EXPIRED", undefined, inPocketTackleBox);
       outcome = {
         yards: 0,
         turnover: false,

@@ -24,6 +24,13 @@
  * steps 1 to 4 and kind T call none, play (with and without a picture) and game, and the s5 sets
  * call every one. P-18b at the engine's reach: the s4 bundles with the all-off block, same stamp,
  * give the s4 stream, play and game (the pinned digests' replay is calibration's, K2b).
+ *
+ * ADR-089 step 6 (P-18; step-6 plan §8.1): every function export of `sim/outs.ts` is wrapped the
+ * same way; legacy, every set of steps 1 to 5a and kind T call none, play (with and without a
+ * picture) and game, and the block's parts call every one. P-18b at the engine's reach: the s5a
+ * bundles with the all-off block, same stamp, give the s5a stream, play by play, and call none (a
+ * game waits for the lift: until P9 to P12 are in contracts no game can carry the block, and
+ * `simulateGame` has no test seam; the pinned digests' replay is calibration's).
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -111,8 +118,17 @@ vi.mock("../src/sim/cleanPocket.js", async (importOriginal) => {
   };
 });
 
+// ADR-089 step 6 (P-18): every function export of the outs module, counted.
+vi.mock("../src/sim/outs.js", async (importOriginal) => {
+  const real = await importOriginal<typeof import("../src/sim/outs.js")>();
+  return Object.fromEntries(
+    Object.entries(real).map(([name, value]) => [name, typeof value === "function" ? vi.fn(value as (...args: never[]) => unknown) : value]),
+  );
+});
+
 import { playerId } from "@ff/contracts";
 import * as cleanPocketModule from "../src/sim/cleanPocket.js";
+import * as outsModule from "../src/sim/outs.js";
 import { simulateGame, simulatePassPlay } from "../src/index.js";
 import { PlayEventLog } from "../src/events.js";
 import { arrivalContest, contactFrom, secondArrival, tiltOf } from "../src/resolve/contact.js";
@@ -123,6 +139,7 @@ import { playsLegacyRules, playsTodaysLine } from "../src/sim/pocketRules.js";
 import { PASS_FIXTURES } from "./pocketTunables.js";
 import { S4C_TUNABLES, S4L_TUNABLES, S4M_TUNABLES, S4S_TUNABLES, S4_TUNABLES, T_TUNABLES, playStep4 } from "./step4Fixtures.js";
 import { CLEAN_POCKET_OFF, S5L_TUNABLES, S5S_TUNABLES, S5_TUNABLES, onCleanBench, withCleanPocket } from "./step5Fixtures.js";
+import { OUTS_OFF, outsParts, playS6, withOuts } from "./step6Fixtures.js";
 import { drawBeat, resolveBeatTick } from "../src/resolve/beatClock.js";
 import { fromOf, threatApproachOf, threatSideOf, withApproach } from "../src/resolve/approach.js";
 import { freeRunClock } from "../src/resolve/freeRun.js";
@@ -173,6 +190,12 @@ const STEP5_SPY_TABLE: readonly (readonly [string, (...args: never[]) => unknown
   .sort(([a], [b]) => a.localeCompare(b));
 const STEP5_SPIES = STEP5_SPY_TABLE.map(([, f]) => vi.mocked(f));
 
+/** ADR-089 step 6 (P-18): every export of `sim/outs.ts` that is a function, by name. */
+const STEP6_SPY_TABLE: readonly (readonly [string, (...args: never[]) => unknown])[] = Object.entries(outsModule as Record<string, unknown>)
+  .flatMap(([name, f]) => (typeof f === "function" ? [[name, f as (...args: never[]) => unknown] as const] : []))
+  .sort(([a], [b]) => a.localeCompare(b));
+const STEP6_SPIES = STEP6_SPY_TABLE.map(([, f]) => vi.mocked(f));
+
 afterEach(() => {
   vi.mocked(drawBeat).mockClear();
   vi.mocked(resolveBeatTick).mockClear();
@@ -183,6 +206,7 @@ afterEach(() => {
   for (const spy of STEP3_SPIES) spy.mockClear();
   for (const spy of STEP4_SPIES) spy.mockClear();
   for (const spy of STEP5_SPIES) spy.mockClear();
+  for (const spy of STEP6_SPIES) spy.mockClear();
   vi.restoreAllMocks();
 });
 
@@ -565,5 +589,85 @@ describe("ADR-089 step 5a: no rule set before step 5 runs a clean-pocket functio
     const s4 = simulateGame(fixture.state, inputs, fixture.seed, S4_TUNABLES);
     const s4off = simulateGame(fixture.state, inputs, fixture.seed, withCleanPocket(S4_TUNABLES, CLEAN_POCKET_OFF));
     expect(JSON.stringify(s4off)).toBe(JSON.stringify(s4));
+  });
+});
+
+/**
+ * ADR-089 step 6, P-18 (step-6 plan §8.1): legacy, every set of steps 1 to 5a and kind T call no
+ * export of `sim/outs.ts`, play (with and without a picture) and game; the block's parts call every
+ * one. P-18b at the engine's reach: an s5a bundle with the all-off block (same stamp) gives the s5a
+ * stream byte for byte, play by play, and calls none of them.
+ */
+describe("ADR-089 step 6: no rule set before step 6 runs an outs function (P-18)", () => {
+  const named = (): Record<string, number> => Object.fromEntries(STEP6_SPY_TABLE.map(([name, f]) => [name, vi.mocked(f).mock.calls.length]));
+  const zero = (): Record<string, number> => Object.fromEntries(STEP6_SPY_TABLE.map(([name]) => [name, 0]));
+  const pictured = (fixture: ReturnType<typeof buildGameFixture>) => ({
+    ...fixture.inputs,
+    callers: { home: withLineUp(fixture.inputs.callers.home), away: withLineUp(fixture.inputs.callers.away) },
+  });
+  /** The s5a shapes, each with the picture it needs. */
+  const S5_SETS = [[S5_TUNABLES, true], [S5S_TUNABLES, false], [S5L_TUNABLES, false], [onCleanBench(S5S_TUNABLES), false]] as const;
+  /** Blocks that between them reach every export: each part built so far, alone. */
+  const PARTS = [outsParts({ throwawayRule: true })];
+
+  it("the module's exports are the ones the parts built so far name", () => {
+    expect(STEP6_SPY_TABLE.map(([name]) => name)).toEqual(["throwawayLegalInPocket"]);
+  });
+
+  it("legacy, every s1 to s4 set, T and the s5a sets call none of them, play (with and without a picture) and game", () => {
+    const step4 = [S4_TUNABLES, S4S_TUNABLES, S4L_TUNABLES, S4C_TUNABLES, S4M_TUNABLES, T_TUNABLES];
+    const sets = [
+      { name: "default", tunables: DEFAULT_TUNABLES },
+      ...RULE_SETS,
+      ...step4.map((t) => ({ name: t.engineRules?.name ?? "T", tunables: t })),
+      ...S5_SETS.map(([t]) => ({ name: t.engineRules?.name ?? "s5", tunables: t })),
+    ];
+    for (const { name, tunables } of sets) {
+      expect("outs" in tunables.pocket, name).toBe(false);
+      for (const [, build] of PASS_FIXTURES) {
+        for (let i = 0; i < 10; i++) {
+          const { state, calls } = build();
+          if (!isStep3(name) && tunables !== S4_TUNABLES && tunables !== S5_TUNABLES) simulatePassPlay(state, calls, `isolation-s6-${i}`, tunables);
+          simulatePassPlay(state, withPicture(state, calls), `isolation-s6-${i}`, tunables);
+        }
+      }
+    }
+    const fixture = buildGameFixture({ seed: "isolation-s6-game" });
+    simulateGame(fixture.state, fixture.inputs, fixture.seed);
+    for (const t of [S2_TUNABLES, S3_TUNABLES, S4_TUNABLES, T_TUNABLES, S5_TUNABLES, S5S_TUNABLES]) simulateGame(fixture.state, pictured(fixture), fixture.seed, t);
+    expect(named()).toEqual(zero());
+  });
+
+  it("the spies are wired: the block's parts call every one", () => {
+    for (const block of PARTS) {
+      for (const [tunables, picture] of S5_SETS) {
+        for (const [, build] of PASS_FIXTURES) {
+          for (let i = 0; i < 15; i++) {
+            const { state, calls } = build();
+            playS6(state, picture ? withPicture(state, calls) : calls, `isolation-s6-on-${i}`, withOuts(tunables, block));
+          }
+        }
+      }
+    }
+    const plays = named();
+    for (const [name] of STEP6_SPY_TABLE) expect(plays[name], name).toBeGreaterThan(0);
+  });
+
+  it("P-18b (engine): an s5a bundle with the all-off block, same stamp, gives the s5a stream play by play and calls none", () => {
+    for (const [base, picture] of S5_SETS) {
+      const off = withOuts(base, OUTS_OFF);
+      expect(off.engineRules).toEqual(base.engineRules);
+      for (const [fixture, build] of PASS_FIXTURES) {
+        for (let i = 0; i < 10; i++) {
+          const a = build();
+          const b = build();
+          const without = simulatePassPlay(a.state, picture ? withPicture(a.state, a.calls) : a.calls, `p18b-s6-${fixture}-${i}`, base);
+          const withOff = playS6(b.state, picture ? withPicture(b.state, b.calls) : b.calls, `p18b-s6-${fixture}-${i}`, off);
+          expect(JSON.stringify(withOff.events), `p18b-s6-${fixture}-${i}`).toBe(JSON.stringify(without.events));
+          expect(withOff.records).toEqual([]);
+        }
+      }
+    }
+    expect(named()).toEqual(zero());
   });
 });

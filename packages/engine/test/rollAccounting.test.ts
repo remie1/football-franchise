@@ -28,6 +28,13 @@ vi.mock("../src/sim/cleanPocket.js", async (importOriginal) => {
   return { ...real, mustDecideNow: vi.fn(real.mustDecideNow), cleanExpiry: vi.fn(real.cleanExpiry) };
 });
 
+// ADR-089 step 6 (R-4): pass-through spies, so each part's pairing reads the tick on which the part
+// first acts. Nothing is changed; no rule set before s6 calls the module.
+vi.mock("../src/sim/outs.js", async (importOriginal) => {
+  const real = await importOriginal<typeof import("../src/sim/outs.js")>();
+  return { ...real, throwawayLegalInPocket: vi.fn(real.throwawayLegalInPocket) };
+});
+
 import { createRng, playerId } from "@ff/contracts";
 import type { MatchEvent, MatchEventEnvelope, RollDetail } from "@ff/contracts";
 import { defaultPlayCaller, simulateGame, simulatePassPlay, simulateRunPlay } from "../src/index.js";
@@ -56,7 +63,10 @@ import { mustActThreat } from "../src/resolve/pocket.js";
 import { cleanExpiry, mustDecideNow } from "../src/sim/cleanPocket.js";
 import { timeBudgetSeconds } from "../src/resolve/qbRead.js";
 import { S4_TUNABLES } from "./step4Fixtures.js";
-import { CLEAN_POCKET_FILED, DROP_FLOOR_FILED, S5L_TUNABLES, S5S_TUNABLES, S5_TUNABLES, cleanParts, restampS5, withCleanPocket } from "./step5Fixtures.js";
+import { CLEAN_POCKET_FILED, DROP_FLOOR_FILED, S5L_TUNABLES, S5S_TUNABLES, S5_TUNABLES, cleanParts, onCleanBench, restampS5, withCleanPocket } from "./step5Fixtures.js";
+import { throwawayLegalInPocket } from "../src/sim/outs.js";
+import type { OutsTunables } from "../src/tunables.js";
+import { outsParts, playS6, withOuts } from "./step6Fixtures.js";
 import {
   RUN_SCHEMES,
   buildDeflectionScenario,
@@ -1300,6 +1310,101 @@ describe("ADR-004 roll accounting", () => {
           seen.set(roll.rngLabel, seq);
         }
       }
+    });
+  });
+
+  /**
+   * ADR-089 step 6, R-4: ROLL ACCOUNTING BY PART (step-6 plan §8.2), for the parts built so far.
+   * Each part alone is played against `pocket-1.s5a` (D1's shape with the picture, and shape S on
+   * the clean bench, where clean expiries come in number), every pass fixture and seed, through the
+   * engine's seam with step 6's petitions:
+   *  27. the throwaway rule alone draws s5a's rolls, label and value, in order, up to the first tick
+   *      on which the rule is read (the forced pick or the CLOCK_EXPIRED path);
+   *  28. after each cut no family is new over s5a's (the carrier's labels left out and the rush
+   *      bucket's men read as one, as step 5a's pairing reads them): the parts built so far draw no
+   *      new die, and the later parts' families (`:deadline`, `:drill:`, a contest at the escape)
+   *      are 2.8, 2.9 and 2.11's;
+   *  29. under every part built so far together: no RollDetail twice in a play, and no `:deadline`,
+   *      `:drill:`, `:contact` or `:dodge`.
+   */
+  describe("step 6 (R-4)", () => {
+    const family = (label: string): string =>
+      label.replace(/(^|[/:])t\d+(\.\d+)?(?=[:/]|$)/g, "$1t#").replace(/:([ra])\d+:/g, ":$1#:").replace(/\/play:\d+\//g, "/play:#/");
+    const kind = (f: string): string => f.replace(/\/rush\/t#\/[^/:]+/, "/rush/t#/*").replace(/:contest:[^/:]+$/, ":contest:*");
+    const ticked = (events: readonly MatchEventEnvelope[]) => {
+      const tickOfSeq = new Map(events.map((e) => [e.seq, (e.event as { tick?: number }).tick]));
+      return allRolls(events).map((r) => ({ label: r.roll.rngLabel, raw: r.roll.raw, seq: r.seq, tick: tickOfSeq.get(r.seq) }));
+    };
+    type Rolls = ReturnType<typeof ticked>;
+    const BASES: readonly { readonly name: string; readonly tunables: Tunables; readonly fixtures: () => readonly (readonly [string, () => { state: Parameters<typeof simulatePassPlay>[0]; calls: Parameters<typeof simulatePassPlay>[1] }])[] }[] = [
+      { name: "s5a", tunables: S5_TUNABLES, fixtures: () => step3Fixtures() },
+      { name: "s5a shape S, clean bench", tunables: onCleanBench(S5S_TUNABLES), fixtures: () => PASS_FIXTURES },
+    ];
+    /** The tick at which the part first acts, from its spy, or `undefined` when it never did. */
+    type Part = { readonly name: string; readonly block: OutsTunables; readonly cutTick: () => number | undefined };
+    const PARTS: readonly Part[] = [
+      {
+        name: "the throwaway rule",
+        block: outsParts({ throwawayRule: true }),
+        cutTick: () => vi.mocked(throwawayLegalInPocket).mock.calls[0]?.[0].tick,
+      },
+    ];
+    const SEEDS = 30;
+
+    it("each part alone draws s5a's rolls up to its own cut, and adds no family (27, 28)", () => {
+      for (const part of PARTS) {
+        const baseKinds = new Set<string>();
+        const armFamilies = new Set<string>();
+        let cutPlays = 0;
+        let differ = 0;
+        for (const { name, tunables, fixtures } of BASES) {
+          for (const [fixture, build] of fixtures()) {
+            for (let i = 0; i < SEEDS; i++) {
+              const seed = `paired-s6-${part.name}-${fixture}-${i}`;
+              const { state, calls } = build();
+              vi.mocked(throwawayLegalInPocket).mockClear();
+              const base: Rolls = ticked(simulatePassPlay(state, calls, seed, tunables).events);
+              const arm: Rolls = ticked(playS6(state, calls, seed, withOuts(tunables, part.block)).events);
+              for (const r of base) baseKinds.add(kind(family(r.label)));
+              for (const r of arm) armFamilies.add(family(r.label));
+              const cutTick = part.cutTick();
+              let cut: number | undefined;
+              if (cutTick !== undefined) {
+                cutPlays += 1;
+                // A base that drew nothing at or past the cut is equal in full.
+                const k = base.findIndex((r) => (r.tick ?? 0) >= cutTick);
+                cut = k < 0 ? base.length : k;
+              }
+              const n = cut ?? Math.max(base.length, arm.length);
+              expect(arm.slice(0, n).map((r) => [r.label, r.raw]), `${part.name} ${name} ${seed}`).toEqual(base.slice(0, n).map((r) => [r.label, r.raw]));
+              if (JSON.stringify(arm.map((r) => [r.label, r.raw])) !== JSON.stringify(base.map((r) => [r.label, r.raw]))) differ += 1;
+            }
+          }
+        }
+        const added = [...armFamilies].filter((f) => !f.includes("/carrier/") && !baseKinds.has(kind(f)));
+        expect(added, `${part.name}: ${JSON.stringify(added)}`).toEqual([]);
+        expect(cutPlays, part.name).toBeGreaterThan(50);
+        // The part acts: some plays part from the base after their cut.
+        expect(differ, part.name).toBeGreaterThan(0);
+      }
+    });
+
+    it("no RollDetail twice in a play under every part built so far, and no later part's family (29)", () => {
+      const together = outsParts(Object.assign({}, ...PARTS.map((p) => p.block)) as Partial<OutsTunables>);
+      const LATER = /:deadline$|:drill:|:contact(:|$)|:dodge(:|$)|:alarm(:|$)/;
+      let rolls = 0;
+      for (const { name, tunables, fixtures } of BASES) {
+        for (const [fixture, build] of fixtures()) {
+          for (let i = 0; i < SEEDS; i++) {
+            const { state, calls } = build();
+            const labels = allRolls(playS6(state, calls, `s6-once-${fixture}-${i}`, withOuts(tunables, together)).events).map((r) => r.roll.rngLabel);
+            rolls += labels.length;
+            expect(new Set(labels).size, `${name} ${fixture} ${i}`).toBe(labels.length);
+            expect(labels.filter((l) => LATER.test(l)), `${name} ${fixture} ${i}`).toEqual([]);
+          }
+        }
+      }
+      expect(rolls).toBeGreaterThan(1000);
     });
   });
 });
