@@ -508,6 +508,175 @@
           "seedSets": "Bands graded on seed set 1 with set 2 beside; split reported. The guard is AM-8's."
         }
       }
+    },
+    {
+      "id": "AM-11",
+      "name": "the played order after the owner's Wait: steps 6 and 7 before 5b on the interim clock and graded again at the winning clock, the row rule for the owner's new count, the relocated 5b's curve, and the 5a miss answered in words",
+      "filedBeforeStep": "6",
+      "steps": ["6", "7", "5b", "8a", "8b", "9", "10", "11"],
+      "supersedes": [],
+      "untouched": ["s5a.cleanScramble", "s6.pressuredThrowaway", "s6.falsifier.pressuredThrowaway", "s6.mobilityProbe.p2s", "s6.cleanOutOfPocket", "s6.onTheRun.pressuredCompletion", "s6.onTheRun.pressuredInt", "s7.pressure", "s7.pressuredReachingHit", "s5b.sack", "s5b.hitOrSack", "s5b.release", "s5b.clockExpired", "s5b.pressure", "s5b.quick", "s10.dial.blockClock", "s10.fittingOrder", "mr.bin20.raw", "mr.unblockedPressures", "mr.unblockedShare", "acc.pressuredCurve.bins", "acc.pressuredCurve.rms", "s7.awarenessProbe.p2s", "s7.awarenessProbe.clean", "s7.patienceProbe.pressure", "s7.patienceProbe.p2s", "mr.class.supply", "mr.class.timing"],
+      "defaults": ["D1", "D6", "D31"],
+      "adrLines": [946, 947, 948],
+      "cites": [179, 420, 422, 425, 432, 476, 745, 945, 1057, 1061, 1063, 1069, 1128, 1547, 1552, 1582],
+      "record": "ADR-089 Appendix J, J.9",
+      "reason": "On 2026-11-26 the owner chose Wait on step 5b (21:56:54Z): 5b is held until step 7 builds the owner's new count, so steps 6 and 7 play first, on a block timing nobody has chosen. This entry files that order before step 6's first arm, with what the order changes and nothing else: the interim clock and the two gradings the owner asked for (Check twice, 23:27:36Z), shape L kept in the choice (Keep it, 22:45:14Z), the row rule that keeps every row filed on the simulation's physical count physical while the selection and the fits read the new count once step 7 builds it, the relocated 5b's curve read on the new count (AM-10's selectionCurve and step10 amended in place by rule.amends), and the step-6 gate on the owner's words about the 5a miss (2026-11-27 14:28:48Z). It moves no band, step id or filed word, supersedes no clause, and leaves AM-8's guard map and AM-10's other readings as filed. Every lookup of a step's place in this file reads the played order (calibration's K0, which lands first), so the views at steps 2, 3, 4 and 5a do not move. It withdraws by name the draft AM-11 of 2026-11-14, which recommended running 5b at once and was never filed. R-9's twin under the relocated selection, which the reorder plan of 2026-11-26 put here, is left to the entry that relocates 5b, because the build the selection's grid stands on exists only once step 7 is built.",
+      "ownersWord": {
+        "ts": "2026-11-26T21:56:54Z",
+        "words": "Wait",
+        "question": {
+          "words": "Run step 5b now on today's count, or wait for the new one?",
+          "option": "Hold 5b until step 7 builds the new count; steps 6 and 7 lose the block timing they build on, so the plan is reordered"
+        },
+        "alsoTapped": [
+          {
+            "ts": "2026-11-26T21:58:16Z",
+            "words": "New rating",
+            "reading": "a new quarterback rating, working name Pocket Feel, judges how much time a rusher needs to reach him; it is petition P19, asked before step 7 once its name and how it is handed out are settled, with its own typed yes, and nothing of it is in this entry"
+          },
+          {
+            "ts": "2026-11-26T21:59:00Z",
+            "words": "His clock",
+            "reading": "he must act when his own guess of the time left reaches half a second, so a poor judge can hold the ball into a hit; built at step 7, and nothing of it is in this entry"
+          },
+          {
+            "ts": "2026-11-26T22:45:14Z",
+            "words": "Keep it",
+            "reading": "the gradual block clock (shape L) stays in the relocated 5b's choice: readings.ifL"
+          },
+          {
+            "ts": "2026-11-26T23:27:36Z",
+            "words": "Check twice",
+            "reading": "steps 6 and 7 are graded on the interim clock and again at the clock the relocated 5b chooses: readings.checkTwice"
+          },
+          {
+            "ts": "2026-11-27T02:20:23Z",
+            "words": "Merge",
+            "reading": "step 5a merged (PR #99, main 564e2a3); nothing of it is in this entry"
+          }
+        ],
+        "answeredInWords": {
+          "ts": "2026-11-27T14:28:48Z",
+          "card": "the step-5a miss card (s5a.cleanScramble against 2 to 6: flat 12.96 on seed set 1 and 12.63 on set 2; gen 6.89 and 5.64, a split; real 3.92)",
+          "words": "Is our 13.0 times per 100 flat something that may change after step 6? If that's the case then we should hold off on this now and revisit it after 6.",
+          "answer": "The Orchestrator's answer, as given: step 6 can change it (the out-of-pocket throwaway, the failed scramble scored as a sack, the pursuer's speed in the escape, the escape cap), and step 6 alone is unlikely to bring flat under 6 (INFERRED: the design priced the throwaway part at about 0.5 in 100, ADR-089:745, and the clean bench has no rush, so a play with nobody open always ends in a break-out).",
+          "revisedBeforeFiling": "Before this entry was filed the step-6 planning revised that forecast and the owner was told (J.9 gives when and what): the filed run margin must be re-derived for a deadline that reads urgency 0 (risk K9), which turns about three deadline picks in four into throwaways, so on step 5a's own count flat's 12.96 is forecast near 2.7 and gen's 6.89 near 1.8 (INFERRED).",
+          "reading": "The card was closed by the Orchestrator on these words, not by a tap, and the close means go on now and nothing more: step 6 goes ahead; the 5a verdict stays as filed, a failed prediction (AM-9 item 15, readings.missAt5a); no band moves and nothing is re-graded at 5a; after step 6 the break-out numbers go back to the owner with what moved them. J.6 item 1's two choices, to accept the miss as named with step 6's escape cap, caught escape and deadline pick as its fix, or to stop for a design change filed before any re-run, are the owner's to make then; J.6 item 1's words 'its Accept means that step 6's escape cap, caught escape and deadline pick are the named fix' are not yet the owner's acceptance. The reorder plan's step-6 gate asked for a real tap; the owner's own typed words stand in for it, because they answer the card's question in the owner's words, and the gate below reads their timestamp."
+        }
+      },
+      "rule": {
+        "playedOrder": ["0", "1", "2", "3", "4", "5a", "6", "7", "5b", "8a", "8b", "9", "10", "11"],
+        "readings": {
+          "order": "The steps play in playedOrder. Their ids, their filed content and their bands do not change; only 5b moves, to after step 7 and before step 8a. An entry's filedBeforeStep names the step it precedes in this order, and a step's view of this file holds the entries filed before that step or an earlier one in this order.",
+          "interimClock": "Steps 6 and 7 are built and graded on the interim clock: shape S, theta 11, k 2, beta 0.5, the push window, b 5. It is step 5a's own clock and grid point F5, the provisional value filed before any result (ADR-089:420), chosen by nobody. Every record, report and save of steps 6 and 7 prints 'interim clock S theta 11 (F5), not selected' beside its stamp.",
+          "checkTwice": "By the owner's word (Check twice), steps 6 and 7 are graded once on the interim clock and again at the clock the relocated 5b selects. Each step's readings entry files how its clauses read at the second grading (step 6's: AM-13, which reads at 5b for it); every clause is read exactly as at its step, on the count it read there, with its arms played at the winning clock against their base there: step 6's against s5a's parts at the winner (F0), step 7's against step 6's build at the winner. A graded clause whose verdict on the generated league's seed set 1 goes from PASS to FAIL is a new miss and goes to the owner before step 8a; FAIL to PASS, a split that appears or goes away, and any structural failure (a build fault) are printed and told. The second grading also reads the guard, each step's build at the winner against its base there under AM-1's statistic, on a map filed by the entry that relocates 5b, which restates AM-8's 5b pairs; a breach stops the work before step 8a and goes to the owner. When the winner's overlay digest equals F5's, the step's records stand as its second grading and the record says so.",
+          "ifL": "By the owner's word (Keep it), shape L stays among the relocated 5b's candidates. If an L point wins, AM-10's ifL runs first (questions 1, 3 and 16 to the owner, then P2r and P3r, then the pin conflict of deleting the S path, ADR-089:432 and :476, which now holds pocket-1.s6's and pocket-1.s7's pins too); the interim side of the second grading is read before any S path is deleted; then steps 6 and 7 are built again on L and graded again before step 8a. Their S builds keep their names and pins, so their records replay.",
+          "newCount": "The new count is the owner's count of a pressured dropback, which step 7 builds: did he react to a rusher, get hit or get sacked. Until the owner answers what counts as pressured (the Q1 card) it is read as Plus contact: he reacted to a rusher, was hit, or was sacked. Under Plus contact a throwaway or an escape forced at must act is pressured by definition, so forced throwaways and forced scrambles become partly pressured by construction (INFERRED). Its construct is filed by an entry before step 7's first arm; this entry does not decide it.",
+          "rowRule": "Through step 6 every row that reads pressure on the simulation's side reads the physical count, the worst POCKET_STATUS not CLEAN, printed as 'rusher got close'. Once step 7 builds the new count: rows that select or fit against real charted pressure (the relocated 5b's selection, step 10's rerun and fits) read the new count, printed as 'pressured'; rows whose bands were filed on the simulation's physical count (s5b.pressure, s7.pressure and their like, step 7's own checks included) stay physical, printed as 'rusher got close', with the new count beside; acceptance rows stay as filed, with the new count printed beside, and the owner rules on them at the end. At the second grading every s6 and s7 row reads the count it read at its step, with the new count beside. This differs from the owner page of 2026-11-14, which said every check reading 'pressured' would be rewritten to the new count from step 7 on; the owner is told so. No band moves.",
+          "relocated5b": "5b plays after step 7 and before step 8a, with its filed bands, AM-10's readings as amended below, and AM-8's 5b map as filed. AM-10's s5b.arm stands: F0 is the winner's dials restamped pocket-1.s5b, s5a's parts at the winning clock with no step-6 or step-7 part, which is the build 5b's bands were derived for (ADR-089:1061-1063); when S theta 11 wins, F0's dials equal F5's. The fitting order is unchanged (ADR-089:1128).",
+          "selectionBuild": "The selection reads the new count, which only a build carrying step 7's count gives. The build the selection's grid is played on, the twin rule (R-9) under it and the new count's construct are filed by the entry that relocates 5b, before step 7's first arm. Until that entry, 5b stays held by the Wait.",
+          "s5aRevisit": "After step 6, s5a.cleanScramble is reported again with what moved it, never graded at step 6, and goes to the owner with step 6's record; the owner then makes J.6 item 1's choice. Where and how step 6 reports it is filed with step 6's readings (AM-13). Step 7's first arm waits for the owner's word on it.",
+          "deferred": "Filed by the entry that relocates 5b, before step 7's first arm: the new count's construct, the selection's build and R-9's twin under it, the second grading's guard map (restating AM-8's 5b pairs), 5b's own guard map if it needs restating, and how AM-10's missSplit names class (iii)'s suppliers once steps 6 and 7 are built."
+        },
+        "gate": {
+          "step6": {
+            "s5aMiss": "s5a.cleanScramble",
+            "answeredAt": "2026-11-27T14:28:48Z",
+            "reads": "Step 6's harness opens only with step 5a's records final and holding no fault and no breach, and with the owner's words on the 5a miss on file: it reads the timestamp here, not a flag, and step 6 takes no --after-owner. The words stand in for the real tap the reorder plan asked for (ownersWord.answeredInWords.reading)."
+          }
+        },
+        "amends": [
+          {
+            "entry": "AM-10",
+            "path": "rule.readings.selectionCurve",
+            "was": "selects, by the owner's word",
+            "becomes": "selects, its simulation side read on the count step 7 builds and not the physical one (AM-11 readings.newCount), against the same real curve (ADR-089:179), by the owner's word"
+          },
+          {
+            "entry": "AM-10",
+            "path": "rule.readings.step10",
+            "was": "Step 10's rerun reads the same curve",
+            "becomes": "Step 10's rerun reads the same curve, on the same count as the relocated 5b's (AM-11 readings.newCount),"
+          }
+        ],
+        "withdraws": {
+          "what": "the draft AM-11 of the 2026-11-14 pressure-as-reaction proposal, its item D ('recommend Run now'), never filed",
+          "items": "(i) 5b's selection label is the physical one; (ii) from step 7 on, graded 'pressured' rows read the new count; (iii) step 10's block-clock rerun selects on the new count against the same real curve",
+          "why": "(i) is withdrawn by the owner's Wait; (ii) is replaced by readings.rowRule; (iii) by the amendment of AM-10's step10 reading. This entry takes the id AM-11."
+        }
+      }
+    },
+    {
+      "id": "AM-12",
+      "name": "the guard at step 6: the outs against pocket-1.s5a on the league, and the 5a checklist on the league against step 4's design restated from AM-8",
+      "filedBeforeStep": "6",
+      "steps": ["6"],
+      "supersedes": ["guard.mix", "guard.byClass"],
+      "untouched": ["acc.intGuard", "guard.onTheRun.clean", "guard.onTheRun.pressured", "guard.removedClass"],
+      "defaults": ["D9", "D28"],
+      "adrLines": [1306, 1308],
+      "cites": [947, 1063, 1287, 1552, 1555],
+      "record": "ADR-089 Appendix J, J.10",
+      "reason": "AM-1 (Appendix F, F.11) reads the guard at steps 2 to 10 against the previous step's arm and requires each later step's map filed as a named entry before that step's arms run; this is step 6's, filed with AM-11 before any step-6 arm plays, F5 included. In the played order (AM-11) the previous step is 5a, and step 6 builds on pocket-1.s5a on the league (F5), which no record holds: step 5a ran on the clean bench, and AM-8 maps F5 against step 4's design (D1) only at 5b, which now plays after step 7. So this map grades two pairs at step 6: the outs, pocket-1.s6 (H0), against F5; and the 5a checklist on the league, F5 against D1, restated from AM-8 so step 6 does not build on a pair nobody has read. The two pairs share F5's draw. F5 is played fresh, twice in separate processes, with identical stream digests. D1 replays step 4's records, except the generated league's seed set 2, which is dated history on trees with AB-L (Appendix I, I.13): it is re-played, its move printed, and never a fault. Every other rule value is AM-8's, step 5's class view included. Section 8 prices each change at its step, so each part alone, the probes, the information arms, the mirrored arm and every bench arm are printed beside, unguarded, each with its Z. With nothing changed this map stops the step by chance about 10% of the time (9.6%; 9.7% and 9.9% on two more seed offsets), computed before filing as AM-8's figure was: AM-1's statistic, 100,000 trials, step 4's records for D1 standing in for all three arms, on the classes step 5's view scores; J.10 gives the method. A breach stops the step and goes to the owner with both seed sets (D9). How the outs are read is AM-13's.",
+      "ownersWord": null,
+      "rule": {
+        "base": "previousStepArm",
+        "pricingBase": "previousStepPricingArm",
+        "bases": {
+          "6": {
+            "H0": "F5",
+            "F5": "D1"
+          }
+        },
+        "laterBases": "filed as a named entry before that step's arms run",
+        "gradedArms": "every arm in the step's map",
+        "replayMustEqualPreviousRecords": true,
+        "freshBases": {
+          "F5": "no committed record holds pocket-1.s5a on the league (step 5a ran on the clean bench, and AM-8's 5b map plays after step 7): played fresh and twice in separate processes, identical stream digests required, both sets, both leagues; its overlay digest equals POCKET_1_S5A_DIGEST"
+        },
+        "replayExceptions": [
+          {
+            "arm": "D1",
+            "league": "gen",
+            "seedSet": 2,
+            "record": "ADR-089 Appendix I, I.13",
+            "how": "dated history on trees with AB-L: re-played, its move from step 4's record printed beside, never a fault; the pair F5 against D1 reads the re-played D1 on that set"
+          }
+        ],
+        "skipEqualDials": true,
+        "classView": "S5",
+        "allowance": "filed",
+        "se": "binomialIndependent",
+        "statistic": "pooledZ",
+        "seedSets": [1, 2],
+        "zLeague": 2.0,
+        "zClass": 3.0,
+        "breachIf": "greaterThan",
+        "zSetSE0": 0,
+        "classes": "GUARD_CLASSES",
+        "reportedSplits": {
+          "DESPERATION": ["DIRTY", "CLEAN"],
+          "PROGRESSION": ["AFTER_CLEAN_MOVE", "OTHER"],
+          "CLEAN_EXPIRY": ["AFTER_CLEAN_MOVE", "OTHER"],
+          "ON_THE_RUN": ["CLEAN_BREAKOUT", "PRESSURED"]
+        },
+        "dirtyPocket": "lastStatusAtOrBeforeRelease",
+        "onCompositionClassBreach": ["DESPERATION", "CHECKDOWN"],
+        "reportFiledReading": true,
+        "reportMinimumExcess": true,
+        "reportPairedSE": true,
+        "cumulative": {
+          "design": "A0",
+          "pricing": "A14",
+          "graded": false
+        },
+        "acceptedState": {
+          "design": "A1",
+          "pricing": "A11",
+          "fromStep": "3",
+          "graded": false
+        }
+      }
     }
   ]
 }

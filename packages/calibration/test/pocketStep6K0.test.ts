@@ -1,6 +1,7 @@
 /**
- * ADR-089 STEP 6, K0 (step-6 plan §3.1 items 2, 3, 5 and 6; §10.3): before the filing of AM-11 and
- * AM-12 and before any step-6 arm, with no play change.
+ * ADR-089 STEP 6, K0 (step-6 plan §3.1 items 2, 3, 5 and 6; §10.3), before any step-6 arm and with no
+ * play change, and the gate's reading of AM-11 and AM-12 once they are filed (ADR-089 Appendix J, J.9
+ * and J.10; step-6 plan §10.1 item 2).
  *
  *  1. Step 6's arm ids are named and inert: `STEP6_ARM_IDS` (35 ids) are arms of this build
  *     (`isAnyArmId`, so AM-12's base map validates), `runIdsOf(6)` is D1, F5, E9 and then them, no
@@ -10,7 +11,9 @@
  *  3. `--step 6` is parsed (`parseStep6Args`: the run flags, `--fresh-base`, `--digests`; no
  *     `--after-owner`), and step 6's gate (`step6.ts`) refuses before anything plays, naming every
  *     condition it waits for; on synthetic states it opens only when all five hold, for every option of
- *     each of the owner's three questions, so no answer is privileged.
+ *     each of the owner's three questions, so no answer is privileged. With AM-11 and AM-12 filed it
+ *     reads the owner's words on the 5a miss and AM-12's guard from the file, and still waits for
+ *     STEP6_AMENDMENTS_PIN and AM-13, the petitions and the recorded bundle.
  *  4. Step 5b's pin is its view under the played order, the whole file in this build, so
  *     `--step 5b --digests` keeps its preflight; 5b is still held by the owner's Wait.
  */
@@ -149,8 +152,10 @@ describe("step 6's arm ids, named and inert (plan §3.1 item 2, §5)", () => {
     expect(() => armById("H16" as ArmId)).toThrow(/^arms: no arm H16$/);
   });
 
-  it("AM-12's base map on a stand-in entry names arms of this build; an id past HF5 does not (the committed file is only read)", () => {
+  it("AM-12's base map names arms of this build, as filed and on a stand-in entry; an id past HF5 does not (the committed file is only read)", () => {
     const filing = loadFiled(FILED);
+    expect(amendmentsProblems(whole(), filing)).toEqual([]);
+    const n = whole().entries.length;
     const withBases = (bases: Record<string, Record<string, string>>): unknown => {
       const j = JSON.parse(JSON.stringify(whole())) as { entries: Record<string, unknown>[] };
       const standIn = JSON.parse(JSON.stringify(j.entries.find((e) => e["id"] === "AM-8"))) as Record<string, unknown>;
@@ -165,7 +170,7 @@ describe("step 6's arm ids, named and inert (plan §3.1 item 2, §5)", () => {
     };
     expect(amendmentsProblems(withBases({ "6": { H0: "F5", F5: "D1" } }), filing)).toEqual([]);
     const past = amendmentsProblems(withBases({ "6": { H16: "F5", F5: "D1" } }), filing);
-    expect(past).toEqual(["entries.10.rule.bases.6.H16: not an arm of this build"]);
+    expect(past).toEqual([`entries.${String(n)}.rule.bases.6.H16: not an arm of this build`]);
   });
 });
 
@@ -224,7 +229,7 @@ describe("--step 6, parsed (plan §3.1 item 5, §9)", () => {
 });
 
 describe("step 6's gate (plan §10.3), refusing before anything plays", () => {
-  it("this build's state: the 5a records are final with no fault or breach and one graded miss; nothing else is on file", () => {
+  it("this build's state: the 5a records are final with no fault or breach and one graded miss, answered in AM-11's gate; AM-12 is step 6's guard; nothing else is on file", () => {
     const st = step6GateState();
     expect(st.s5aFinal).toBe(true);
     expect(st.s5aRecordProblem).toBeUndefined();
@@ -234,8 +239,8 @@ describe("step 6's gate (plan §10.3), refusing before anything plays", () => {
     expect(st.viewDigest).toBe(AMENDMENTS_DIGEST);
     expect(st.viewPin).toBeNull();
     expect(STEP6_AMENDMENTS_PIN).toBeNull();
-    expect(st.ownersAnswer).toBeUndefined();
-    expect(st.guard).toBeUndefined();
+    expect(st.ownersAnswer).toEqual({ s5aMiss: "s5a.cleanScramble", answeredAt: "2026-11-27T14:28:48Z" });
+    expect(st.guard).toBe("AM-12");
     expect(st.readings).toBeUndefined();
     expect(st.petitionsOut).toEqual(["P9", "P10", "P11", "P12", "P20"]);
     expect(st.s6Digest).toBeUndefined();
@@ -244,15 +249,13 @@ describe("step 6's gate (plan §10.3), refusing before anything plays", () => {
   it("refuses this build, naming every condition it waits for, in the plan's order", () => {
     const st = step6GateState();
     expect(step6GateWaits(st)).toEqual([
-      "(2) the owner's words on the 5a miss s5a.cleanScramble, filed in AM-11's rule.gate.step6 (the step-6 view holds no AM-11)",
       `(3) the step-6 view of the amendments file (${AMENDMENTS_DIGEST}) pinned: STEP6_AMENDMENTS_PIN is set when AM-13, step 6's readings, is filed`,
-      "(3) step 6's guard map, filed as AM-12 (no filed entry maps step 6's guard bases)",
       "(3) AM-13, step 6's readings, filed with the owner's three answers (spentChecklist, scrambleStart, seen) in its ownersWord",
       "(4) P9, P10, P11, P12, P20 in contracts (each after the owner's typed yes and contracts-guardian's review, then the lift)",
       "(5) pocket-1.s6 recorded (POCKET_1_S6_DIGEST is unset)",
     ]);
     const refusal = step6GateRefusal(st);
-    expect(refusal).toMatch(/^ADR-089 step 6: refused before anything plays \(the gate, plan §10\.3\): it waits for \(2\) the owner's words on the 5a miss s5a\.cleanScramble/);
+    expect(refusal).toMatch(/^ADR-089 step 6: refused before anything plays \(the gate, plan §10\.3\): it waits for \(3\) the step-6 view of the amendments file \(fnv1a:558a3a72\) pinned/);
     expect(refusal).toMatch(/; \(5\) pocket-1\.s6 recorded \(POCKET_1_S6_DIGEST is unset\)\. Nothing has played and no cache was made$/);
   });
 
@@ -324,17 +327,18 @@ describe("step 6's gate (plan §10.3), refusing before anything plays", () => {
     ]);
   });
 
-  it("reads AM-11's words, AM-12's guard and AM-13's answers from a step-6 view (stand-ins on a copy)", () => {
+  it("reads AM-11's words and AM-12's guard from the committed step-6 view, and AM-13's answers from a stand-in on a copy", () => {
     const j = JSON.parse(JSON.stringify(whole())) as { entries: Record<string, unknown>[] } & AmendmentsFile;
-    expect(step6ViewFacts(amendmentsAtStep(j, "6"))).toEqual({});
-    const am8 = j.entries.find((e) => e["id"] === "AM-8")!;
-    const base = { supersedes: [], untouched: [], defaults: [], adrLines: [946], cites: [], reason: "a stand-in", ownersWord: null };
-    j.entries.push({ ...base, id: "AM-11", name: "stand-in", filedBeforeStep: "6", steps: ["6", "5b"], record: "J.9", rule: { gate: { step6: { s5aMiss: "s5a.cleanScramble", answeredAt: "2026-11-27T14:28:48Z" } } } });
-    j.entries.push({ ...JSON.parse(JSON.stringify(am8)), id: "AM-12", filedBeforeStep: "6", steps: ["6"], rule: { ...(am8["rule"] as object), bases: { "6": { H0: "F5", F5: "D1" } }, freshBases: { F5: "fresh" } } });
+    const filed = { ownersAnswer: { s5aMiss: "s5a.cleanScramble", answeredAt: "2026-11-27T14:28:48Z" }, guard: "AM-12" };
+    expect(step6ViewFacts(amendmentsAtStep(j, "6"))).toEqual(filed);
+    // Before AM-11 and AM-12 (the file cut to AM-10) the step-6 view held none of them.
+    const filedWhole = whole();
+    const cut: AmendmentsFile = { ...filedWhole, entries: filedWhole.entries.filter((e) => !["AM-11", "AM-12"].includes(e.id)) };
+    expect(step6ViewFacts(amendmentsAtStep(cut, "6"))).toEqual({});
+    const base = { supersedes: [], untouched: [], defaults: [], adrLines: [946], cites: [], reason: "a stand-in" };
     j.entries.push({ ...base, id: "AM-13", name: "stand-in", filedBeforeStep: "6", steps: ["6", "5b"], record: "J.11", ownersWord: { ts: "2026-11-28T00:00:00Z", answers: RECOMMENDED }, rule: { readings: {} } });
     expect(amendmentsProblems(j, loadFiled(FILED))).toEqual([]);
-    const facts = step6ViewFacts(amendmentsAtStep(j, "6"));
-    expect(facts).toEqual({ ownersAnswer: { s5aMiss: "s5a.cleanScramble", answeredAt: "2026-11-27T14:28:48Z" }, guard: "AM-12", readings: { answers: RECOMMENDED } });
+    expect(step6ViewFacts(amendmentsAtStep(j, "6"))).toEqual({ ...filed, readings: { answers: RECOMMENDED } });
     // 5a's view holds none of them.
     expect(step6ViewFacts(amendmentsAtStep(j, "5a"))).toEqual({});
   });

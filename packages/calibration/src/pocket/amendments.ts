@@ -86,11 +86,15 @@ export const AMENDMENTS_PATH = "reports/adr-089-amendments.filed.json";
  * sight by looks (G.10), then AM-5, shape L's toucher die (G.11), then AM-6, the guard at step 4
  * (Appendix H, H.8), and AM-7, step 4's readings (H.9), then AM-8, the guard at step 5 (Appendix I,
  * I.10), AM-9, step 5a's readings (I.11), and AM-10, step 5b's readings (I.12), all three filed before
- * step 5a. A reader of the whole file refuses any other file. Step 2's harness reads the file as it
- * stood at step 2 instead (`STEP2_AMENDMENTS_DIGEST`), and step 4's as it stood at step 4
- * (`STEP4_AMENDMENTS_PIN`, `fnv1a:e0c05cf0`, which AM-8 onward leave where it is).
+ * step 5a, then AM-11, the played order after the owner's Wait (Appendix J, J.9), and AM-12, the
+ * guard at step 6 (J.10), both filed before step 6. A reader of the whole file refuses any other
+ * file. Step 2's harness reads the file as it stood at step 2 instead (`STEP2_AMENDMENTS_DIGEST`),
+ * step 4's as it stood at step 4 (`STEP4_AMENDMENTS_PIN`, `fnv1a:e0c05cf0`, which AM-8 onward leave
+ * where it is), and step 5a's as it stood at 5a (`STEP5A_AMENDMENTS_PIN`, `fnv1a:3f9478eb`, which
+ * AM-11 and AM-12 leave where it is); 5b's view, which plays after step 7, holds AM-11 and AM-12
+ * (`STEP5B_AMENDMENTS_PIN`).
  */
-export const AMENDMENTS_DIGEST = "fnv1a:3f9478eb";
+export const AMENDMENTS_DIGEST = "fnv1a:558a3a72";
 
 /**
  * The file's step-2 view (`amendmentsDigestAtStep(file, "2")`): its entries cut to those filed before

@@ -104,10 +104,11 @@ export const STEP5B_WAIT_REFUSAL = `step 5b is held by the owner's word: on 2026
  * with its records. Under the played order (AM-11, the owner's Wait; `ADR_089_PLAYED_ORDER`) 5b plays
  * after step 7, so its view holds every entry filed before step 6 or step 7 too: each filing commit
  * of those steps sets 5b's pin to the new view (step-6 plan §3.1 item 6), so `--step 5b --digests`
- * keeps working while 5b stays held by the owner's Wait (`STEP5B_OWNER_WAIT`).
+ * keeps working while 5b stays held by the owner's Wait (`STEP5B_OWNER_WAIT`). AM-11 and AM-12, filed
+ * before step 6 (ADR-089 Appendix J, J.9 and J.10), moved 5b's view to the whole file; 5a's stays.
  */
 export const STEP5A_AMENDMENTS_PIN: string | null = "fnv1a:3f9478eb";
-export const STEP5B_AMENDMENTS_PIN: string | null = "fnv1a:3f9478eb";
+export const STEP5B_AMENDMENTS_PIN: string | null = "fnv1a:558a3a72";
 
 export const STEP5_RUN_IDS: Readonly<Record<Step5Half, readonly ArmId[]>> = Object.freeze({ "5a": STEP5A_RUN_IDS, "5b": STEP5B_RUN_IDS });
 /** The grid's arms (the selection's points, in the filed order). */

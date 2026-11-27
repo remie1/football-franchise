@@ -12,8 +12,8 @@ import { amendmentsAtStep, amendmentsDigest, entryOf, loadAmendments } from "./a
 import { loadFiled } from "./filed.js";
 import { binCountProblems, nearTiesOf, reselect, reselectionProblems, type RePoint, type Reselection } from "./reselect.js";
 
-/** Step 5b's view of the amendments file, as `step5.ts` pins it (`STEP5B_AMENDMENTS_PIN`). */
-export const RESELECT_VIEW_PIN = "fnv1a:3f9478eb";
+/** Step 5b's view of the amendments file, as `step5.ts` pins it (`STEP5B_AMENDMENTS_PIN`; AM-1 to AM-12 since AM-11 and AM-12 were filed before step 6). */
+export const RESELECT_VIEW_PIN = "fnv1a:558a3a72";
 
 export interface ReselectInput {
   readonly points: readonly RePoint[];

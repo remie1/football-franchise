@@ -257,8 +257,9 @@ describe("the refusals before anything plays (plan §2.10, §4.2)", () => {
 
   it("reads nothing of the entries filed after AM-3 but the view's digest: AM-4 (sight, G.10) is read from step 7 and AM-5 (G.11) changes only AM-2's shape-L text, so the guard, the refusals and the choices are those of the file cut to AM-3", () => {
     const later = committedAmendments().entries.map((e) => String(e["id"])).slice(3);
-    // AM-6 and AM-7 are filed before step 4 (H.8, H.9); AM-8, AM-9 and AM-10 before step 5a (I.10 to I.12).
-    expect(later).toEqual(["AM-4", "AM-5", "AM-6", "AM-7", "AM-8", "AM-9", "AM-10"]);
+    // AM-6 and AM-7 are filed before step 4 (H.8, H.9); AM-8, AM-9 and AM-10 before step 5a (I.10 to I.12);
+    // AM-11 and AM-12 before step 6 (J.9, J.10).
+    expect(later).toEqual(["AM-4", "AM-5", "AM-6", "AM-7", "AM-8", "AM-9", "AM-10", "AM-11", "AM-12"]);
     const json = committedAmendments();
     json.entries = json.entries.slice(0, 3);
     expect(json.entries.map((e) => e["id"])).toEqual(["AM-1", "AM-2", "AM-3"]);

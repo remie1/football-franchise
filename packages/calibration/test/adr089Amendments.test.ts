@@ -37,8 +37,13 @@
  * (step-6 plan §3.1 items 1 and 4): every lookup of a step's place reads the played order
  * (`ADR_089_PLAYED_ORDER`, 5b after step 7), so the views at 2, 3, 4 and 5a digest as before while an
  * entry filed before step 6 reads at 5b and sits in 5b's view; and the guard rule's `replayExceptions`,
- * checked on copies, with AM-12 as `filing.md` §3.2 states it validating beside a stand-in AM-11 and
- * equal to AM-8's rule but for bases, freshBases and replayExceptions (I.10's pattern).
+ * checked on copies. Last, AM-11 (the played order after the owner's Wait, Appendix J, J.9) and AM-12
+ * (the guard at step 6, J.10), filed together before step 6: each is its filing's text (`filing.md`
+ * §2.2 and §3.2) byte for byte, with its own pin; the views at 2, 3, 4 and 5a do not move, and 6, 7,
+ * 5b and every later step read the whole file; AM-11's two `rule.amends` items give AM-10's texts as
+ * the filing quotes them, and its gate names the 5a miss and the time of the owner's words; AM-12 is
+ * AM-8's rule but for bases, freshBases and replayExceptions (I.10's pattern), and the guard at step
+ * 6 alone, while AM-8 stays the guard at 5a and 5b.
  */
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -77,14 +82,18 @@ import {
 import { AM1_LINES, guardClassifier, guardClassView, guardWithView, isFreshBase, replayExceptionOf, skipsEqualDials } from "../src/pocket/guardAm1.js";
 import { throwClassOf, throwClassOfS5 } from "../src/pocket/throwClass.js";
 import { POCKET_1_S3_FREE_RUN } from "../src/pocket/rules.js";
+import { am10WordsProblems } from "../src/pocket/reselect.js";
 import { STEP4_AMENDMENTS_PIN } from "../src/pocket/step4.js";
+import { STEP5A_AMENDMENTS_PIN, STEP5B_AMENDMENTS_PIN } from "../src/pocket/step5.js";
 
 const PKG = join(import.meta.dirname, "..");
 const PATH = join(PKG, AMENDMENTS_PATH);
 const filing = (): FiledFile => loadFiled(join(PKG, FILED_PATH));
 
-/** The committed file's digest: AM-1 as filed (commit b65ab25, shown to the owner at 200b18b), then AM-2 (G.8), AM-3 (G.9), AM-4 (G.10), AM-5 (G.11), AM-6 (H.8), AM-7 (H.9), AM-8 (I.10), AM-9 (I.11) and AM-10 (I.12). */
-const PINNED_DIGEST = "fnv1a:3f9478eb";
+/** The committed file's digest: AM-1 as filed (commit b65ab25, shown to the owner at 200b18b), then AM-2 (G.8), AM-3 (G.9), AM-4 (G.10), AM-5 (G.11), AM-6 (H.8), AM-7 (H.9), AM-8 (I.10), AM-9 (I.11), AM-10 (I.12), AM-11 (J.9) and AM-12 (J.10). */
+const PINNED_DIGEST = "fnv1a:558a3a72";
+/** The file's view at step 5a (AM-1 to AM-10): the whole file's digest when step 5a's arms ran, which every 5a record stamps (`STEP5A_AMENDMENTS_PIN`). */
+const STEP5A_VIEW_DIGEST = "fnv1a:3f9478eb";
 /** The file's view at step 4 (AM-1 to AM-7): the whole file's digest when step 4's arms ran, which every step-4 record stamps (`STEP4_AMENDMENTS_PIN`). */
 const STEP4_VIEW_DIGEST = "fnv1a:e0c05cf0";
 /** The file's view at step 3 (AM-1 to AM-5): the whole file's digest when step 3's arms ran, which every step-3 record stamps. */
@@ -92,6 +101,7 @@ const STEP3_VIEW_DIGEST = "fnv1a:517bb9fe";
 const UP_TO_AM5 = ["AM-1", "AM-2", "AM-3", "AM-4", "AM-5"];
 const UP_TO_AM7 = [...UP_TO_AM5, "AM-6", "AM-7"];
 const UP_TO_AM10 = [...UP_TO_AM7, "AM-8", "AM-9", "AM-10"];
+const UP_TO_AM12 = [...UP_TO_AM10, "AM-11", "AM-12"];
 /** The file's view at step 2 (AM-1 alone): the whole file's digest when step 2's arms ran, which every step-2 record stamps. */
 const STEP2_VIEW_DIGEST = "fnv1a:d5f9de6d";
 const APPEND_ONLY = "ADR-089: an amendment is append-only; file a new named entry";
@@ -108,6 +118,8 @@ const ENTRY_PINS: Readonly<Record<string, string>> = {
   "AM-8": "fnv1a:dd8a3b2b",
   "AM-9": "fnv1a:1a2783f8",
   "AM-10": "fnv1a:56731b57",
+  "AM-11": "fnv1a:41257d77",
+  "AM-12": "fnv1a:20b00b24",
 };
 
 const committed = (): AmendmentsFile => loadAmendments(PATH, filing());
@@ -122,7 +134,7 @@ describe("ADR-089: the committed amendments file", () => {
   it("is the pinned file (AMENDMENTS_DIGEST): append-only, extended only by a named entry", () => {
     expect(amendmentsDigest(committed()), APPEND_ONLY).toBe(PINNED_DIGEST);
     expect(AMENDMENTS_DIGEST, "the harness reads the same pin from the source").toBe(PINNED_DIGEST);
-    expect(openAmendments(PATH, filing()).entries.map((e) => e.id)).toEqual(UP_TO_AM10);
+    expect(openAmendments(PATH, filing()).entries.map((e) => e.id)).toEqual(UP_TO_AM12);
   });
 
   it("keeps one pin per filed entry: editing a filed entry fails, appending one adds a pin", () => {
@@ -169,12 +181,13 @@ describe("ADR-089: the committed amendments file", () => {
     expect(g.bases).toEqual({ B1: "A1", B2: "A1", B3: "A1", B4: "A1", B5: "A5", B6: "A11", B7: "A1" });
     expect(Object.keys(g.bases)).toEqual([...STEP2_ARM_IDS]);
     for (const def of STEP2_ARM_DEFS) expect(g.bases[def.id], def.id).toBe(def.base);
-    // Step 3's map is AM-3's, step 4's AM-6's, step 5's AM-8's; a later step has none yet, and its harness refuses until one is filed.
+    // Step 3's map is AM-3's, step 4's AM-6's, step 5's AM-8's, step 6's AM-12's; a later step has none yet, and its harness refuses until one is filed.
     expect(guardFor(committed(), "3").entry.id).toBe("AM-3");
     expect(guardFor(committed(), "4").entry.id).toBe("AM-6");
     expect(guardFor(committed(), "5a").entry.id).toBe("AM-8");
     expect(guardFor(committed(), "5b").entry.id).toBe("AM-8");
-    expect(() => guardFor(committed(), "6")).toThrow(/no filed amendment maps step 6's guard bases/);
+    expect(guardFor(committed(), "6").entry.id).toBe("AM-12");
+    expect(() => guardFor(committed(), "7")).toThrow(/no filed amendment maps step 7's guard bases/);
   });
 });
 
@@ -391,7 +404,7 @@ describe("AM-5: shape L's toucher die, one per pair (ADR-089 Appendix G, G.11; r
 });
 
 describe("a step's view of the file (step-3 plan §4.3, critique 2 B2)", () => {
-  it("at step 2 is AM-1 alone, fnv1a:d5f9de6d, the pin step 2's records stamp; at step 3 it is AM-1 to AM-5, pinned after AM-5; at step 4 AM-1 to AM-7, fnv1a:e0c05cf0, step 4's pin; at step 5a and later it is the whole file", () => {
+  it("at step 2 is AM-1 alone, fnv1a:d5f9de6d, the pin step 2's records stamp; at step 3 it is AM-1 to AM-5, pinned after AM-5; at step 4 AM-1 to AM-7, fnv1a:e0c05cf0, step 4's pin; at step 5a AM-1 to AM-10, fnv1a:3f9478eb, 5a's pin; at step 6 and every step played after it the whole file", () => {
     const file = committed();
     expect(STEP2_AMENDMENTS_DIGEST).toBe(STEP2_VIEW_DIGEST);
     expect(amendmentsDigestAtStep(file, "3")).toBe(STEP3_AMENDMENTS_DIGEST);
@@ -407,11 +420,16 @@ describe("a step's view of the file (step-3 plan §4.3, critique 2 B2)", () => {
     expect(amendmentsAtStep(file, "4").entries.map((e) => e.id)).toEqual(UP_TO_AM7);
     expect(amendmentsDigestAtStep(file, "4")).toBe(STEP4_VIEW_DIGEST);
     expect(STEP4_AMENDMENTS_PIN).toBe(STEP4_VIEW_DIGEST);
-    // From 5a on in the played order (5a, 6, 7, 5b, 8a, ...), every view holds every entry filed so far.
-    for (const step of ADR_089_PLAYED_ORDER.slice(playedIndexOf("5a"))) {
-      expect(amendmentsAtStep(file, step).entries.map((e) => e.id), step).toEqual(UP_TO_AM10);
+    // Step 5a's view cuts AM-11 and AM-12 (filed before step 6), so step 5a's records keep grading.
+    expect(amendmentsAtStep(file, "5a").entries.map((e) => e.id)).toEqual(UP_TO_AM10);
+    expect(amendmentsDigestAtStep(file, "5a")).toBe(STEP5A_VIEW_DIGEST);
+    expect(STEP5A_AMENDMENTS_PIN).toBe(STEP5A_VIEW_DIGEST);
+    // From 6 on in the played order (6, 7, 5b, 8a, ...), every view holds every entry filed so far: 5b's too, which plays after step 7.
+    for (const step of ADR_089_PLAYED_ORDER.slice(playedIndexOf("6"))) {
+      expect(amendmentsAtStep(file, step).entries.map((e) => e.id), step).toEqual(UP_TO_AM12);
       expect(amendmentsDigestAtStep(file, step), step).toBe(PINNED_DIGEST);
     }
+    expect(STEP5B_AMENDMENTS_PIN).toBe(PINNED_DIGEST);
   });
 
   it("an edit to AM-2 leaves step 2's view; an edit to AM-1 moves it", () => {
@@ -426,7 +444,10 @@ describe("a step's view of the file (step-3 plan §4.3, critique 2 B2)", () => {
   it("openAmendmentsAtStep returns the view under its pin, and refuses it under another", () => {
     expect(openAmendmentsAtStep(PATH, filing(), "2", STEP2_AMENDMENTS_DIGEST).entries.map((e) => e.id)).toEqual(["AM-1"]);
     expect(openAmendmentsAtStep(PATH, filing(), "4", STEP4_VIEW_DIGEST).entries.map((e) => e.id)).toEqual(UP_TO_AM7);
-    expect(openAmendmentsAtStep(PATH, filing(), "5a", AMENDMENTS_DIGEST).entries.map((e) => e.id)).toEqual(UP_TO_AM10);
+    expect(openAmendmentsAtStep(PATH, filing(), "5a", STEP5A_VIEW_DIGEST).entries.map((e) => e.id)).toEqual(UP_TO_AM10);
+    expect(() => openAmendmentsAtStep(PATH, filing(), "5a", AMENDMENTS_DIGEST)).toThrow(/read at step 5a .*digests to fnv1a:3f9478eb, not the pin/);
+    expect(openAmendmentsAtStep(PATH, filing(), "6", AMENDMENTS_DIGEST).entries.map((e) => e.id)).toEqual(UP_TO_AM12);
+    expect(openAmendmentsAtStep(PATH, filing(), "5b", AMENDMENTS_DIGEST).entries.map((e) => e.id)).toEqual(UP_TO_AM12);
     expect(() => openAmendmentsAtStep(PATH, filing(), "4", AMENDMENTS_DIGEST)).toThrow(/read at step 4 .*digests to fnv1a:e0c05cf0, not the pin/);
     expect(openAmendmentsAtStep(PATH, filing(), "3", STEP3_AMENDMENTS_DIGEST).entries.map((e) => e.id)).toEqual(UP_TO_AM5);
     expect(() => openAmendmentsAtStep(PATH, filing(), "3", AMENDMENTS_DIGEST)).toThrow(/read at step 3 .*digests to fnv1a:517bb9fe, not the pin/);
@@ -878,12 +899,12 @@ describe("ADR-089 step 5: AM-10, step 5b's readings (Appendix I, I.12; filing.md
   });
 });
 
-// --- ADR-089 step 6, K0 (step-6 plan §3.1 items 1 and 4): the played order and replayExceptions ------------
+// --- ADR-089 step 6: K0 (step-6 plan §3.1 items 1 and 4) and AM-11 and AM-12, filed before step 6 ---------
 
 /**
  * AM-12, the guard at step 6, as `filing.md` §3.2 states it (its final proposed text, the JSON block
- * copied byte for byte), before it is filed. Its own digest on this text is `fnv1a:20b00b24`
- * (MEASURED in the planning, `measure/validate-final-out.json`).
+ * copied byte for byte), and as it is filed (ADR-089 Appendix J, J.10). Its own digest on this text is
+ * `fnv1a:20b00b24` (MEASURED in the planning, `measure/validate-final-out.json`, and pinned above).
  */
 const AM12_FILING = {
   "id": "AM-12",
@@ -958,30 +979,16 @@ const AM12_FILING = {
   }
 } as const;
 
-/** A stand-in for AM-11 (the reorder, filed with AM-12): filed before step 6, read at 6, 7, 5b and later, no guard rule. Test copies only. */
-const STAND_IN_AM11 = {
-  id: "AM-11",
-  name: "a stand-in for the reorder (test only)",
-  filedBeforeStep: "6",
-  steps: ["6", "7", "5b", "8a", "8b", "9", "10", "11"],
-  supersedes: [],
-  untouched: ["s5a.cleanScramble"],
-  defaults: [],
-  adrLines: [946],
-  cites: [],
-  record: "ADR-089 Appendix J, J.9",
-  reason: "a stand-in",
-  ownersWord: null,
-  rule: { readings: { order: "a stand-in" } },
-} as const;
-
-/** A copy of the committed file with the stand-in AM-11 and AM-12 as its filing states it appended (entries 10 and 11). */
-const withStep6 = (): ReturnType<typeof copy> => {
-  const j = copy();
-  j.entries.push(JSON.parse(JSON.stringify(STAND_IN_AM11)) as Record<string, unknown>, JSON.parse(JSON.stringify(AM12_FILING)) as Record<string, unknown>);
-  return j;
-};
+/** AM-11's and AM-12's places in the committed file (entries 10 and 11). */
+const AM11_AT = 10;
 const AM12_AT = 11;
+
+/** The committed file cut to the entries filed before step 6 (AM-1 to AM-10), as it stood before AM-11 and AM-12. */
+const beforeStep6 = (): AmendmentsFile => {
+  const j = copy();
+  j.entries = j.entries.slice(0, AM11_AT);
+  return j as unknown as AmendmentsFile;
+};
 
 describe("ADR-089 step 6 (K0): every lookup of a step's place reads the played order (plan §3.1 item 1)", () => {
   it("is the step ids with 5b moved after step 7: the same steps, and 0 to 5a and 8a to 11 at the same place", () => {
@@ -997,42 +1004,46 @@ describe("ADR-089 step 6 (K0): every lookup of a step's place reads the played o
     expect(playedIndexOf("5b")).toBeLessThan(playedIndexOf("8a"));
   });
 
-  it("leaves every view of a step already played where it was: 2, 3, 4 and 5a digest as before, on the committed file and with step 6's entries appended", () => {
-    for (const file of [committed(), withStep6() as unknown as AmendmentsFile]) {
+  it("leaves every view of a step already played where it was: 2, 3, 4 and 5a digest as before with AM-11 and AM-12 filed, exactly as without them", () => {
+    for (const file of [committed(), beforeStep6()]) {
       expect(amendmentsDigestAtStep(file, "2")).toBe(STEP2_VIEW_DIGEST);
       expect(amendmentsDigestAtStep(file, "3")).toBe(STEP3_VIEW_DIGEST);
       expect(amendmentsDigestAtStep(file, "4")).toBe(STEP4_VIEW_DIGEST);
-      expect(amendmentsDigestAtStep(file, "5a")).toBe(PINNED_DIGEST);
+      expect(amendmentsDigestAtStep(file, "5a")).toBe(STEP5A_VIEW_DIGEST);
       for (const step of ["0", "1"] as const) expect(amendmentsAtStep(file, step).entries, step).toEqual([]);
     }
-    expect(amendmentsProblems(withStep6(), filing())).toEqual([]);
+    // Before AM-11 and AM-12, the whole file was 5a's view; with them, it is not.
+    expect(amendmentsDigest(beforeStep6())).toBe(STEP5A_VIEW_DIGEST);
+    expect(amendmentsDigest(committed())).toBe(PINNED_DIGEST);
+    expect(amendmentsProblems(copy(), filing())).toEqual([]);
   });
 
   it("an entry filed before step 6 reads at 5b and sits in the views of 6, 7, 5b and every later step, never in 5a's", () => {
-    const j = withStep6() as unknown as AmendmentsFile;
+    const j = committed();
     const ids = (step: (typeof ADR_089_STEP_IDS)[number]): readonly string[] => amendmentsAtStep(j, step).entries.map((e) => e.id);
     expect(ids("5a")).toEqual(UP_TO_AM10);
-    for (const step of ["6", "7", "5b", "8a", "8b", "9", "10", "11"] as const) expect(ids(step), step).toEqual([...UP_TO_AM10, "AM-11", "AM-12"]);
+    for (const step of ["6", "7", "5b", "8a", "8b", "9", "10", "11"] as const) expect(ids(step), step).toEqual(UP_TO_AM12);
+    expect(entryOf(j, "AM-11").steps).toContain("5b");
     // The same entry is refused where it reads at a step played before the one it is filed before.
-    const early = withStep6();
-    early.entries[10]!["steps"] = ["5a", "6"];
+    const early = copy();
+    early.entries[AM11_AT]!["steps"] = ["5a", "6"];
     expect(amendmentsProblems(early, filing())).toEqual(["entries.10.steps.0: step 5a comes before filedBeforeStep 6; an entry reads only at the step it was filed before and later ones"]);
     // An entry filed before 5b may not read at 6 or 7, which play before it.
-    const late = withStep6();
-    late.entries[10]!["filedBeforeStep"] = "5b";
-    late.entries[10]!["steps"] = ["5b", "7"];
+    const late = copy();
+    late.entries[AM11_AT]!["filedBeforeStep"] = "5b";
+    late.entries[AM11_AT]!["steps"] = ["5b", "7"];
     expect(amendmentsProblems(late, filing())).toEqual(["entries.10.steps.1: step 7 comes before filedBeforeStep 5b; an entry reads only at the step it was filed before and later ones"]);
   });
 
   it("a rule.amends target is filed before the same step or one played earlier: an entry filed before 5b may amend one filed before 6, not the reverse", () => {
     const amending = (targetStep: string, ownStep: string): ReturnType<typeof copy> => {
-      const j = withStep6();
-      const target = j.entries[10]!;
+      const j = copy();
+      const target = j.entries[AM11_AT]!;
       target["filedBeforeStep"] = targetStep;
       target["steps"] = [targetStep];
       target["rule"] = { readings: { text: "the stand-in's words" } };
       j.entries.push({
-        ...(JSON.parse(JSON.stringify(STAND_IN_AM11)) as Record<string, unknown>),
+        ...(JSON.parse(JSON.stringify(target)) as Record<string, unknown>),
         id: "AM-13",
         filedBeforeStep: ownStep,
         steps: [ownStep],
@@ -1044,14 +1055,13 @@ describe("ADR-089 step 6 (K0): every lookup of a step's place reads the played o
     expect(amendmentsProblems(amending("5b", "6"), filing())).toEqual([
       "entries.12.rule.amends.0.entry: AM-11 is filed before step 5b, a later step than this entry's 6; an entry amends only one filed before the same step or an earlier one",
     ]);
-    // AM-10, filed before 5a, may be amended by an entry filed before 6.
-    const j = withStep6();
-    j.entries[10]!["rule"] = { amends: [{ entry: "AM-10", path: "rule.readings.step10", was: "Step 10's rerun reads the same curve", becomes: "Step 10's rerun reads the same curve, as amended," }] };
-    expect(amendmentsProblems(j, filing())).toEqual([]);
+    // AM-10, filed before 5a, is amended by AM-11, filed before 6: the committed file validates.
+    expect((entryOf(committed(), "AM-11").rule["amends"] as { entry: string }[]).map((a) => a.entry)).toEqual(["AM-10", "AM-10"]);
+    expect(amendmentsProblems(copy(), filing())).toEqual([]);
   });
 
   it("a class view still reads from 5a: step 5's view may map 6 and 5b, never a step before 5a", () => {
-    const j = withStep6();
+    const j = copy();
     expect((j.entries[AM12_AT]!["rule"] as Record<string, unknown>)["classView"]).toBe("S5");
     expect(amendmentsProblems(j, filing())).toEqual([]);
     ((j.entries[AM12_AT]!["rule"] as Record<string, unknown>)["bases"] as Record<string, unknown>)["4"] = { D1: "C1" };
@@ -1061,18 +1071,21 @@ describe("ADR-089 step 6 (K0): every lookup of a step's place reads the played o
   });
 });
 
-describe("ADR-089 step 6 (K0): the guard rule's replayExceptions and AM-12 as filed in filing.md (plan §3.1 item 4, §7.2)", () => {
+describe("ADR-089 step 6: the guard rule's replayExceptions (K0, plan §3.1 item 4, §7.2) and AM-12, the guard at step 6 (J.10)", () => {
   const refusesAm12 = (edit: (rule: Record<string, unknown>) => void, problem: RegExp): void => {
-    const j = withStep6();
+    const j = copy();
     edit(j.entries[AM12_AT]!["rule"] as Record<string, unknown>);
     const problems = amendmentsProblems(j, filing());
     expect(problems.some((p) => problem.test(p)), `wanted ${String(problem)}, got:\n${problems.join("\n")}`).toBe(true);
     expect(() => validateAmendments(j, filing())).toThrow(AmendmentsValidationError);
   };
 
-  it("AM-12's text digests as the planning measured it, validates beside a stand-in AM-11, and maps step 6's guard: H0 on F5 and F5 on D1, read with step 5's class view", () => {
+  it("AM-12 is filed as filing.md §3.2 states it, digests as the planning measured it, and maps step 6's guard: H0 on F5 and F5 on D1, read with step 5's class view", () => {
     expect(stableDigest(AM12_FILING)).toBe("fnv1a:20b00b24");
-    const j = withStep6() as unknown as AmendmentsFile;
+    const j = committed();
+    expect(JSON.parse(JSON.stringify(entryOf(j, "AM-12")))).toEqual(AM12_FILING);
+    expect(stableDigest(entryOf(j, "AM-12"))).toBe(ENTRY_PINS["AM-12"]);
+    expect(j.entries[AM12_AT]!.id).toBe("AM-12");
     expect(amendmentsProblems(j, filing())).toEqual([]);
     const g = guardWithView(j, "6");
     expect(g.entry.id).toBe("AM-12");
@@ -1085,7 +1098,10 @@ describe("ADR-089 step 6 (K0): the guard rule's replayExceptions and AM-12 as fi
     expect(guardFor(j, "5a").entry.id).toBe("AM-8");
     expect(guardFor(j, "5b").entry.id).toBe("AM-8");
     expect(AM12_FILING.steps).toEqual(["6"]);
-    expect(() => guardFor(committed(), "6")).toThrow(/no filed amendment maps step 6's guard bases/);
+    expect(guardFor(j, "6").entry.id).toBe("AM-12");
+    expect(() => guardFor(j, "7")).toThrow(/no filed amendment maps step 7's guard bases/);
+    // Before AM-12 no entry mapped step 6's guard.
+    expect(() => guardFor(beforeStep6(), "6")).toThrow(/no filed amendment maps step 6's guard bases/);
   });
 
   it("is AM-8's rule but for bases, freshBases and replayExceptions (I.10's pattern), in AM-8's key order with replayExceptions after freshBases", () => {
@@ -1122,7 +1138,7 @@ describe("ADR-089 step 6 (K0): the guard rule's replayExceptions and AM-12 as fi
   });
 
   it("replayExceptionOf reads AM-12's one exception, D1 on gen seed set 2, and nothing else; a rule without the field excepts nothing", () => {
-    const rule = guardRuleOf(entryOf(withStep6() as unknown as AmendmentsFile, "AM-12"));
+    const rule = guardRuleOf(entryOf(committed(), "AM-12"));
     const x = replayExceptionOf(rule, "D1", "gen", 2);
     expect(x?.record).toBe("ADR-089 Appendix I, I.13");
     expect(x?.how).toMatch(/^dated history on trees with AB-L: re-played, its move from step 4's record printed beside, never a fault/);
@@ -1156,8 +1172,91 @@ describe("ADR-089 step 6 (K0): the guard rule's replayExceptions and AM-12 as fi
     refusesAm12(withItem(noHow), /^entries\.11\.rule\.replayExceptions\.0\.how: must say how the replay is read instead/);
     refusesAm12((r) => (r["replayExceptions"] = [item, { ...item, how: "again" }]), /^entries\.11\.rule\.replayExceptions\.1: D1 on gen seed set 2 is named twice$/);
     // Another league or set of the same arm is its own exception.
-    const j = withStep6();
+    const j = copy();
     (j.entries[AM12_AT]!["rule"] as Record<string, unknown>)["replayExceptions"] = [item, { ...item, league: "flat" }, { ...item, seedSet: 1 }];
     expect(amendmentsProblems(j, filing())).toEqual([]);
+  });
+});
+
+/** AM-10's two readings as AM-11 amends them (`filing.md` §2.3; quoted in full in ADR-089 Appendix J, J.9 item 7). */
+const AM10_SELECTION_CURVE_AMENDED =
+  "At 5b the pressured-by-release curve (the filed fallback, D1) selects, its simulation side read on the count step 7 builds and not the physical one (AM-11 readings.newCount), against the same real curve (ADR-089:179), by the owner's word and the accepted miss of s4.motion.curveRises, whose own text says the fallback applies when the curve still falls. The hit curve's losses, separation and would-be winner are printed beside and decide nothing; a hit curve that cannot be scored is printed as such and never stops the run. If the pressured loss does not separate, its minimum stands and the separation is reported (the filed ifNotSeparatedEither).";
+const AM10_STEP10_AMENDED = "Step 10's rerun reads the same curve, on the same count as the relocated 5b's (AM-11 readings.newCount), unless an entry filed before step 10 says otherwise.";
+const adrText = (): string => readFileSync(join(PKG, "../../docs/decisions/ADR-089-the-pocket-on-a-real-clock.md"), "utf8");
+
+describe("AM-11: the played order after the owner's Wait (ADR-089 Appendix J, J.9), filed before step 6", () => {
+  it("is filed before step 6 and reads at 6, 7, 5b and every later step; supersedes nothing, names 28 rows untouched, each a clause of the step-0 file, and carries no guard rule", () => {
+    const am11 = entryOf(committed(), "AM-11");
+    expect(committed().entries[AM11_AT]!.id).toBe("AM-11");
+    expect(stableDigest(am11)).toBe("fnv1a:41257d77");
+    expect(am11.filedBeforeStep).toBe("6");
+    expect(am11.steps).toEqual(["6", "7", "5b", "8a", "8b", "9", "10", "11"]);
+    expect(am11.supersedes).toEqual([]);
+    expect(am11.untouched).toHaveLength(28);
+    expect(new Set(am11.untouched).size).toBe(28);
+    const ids = new Set(filing().bands.clauses.map((c) => c.id));
+    for (const id of am11.untouched) expect(ids.has(id), id).toBe(true);
+    expect(am11.untouched).toContain("s5a.cleanScramble");
+    expect(am11.defaults).toEqual(["D1", "D6", "D31"]);
+    expect(am11.record).toBe("ADR-089 Appendix J, J.9");
+    expect(() => guardRuleOf(am11)).toThrow(/^AM-11 supersedes nothing, not the guard/);
+    expect(am11.rule["playedOrder"]).toEqual([...ADR_089_PLAYED_ORDER]);
+  });
+
+  it("records the owner's words: the Wait as its ts, the five taps after it in order, and the 5a miss answered in words, whose time the step-6 gate reads", () => {
+    const am11 = entryOf(committed(), "AM-11");
+    const w = am11.ownersWord as Record<string, unknown>;
+    expect(w["ts"]).toBe("2026-11-26T21:56:54Z");
+    expect(w["words"]).toBe("Wait");
+    expect((w["alsoTapped"] as readonly { ts: string; words: string }[]).map((t) => `${t.ts} ${t.words}`)).toEqual([
+      "2026-11-26T21:58:16Z New rating",
+      "2026-11-26T21:59:00Z His clock",
+      "2026-11-26T22:45:14Z Keep it",
+      "2026-11-26T23:27:36Z Check twice",
+      "2026-11-27T02:20:23Z Merge",
+    ]);
+    const a = w["answeredInWords"] as Record<string, string>;
+    expect(a["ts"]).toBe("2026-11-27T14:28:48Z");
+    expect(a["words"]).toBe("Is our 13.0 times per 100 flat something that may change after step 6? If that's the case then we should hold off on this now and revisit it after 6.");
+    expect(a["answer"]).toMatch(/^The Orchestrator's answer, as given: step 6 can change it/);
+    expect(a["revisedBeforeFiling"]).toMatch(/flat's 12\.96 is forecast near 2\.7 and gen's 6\.89 near 1\.8 \(INFERRED\)\.$/);
+    const gate = (am11.rule["gate"] as Record<string, Record<string, unknown>>)["step6"]!;
+    expect(gate["s5aMiss"]).toBe("s5a.cleanScramble");
+    expect(gate["answeredAt"]).toBe(a["ts"]);
+  });
+
+  it("amends AM-10's selectionCurve and step10 in place: the views of 5b and later read them as the filing quotes them, 5a's view reads AM-10 as filed, and the 5b re-selection's words still hold", () => {
+    const whole = committed();
+    const am10 = entryOf(whole, "AM-10").rule["readings"] as Record<string, string>;
+    expect(amendedRuleText(whole, "AM-10", "rule.readings.selectionCurve")).toBe(AM10_SELECTION_CURVE_AMENDED);
+    expect(amendedRuleText(whole, "AM-10", "rule.readings.step10")).toBe(AM10_STEP10_AMENDED);
+    for (const step of ["6", "5b", "10"] as const) expect(amendedRuleText(amendmentsAtStep(whole, step), "AM-10", "rule.readings.selectionCurve"), step).toBe(AM10_SELECTION_CURVE_AMENDED);
+    expect(amendedRuleText(amendmentsAtStep(whole, "5a"), "AM-10", "rule.readings.selectionCurve")).toBe(am10["selectionCurve"]);
+    expect(amendedRuleText(amendmentsAtStep(whole, "5a"), "AM-10", "rule.readings.step10")).toBe(am10["step10"]);
+    // AM-10's entry is as filed (its pin above), and the amended text keeps the words R-7 checks.
+    expect(AM10_SELECTION_CURVE_AMENDED).toMatch(/pressured-by-release curve \(the filed fallback, D1\) selects/);
+    expect(am10WordsProblems(entryOf(amendmentsAtStep(whole, "5b"), "AM-10"))).toEqual([]);
+  });
+
+  it("is recorded in ADR-089 Appendix J: J.8's appended note, then J.9 and J.10 at the end, each stating the digests", () => {
+    const adr = adrText();
+    const at = (h: string): number => adr.indexOf(h);
+    const note = "*The owner's answers after J.8, appended (2026-11-27; nothing above is changed).*";
+    expect(at("### J.8 The owner's answers")).toBeGreaterThan(0);
+    expect(at(note)).toBeGreaterThan(at("### J.8 The owner's answers"));
+    expect(at("### J.9 The reorder (amendment AM-11)")).toBeGreaterThan(at(note));
+    expect(at("### J.10 The guard at step 6 (amendment AM-12)")).toBeGreaterThan(at("### J.9 The reorder (amendment AM-11)"));
+    const j8note = adr.slice(at(note), at("### J.9 The reorder (amendment AM-11)"));
+    const j9 = adr.slice(at("### J.9 The reorder (amendment AM-11)"), at("### J.10 The guard at step 6 (amendment AM-12)"));
+    const j10 = adr.slice(at("### J.10 The guard at step 6 (amendment AM-12)"));
+    expect(j8note).toContain("(5) The revised forecast: at 2026-11-27 20:42:13Z, before AM-11 was filed");
+    expect(j9).toContain("its own digest `fnv1a:41257d77`");
+    expect(j10).toContain("its own digest `fnv1a:20b00b24`");
+    for (const j of [j9, j10]) expect(j).toContain("from `fnv1a:3f9478eb` to `fnv1a:558a3a72`");
+    expect(j9).toContain("At 2026-11-27 20:42:13Z, before AM-11 was filed");
+    expect(j9).toContain(AM10_SELECTION_CURVE_AMENDED);
+    expect(j9).toContain(AM10_STEP10_AMENDED);
+    expect(j9.trimEnd().endsWith("AM-11 records the owner's words; nothing in it is asked.")).toBe(true);
+    expect(j10.trimEnd().endsWith("AM-12 is the guard alone; step 6's readings are AM-13's.")).toBe(true);
   });
 });
