@@ -126,7 +126,7 @@ describe("step 5's pins, preflight and gate", () => {
     expect(step5GateRefusal("5a", st)).toBeUndefined();
     expect(st.s5bHeld).toBe(STEP5B_WAIT_REFUSAL);
     // The owner's Wait (2026-11-26 21:56Z) holds 5b, and --after-owner does not lift it.
-    expect(step5GateRefusal("5b", st)).toMatch(/^ADR-089 step 5b: refused before anything plays \(the gate, plan §9 item 10\): step 5b is held by the owner's word: on 2026-11-26 at 21:56Z he chose "Wait"/);
+    expect(step5GateRefusal("5b", st)).toMatch(/^ADR-089 step 5b: refused before anything plays \(the gate, plan §9 item 10\): step 5b is held by the owner's word: on 2026-11-26 at 21:56Z the owner chose "Wait"/);
     expect(step5GateRefusal("5b", st, "2026-11-26T21:56:54Z")).toBe(step5GateRefusal("5b", st));
     expect(step5GateRefusal("5b", st, "2026-11-27T12:00Z")).toMatch(/--after-owner does not lift this hold\. Nothing has played and no cache was made$/);
     // Without the hold, 5b would wait on the owner's word for the graded miss, as before the Wait.
@@ -142,7 +142,7 @@ describe("step 5's pins, preflight and gate", () => {
 
   it("the owner's Wait on 5b (2026-11-26 21:56:54Z) is a named refusal that --after-owner never lifts, and it holds 5b only", () => {
     expect(STEP5B_OWNER_WAIT).toEqual({ at: "2026-11-26T21:56:54Z", choice: "Wait", card: "Run step 5b now on today's count, or wait for the new one?" });
-    expect(STEP5B_WAIT_REFUSAL).toContain("on 2026-11-26 at 21:56Z he chose \"Wait\"");
+    expect(STEP5B_WAIT_REFUSAL).toContain("on 2026-11-26 at 21:56Z the owner chose \"Wait\"");
     expect(STEP5B_WAIT_REFUSAL).toContain("ADR-089 Appendix J.8");
     const held: Step5GateState = { ...OPEN, s5bHeld: STEP5B_WAIT_REFUSAL };
     // 5a is not held; 5b is, whatever --after-owner names, on an open gate and over a miss or a breach.

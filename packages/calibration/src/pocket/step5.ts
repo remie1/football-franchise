@@ -83,11 +83,11 @@ export const STEP5A_RECORDS_FINAL: boolean = true;
 export const STEP5B_RECORDS_FINAL: boolean = false;
 
 /**
- * The owner's hold on step 5b (ADR-089 Appendix J.8). On 2026-11-26 at 21:56:54Z he chose "Wait" on the
+ * The owner's hold on step 5b (ADR-089 Appendix J.8). On 2026-11-26 at 21:56:54Z the owner chose "Wait" on the
  * card "Run step 5b now on today's count, or wait for the new one?" (the option "Hold 5b until step 7
  * builds the new count"), so 5b is judged on the count step 7 builds and plays after steps 6 and 7.
  * The gate refuses 5b by this name before anything plays, and `--after-owner` does not lift it: that
- * flag names the owner's word on a 5a miss or breach, and his word here is to wait. Only a commit that
+ * flag names the owner's word on a 5a miss or breach, and their word here is to wait. Only a commit that
  * builds the relocated 5b, under an entry filed before it, lifts the hold. `--digests` (R-1, read
  * through the 5a gate) and `--reselect` (which plays nothing) are not 5b plays and are not held.
  */
@@ -96,7 +96,7 @@ export const STEP5B_OWNER_WAIT = Object.freeze({
   choice: "Wait",
   card: "Run step 5b now on today's count, or wait for the new one?",
 });
-export const STEP5B_WAIT_REFUSAL = `step 5b is held by the owner's word: on 2026-11-26 at 21:56Z he chose "Wait" on the card "${STEP5B_OWNER_WAIT.card}", so 5b waits until step 7 builds the new count and is judged on it (ADR-089 Appendix J.8); --after-owner does not lift this hold`;
+export const STEP5B_WAIT_REFUSAL = `step 5b is held by the owner's word: on 2026-11-26 at 21:56Z the owner chose "Wait" on the card "${STEP5B_OWNER_WAIT.card}", so 5b waits until step 7 builds the new count and is judged on it (ADR-089 Appendix J.8); --after-owner does not lift this hold`;
 
 /**
  * Each half's view of the amendments file, pinned: AM-8, AM-9 and AM-10 are filed together before any
@@ -225,7 +225,7 @@ export interface Step5GateState {
    * step-5 run after the writing process repeats (measurement M6).
    */
   readonly fitVerifyProblem?: string;
-  /** The owner's hold on 5b (`STEP5B_WAIT_REFUSAL`), which `--after-owner` does not lift, when 5b waits for him. */
+  /** The owner's hold on 5b (`STEP5B_WAIT_REFUSAL`), which `--after-owner` does not lift, when 5b waits for them. */
   readonly s5bHeld?: string;
 }
 
