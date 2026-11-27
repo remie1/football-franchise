@@ -3611,12 +3611,105 @@ export interface CleanPocketTunables {
 }
 
 /**
- * ADR-089 steps 1 to 4: the build's tunables, widened by the `pocket-1` overlay's optional blocks
+ * ADR-089 step 6 (plan §2.2; an owner question, AM-13 `scrambleStart`): where a scramble run that
+ * fails starts. `ZERO_GAIN_ONLY` (recommended): a run that gains nothing ends at minus the card's
+ * `dropDepthYards`, and every other run keeps its yards. `EVERY_RUN`: every run starts at minus the
+ * drop depth, the design's words (ADR-089:727, :755).
+ */
+export type ScrambleStart = "ZERO_GAIN_ONLY" | "EVERY_RUN";
+/**
+ * ADR-089 step 6 (plan §2.3; an owner question, AM-13 `spentChecklist`, each option's reading in
+ * the step-6 filing §4.4): what he does on a clean expiry with his move used or not offered and his
+ * one escape spent. `HOLD` (recommended): no die, no throwaway, no CLOCK_EXPIRED, and he keeps
+ * reading. `TODAYS_PATH`: no die, and today's path runs, a CLOCK_EXPIRED throwaway where the
+ * throwaway rule allows one, else a hold. `SECOND_ESCAPE`: ESCAPE is offered once more, the one
+ * second escape roll a play may have. `BELOW_30`: no movement die, and he throws to the most open
+ * eligible receiver he sees, whatever his openness, in place of D23's floor at 30.
+ * `CONTAINED_DOES_NOT_SPEND`: a CONTAINED roll does not spend the escape (ESCAPED and
+ * CAUGHT_FROM_BEHIND do), so ESCAPE is offered again at a later pick, and in the one spent case left
+ * (he shed a caught escape) he holds.
+ */
+export type SpentChecklist = "HOLD" | "TODAYS_PATH" | "SECOND_ESCAPE" | "BELOW_30" | "CONTAINED_DOES_NOT_SPEND";
+/**
+ * ADR-089 step 6 (plan §2.8; an owner question, AM-13 `caughtAsContact`): `QB_HIT.seen` on a caught
+ * escape. `SEEN` (recommended): true, as the contract states for every contact before step 7.
+ * `UNSEEN_IF_UNREGISTERED`: false when the man who caught him was still in his block and unregistered
+ * (ADR-089:772), which needs petition P21's doc first.
+ */
+export type CaughtSeen = "SEEN" | "UNSEEN_IF_UNREGISTERED";
+/** ADR-089 step 6 (plan §2.3): one escape roll a play (ADR-089:756, CHOSEN reading in AM-13), and the spent case's branch. */
+export interface EscapeCapTunables {
+  readonly maxPerPlay: 1;
+  readonly whenSpent: SpentChecklist;
+}
+/**
+ * ADR-089 step 6 (plan §2.4, CHOSEN in AM-13): the escape target gains
+ * `round((S - speedBaseline) / speedDivisor)` for the fastest card rusher on his side, and the
+ * roll's Mobility term becomes `round(Mobility / mobilityDivisor)` plus `mobilityCentering`, so a
+ * 70 quarterback's roll is where it was (70 / 5 = 14 = 70 / 10 + 7).
+ */
+export interface PursuitTunables {
+  readonly speedBaseline: 70;
+  readonly speedDivisor: 5;
+  readonly mobilityDivisor: 10;
+  readonly mobilityCentering: 7;
+}
+/** ADR-089 step 6 (plan §2.7; ADR-089:767, CHOSEN in the design): the side-aware catch's terms per man on his side. */
+export interface SideCatchTunables {
+  readonly perLiveThreat: 10;
+  readonly perUnregistered: 15;
+}
+/**
+ * ADR-089 step 6 (plan §2.11): the deadline pick's run margin, K9's re-derived value (AM-13
+ * `runMargin`): the filed inequality at urgency 0 alone gives 1.
+ */
+export interface DeadlinePickTunables {
+  readonly runMargin: 1;
+}
+/**
+ * ADR-089 step 6 (plan §1.2; `pocket-1` only; absent from DEFAULT_TUNABLES until step 11): the
+ * outs, §4.6 e and f and §4.7, each part on or off for an arm, and every owner option behind a leaf.
+ * Read by `sim/pocketRules.ts` on shapes S and L only; refused under legacy and on kind T, and,
+ * until petitions P9 to P12 are in contracts, refused on every tree (`P9_IN_CONTRACTS` and the rest).
+ * An optional object is its part off when absent; a switch is its part on or off. A block with
+ * every part off plays step 5a's outs.
+ */
+export interface OutsTunables {
+  /** 2.1: the real throwaway rule in the pocket (a route at its break, the drop floor), in place of the 2.0 s gate. */
+  readonly throwawayRule: boolean;
+  /** 2.2: the scramble start; absent is today's (a failed scramble gains 0). */
+  readonly scrambleStart?: ScrambleStart;
+  /** 2.3: the escape cap and the spent case; absent is no cap. */
+  readonly escapeCap?: EscapeCapTunables;
+  /** 2.4: pursuer speed and Mobility's lighter weight; absent is today's roll. */
+  readonly pursuit?: PursuitTunables;
+  /** 2.5: no late horizon sack (the filed deadline, a tick past the last for a live scramble only). */
+  readonly noLateHorizonSack: boolean;
+  /** 2.6: escape direction (D15), published as `QB_DECISION.direction` (P11). */
+  readonly direction: boolean;
+  /** 2.7: unseen men on his side, the side-aware catch; needs `direction`. Absent is today's catch. */
+  readonly sideCatch?: SideCatchTunables;
+  /** 2.8: the caught escape as a rated contact (P20 for its `contactSeconds`). */
+  readonly caughtAsContact: boolean;
+  /** 2.8: `QB_HIT.seen` on a caught escape, the owner's answer; present exactly when `caughtAsContact` is on (P21 for `UNSEEN_IF_UNREGISTERED`). */
+  readonly caughtSeen?: CaughtSeen;
+  /** 2.9: the drill's fresh rep at every escape he wins (P12). */
+  readonly drill: boolean;
+  /** 2.10: the drill by break lane; needs `direction` and `drill`. */
+  readonly drillBySide: boolean;
+  /** 2.11: run or throw it away at the pursuit deadline (P9, P10); absent is today's deadline run. */
+  readonly deadlinePick?: DeadlinePickTunables;
+  /** 2.12: the failed scramble scored as a sack (writes `PLAY_START.scoring`). */
+  readonly failedScrambleSack: boolean;
+}
+
+/**
+ * ADR-089 steps 1 to 6: the build's tunables, widened by the `pocket-1` overlay's optional blocks
  * (`engineRules`, `passRush.beatClock`, `passRush.repClock`, `passRush.approach`, from step 2
  * `pocket.forcing`, from step 3 `blitzPickup.freeRun`, `blitzPickup.lateBlock` and
- * `pocket.climbLane`, from step 4 `pocket.contact` and `throwExec.motion`, and from step 5
- * `pocket.cleanPocket`). The run-time value of `DEFAULT_TUNABLES` carries none of them (`legacy`),
- * not even as an `undefined` key; only the type widened.
+ * `pocket.climbLane`, from step 4 `pocket.contact` and `throwExec.motion`, from step 5
+ * `pocket.cleanPocket`, and from step 6 `pocket.outs`). The run-time value of `DEFAULT_TUNABLES`
+ * carries none of them (`legacy`), not even as an `undefined` key; only the type widened.
  */
 export type Tunables = typeof TUNABLES & {
   readonly engineRules?: EngineRulesStamp;
@@ -3634,6 +3727,7 @@ export type Tunables = typeof TUNABLES & {
     readonly climbLane?: ClimbLaneTunables;
     readonly contact?: ContactTunables;
     readonly cleanPocket?: CleanPocketTunables;
+    readonly outs?: OutsTunables;
   };
   readonly throwExec: { readonly motion?: MotionTunables };
 };

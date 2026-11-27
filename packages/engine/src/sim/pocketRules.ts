@@ -72,15 +72,31 @@
  * `qb.readSystem.<system>.budgetDeltaSeconds`. `sim/passPlay.ts` reads `rules.cleanPocket` and
  * calls the checklist and the floor (`sim/cleanPocket.ts`) only when it is there. `PLAY_START.rules`
  * keeps its two keys: the block is named by the overlay digest.
+ *
+ * ADR-089 step 6 (plan §1.2) adds one block, `pocket.outs` (the outs, §4.6 e and f and §4.7, each
+ * part behind its own leaf, every owner option among them), optional. Shapes S and L read it; it is
+ * refused under `legacy` (`playsLegacyRules` false for a tree carrying it), on kind T
+ * (`isTodaysLinePlusContactTree` false too) and without its stamp, each with a named error, never
+ * ignored. A part that needs another is refused without it, by name: the side-aware catch
+ * (`sideCatch`) and the side-aware drill (`drillBySide`) without escape direction, and the side-aware
+ * drill without the drill. The answer to the third owner question (`caughtSeen`) is present exactly
+ * when the caught escape as contact is on. Until petitions P9, P10, P11 and P12 are in contracts (the
+ * four constants below, all false), every tree carrying the block is refused before the first die,
+ * as step 4's were before P6, P7 and P8; P20 gates the caught escape as contact and P21 the unseen
+ * answer the same way. `sim/passPlay.ts` reads `rules.outs` and calls `sim/outs.ts` only when it is
+ * there. `PLAY_START.rules` keeps its two keys: the block is named by the overlay digest (the
+ * failed-scramble marker is its own top-level key, `PLAY_START.scoring`).
  */
 import { ATTR_SCALE } from "@ff/contracts";
 import type {
   ApproachTunables,
   BeatClockTunables,
+  CaughtSeen,
   CleanPocketTunables,
   ClimbLaneTunables,
   ContactOrder,
   ContactTunables,
+  DeadlinePickTunables,
   DropFloorTunables,
   ForcingTunables,
   FreeRunOrigin,
@@ -90,7 +106,12 @@ import type {
   LateBlockTunables,
   MotionReading,
   MotionTunables,
+  OutsTunables,
+  PursuitTunables,
   RepClockTunables,
+  ScrambleStart,
+  SideCatchTunables,
+  SpentChecklist,
   Tunables,
 } from "../tunables.js";
 
@@ -164,6 +185,16 @@ export interface PocketStep5Rules {
 }
 
 /**
+ * ADR-089 step 6: the rules' step-6 part. The block is the tunables' own object, or `undefined` when
+ * the bundle does not carry it (steps 1 to 5a's bundles carry none, and their plays run exactly as
+ * before).
+ */
+export interface PocketStep6Rules {
+  /** The outs (§4.6 e and f, §4.7), each part behind its leaf; `undefined` is step 5a's outs. */
+  readonly outs: OutsTunables | undefined;
+}
+
+/**
  * ADR-089 step 4, kind T (plan §1.2): "today's line plus contact", the named arm of §6.4's contact
  * clauses (AM-7 item 1: A0's settings plus the contact block). No block clock; its step-2 and
  * step-3 parts are today's (`STEP_1`, no free-run or late block, the climb lane `INTERIOR`, no
@@ -183,6 +214,8 @@ export interface TodaysLinePlusContact {
   readonly motion: undefined;
   /** ADR-089 step 5a: kind T never runs the clean-pocket block (refused). */
   readonly cleanPocket: undefined;
+  /** ADR-089 step 6: nor the outs block (refused). */
+  readonly outs: undefined;
 }
 
 /**
@@ -199,7 +232,8 @@ export type PocketRules =
       readonly forcing: PocketForcing;
     } & PocketStep3Rules &
       PocketStep4Rules &
-      PocketStep5Rules)
+      PocketStep5Rules &
+      PocketStep6Rules)
   | ({
       readonly kind: "L";
       readonly repClock: RepClockTunables;
@@ -208,7 +242,8 @@ export type PocketRules =
       readonly forcing: PocketForcing;
     } & PocketStep3Rules &
       PocketStep4Rules &
-      PocketStep5Rules)
+      PocketStep5Rules &
+      PocketStep6Rules)
   | TodaysLinePlusContact;
 
 /**
@@ -254,9 +289,36 @@ export const P7_IN_CONTRACTS = true;
 export const P8_IN_CONTRACTS = true;
 
 /**
+ * ADR-089 step 6: the contract petitions the outs wait on (step-6 plan §1.2, §10.1; `petitions.md`),
+ * as code constants, all false while the parts are built behind them, as step 4's three were before
+ * their yes (`bb68474`, then the contracts commit `3e385e4` and the lift `09a269f`):
+ *  - P9: `ThrowawayCause` gains `"OUT_OF_POCKET"`, the throwaway the deadline pick makes, and
+ *    `THROWAWAY.rollRef`'s doc names the deadline pick's CHECK;
+ *  - P10: `THROWAWAY.payload.outsideTackleBox`;
+ *  - P11: `QB_DECISION.payload.direction` (`RunSide`), the side of an escape;
+ *  - P12: `CheckKind` gains `"scramble_drill"`, the drill's fresh rep.
+ * The gate is joint: while any of the four is false, `pocketRulesOf` refuses every tree carrying
+ * `pocket.outs` before the first die, since the outs write all four. Beside them, a named addition to
+ * plan §1.2 (contracts-guardian's second reading, `guardian-2.md`), two doc-only petitions gate one
+ * leaf each, the same way: P20 (`QB_HIT.contactSeconds` on a caught escape, ruled needed) gates the
+ * caught escape as contact (`pocket.outs.caughtAsContact`), and P21 (`QB_HIT.seen` false on a catch
+ * from a block, asked only if the owner answers "unseen") gates `pocket.outs.caughtSeen`
+ * `UNSEEN_IF_UNREGISTERED`. A test grants them through `pocketRulesUnder` with its own petitions, and
+ * the log refuses each fact P9 to P12 add unless a test's recorder takes it (`Step6Recorder`,
+ * `events.ts`). None turns true before the owner's typed yes and its contracts commit; the lift turns
+ * them true with calibration's own (restated there, a test tying the two).
+ */
+export const P9_IN_CONTRACTS = false;
+export const P10_IN_CONTRACTS = false;
+export const P11_IN_CONTRACTS = false;
+export const P12_IN_CONTRACTS = false;
+export const P20_IN_CONTRACTS = false;
+export const P21_IN_CONTRACTS = false;
+
+/**
  * Which petitions are in contracts: the constants above, or a test's own set. P6, P7 and P8 may be
  * left out, and then read as their constants (so a test that gives only P5 and P17 sees the build's
- * step-4 gate).
+ * step-4 gate); so may step 6's P9 to P12, P20 and P21.
  */
 export interface ContractPetitions {
   readonly P5: boolean;
@@ -264,6 +326,12 @@ export interface ContractPetitions {
   readonly P6?: boolean;
   readonly P7?: boolean;
   readonly P8?: boolean;
+  readonly P9?: boolean;
+  readonly P10?: boolean;
+  readonly P11?: boolean;
+  readonly P12?: boolean;
+  readonly P20?: boolean;
+  readonly P21?: boolean;
 }
 
 const IN_CONTRACTS: ContractPetitions = Object.freeze({
@@ -272,6 +340,12 @@ const IN_CONTRACTS: ContractPetitions = Object.freeze({
   P6: P6_IN_CONTRACTS,
   P7: P7_IN_CONTRACTS,
   P8: P8_IN_CONTRACTS,
+  P9: P9_IN_CONTRACTS,
+  P10: P10_IN_CONTRACTS,
+  P11: P11_IN_CONTRACTS,
+  P12: P12_IN_CONTRACTS,
+  P20: P20_IN_CONTRACTS,
+  P21: P21_IN_CONTRACTS,
 });
 
 const LEGACY: PocketRules = Object.freeze({ kind: "LEGACY" });
@@ -527,6 +601,35 @@ const CLEAN_POCKET_SWITCHES = ["d23", "move", "bump", "breakOut", "d23OnRun"] as
 /** Every key `pocket.cleanPocket` may carry: the five switches, the bar, the reset and the optional floor. */
 const CLEAN_POCKET_KEYS = [...CLEAN_POCKET_SWITCHES, "expiryBar", "resetSeconds", "dropFloor"] as const;
 
+const OUTS_BLOCK = "the outs block (pocket.outs)";
+/** ADR-089 step 6: the outs block's switches, in step-6 plan §1.2's order. */
+const OUTS_SWITCHES = ["throwawayRule", "noLateHorizonSack", "direction", "caughtAsContact", "drill", "drillBySide", "failedScrambleSack"] as const;
+/** Every key `pocket.outs` may carry, in step-6 plan §1.2's order (`caughtSeen` beside the contact). */
+const OUTS_KEYS = [
+  "throwawayRule",
+  "scrambleStart",
+  "escapeCap",
+  "pursuit",
+  "noLateHorizonSack",
+  "direction",
+  "sideCatch",
+  "caughtAsContact",
+  "caughtSeen",
+  "drill",
+  "drillBySide",
+  "deadlinePick",
+  "failedScrambleSack",
+] as const;
+/** ADR-089 step 6's closed sets: the owner's three questions, every option built (recommended first). */
+const SCRAMBLE_STARTS: readonly ScrambleStart[] = ["ZERO_GAIN_ONLY", "EVERY_RUN"];
+const SPENT_CHECKLISTS: readonly SpentChecklist[] = ["HOLD", "TODAYS_PATH", "SECOND_ESCAPE", "BELOW_30", "CONTAINED_DOES_NOT_SPEND"];
+const CAUGHT_SEEN: readonly CaughtSeen[] = ["SEEN", "UNSEEN_IF_UNREGISTERED"];
+/** The only values the step-6 objects take (the cap and the deadline pick filed, pursuit and the side-aware catch CHOSEN). */
+const ESCAPE_CAP_MAX_PER_PLAY = 1;
+const PURSUIT = Object.freeze({ speedBaseline: 70, speedDivisor: 5, mobilityDivisor: 10, mobilityCentering: 7 } as const satisfies PursuitTunables);
+const SIDE_CATCH = Object.freeze({ perLiveThreat: 10, perUnregistered: 15 } as const satisfies SideCatchTunables);
+const DEADLINE_PICK = Object.freeze({ runMargin: 1 } as const satisfies DeadlinePickTunables);
+
 function onTheTenth(value: number, what: string): void {
   const tenths = value / DELAY_ROUNDING_SECONDS;
   if (!(Math.abs(tenths - Math.round(tenths)) < 1e-9)) {
@@ -639,6 +742,97 @@ function checkCleanPocket(block: unknown): CleanPocketTunables {
 }
 
 /**
+ * ADR-089 step 6: one of the outs block's fixed objects (the cap, pursuit, the side-aware catch, the
+ * deadline pick): an object with exactly the given keys, each exactly its value. A key it does not
+ * have is refused by name, as the blocks' own keys are.
+ */
+function exactObject(block: unknown, values: Readonly<Record<string, number>>, label: string, source: string): void {
+  const names = Object.keys(values);
+  if (!isObject(block)) throw new PocketRulesError(`${label} must be an object { ${names.join(", ")} }, got ${String(block)}`);
+  for (const name of Object.keys(block)) {
+    if (!names.includes(name)) throw new PocketRulesError(`${label}.${name} is not a key of ${label} (${names.join(", ")})`);
+  }
+  for (const name of names) {
+    if (block[name] !== values[name]) {
+      throw new PocketRulesError(`${label}.${name} must be ${String(values[name])} (${source}), got ${String(block[name])}`);
+    }
+  }
+}
+
+/**
+ * ADR-089 step 6: the outs block's dials (step-6 plan §1.2). Each part's switch true or false; the
+ * scramble start and `caughtSeen` from their closed sets (two owner questions); the cap's one roll
+ * a play and its spent case from its closed set (the third); pursuit, the side-aware catch and the
+ * deadline pick exactly their CHOSEN or filed values. Then the parts that need another, each refused
+ * by name: the side-aware catch and the side-aware drill without escape direction, the side-aware
+ * drill without the drill. `caughtSeen` is the owner's answer for the caught escape's contact, so it
+ * is present exactly when `caughtAsContact` is on. A block with every part off is accepted (it plays
+ * step 5a's outs, the all-off proof's case).
+ */
+function checkOuts(block: unknown): OutsTunables {
+  if (!isObject(block)) throw new PocketRulesError(`${OUTS_BLOCK} must be an object, got ${String(block)}`);
+  const leaf = (name: string): string => `pocket.outs.${name}`;
+  // A key the block does not have is refused by name, so a misspelled optional key cannot leave its
+  // part silently off (the clean-pocket block's rule, code-tests F13).
+  for (const name of Object.keys(block)) {
+    if (!(OUTS_KEYS as readonly string[]).includes(name)) {
+      throw new PocketRulesError(`${leaf(name)} is not a key of the outs block (${OUTS_KEYS.join(", ")})`);
+    }
+  }
+  for (const name of OUTS_SWITCHES) isBoolean(block[name], leaf(name));
+  if (block.scrambleStart !== undefined) {
+    oneOf(block.scrambleStart, SCRAMBLE_STARTS, `the scramble start (${leaf("scrambleStart")})`);
+  }
+  if (block.escapeCap !== undefined) {
+    const cap = block.escapeCap;
+    if (!isObject(cap)) throw new PocketRulesError(`${leaf("escapeCap")} must be an object { maxPerPlay, whenSpent }, got ${String(cap)}`);
+    for (const name of Object.keys(cap)) {
+      if (name !== "maxPerPlay" && name !== "whenSpent") {
+        throw new PocketRulesError(`${leaf(`escapeCap.${name}`)} is not a key of ${leaf("escapeCap")} (maxPerPlay, whenSpent)`);
+      }
+    }
+    if (cap.maxPerPlay !== ESCAPE_CAP_MAX_PER_PLAY) {
+      throw new PocketRulesError(
+        `${leaf("escapeCap.maxPerPlay")} must be ${String(ESCAPE_CAP_MAX_PER_PLAY)} (one escape roll a play, ADR-089 §4.7), got ${String(cap.maxPerPlay)}`,
+      );
+    }
+    oneOf(cap.whenSpent, SPENT_CHECKLISTS, `the spent case (${leaf("escapeCap.whenSpent")})`);
+  }
+  if (block.pursuit !== undefined) exactObject(block.pursuit, PURSUIT, leaf("pursuit"), "CHOSEN, step-6 plan §2.4");
+  if (block.sideCatch !== undefined) exactObject(block.sideCatch, SIDE_CATCH, leaf("sideCatch"), "CHOSEN in the design, ADR-089 §4.7");
+  if (block.deadlinePick !== undefined) {
+    exactObject(block.deadlinePick, DEADLINE_PICK, leaf("deadlinePick"), "K9's re-derived margin: the deadline pick reads urgency 0 only");
+  }
+  if (block.caughtAsContact === true && block.caughtSeen === undefined) {
+    throw new PocketRulesError(
+      `${leaf("caughtSeen")} must be one of ${CAUGHT_SEEN.join(", ")} when the caught escape as contact (${leaf("caughtAsContact")}) is on: it is the owner's answer for that contact's QB_HIT.seen, got undefined`,
+    );
+  }
+  if (block.caughtSeen !== undefined) {
+    if (block.caughtAsContact !== true) {
+      throw new PocketRulesError(
+        `${leaf("caughtSeen")} without the caught escape as contact (${leaf("caughtAsContact")}): it is read only by that contact's QB_HIT`,
+      );
+    }
+    oneOf(block.caughtSeen, CAUGHT_SEEN, `the caught escape's seen (${leaf("caughtSeen")})`);
+  }
+  if (block.sideCatch !== undefined && block.direction !== true) {
+    throw new PocketRulesError(
+      `the side-aware catch (${leaf("sideCatch")}) without escape direction (${leaf("direction")}): it reads the side he breaks to`,
+    );
+  }
+  if (block.drillBySide === true && block.direction !== true) {
+    throw new PocketRulesError(
+      `the side-aware drill (${leaf("drillBySide")}) without escape direction (${leaf("direction")}): it reads the side he breaks to`,
+    );
+  }
+  if (block.drillBySide === true && block.drill !== true) {
+    throw new PocketRulesError(`the side-aware drill (${leaf("drillBySide")}) without the drill (${leaf("drill")}): it sizes the drill's burst steps`);
+  }
+  return block as unknown as OutsTunables;
+}
+
+/**
  * ADR-089 step 4: the motion's dials (plan §1.1). rho0 and rhoD above 0; the reading from its closed
  * set; and over the whole rating scale rho must be 0 or more (the ball never leaves before the
  * decision) and below one tick step (the motion never reaches the next tick of the grid, so a
@@ -716,7 +910,8 @@ export function playsLegacyRules(tunables: Tunables): boolean {
     tunables.pocket.forcing === undefined &&
     step3BlocksOf(tunables).length === 0 &&
     step4BlocksOf(tunables).length === 0 &&
-    tunables.pocket.cleanPocket === undefined
+    tunables.pocket.cleanPocket === undefined &&
+    tunables.pocket.outs === undefined
   );
 }
 
@@ -733,7 +928,7 @@ export function playsTodaysLine(tunables: Tunables): boolean {
   return playsLegacyRules(tunables) || (tunables.pocket.contact !== undefined && isTodaysLinePlusContactTree(tunables));
 }
 
-/** Kind T's shape: a stamp, the approach card, the contact block, and no clock, forcing, step-3 block, motion or clean-pocket block. */
+/** Kind T's shape: a stamp, the approach card, the contact block, and no clock, forcing, step-3 block, motion, clean-pocket block or outs block. */
 function isTodaysLinePlusContactTree(tunables: Tunables): boolean {
   const { beatClock, repClock, approach } = tunables.passRush;
   return (
@@ -745,7 +940,8 @@ function isTodaysLinePlusContactTree(tunables: Tunables): boolean {
     step3BlocksOf(tunables).length === 0 &&
     tunables.pocket.contact !== undefined &&
     tunables.throwExec.motion === undefined &&
-    tunables.pocket.cleanPocket === undefined
+    tunables.pocket.cleanPocket === undefined &&
+    tunables.pocket.outs === undefined
   );
 }
 
@@ -771,6 +967,7 @@ export function pocketRulesUnder(tunables: Tunables, petitions: ContractPetition
   const contactBlock: unknown = tunables.pocket.contact;
   const motionBlock: unknown = tunables.throwExec.motion;
   const cleanPocketBlock: unknown = tunables.pocket.cleanPocket;
+  const outsBlock: unknown = tunables.pocket.outs;
   const clocks = (beatClock === undefined ? 0 : 1) + (repClock === undefined ? 0 : 1);
 
   if (clocks === 2) {
@@ -821,6 +1018,21 @@ export function pocketRulesUnder(tunables: Tunables, petitions: ContractPetition
       throw new PocketRulesError(`${CLEAN_POCKET_BLOCK} without its rules stamp (engineRules { name, overlayDigest })`);
     }
   }
+  // ADR-089 step 6: the outs block is read on shapes S and L only, as the clean-pocket block is. Under
+  // legacy (no block clock, no stamp) and on kind T (no block clock) it is refused, and so is it
+  // without its stamp.
+  if (outsBlock !== undefined) {
+    if (clocks === 0) {
+      throw new PocketRulesError(
+        contactBlock === undefined
+          ? `${OUTS_BLOCK} without a block clock (passRush.beatClock or passRush.repClock); it is a pocket-1 rule, read on shapes S and L only`
+          : `${OUTS_BLOCK} on today's line plus contact (kind T), which has no block clock; it is read on shapes S and L only`,
+      );
+    }
+    if (stamp === undefined) {
+      throw new PocketRulesError(`${OUTS_BLOCK} without its rules stamp (engineRules { name, overlayDigest })`);
+    }
+  }
   if (clocks === 0 && motionBlock !== undefined) {
     throw new PocketRulesError(
       `${MOTION_BLOCK} without a block clock (passRush.beatClock or passRush.repClock); today's line plus contact (kind T) runs the contact alone`,
@@ -850,7 +1062,9 @@ export function pocketRulesUnder(tunables: Tunables, petitions: ContractPetition
   const contact = contactBlock === undefined ? undefined : checkContact(contactBlock);
   const motion = motionBlock === undefined ? undefined : checkMotion(motionBlock, tunables.clock.tickStepSeconds);
   const cleanPocket = cleanPocketBlock === undefined ? undefined : checkCleanPocket(cleanPocketBlock);
+  const outs = outsBlock === undefined ? undefined : checkOuts(outsBlock);
   step4Gate(step4Blocks, petitions);
+  if (outs !== undefined) step6Gate(outs, petitions);
 
   if (clocks === 0) {
     if (contact === undefined) throw new PocketRulesError("unreachable: kind T without the contact block");
@@ -866,11 +1080,13 @@ export function pocketRulesUnder(tunables: Tunables, petitions: ContractPetition
       contact,
       motion: undefined,
       cleanPocket: undefined,
+      outs: undefined,
     };
     return Object.freeze(t);
   }
   const step4: PocketStep4Rules = { contact, motion };
   const step5: PocketStep5Rules = { cleanPocket };
+  const step6: PocketStep6Rules = { outs };
 
   if (beatClock !== undefined) {
     positive(beatClock.thetaSeconds, "passRush.beatClock.thetaSeconds");
@@ -882,11 +1098,11 @@ export function pocketRulesUnder(tunables: Tunables, petitions: ContractPetition
       positive(w.lengthSeconds, "passRush.beatClock.pushWindow.lengthSeconds");
       onTheGrid(w.lengthSeconds, tunables.clock.tickStepSeconds, "passRush.beatClock.pushWindow.lengthSeconds");
     }
-    return Object.freeze({ kind: "S", beatClock, approach, rules, forcing, ...step3RulesOf(tunables, "S", petitions), ...step4, ...step5 });
+    return Object.freeze({ kind: "S", beatClock, approach, rules, forcing, ...step3RulesOf(tunables, "S", petitions), ...step4, ...step5, ...step6 });
   }
   if (repClock === undefined) throw new PocketRulesError("unreachable: no block clock");
   positive(repClock.fullExpressionSeconds, "passRush.repClock.fullExpressionSeconds");
-  return Object.freeze({ kind: "L", repClock, approach, rules, forcing, ...step3RulesOf(tunables, "L", petitions), ...step4, ...step5 });
+  return Object.freeze({ kind: "L", repClock, approach, rules, forcing, ...step3RulesOf(tunables, "L", petitions), ...step4, ...step5, ...step6 });
 }
 
 /**
@@ -909,4 +1125,41 @@ function step4Gate(blocks: readonly { readonly name: string }[], petitions: Cont
   throw new PocketRulesError(
     `${blocks.map((b) => b.name).join(" and ")} ${blocks.length === 1 ? "is" : "are"} refused until petitions P6, P7 and P8 are in contracts (not yet: ${missing.join(", ")}): a contact writes an arrival_contest CHECK and a QB_HIT, the throwing motion a QB_HIT and THROW.releaseSeconds`,
   );
+}
+
+/**
+ * ADR-089 step 6's gate (step-6 plan §1.2, §10.1): while any of P9, P10, P11 and P12 is not in
+ * contracts, a tree carrying the outs block is refused, before the first die, naming the petitions
+ * that are missing; every part off is refused too, since the gate is on the block. Beside it, the
+ * caught escape as contact is refused while P20 is out (its `QB_HIT.contactSeconds` is the time the
+ * escape caught him, a reading the field's doc does not list yet), and the unseen answer while P21
+ * is out (`QB_HIT.seen` is true on every contact before step 7 until its doc allows a catch from a
+ * block to be unseen). A petition a test leaves out reads as its constant.
+ */
+function step6Gate(outs: OutsTunables, petitions: ContractPetitions): void {
+  const missing = (
+    [
+      ["P9", petitions.P9 ?? P9_IN_CONTRACTS],
+      ["P10", petitions.P10 ?? P10_IN_CONTRACTS],
+      ["P11", petitions.P11 ?? P11_IN_CONTRACTS],
+      ["P12", petitions.P12 ?? P12_IN_CONTRACTS],
+    ] as const
+  )
+    .filter(([, granted]) => !granted)
+    .map(([name]) => name);
+  if (missing.length > 0) {
+    throw new PocketRulesError(
+      `${OUTS_BLOCK} is refused until petitions P9, P10, P11 and P12 are in contracts (not yet: ${missing.join(", ")}): the outs write an OUT_OF_POCKET throwaway, THROWAWAY.outsideTackleBox, QB_DECISION.direction and a scramble_drill CHECK`,
+    );
+  }
+  if (outs.caughtAsContact && !(petitions.P20 ?? P20_IN_CONTRACTS)) {
+    throw new PocketRulesError(
+      "the caught escape as contact (pocket.outs.caughtAsContact) is refused until petition P20 is in contracts: its QB_HIT's contactSeconds is the time the escape caught him, a reading QB_HIT.contactSeconds' doc does not list yet",
+    );
+  }
+  if (outs.caughtSeen === "UNSEEN_IF_UNREGISTERED" && !(petitions.P21 ?? P21_IN_CONTRACTS)) {
+    throw new PocketRulesError(
+      "pocket.outs.caughtSeen UNSEEN_IF_UNREGISTERED is refused until petition P21 is in contracts: QB_HIT.seen is true on every contact before ADR-089 step 7 until its doc allows a catch from a block to be unseen",
+    );
+  }
 }

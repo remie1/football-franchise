@@ -18,6 +18,7 @@ import type {
   ResultTier,
   RollDetail,
   RoutePhase,
+  RunSide,
   RushAlignment,
   RushApproach,
   RushThreatState,
@@ -27,7 +28,7 @@ import type {
 } from "@ff/contracts";
 import type { PocketStatusRung } from "./resolve/pocket.js";
 import type { ContestBand } from "./resolve/contact.js";
-import type { AtTheLineRecord, PassPlayStartPayload, RunPlayStartPayload } from "./types.js";
+import type { AtTheLineRecord, ContestPosition, PassPlayStartPayload, RunPlayStartPayload } from "./types.js";
 
 /**
  * ADR-036 — the recovery state of a deflected ball, as ONE value.
@@ -198,6 +199,125 @@ export type QbHitPhase = ContractsQbHitPhase;
 export type QbHitRecord = Extract<MatchEvent, { type: "QB_HIT" }>["payload"];
 
 /**
+ * ADR-089 step 6: WHAT THE OUTS WILL WRITE, BEFORE PETITIONS P9, P10, P11 AND P12 ARE IN CONTRACTS
+ * (step-6 plan §1.2, §2; `petitions.md` §1 to §4).
+ *
+ * Contracts has no `OUT_OF_POCKET` throwaway cause (P9), no `THROWAWAY.payload.outsideTackleBox`
+ * (P10), no `QB_DECISION.payload.direction` (P11) and no `scramble_drill` CheckKind (P12) yet, so
+ * the engine names each in its own types below, field for field and in the key order the petitions
+ * write them, and `PlayEventLog` refuses to put any of them on a stream: `throwaway` with the
+ * OUT_OF_POCKET cause or the flag, `qbDecision` with a direction and `scrambleDrill` throw a
+ * `PetitionNotInContractsError` while the log has no `Step6Recorder`. `sim/pocketRules.ts` refuses
+ * every tree carrying `pocket.outs` before the first die while any of the four is out, so no game
+ * reaches them. A test hands a recorder to the engine-internal entry `simulatePassPlayWith`
+ * (`sim/passPlay.ts`, never in the barrel) with its own granted petitions; the recorder receives
+ * what the stream will carry, and where. At the lift each stand-in gives way to the contracts type
+ * of the same shape and each method becomes a `push` of the same payload, as step 4's did (`bb68474`,
+ * then the lift `09a269f`). P20 and P21 are doc lines on `QB_HIT` (a type the stream already
+ * carries), so they are gated in `sim/pocketRules.ts` alone.
+ */
+
+/** P9's `ThrowawayCause`: today's two, and `OUT_OF_POCKET`, the throwaway after an escape. The lift: contracts' `ThrowawayCause`. */
+export type ThrowawayCauseS6 = ThrowawayCause | "OUT_OF_POCKET";
+
+/**
+ * A `THROWAWAY` payload as P9 and P10 write it, in their key order: `cause`; `rollRef`, the
+ * `pocket_movement` CHECK behind a POCKET_DURESS throwaway and behind an OUT_OF_POCKET one the
+ * deadline pick's (its `.../movement/t<tick>:deadline` label), absent on CLOCK_EXPIRED; and
+ * `outsideTackleBox`, written on every throwaway of a play whose rules carry step 6's throwaway
+ * parts: false in the pocket, true out of it.
+ */
+export interface ThrowawayRecordS6 {
+  readonly cause: ThrowawayCauseS6;
+  readonly rollRef?: string;
+  readonly outsideTackleBox?: boolean;
+}
+
+/** The CHECK kind P12 adds: the scramble drill's fresh rep. The lift: `satisfies CheckKind`. */
+export const SCRAMBLE_DRILL_KIND = "scramble_drill";
+
+/**
+ * A `scramble_drill` CHECK as P12 writes it. `actors` are the receiver, then the defender; `roll` is
+ * the receiver's d100 plus his side of his route's own rep (no release carry-over), on
+ * `.../movement/t<tick>:drill:<receiverId>`; no `opposedRoll`: the defender's side is set with no
+ * die and stated as `target`; `margin` is `roll.total` minus `target` and `tier` its tier; `band` is
+ * where the defender stands after the drill; `rollRef` names the escape's `scramble` CHECK;
+ * `testsAttrs` lists the ratings read on both sides.
+ */
+export interface ScrambleDrillEmission {
+  readonly checkKind: typeof SCRAMBLE_DRILL_KIND;
+  readonly actors: readonly [PlayerId, PlayerId];
+  readonly roll: RollDetail;
+  readonly target: number;
+  readonly tier: ResultTier;
+  readonly band: ContestPosition;
+  readonly margin: number;
+  readonly testsAttrs: readonly AttrId[];
+  readonly rollRef: string;
+}
+
+/**
+ * The CHECK payload a `ScrambleDrillEmission` will be, in `checkPayload`'s key order for a CHECK with
+ * a roll (`checkKind`, `actors`, `roll`, `tier`, `margin`, `testsAttrs`, `target`, `band`, `rollRef`).
+ */
+export interface ScrambleDrillPayload {
+  readonly checkKind: typeof SCRAMBLE_DRILL_KIND;
+  readonly actors: PlayerId[];
+  readonly roll: RollDetail;
+  readonly tier: ResultTier;
+  readonly margin: number;
+  readonly testsAttrs: AttrId[];
+  readonly target: number;
+  readonly band: ContestPosition;
+  readonly rollRef: string;
+}
+
+export function scrambleDrillPayload(c: ScrambleDrillEmission): ScrambleDrillPayload {
+  return {
+    checkKind: c.checkKind,
+    actors: [...c.actors],
+    roll: c.roll,
+    tier: c.tier,
+    margin: c.margin,
+    testsAttrs: [...c.testsAttrs],
+    target: c.target,
+    band: c.band,
+    rollRef: c.rollRef,
+  };
+}
+
+/**
+ * Where a step-6 record stands in the stream: for a whole record the stream cannot carry yet (an
+ * OUT_OF_POCKET throwaway, a drill CHECK), the `seq` the next event takes (the record would stand
+ * just before it); for a field (`outsideTackleBox`, `direction`), the `seq` of the event that
+ * carries it. And the tick.
+ */
+export interface Step6Position {
+  readonly seq: number;
+  readonly tick: number | undefined;
+}
+
+/** What a test hands the log to receive the step-6 records the stream cannot carry yet. */
+export interface Step6Recorder {
+  /** P9: a throwaway after an escape, the whole payload (its `outsideTackleBox` with it, P10). */
+  outOfPocketThrowaway(payload: ThrowawayRecordS6, at: Step6Position): void;
+  /** P10: the flag of a POCKET_DURESS or CLOCK_EXPIRED throwaway on the stream. */
+  outsideTackleBox(value: boolean, at: Step6Position): void;
+  /** P11: the side on a decision on the stream. */
+  direction(side: RunSide, at: Step6Position): void;
+  /** P12: a scramble drill CHECK. */
+  scrambleDrill(payload: ScrambleDrillPayload, at: Step6Position): void;
+}
+
+/** The named refusals, one per petition (P9, P10, P11, P12). */
+export class PetitionNotInContractsError extends Error {
+  constructor(petition: "P9" | "P10" | "P11" | "P12", what: string) {
+    super(`@ff/engine: ${what} cannot be written: petition ${petition} is not in contracts (ADR-089 step 6)`);
+    this.name = "PetitionNotInContractsError";
+  }
+}
+
+/**
  * A PRE-SNAP check (§5). Its own shape rather than a `CheckEmission`, because
  * `PRESNAP_READ`'s payload is genuinely different: ONE actor, a bare target, no
  * opposed roll.
@@ -310,6 +430,11 @@ export class PlayEventLog {
     private readonly playId: PlayId,
     private readonly at: CalendarStamp,
     startSeq: number,
+    /**
+     * ADR-089 step 6: a test's recorder for the records petitions P9 to P12 will put on the stream
+     * (`Step6Recorder` above). Absent everywhere but `simulatePassPlayWith` under a test.
+     */
+    private readonly step6?: Step6Recorder,
   ) {
     this.seq = startSeq;
   }
@@ -503,14 +628,28 @@ export class PlayEventLog {
    */
   qbDecision(
     choice: QbDecisionChoice,
-    options: { readonly target?: PlayerId; readonly tier?: ResultTier } = {},
+    options: {
+      readonly target?: PlayerId;
+      readonly tier?: ResultTier;
+      /**
+       * ADR-089 P11: the side of an escape (step-6 plan §2.6), on the SCRAMBLE of one he won and the
+       * HOLD of one he was contained on. Refused while P11 is not in contracts, unless a test's
+       * recorder takes it; at the lift it is written after `tier`, so a decision without it keeps
+       * its bytes.
+       */
+      readonly direction?: RunSide;
+    } = {},
   ): void {
+    if (options.direction !== undefined && this.step6 === undefined) {
+      throw new PetitionNotInContractsError("P11", "QB_DECISION.direction");
+    }
     const payload = {
       choice,
       ...(options.target === undefined ? {} : { target: options.target }),
       ...(options.tier === undefined ? {} : { tier: options.tier }),
     };
     this.push({ type: "QB_DECISION", payload, ...this.base() });
+    if (options.direction !== undefined) this.step6?.direction(options.direction, { seq: this.seq - 1, tick: this.tick });
   }
 
   /**
@@ -552,17 +691,47 @@ export class PlayEventLog {
    * ADR-056 Option C — THE ACT, not the decision. `QB_DECISION{choice:"THROWAWAY"}`
    * stays as the decision; this is the ball leaving his hand with no target.
    *
-   * `cause` is required (both emit sites always know which of the two closed
-   * paths they are on). `rollRef` is present only for `POCKET_DURESS`, which has
-   * the `pocket_movement` CHECK behind it; `CLOCK_EXPIRED` has no roll at all
-   * (ADR-005), so it must be omitted, never invented.
+   * `cause` is required (every emit site knows which closed path it is on).
+   * `rollRef` is present for `POCKET_DURESS`, which has the `pocket_movement`
+   * CHECK behind it, and (ADR-089 P9, from step 6) for `OUT_OF_POCKET`, which has
+   * the deadline pick's; `CLOCK_EXPIRED` has no roll at all (ADR-005), so it must
+   * be omitted, never invented.
+   *
+   * ADR-089 step 6: `OUT_OF_POCKET` (P9) and `outsideTackleBox` (P10) are refused
+   * while their petitions are not in contracts, unless a test's recorder takes
+   * them (`Step6Recorder`): the whole OUT_OF_POCKET throwaway goes to the recorder
+   * and nothing is pushed; the flag of a throwaway the stream can carry goes there
+   * by that THROWAWAY's seq. At the lift the flag is written after `rollRef`, so a
+   * throwaway without it keeps its bytes.
    */
-  throwaway(cause: ThrowawayCause, rollRef?: string): void {
+  throwaway(cause: ThrowawayCauseS6, rollRef?: string, outsideTackleBox?: boolean): void {
+    if (cause === "OUT_OF_POCKET") {
+      if (this.step6 === undefined) throw new PetitionNotInContractsError("P9", "an OUT_OF_POCKET THROWAWAY");
+      this.step6.outOfPocketThrowaway(
+        {
+          cause,
+          ...(rollRef === undefined ? {} : { rollRef }),
+          ...(outsideTackleBox === undefined ? {} : { outsideTackleBox }),
+        },
+        { seq: this.seq, tick: this.tick },
+      );
+      return;
+    }
+    if (outsideTackleBox !== undefined && this.step6 === undefined) {
+      throw new PetitionNotInContractsError("P10", "THROWAWAY.outsideTackleBox");
+    }
     this.push({
       type: "THROWAWAY",
       payload: { cause, ...(rollRef === undefined ? {} : { rollRef }) },
       ...this.base(),
     });
+    if (outsideTackleBox !== undefined) this.step6?.outsideTackleBox(outsideTackleBox, { seq: this.seq - 1, tick: this.tick });
+  }
+
+  /** ADR-089 P12: a `scramble_drill` CHECK (step-6 plan §2.9). Refused while P12 is not in contracts. */
+  scrambleDrill(c: ScrambleDrillEmission): void {
+    if (this.step6 === undefined) throw new PetitionNotInContractsError("P12", "a scramble_drill CHECK");
+    this.step6.scrambleDrill(scrambleDrillPayload(c), { seq: this.seq, tick: this.tick });
   }
 
   /**

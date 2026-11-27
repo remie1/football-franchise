@@ -49,7 +49,7 @@ import type { PlayerId, PlayerState, Rng, RollModifier, RushThreatState } from "
 import { ATTR } from "../attrs.js";
 import { chemistryLevel } from "../chemistry.js";
 import { ARRIVAL_CONTEST_KIND, PlayEventLog } from "../events.js";
-import type { ArrivalContestEmission, QbHitRecord, ThreatApproach } from "../events.js";
+import type { ArrivalContestEmission, QbHitRecord, Step6Recorder, ThreatApproach } from "../events.js";
 import { clamp, flatModifier, tierFor } from "../rolls.js";
 import { TUNABLES } from "../tunables.js";
 import type { LateBlockTunables, Tunables } from "../tunables.js";
@@ -466,10 +466,12 @@ export function simulatePassPlay(
 /**
  * A test's own set of petitions (`pocketRulesUnder`), so a test can withhold one and see the gate
  * refuse. Before the lift of P6, P7 and P8 it also carried a recorder for the step-4 records; those
- * are on the stream now.
+ * are on the stream now. ADR-089 step 6: until P9 to P12 are in contracts it carries a recorder for
+ * the step-6 records (`Step6Recorder`, `events.ts`), which the play's log hands them to.
  */
 export interface PassPlayUnder {
   readonly petitions: ContractPetitions;
+  readonly step6Recorder?: Step6Recorder;
 }
 
 /**
@@ -522,7 +524,7 @@ export function simulatePassPlayWith(
   }
 
   const playId = makePlayId(`${String(state.gameId)}:play:${state.playNumber}`);
-  const log = new PlayEventLog(state.gameId, playId, state.at, state.nextEventSeq);
+  const log = new PlayEventLog(state.gameId, playId, state.at, state.nextEventSeq, under?.step6Recorder);
   const qb = requirePlayer(state, state.quarterback);
 
   const playRng = createRng(seed, `game:${String(state.gameId)}`).fork(`play:${state.playNumber}`);

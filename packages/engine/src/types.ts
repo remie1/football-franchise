@@ -353,9 +353,9 @@ export type AtTheLineRecord =
  *
  * All but one field: `snap`, where every man stands at the snap, is contracts'
  * (`PlayStartSnap`, ADR-090 S2). The engine copies it from the calls
- * (`PlayCalls.snap`, S5) as the LAST key, after `rules`, so a payload without
- * it keeps today's keys in today's order. Nothing in the engine reads it at
- * ADR-090 step 1.
+ * (`PlayCalls.snap`, S5) as the LAST key, after `rules` (and after ADR-089
+ * step 6's `scoring`), so a payload without it keeps today's keys in today's
+ * order. Nothing in the engine reads it at ADR-090 step 1.
  */
 export interface PassPlayStartPayload extends PlayStartSnap {
   readonly kind: "PASS_PLAY_V1";
@@ -542,12 +542,25 @@ export interface PassPlayStartPayload extends PlayStartSnap {
   };
   /**
    * ADR-089 §9 — the rules this play ran under, and the digest of their overlay: a copy of the
-   * tunables' `engineRules` stamp, present only when the rules are not `legacy`, and the last key,
-   * so a legacy payload keeps today's keys in today's order. Pass plays only at step 1 (reading
-   * O20: the overlay acts only on pass plays until step 8a). Every dial of the play is pinned by
-   * it, so a margin can be rebuilt from the stream and this.
+   * tunables' `engineRules` stamp, present only when the rules are not `legacy`, and the last key
+   * before `scoring` and `snap`, so a legacy payload keeps today's keys in today's order. Pass plays
+   * only at step 1 (reading O20: the overlay acts only on pass plays until step 8a). Every dial of
+   * the play is pinned by it, so a margin can be rebuilt from the stream and this.
    */
   readonly rules?: { readonly name: string; readonly overlayDigest: string };
+  /**
+   * ADR-089 step 6 (step-6 plan §1.3, §2.12): how this play scores a failed scramble, written only
+   * when the rules carry `pocket.outs.failedScrambleSack` (`pocket-1` from `pocket-1.s6`), after
+   * `rules` and before `snap`, and absent on every other play, so every earlier play keeps its keys
+   * in their order. On a play that carries it, a `RUN_RESOLUTION` of carry type SCRAMBLE with yards
+   * at or below 0 is a sack in every reader (the statline here, calibration's readers, the game's
+   * play log): its yards are sack yards, it is not a rush, and it is credited to the run's tackler
+   * as a sack with no tackle and no tackle for loss. A rule over facts already on the stream, keyed
+   * on this marker and never on the rules name, so it needs no contracts edit: the contracts'
+   * `PLAY_START` payload is `unknown` (`petitions.md` §6). A top-level key, not inside `rules`, so
+   * the stamp keeps its two keys.
+   */
+  readonly scoring?: { readonly failedScramble: "SACK" };
 }
 
 /**
