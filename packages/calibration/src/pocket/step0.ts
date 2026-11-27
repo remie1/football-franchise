@@ -357,6 +357,127 @@ export function parseStep5Args(half: "5a" | "5b", argv: readonly string[], cwd: 
   };
 }
 
+/**
+ * Step 6's arguments (`step6.ts`; ADR-089 step-6 plan §3.1 item 5, §9). Paths are absolute. `--arms`
+ * takes step 6's run list (`STEP6_RUN_IDS`: D1, F5, E9 and the step-6 arms); `--fresh-base <set>
+ * --out <file>` is F5's second fresh play, the second process the operator runs when the harness
+ * prints it; `--digests --out <file>` is R-1. Step 6 takes no `--after-owner`: its gate reads the
+ * owner's words on the 5a miss from the amendments file (AM-11 `rule.gate.step6`, plan §10.3 item 2).
+ * In this build the gate refuses every run before anything plays.
+ */
+export interface Step6Args {
+  readonly step: 6;
+  readonly arms?: readonly ArmId[];
+  readonly shard?: { readonly index: number; readonly count: number };
+  readonly cache?: string;
+  readonly seedSet?: SeedSet;
+  readonly report?: string;
+  readonly out?: string;
+  /** F5's second fresh play on this seed set (S-7', plan §7.2). */
+  readonly freshBase?: SeedSet;
+  /** R-1 (plan §8.2). */
+  readonly digests?: true;
+}
+
+const STEP6_USAGE =
+  "pocket -- --step 6 [--arms H0,F5] [--shard i/n] [--cache <dir>] [--seed-set 1|2] [--report <file.md>] [--out <file.json>], " +
+  "pocket -- --step 6 --fresh-base 1|2 --out <file.json>, or pocket -- --step 6 --digests --out <file.json>";
+
+/** Why step 6 takes no `--after-owner` (plan §10.3 item 2). */
+export const STEP6_AFTER_OWNER_REFUSAL =
+  "--after-owner: step 6 takes no --after-owner; its gate reads the owner's words on the 5a miss from the amendments file (AM-11's rule.gate.step6), not a flag (ADR-089 step 6, plan §10.3)";
+
+/** Reads `--step 6`'s arguments (plan §9); throws `SyntaxError` on any flag of another step. */
+export function parseStep6Args(argv: readonly string[], cwd: string = process.cwd()): Step6Args {
+  const seen: string[] = [];
+  let arms: ArmId[] | undefined;
+  let shard: { index: number; count: number } | undefined;
+  let cache: string | undefined;
+  let seedSet: SeedSet | undefined;
+  let report: string | undefined;
+  let out: string | undefined;
+  let freshBase: SeedSet | undefined;
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i] as string;
+    const value = (): string => {
+      const v = argv[i + 1];
+      if (v === undefined || v.startsWith("--")) throw new SyntaxError(`${arg} requires a value`);
+      i += 1;
+      return v;
+    };
+    if (arg === "--") continue;
+    if (arg === "--after-owner") throw new SyntaxError(STEP6_AFTER_OWNER_REFUSAL);
+    if (arg !== "--step") seen.push(arg);
+    switch (arg) {
+      case "--step":
+        if (argv.indexOf("--step") !== i) throw new SyntaxError("--step is given twice");
+        value();
+        break;
+      case "--arms": {
+        const list = value().split(",").map((a) => a.trim());
+        if (list.includes("")) throw new SyntaxError(`--arms: an empty arm is not an arm (${list.join(",")})`);
+        if (new Set(list).size !== list.length) throw new SyntaxError(`--arms names an arm twice: ${list.join(",")}`);
+        for (const a of list) if (!isRunIdOf(6, a)) throw new SyntaxError(`--arms: ${a} is not an arm (${ARMS_NAMED[6]})`);
+        arms = list as ArmId[];
+        break;
+      }
+      case "--shard": {
+        const v = value();
+        const m = /^([1-9][0-9]*)\/([1-9][0-9]*)$/.exec(v);
+        if (m === null || Number(m[1]) > Number(m[2])) throw new SyntaxError(`--shard takes i/n with 1 <= i <= n; ${v} is not`);
+        shard = { index: Number(m[1]), count: Number(m[2]) };
+        break;
+      }
+      case "--cache":
+        cache = resolve(cwd, value());
+        break;
+      case "--seed-set":
+      case "--fresh-base": {
+        const v = value();
+        if (v !== "1" && v !== "2") throw new SyntaxError(`${arg} takes 1 or 2; ${v} is not`);
+        if (arg === "--seed-set") seedSet = v === "1" ? 1 : 2;
+        else freshBase = v === "1" ? 1 : 2;
+        break;
+      }
+      case "--report":
+        report = resolve(cwd, value());
+        break;
+      case "--out":
+        out = resolve(cwd, value());
+        break;
+      case "--digests":
+        break;
+      default:
+        throw new SyntaxError(`unknown argument ${arg} (${STEP6_USAGE})`);
+    }
+  }
+  const mode = ["--fresh-base", "--digests"].filter((f) => seen.includes(f));
+  if (mode.length > 1) throw new SyntaxError(`${mode.join(" and ")} are separate runs (${STEP6_USAGE})`);
+  const allowed = (m: string, ok: readonly string[], what: string): void => {
+    const others = [...new Set(seen.filter((f) => f !== m && !ok.includes(f)))];
+    if (others.length > 0) throw new SyntaxError(`${m} ${what}; it takes ${ok.join(", ")} (not ${others.join(", ")})`);
+  };
+  if (mode[0] === "--fresh-base") {
+    allowed("--fresh-base", ["--out"], "is F5's second fresh play, the second process the harness asks for");
+    if (out === undefined) throw new SyntaxError("--fresh-base writes to --out <file>");
+    return { step: 6, freshBase: freshBase!, out };
+  }
+  if (mode[0] === "--digests") {
+    allowed("--digests", ["--out"], "plays only the golden 50 a league under the step-6 arms (R-1)");
+    if (out === undefined) throw new SyntaxError("--digests writes its folds to --out <file>");
+    return { step: 6, digests: true, out };
+  }
+  return {
+    step: 6,
+    ...(arms === undefined ? {} : { arms }),
+    ...(shard === undefined ? {} : { shard }),
+    ...(cache === undefined ? {} : { cache }),
+    ...(seedSet === undefined ? {} : { seedSet }),
+    ...(report === undefined ? {} : { report }),
+    ...(out === undefined ? {} : { out }),
+  };
+}
+
 const STEP0_USAGE = "pocket -- --step 0 [--write-filed <path>] [--out <path>]";
 const STEP1_USAGE = "pocket -- --step 1 [--arms A1,A2] [--shard i/n] [--cache <dir>] [--seed-set 1|2] [--report <file.md>] [--out <file.json>], or pocket -- --step 1 --digests --out <file.json>";
 const STEP2_USAGE =
@@ -371,8 +492,7 @@ const STEP4_USAGE =
 
 /**
  * Each step's `--arms` list, as its refusal names it (step 3's with its arm ids, plan §5.1; step 4's,
- * plan §4; step 5's halves named with their ids, step-5 plan §5.1 and §5.2, though the parser below
- * still refuses `--step 5a` and `--step 5b`).
+ * plan §4; step 5's halves named with their ids, step-5 plan §5.1 and §5.2; step 6's, step-6 plan §5).
  */
 const ARMS_NAMED: Readonly<Record<ArmStep, string>> = {
   1: "A0 to A15, A0b",
@@ -381,6 +501,7 @@ const ARMS_NAMED: Readonly<Record<ArmStep, string>> = {
   4: "step 4's: A0, A14, A1, A11, C1, C2, C14, D1 to D17",
   "5a": "step 5a's: E0 to E10",
   "5b": "step 5b's: D1, F1 to F14, F0, G1, G2",
+  6: "step 6's: D1, F5, E9, H0 to H15, H2L, H0M, HB0, HB2 to HB5, HB7, HB9 to HB12, HBN, HB2L, HF1 to HF5",
 };
 
 function usageOf(step: 0 | 1 | 2 | 3 | 4 | undefined): string {
@@ -389,17 +510,19 @@ function usageOf(step: 0 | 1 | 2 | 3 | 4 | undefined): string {
 
 /**
  * Reads the command's arguments; paths resolve against `cwd` (the package folder under pnpm).
- * Throws `SyntaxError` on anything else: an unknown flag, a step other than 0, 1, 2, 3 and 4, or a
+ * Throws `SyntaxError` on anything else: an unknown flag, a step other than 0, 1, 2, 3, 4, 5a, 5b and
+ * 6 (`--step 5a`, `5b` and `6` have their own parsers, `parseStep5Args` and `parseStep6Args`), or a
  * flag of another step. `--arms` is checked against the step's own list (`runIdsOf`), whatever order
  * `--step` and `--arms` come in; at steps 3 and 4 an arm whose petition is not in contracts is
  * refused with its reason (`armRefusal`: none at step 3 since P17, E4b; every D arm at step 4 until
  * P6, P7 and P8 are in contracts). `--part1` is step 3's and step 4's flag.
  */
-export function parsePocketArgs(argv: readonly string[], cwd: string = process.cwd()): PocketArgs | Step1Args | Step2Args | Step3Args | Step4Args | Step5Args {
+export function parsePocketArgs(argv: readonly string[], cwd: string = process.cwd()): PocketArgs | Step1Args | Step2Args | Step3Args | Step4Args | Step5Args | Step6Args {
   const stepAt = argv.indexOf("--step");
   const stepValue = stepAt < 0 ? undefined : argv[stepAt + 1];
   if (stepValue === "5") throw new SyntaxError(STEP5_SPLIT_REFUSAL);
   if (stepValue === "5a" || stepValue === "5b") return parseStep5Args(stepValue, argv, cwd);
+  if (stepValue === "6") return parseStep6Args(argv, cwd);
   let step: 0 | 1 | 2 | 3 | 4 | undefined;
   let writeFiled: string | undefined;
   let out: string | undefined;
@@ -430,7 +553,7 @@ export function parsePocketArgs(argv: readonly string[], cwd: string = process.c
       case "--step": {
         const v = value();
         if (v !== "0" && v !== "1" && v !== "2" && v !== "3" && v !== "4") {
-          throw new SyntaxError(`ADR-089: steps 0, 1, 2, 3, 4, 5a and 5b are built (step 0's measurements and filing, step 1's to step 4's arms, step 5a's and step 5b's); --step ${v} is not`);
+          throw new SyntaxError(`ADR-089: steps 0, 1, 2, 3, 4, 5a, 5b and 6 are built (step 0's measurements and filing, step 1's to step 4's arms, step 5a's and step 5b's, and step 6's gate, which refuses until the step opens); --step ${v} is not`);
         }
         step = v === "0" ? 0 : v === "1" ? 1 : v === "2" ? 2 : v === "3" ? 3 : 4;
         break;
@@ -1213,6 +1336,12 @@ export async function pocketCommand(argv: readonly string[]): Promise<void> {
     // Step 5's harness (step5.ts, which loads step4.ts) is loaded only for step 5.
     const { step5Command } = await import("./step5.js");
     await step5Command(args, log);
+    return;
+  }
+  if (args.step === 6) {
+    // Step 6's gate (step6.ts) is loaded only for step 6; in this build it refuses before anything plays.
+    const { step6Command } = await import("./step6.js");
+    await step6Command(args, log);
     return;
   }
   if (args.step === 1) {

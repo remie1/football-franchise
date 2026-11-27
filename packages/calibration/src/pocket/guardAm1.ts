@@ -30,7 +30,7 @@
  * the last status at or before the release; F.9 item 4), each with its own Z, and the rise
  * re-weighted to the base's composition of halves (AM-1 §4.5).
  */
-import { guardFor, type AdrStepId, type AmendmentEntry, type AmendmentsFile, type BaseMap, type GuardRule } from "./amendments.js";
+import { guardFor, type AdrStepId, type AmendmentEntry, type AmendmentsFile, type BaseMap, type GuardRule, type ReplayException } from "./amendments.js";
 import type { ArmId } from "./arms.js";
 import type { ThrowClass } from "./constructs.js";
 import type { SeedSet } from "./corpus.js";
@@ -76,6 +76,17 @@ export function guardWithView(file: AmendmentsFile, step: AdrStepId): {
 /** Whether a rule plays `arm` fresh as a base (`rule.freshBases`, AM-8's E0): no earlier record holds it. */
 export function isFreshBase(rule: Pick<GuardRule, "freshBases">, arm: ArmId): boolean {
   return rule.freshBases !== undefined && Object.prototype.hasOwnProperty.call(rule.freshBases, arm);
+}
+
+/**
+ * The rule's exception for replaying `arm` on `league` and `seedSet` (`rule.replayExceptions`; ADR-089
+ * step 6, plan §7.2; AM-12's D1 on gen seed set 2), or undefined when the replay must equal its record.
+ * A rule naming none (AM-1 to AM-8) excepts nothing. The harness re-plays an excepted replay, prints
+ * its move from the record beside with the exception's record and reading, and never counts it as a
+ * fault; a pair whose base it is reads the re-played games on that set.
+ */
+export function replayExceptionOf(rule: Pick<GuardRule, "replayExceptions">, arm: ArmId, league: "flat" | "gen", seedSet: SeedSet): ReplayException | undefined {
+  return rule.replayExceptions?.find((x) => x.arm === arm && x.league === league && x.seedSet === seedSet);
 }
 
 /**

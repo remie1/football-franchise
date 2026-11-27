@@ -32,6 +32,14 @@
  * pins `STEP2_AMENDMENTS_DIGEST` (AM-1 alone), so its committed records keep grading after AM-2 and
  * every later entry is filed. The whole file is still loaded and validated first.
  *
+ * **The played order** (ADR-089 step 6, plan §3.1 item 1; AM-11). "Earlier" and "later" in this file
+ * mean the order the steps play in, `ADR_089_PLAYED_ORDER`, not the order of the ids: after the
+ * owner's Wait (2026-11-26 21:56:54Z) step 5b plays after step 7 and before step 8a, and every other
+ * step keeps its place. Every lookup of a step's place reads it (`playedIndexOf`): a step's view, the
+ * steps an entry reads at, the step a `rule.amends` target is filed before, and a class view's first
+ * step. Steps 0 to 5a and 8a to 11 sit at the same place in both orders, so no view of a step already
+ * played moves; an entry filed before step 6 reads at 5b, and 5b's view holds it.
+ *
  * **What `validateAmendments` refuses** (AM-1 §3.4 item 3): a format other than this one; a `filing`
  * other than `STEP0_FILED_DIGEST`; ids that do not run AM-1, AM-2, ... in order; a `supersedes` or
  * `untouched` id that is not a clause of the step-0 file (or one named in both lists); a superseded
@@ -43,7 +51,9 @@
  * optional fields (AM-8, filed before step 5a) are checked when present: `classView` (step 5's class
  * view, "S5", never mapping a step before 5a), `freshBases` (bases no earlier record holds, each a base
  * in the rule's maps), `skipEqualDials` (a boolean) and `reportedSplits` (`GUARD_REPORTED_SPLITS`'
- * classes and splits only); absent, the rule reads as AM-1's.
+ * classes and splits only); absent, the rule reads as AM-1's. So is `replayExceptions` (ADR-089 step
+ * 6, plan §3.1 item 4, §7.2): the replays the rule does not hold to their records, each naming a base
+ * arm the rule replays, a league, a seed set, the record that explains it and how it is read instead.
  *
  * **One entry's change to another's rule text** (`rule.amends`; AM-5, ADR-089 Appendix G, G.11). A
  * filed entry is never edited, so a later entry that changes words in an earlier one's rule says so in
@@ -60,6 +70,7 @@ import { readFileSync } from "node:fs";
 import { stableDigest } from "../harness/digest.js";
 import { isAnyArmId, type ArmId } from "./arms.js";
 import type { ThrowClass } from "./constructs.js";
+import type { SeedSet } from "./corpus.js";
 import { ADR_089_LINES, STEP0_FILED_DIGEST, type FiledFile, type JsonValue } from "./filed.js";
 import { THROW_CLASS_VIEWS, type ThrowClassView } from "./throwClass.js";
 
@@ -104,6 +115,20 @@ export const ADR_089_STEP_IDS = ["0", "1", "2", "3", "4", "5a", "5b", "6", "7", 
 export type AdrStepId = (typeof ADR_089_STEP_IDS)[number];
 
 export const isAdrStepId = (v: unknown): v is AdrStepId => typeof v === "string" && (ADR_089_STEP_IDS as readonly string[]).includes(v);
+
+/**
+ * The order ADR-089's steps play in (ADR-089 step 6, plan §3.1 item 1; AM-11 `rule.playedOrder`): the
+ * owner's Wait of 2026-11-26 21:56:54Z holds 5b until step 7 builds the new count, so 5b plays after
+ * step 7 and before step 8a. The ids do not change (`ADR_089_STEP_IDS`, §6's table), and every other
+ * step keeps its place, so steps 0 to 5a and 8a to 11 have the same index in both lists. Every lookup
+ * of a step's place in this file reads this order (`playedIndexOf`).
+ */
+export const ADR_089_PLAYED_ORDER = ["0", "1", "2", "3", "4", "5a", "6", "7", "5b", "8a", "8b", "9", "10", "11"] as const satisfies readonly AdrStepId[];
+
+/** A step's place in the played order (`ADR_089_PLAYED_ORDER`): what "before" and "after" a step mean in this file. */
+export function playedIndexOf(step: AdrStepId): number {
+  return (ADR_089_PLAYED_ORDER as readonly AdrStepId[]).indexOf(step);
+}
 
 /** The guard clauses a guard rule supersedes (§8's D9 and D28). */
 export const GUARD_CLAUSE_IDS = ["guard.mix", "guard.byClass"] as const;
@@ -198,9 +223,9 @@ function amendsProblems(v: unknown, entries: readonly unknown[], i: number, at: 
       out.push(`${here}.entry: ${entry} is not an entry filed before this one; an entry amends only an earlier one`);
       return;
     }
-    // A step's view holds an item only with the text it changes: the target is filed before the same step or an earlier one.
+    // A step's view holds an item only with the text it changes: the target is filed before the same step or an earlier one (in the played order).
     const own = entries[i] as Record<string, unknown>;
-    const stepOf = (e: Record<string, unknown>): number => (isAdrStepId(e["filedBeforeStep"]) ? ADR_089_STEP_IDS.indexOf(e["filedBeforeStep"]) : -1);
+    const stepOf = (e: Record<string, unknown>): number => (isAdrStepId(e["filedBeforeStep"]) ? playedIndexOf(e["filedBeforeStep"]) : -1);
     if (stepOf(own) >= 0 && stepOf(target) > stepOf(own)) {
       out.push(`${here}.entry: ${entry} is filed before step ${String(target["filedBeforeStep"])}, a later step than this entry's ${String(own["filedBeforeStep"])}; an entry amends only one filed before the same step or an earlier one`);
       return;
@@ -260,6 +285,26 @@ export const GUARD_REPORTED_SPLITS: Readonly<Partial<Record<ThrowClass, readonly
 /** The first step a class view may read at: step 5's view (AM-8) never reads a step before 5a, whose re-grades keep `throwClassOf`. */
 const CLASS_VIEW_FROM: Readonly<Record<ThrowClassView, AdrStepId>> = Object.freeze({ S5: "5a" });
 
+/** The leagues a replay exception may name: the flat league and the generated one (every arm plays both). */
+export const REPLAY_EXCEPTION_LEAGUES = ["flat", "gen"] as const;
+
+/**
+ * One replay a guard rule does not hold to its record (`rule.replayExceptions`; ADR-089 step 6, plan
+ * §3.1 item 4, §7.2; AM-12): the base arm the rule replays (`replayMustEqualPreviousRecords`), on one
+ * league and one seed set, the record that explains why that replay cannot equal its record (AM-12's
+ * D1 on the generated league's seed set 2, dated history on trees with AB-L: ADR-089 Appendix I,
+ * I.13) and how it is read instead (re-played, its move printed beside, never a fault).
+ */
+export interface ReplayException {
+  readonly arm: ArmId;
+  readonly league: (typeof REPLAY_EXCEPTION_LEAGUES)[number];
+  readonly seedSet: SeedSet;
+  readonly record: string;
+  readonly how: string;
+}
+
+const REPLAY_EXCEPTION_FIELDS = ["arm", "league", "seedSet", "record", "how"] as const;
+
 /** The guard rule an entry superseding `guard.mix` and `guard.byClass` carries, as the harness reads it. */
 export interface GuardRule {
   /** Per step, the graded arms and their bases (AM-1 §4.3; `rule.bases`). */
@@ -297,6 +342,13 @@ export interface GuardRule {
   readonly skipEqualDials?: boolean;
   /** The splits reported beside a class (AM-1: DESPERATION's DIRTY and CLEAN; AM-8 adds three), never graded (`GUARD_REPORTED_SPLITS`). */
   readonly reportedSplits?: Readonly<Partial<Record<ThrowClass, readonly string[]>>>;
+  /**
+   * The replays the rule does not hold to their records (AM-12: D1 on gen seed set 2, Appendix I,
+   * I.13), each a base in the rule's maps that is replayed, not played fresh. Absent: every replay
+   * must equal its record, as AM-1 files. A replay named here is re-played and its move printed beside;
+   * it is never a fault, and a pair whose base it is reads the re-played games on that set.
+   */
+  readonly replayExceptions?: readonly ReplayException[];
 }
 
 /** Every problem with an entry's guard rule; empty when `guardRuleOf` can read it. */
@@ -345,7 +397,11 @@ function guardRuleProblems(rule: Record<string, unknown>, at: string, steps: rea
  * each leaves the rule as AM-1 reads it. `classView` is a view of `THROW_CLASS_VIEWS` and maps no step
  * before the view's first ("S5": 5a); `freshBases` maps arms that are bases in the rule's maps to how
  * each is played; `skipEqualDials` is a boolean; `reportedSplits` names only `GUARD_REPORTED_SPLITS`'
- * classes and splits, each list non-empty and without repeats.
+ * classes and splits, each list non-empty and without repeats. `replayExceptions` (ADR-089 step 6,
+ * plan §3.1 item 4) is a non-empty list of `{ arm, league, seedSet, record, how }` on a rule whose
+ * `replayMustEqualPreviousRecords` is true: each arm a base in the rule's maps that it replays (not a
+ * fresh base), a league of `REPLAY_EXCEPTION_LEAGUES`, a seed set of the rule's, a non-empty record
+ * and a non-empty reading, and no arm, league and set named twice.
  */
 function guardRuleOptionalProblems(rule: Record<string, unknown>, at: string): string[] {
   const out: string[] = [];
@@ -356,7 +412,7 @@ function guardRuleOptionalProblems(rule: Record<string, unknown>, at: string): s
     else {
       const from = CLASS_VIEW_FROM[view as ThrowClassView];
       for (const step of Object.keys(bases)) {
-        if (isAdrStepId(step) && ADR_089_STEP_IDS.indexOf(step) < ADR_089_STEP_IDS.indexOf(from)) {
+        if (isAdrStepId(step) && playedIndexOf(step) < playedIndexOf(from)) {
           out.push(`${at}.classView: ${view} reads from step ${from}; the rule maps step ${step}, which keeps the classes it was graded with`);
         }
       }
@@ -391,6 +447,41 @@ function guardRuleOptionalProblems(rule: Record<string, unknown>, at: string): s
       }
     }
   }
+  if ("replayExceptions" in rule) out.push(...replayExceptionsProblems(rule, bases, at));
+  return out;
+}
+
+/** Every problem with a guard rule's `replayExceptions` (see `guardRuleOptionalProblems`). */
+function replayExceptionsProblems(rule: Record<string, unknown>, bases: Record<string, unknown>, at: string): string[] {
+  const out: string[] = [];
+  const list = rule["replayExceptions"];
+  if (!Array.isArray(list) || list.length === 0) return [`${at}.replayExceptions: must be a non-empty array of { ${REPLAY_EXCEPTION_FIELDS.join(", ")} }`];
+  if (rule["replayMustEqualPreviousRecords"] !== true) out.push(`${at}.replayExceptions: the rule holds no replay to its records (replayMustEqualPreviousRecords is not true), so it has no replay to except`);
+  const used = new Set(Object.values(bases).flatMap((m) => (isObject(m) ? Object.values(m) : [])));
+  const fresh = isObject(rule["freshBases"]) ? rule["freshBases"] : {};
+  const seedSets = Array.isArray(rule["seedSets"]) ? (rule["seedSets"] as readonly unknown[]) : [];
+  const seen = new Set<string>();
+  list.forEach((x: unknown, j: number) => {
+    const here = `${at}.replayExceptions.${String(j)}`;
+    if (!isObject(x)) {
+      out.push(`${here}: must be an object`);
+      return;
+    }
+    for (const key of Object.keys(x)) if (!(REPLAY_EXCEPTION_FIELDS as readonly string[]).includes(key)) out.push(`${here}.${key}: not a field of a replay exception`);
+    const arm = x["arm"];
+    if (typeof arm !== "string" || !isAnyArmId(arm)) out.push(`${here}.arm: ${JSON.stringify(arm ?? null)} is not an arm of this build`);
+    else if (!used.has(arm)) out.push(`${here}.arm: ${arm} is not a base in the rule's maps`);
+    else if (Object.prototype.hasOwnProperty.call(fresh, arm)) out.push(`${here}.arm: ${arm} is played fresh (freshBases), so no record holds it and there is no replay to except`);
+    const league = x["league"];
+    if (typeof league !== "string" || !(REPLAY_EXCEPTION_LEAGUES as readonly string[]).includes(league)) out.push(`${here}.league: must be one of ${REPLAY_EXCEPTION_LEAGUES.join(", ")} (got ${JSON.stringify(league ?? null)})`);
+    const seedSet = x["seedSet"];
+    if (!seedSets.includes(seedSet)) out.push(`${here}.seedSet: must be one of the rule's seed sets ${JSON.stringify(seedSets)} (got ${JSON.stringify(seedSet ?? null)})`);
+    if (!isString(x["record"])) out.push(`${here}.record: must name the record that explains it (a non-empty string)`);
+    if (!isString(x["how"])) out.push(`${here}.how: must say how the replay is read instead (a non-empty string)`);
+    const key = `${String(arm)} ${String(league)} ${String(seedSet)}`;
+    if (seen.has(key)) out.push(`${here}: ${String(arm)} on ${String(league)} seed set ${String(seedSet)} is named twice`);
+    seen.add(key);
+  });
   return out;
 }
 
@@ -431,8 +522,8 @@ export function amendmentsProblems(json: unknown, filing: FiledFile): readonly s
     if (!Array.isArray(steps) || steps.length === 0) out.push(`${at}.steps: must list the steps it reads at`);
     else steps.forEach((s: unknown, j: number) => {
       if (!isAdrStepId(s)) out.push(`${at}.steps.${String(j)}: ${JSON.stringify(s)} is not a step of ADR-089`);
-      // An entry reads only at steps not yet played when it was filed: none before filedBeforeStep (review CT-F8).
-      else if (isAdrStepId(e["filedBeforeStep"]) && ADR_089_STEP_IDS.indexOf(s) < ADR_089_STEP_IDS.indexOf(e["filedBeforeStep"])) {
+      // An entry reads only at steps not yet played when it was filed: none before filedBeforeStep in the played order (review CT-F8).
+      else if (isAdrStepId(e["filedBeforeStep"]) && playedIndexOf(s) < playedIndexOf(e["filedBeforeStep"])) {
         out.push(`${at}.steps.${String(j)}: step ${s} comes before filedBeforeStep ${e["filedBeforeStep"]}; an entry reads only at the step it was filed before and later ones`);
       }
     });
@@ -506,13 +597,14 @@ export function openAmendments(path: string, filing: FiledFile, pin: string = AM
 }
 
 /**
- * The file as it stood for `step`: its `entries` cut to those whose `filedBeforeStep` is `step` or an
- * earlier step of ADR-089 (§6's order), in filing order, every other key as filed. An entry filed
- * before a later step is not in it, so appending one never moves the view.
+ * The file as it stood for `step`: its `entries` cut to those whose `filedBeforeStep` is `step` or a
+ * step played before it (the played order, `ADR_089_PLAYED_ORDER`), in filing order, every other key
+ * as filed. An entry filed before a later step is not in it, so appending one never moves the view;
+ * an entry filed before step 6 is in 5b's view, because 5b plays after step 7.
  */
 export function amendmentsAtStep(file: AmendmentsFile, step: AdrStepId): AmendmentsFile {
-  const at = ADR_089_STEP_IDS.indexOf(step);
-  return { ...file, entries: file.entries.filter((e) => ADR_089_STEP_IDS.indexOf(e.filedBeforeStep) <= at) };
+  const at = playedIndexOf(step);
+  return { ...file, entries: file.entries.filter((e) => playedIndexOf(e.filedBeforeStep) <= at) };
 }
 
 /** `stableDigest` of the file's view at `step` (`amendmentsAtStep`). */

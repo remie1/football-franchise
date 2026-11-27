@@ -729,7 +729,7 @@ describe("the pocket command's arguments", () => {
   });
 
   it("refuses another step, a missing step, a flag with no value and an unknown flag", () => {
-    expect(() => parsePocketArgs(["--step", "6"])).toThrow(/steps 0, 1, 2, 3, 4, 5a and 5b are built.*--step 6 is not/);
+    expect(() => parsePocketArgs(["--step", "7"])).toThrow(/steps 0, 1, 2, 3, 4, 5a, 5b and 6 are built.*--step 7 is not/);
     expect(() => parsePocketArgs(["--step", "5"])).toThrow(/^ADR-089: step 5 is two halves, run apart: --step 5a .* or --step 5b .*; --step 5 is neither$/);
     expect(() => parsePocketArgs(["--step", "01"])).toThrow(/--step 01 is not/);
     expect(() => parsePocketArgs([])).toThrow(/--step is required/);

@@ -71,6 +71,9 @@
  *     defines neither E1 nor E9 ("E9 is E8").
  * 24. AM-8's base maps (5a: E9 on E0; 5b: F5 on D1, F0 on F5) on a stand-in entry name arms of this
  *     build; an id past E10 or F14 does not. The committed amendments file is read, never written.
+ *
+ * Step 6's arm ids (ADR-089 step 6, plan §3.1 item 2), named and inert, are tested in
+ * `pocketStep6K0.test.ts`; here `ALL_ARM_IDS` and `ARM_STEPS` carry them after step 5's.
  */
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -128,6 +131,7 @@ import {
   STEP5A_RUN_IDS,
   STEP5B_ARM_IDS,
   STEP5B_RUN_IDS,
+  STEP6_ARM_IDS,
   STEP5_DEFINED_AT_FIT,
   STEP5_DEFINED_AT_SELECTION,
   isStep5aArmId,
@@ -439,8 +443,8 @@ describe("step 2's arm lists (plan §4.1, C2-F4)", () => {
     expect([...STEP2_RUN_IDS]).toEqual(["A0", "A14", "A1", "A5", "A11", "B1", "B2", "B3", "B4", "B5", "B6", "B7"]);
     expect(STEP2_BASES.map((b) => b.id)).toEqual(["A0", "A14", "A1", "A5", "A11"]);
     expect([...STEP2_RUN_IDS]).toEqual([...STEP2_BASES.map((b) => b.id), ...STEP2_ARM_IDS]);
-    // Step 3's ids are appended after step 2's, then step 4's, then step 5's (named, inert); every arm this build builds is in that order.
-    expect([...ALL_ARM_IDS]).toEqual([...ARM_IDS, ...STEP2_ARM_IDS, ...STEP3_ARM_IDS, ...STEP4_ARM_IDS, ...STEP5A_ARM_IDS, ...STEP5B_ARM_IDS]);
+    // Step 3's ids are appended after step 2's, then step 4's, then step 5's, then step 6's (named, inert); every arm this build builds is in that order.
+    expect([...ALL_ARM_IDS]).toEqual([...ARM_IDS, ...STEP2_ARM_IDS, ...STEP3_ARM_IDS, ...STEP4_ARM_IDS, ...STEP5A_ARM_IDS, ...STEP5B_ARM_IDS, ...STEP6_ARM_IDS]);
     expect(everyArm().map((a) => a.id).slice(0, 24)).toEqual([...ARM_IDS, ...STEP2_ARM_IDS]);
   });
 
@@ -641,7 +645,7 @@ describe("step 2's mechanisms (plan §4.1, C3-13)", () => {
     // Step 1's arms carry no forcing rule, so their mechanisms are step 1's.
     for (const a of allArms()) expect(mechanismsOf(a).some((m) => m === "MUST_ACT" || m === "COUNTER_LESS_SEEN" || m === "HALF" || m === "FOLLOWS"), a.id).toBe(false);
     const ids: ArmId[] = [...ALL_ARM_IDS];
-    expect(ids).toHaveLength(57 + 11 + 17);
+    expect(ids).toHaveLength(57 + 11 + 17 + 35);
     expect([...allArms(), ...step2Arms()]).toHaveLength(24);
   });
 });
@@ -1128,7 +1132,7 @@ describe("step 4's arm ids, named and inert (plan §4, §5)", () => {
     const all = [...everyArm(), ...PROOF_OVERLAY_IDS.map((id) => proofOverlay(id))];
     expect(all).toHaveLength(17 + 7 + 16 + 17 + 2);
     expect(parsePocketArgs(["--step", "4"], "/")).toEqual({ step: 4 });
-    expect(() => parsePocketArgs(["--step", "6"], "/")).toThrow(/^ADR-089: steps 0, 1, 2, 3, 4, 5a and 5b are built .*; --step 6 is not$/);
+    expect(() => parsePocketArgs(["--step", "7"], "/")).toThrow(/^ADR-089: steps 0, 1, 2, 3, 4, 5a, 5b and 6 are built .*; --step 7 is not$/);
     expect(() => parsePocketArgs(["--step", "5"], "/")).toThrow(/^ADR-089: step 5 is two halves, run apart/);
     expect(() => parsePocketArgs(["--step", "3", "--arms", "D1"], "/")).toThrow(/^--arms: D1 is not an arm \(step 3's: A0, A14, A1, A11, B3, B6, B5, C1 to C16\)$/);
   });
@@ -1192,12 +1196,13 @@ describe("step 5's arm ids, named and inert (ADR-089 step 5, plan §5.1, §5.2)"
     // 5b: D1 replayed (F5's base), the fourteen grid points (the first pass), then F0, G1 and G2 (after the selection).
     expect([...STEP5B_RUN_IDS]).toEqual(["D1", ...F.slice(1), "F0", "G1", "G2"]);
     for (const list of [STEP5A_RUN_IDS, STEP5B_RUN_IDS]) expect(new Set(list).size).toBe(list.length);
-    expect([...ARM_STEPS]).toEqual([1, 2, 3, 4, "5a", "5b"]);
+    expect([...ARM_STEPS]).toEqual([1, 2, 3, 4, "5a", "5b", 6]);
     expect(runIdsOf("5a")).toBe(STEP5A_RUN_IDS);
     expect(runIdsOf("5b")).toBe(STEP5B_RUN_IDS);
     // ALL_ARM_IDS gains them after step 4's; steps 1 to 4's lists are as they were.
     expect(ALL_ARM_IDS.slice(0, 57)).toEqual([...ARM_IDS, ...STEP2_ARM_IDS, ...STEP3_ARM_IDS, ...STEP4_ARM_IDS]);
-    expect(ALL_ARM_IDS.slice(57)).toEqual([...STEP5A_ARM_IDS, ...STEP5B_ARM_IDS]);
+    expect(ALL_ARM_IDS.slice(57, 85)).toEqual([...STEP5A_ARM_IDS, ...STEP5B_ARM_IDS]);
+    expect(ALL_ARM_IDS.slice(85)).toEqual([...STEP6_ARM_IDS]);
     expect(Object.isFrozen(ALL_ARM_IDS)).toBe(true);
     expect([...STEP1_RUN_IDS]).toEqual([...ARM_IDS]);
     expect([...STEP4_RUN_IDS]).toEqual(["A0", "A14", "A1", "A11", "C1", "C2", "C14", ...STEP4_ARM_IDS]);

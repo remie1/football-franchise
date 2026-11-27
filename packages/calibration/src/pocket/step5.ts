@@ -100,7 +100,11 @@ export const STEP5B_WAIT_REFUSAL = `step 5b is held by the owner's word: on 2026
 
 /**
  * Each half's view of the amendments file, pinned: AM-8, AM-9 and AM-10 are filed together before any
- * step-5 arm (commit 554f81e), so both views hold the same entries and digest alike.
+ * step-5 arm (commit 554f81e), so both views held the same entries and digested alike. 5a's is final
+ * with its records. Under the played order (AM-11, the owner's Wait; `ADR_089_PLAYED_ORDER`) 5b plays
+ * after step 7, so its view holds every entry filed before step 6 or step 7 too: each filing commit
+ * of those steps sets 5b's pin to the new view (step-6 plan §3.1 item 6), so `--step 5b --digests`
+ * keeps working while 5b stays held by the owner's Wait (`STEP5B_OWNER_WAIT`).
  */
 export const STEP5A_AMENDMENTS_PIN: string | null = "fnv1a:3f9478eb";
 export const STEP5B_AMENDMENTS_PIN: string | null = "fnv1a:3f9478eb";
@@ -231,11 +235,14 @@ export interface Step5GateState {
 
 const isStringList = (v: unknown): v is readonly string[] => Array.isArray(v) && v.every((x) => typeof x === "string");
 
-/** Why a committed 5a measures file cannot open 5b's gate, or undefined (code-tests F7). */
-export function s5aRecordProblemOf(parsed: unknown): string | undefined {
+/**
+ * Why a committed 5a measures file cannot open 5b's gate (or, with `opens` "step 6", step 6's: step-6
+ * plan §10.3 item 1), or undefined (code-tests F7).
+ */
+export function s5aRecordProblemOf(parsed: unknown, opens: string = "5b"): string | undefined {
   const r = (typeof parsed === "object" && parsed !== null ? parsed : {}) as { readonly half?: unknown; readonly oneSet?: unknown; readonly outcome?: unknown };
   if (r.half !== "5a") return `the 5a records file is not 5a's (half ${JSON.stringify(r.half ?? null)})`;
-  if (r.oneSet !== undefined) return `the 5a records were graded on one seed set (${JSON.stringify(r.oneSet)}); only a two-set grade opens 5b`;
+  if (r.oneSet !== undefined) return `the 5a records were graded on one seed set (${JSON.stringify(r.oneSet)}); only a two-set grade opens ${opens}`;
   const o = (typeof r.outcome === "object" && r.outcome !== null ? r.outcome : undefined) as { readonly faults?: unknown; readonly breaches?: unknown; readonly misses?: unknown } | undefined;
   if (o === undefined || !isStringList(o.faults) || !isStringList(o.breaches) || !isStringList(o.misses)) return "the 5a records' outcome is missing or malformed (faults, breaches and misses must each be a list)";
   return undefined;

@@ -1,5 +1,5 @@
 /**
- * The `pocket` script's entry point (ADR-089 steps 0, 1, 2, 3, 4, 5a and 5b):
+ * The `pocket` script's entry point (ADR-089 steps 0, 1, 2, 3, 4, 5a, 5b and 6):
  * `pnpm --filter @ff/calibration pocket -- --step 0 [--write-filed <filing.json>] [--out <file.json>]`;
  * `pnpm --filter @ff/calibration pocket -- --step 1 [--arms A1,A2] [--shard i/n] [--cache <dir>] [--seed-set 1|2] [--report <file.md>] [--out <file.json>]`;
  * `pnpm --filter @ff/calibration pocket -- --step 1 --digests --out <file.json>`;
@@ -20,10 +20,13 @@
  * `pnpm --filter @ff/calibration pocket -- --step 5b --reselect --from <file.json>`;
  * `pnpm --filter @ff/calibration pocket -- --step 5b --digests --out <file.json>`
  * (the 5a and 5b arms are refused by the gate, plan §9 item 10, until the fit and its literal are
- * recorded; `--step 5` names neither half and is refused).
+ * recorded; `--step 5` names neither half and is refused);
+ * `pnpm --filter @ff/calibration pocket -- --step 6 [--shard i/n] [--report <file.md>] [--out <file.json>]`,
+ * `--step 6 --fresh-base 1|2 --out <file.json>` and `--step 6 --digests --out <file.json>` (parsed;
+ * step 6's gate, step-6 plan §10.3, refuses each before anything plays in this build).
  * The arguments and step 0 live in `step0.ts`, step 1 in `step1.ts`, step 2 in `step2.ts`, step 3
  * in `step3.ts`, step 4 in `step4.ts`, step 5 in `step5.ts` (the fit in `fit5a.ts`, R-7 in
- * `reselect.ts`), where they are tested.
+ * `reselect.ts`), step 6's gate in `step6.ts`, where they are tested.
  */
 import { pocketCommand } from "./step0.js";
 

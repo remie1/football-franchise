@@ -133,6 +133,16 @@ export const POCKET_1_S5A_RULES = "pocket-1.s5a";
 export const POCKET_1_S5B_RULES = "pocket-1.s5b";
 
 /**
+ * ADR-089 step 6's design bundle (step-6 plan §1.1): `pocket-1.s5a` plus the engine block `pocket.outs`
+ * with every part on, on the interim clock (shape S, theta 11, F5's dials; "interim clock S theta 11
+ * (F5), not selected"). Named only in this build (plan §3.1 item 3): its bundle comes with step 6's
+ * calibration commit (plan §3.2, K1), and `ENGINE_RULES` takes it only once its digest is recorded (the
+ * bundle-record commit). Until then `rulesTunables` refuses it by name, so no run, export or save is
+ * stamped with a digest that later moves; it is not a stamped name (`STAMPED_RULES`) either.
+ */
+export const POCKET_1_S6_RULES = "pocket-1.s6";
+
+/**
  * Every engine rules bundle a run, an export or a save may name. `pocket-1.s4` is named and built,
  * and refused before any game while its petitions are out (`rulesRefusal`). Step 5's names join
  * once their bundles are recorded (plan §1.1): `pocket-1.s5a` joined at the fit commit, and
@@ -437,11 +447,14 @@ export function step4PetitionsIn(petitions: Step4Petitions = {}): boolean {
 /**
  * The ADR-089 step a `PLAY_START.rules` name belongs to (ADR-089 step 5, plan §1.3; critique 1 B1):
  * `pocket-1.s1` to `pocket-1.s4` are steps 1 to 4, and step 5's two names, `pocket-1.s5a` and
- * `pocket-1.s5b`, are both step 5 (each carries step 4's blocks and step 5's). `legacy`, an absent
- * name and any other name are `undefined`. A step-5 name reads as step 5 whether or not its bundle
- * is recorded yet (the harness stamps its arms with it before `ENGINE_RULES` takes it).
+ * `pocket-1.s5b`, are both step 5 (each carries step 4's blocks and step 5's). `pocket-1.s6` is step 6
+ * (step-6 plan §1.1: step 5a's blocks and `pocket.outs`). Under the played order (AM-11) the relocated
+ * `pocket-1.s5b` plays after step 6, and it still maps to 5: it is s5a's parts at the winning clock and
+ * carries no step-6 part. `legacy`, an absent name and any other name are `undefined`. A name reads
+ * as its step whether or not its bundle is recorded yet (the harness stamps its arms with it before
+ * `ENGINE_RULES` takes it).
  */
-export function pocketStepOf(name: string | undefined): 1 | 2 | 3 | 4 | 5 | undefined {
+export function pocketStepOf(name: string | undefined): 1 | 2 | 3 | 4 | 5 | 6 | undefined {
   switch (name) {
     case POCKET_1_S1_RULES:
       return 1;
@@ -454,6 +467,8 @@ export function pocketStepOf(name: string | undefined): 1 | 2 | 3 | 4 | 5 | unde
     case POCKET_1_S5A_RULES:
     case POCKET_1_S5B_RULES:
       return 5;
+    case POCKET_1_S6_RULES:
+      return 6;
     default:
       return undefined;
   }
@@ -478,6 +493,17 @@ export function readsStep3Facts(name: string | undefined): boolean {
  */
 export function readsStep4Facts(name: string | undefined): boolean {
   return (pocketStepOf(name) ?? 0) >= 4;
+}
+
+/**
+ * Whether a play's `PLAY_START.rules` name is read with step 6's readers (step-6 plan §1.1, §3.2: the
+ * out-of-pocket throwaway, the `:deadline` and `:drill` CHECKs, the escape cap and its CHECK band, the
+ * failed-scramble marker, the real throwaway rule's restatements): `pocket-1.s6` and every later
+ * step's name. On `legacy`, `pocket-1.s1` to `pocket-1.s4`, `pocket-1.s5a` and `pocket-1.s5b` it is
+ * false, so every reader of their streams reads as before; no stream in this build carries s6.
+ */
+export function readsStep6Facts(name: string | undefined): boolean {
+  return (pocketStepOf(name) ?? 0) >= 6;
 }
 
 /** Freeze a plain-data tree in place, every depth, and return the same reference. */
@@ -757,6 +783,19 @@ export const POCKET_1_S5B_OVERLAY = undefined as PocketOverlay | undefined;
 
 /** `pocket-1.s5b`'s overlay digest (O28): recorded at the selection commit. */
 export const POCKET_1_S5B_DIGEST = undefined as string | undefined;
+
+/**
+ * `pocket-1.s6`'s overlay digest (O28; step-6 plan §1.1): recorded as a literal at step 6's
+ * bundle-record commit (plan §10.1 item 9), after the owner's yeses, the lift and AM-13. Unset in this
+ * build, so `rulesTunables` refuses the name and step 6's gate (`step6.ts`, plan §10.3 item 5) refuses
+ * `--step 6` before anything plays.
+ */
+export const POCKET_1_S6_DIGEST = undefined as string | undefined;
+
+/** Why `pocket-1.s6` plays nothing in this build (step-6 plan §1.1): its bundle is not recorded. */
+export const POCKET_1_S6_REFUSAL =
+  `${POCKET_1_S6_RULES} is named but not recorded: it is recorded after step 6's bundle commit (its overlay digest POCKET_1_S6_DIGEST, with ENGINE_RULES taking the name), ` +
+  "so no run, export or save names it before then (ADR-089 step 6, plan §1.1)";
 
 /** A block clock for a step-5 overlay: shape S's `beatClock` or shape L's `repClock`, one of them. */
 export type Step5Clock = Pick<PocketOverlay, "beatClock"> | Pick<PocketOverlay, "repClock">;
@@ -1659,9 +1698,11 @@ function pocket1s5b(): Tunables {
  * `pocket-1.s3` and `pocket-1.s4` are their design bundles, deep-frozen and stamped (`pocket-1.s4`
  * built, and refused by `checkStamp` until its petitions are in contracts). `pocket-1.s5a` is its
  * recorded bundle (the fit commit); `pocket-1.s5b` is refused by name (`step5RulesRefusal`) until
- * its bundle is recorded.
+ * its bundle is recorded. `pocket-1.s6` is not a stamped name in this build; were it passed, it is
+ * refused by name (`POCKET_1_S6_REFUSAL`) before any bundle is built (step-6 plan §1.1).
  */
 export function rulesTunables(rules: StampedRules): Tunables {
+  if ((rules as string) === POCKET_1_S6_RULES) throw new EngineRulesError(POCKET_1_S6_REFUSAL);
   if (rules === LEGACY_RULES) return DEFAULT_TUNABLES;
   if (rules === POCKET_1_S1_RULES) return pocket1s1();
   if (rules === POCKET_1_S2_RULES) return pocket1s2();

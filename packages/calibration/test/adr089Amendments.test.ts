@@ -33,7 +33,12 @@
  * 5a and 5b, read with step 5's class view, while steps 2 to 4 keep `throwClassOf`; each optional field
  * is refused when malformed. AM-9 and AM-10 carry no guard rule, name every s5a and s5b clause as
  * superseded or untouched, and widen no acceptance clause. Step 4's view stays `fnv1a:e0c05cf0`
- * (`STEP4_AMENDMENTS_PIN`): `amendmentsAtStep(file, "4")` cuts AM-8 onward.
+ * (`STEP4_AMENDMENTS_PIN`): `amendmentsAtStep(file, "4")` cuts AM-8 onward. Then ADR-089 step 6's K0
+ * (step-6 plan §3.1 items 1 and 4): every lookup of a step's place reads the played order
+ * (`ADR_089_PLAYED_ORDER`, 5b after step 7), so the views at 2, 3, 4 and 5a digest as before while an
+ * entry filed before step 6 reads at 5b and sits in 5b's view; and the guard rule's `replayExceptions`,
+ * checked on copies, with AM-12 as `filing.md` §3.2 states it validating beside a stand-in AM-11 and
+ * equal to AM-8's rule but for bases, freshBases and replayExceptions (I.10's pattern).
  */
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -44,6 +49,7 @@ import { armById, OTHER_PICTURE, STEP2_ARM_DEFS, STEP2_ARM_IDS, type ArmId } fro
 import { FILED_PATH } from "../src/pocket/bands.js";
 import { loadFiled, STEP0_FILED_DIGEST, type FiledFile } from "../src/pocket/filed.js";
 import {
+  ADR_089_PLAYED_ORDER,
   ADR_089_STEP_IDS,
   AMENDMENTS_DIGEST,
   AMENDMENTS_FORMAT,
@@ -61,12 +67,14 @@ import {
   loadAmendments,
   openAmendments,
   openAmendmentsAtStep,
+  playedIndexOf,
+  REPLAY_EXCEPTION_LEAGUES,
   STEP2_AMENDMENTS_DIGEST,
   STEP3_AMENDMENTS_DIGEST,
   validateAmendments,
   type AmendmentsFile,
 } from "../src/pocket/amendments.js";
-import { AM1_LINES, guardClassifier, guardClassView, guardWithView, isFreshBase, skipsEqualDials } from "../src/pocket/guardAm1.js";
+import { AM1_LINES, guardClassifier, guardClassView, guardWithView, isFreshBase, replayExceptionOf, skipsEqualDials } from "../src/pocket/guardAm1.js";
 import { throwClassOf, throwClassOfS5 } from "../src/pocket/throwClass.js";
 import { POCKET_1_S3_FREE_RUN } from "../src/pocket/rules.js";
 import { STEP4_AMENDMENTS_PIN } from "../src/pocket/step4.js";
@@ -399,7 +407,8 @@ describe("a step's view of the file (step-3 plan §4.3, critique 2 B2)", () => {
     expect(amendmentsAtStep(file, "4").entries.map((e) => e.id)).toEqual(UP_TO_AM7);
     expect(amendmentsDigestAtStep(file, "4")).toBe(STEP4_VIEW_DIGEST);
     expect(STEP4_AMENDMENTS_PIN).toBe(STEP4_VIEW_DIGEST);
-    for (const step of ADR_089_STEP_IDS.slice(ADR_089_STEP_IDS.indexOf("5a"))) {
+    // From 5a on in the played order (5a, 6, 7, 5b, 8a, ...), every view holds every entry filed so far.
+    for (const step of ADR_089_PLAYED_ORDER.slice(playedIndexOf("5a"))) {
       expect(amendmentsAtStep(file, step).entries.map((e) => e.id), step).toEqual(UP_TO_AM10);
       expect(amendmentsDigestAtStep(file, step), step).toBe(PINNED_DIGEST);
     }
@@ -866,5 +875,289 @@ describe("ADR-089 step 5: AM-10, step 5b's readings (Appendix I, I.12; filing.md
     expect(Object.keys(r)).toEqual(["selectionCurve", "selectionLeague", "scorable", "selectionSeeds", "ifL", "s5b.arm", "graded", "reported", "s5b.clockExpired", "acc.liveWonRep.push.L", "missSplit", "secondProcess", "step10", "seedSets"]);
     expect(r["selectionCurve"]).toMatch(/^At 5b the pressured-by-release curve \(the filed fallback, D1\) selects/);
     expect(r["acc.liveWonRep.push.L"]).toMatch(/at most 0 on each league and seed set, from step 1's count/);
+  });
+});
+
+// --- ADR-089 step 6, K0 (step-6 plan §3.1 items 1 and 4): the played order and replayExceptions ------------
+
+/**
+ * AM-12, the guard at step 6, as `filing.md` §3.2 states it (its final proposed text, the JSON block
+ * copied byte for byte), before it is filed. Its own digest on this text is `fnv1a:20b00b24`
+ * (MEASURED in the planning, `measure/validate-final-out.json`).
+ */
+const AM12_FILING = {
+  "id": "AM-12",
+  "name": "the guard at step 6: the outs against pocket-1.s5a on the league, and the 5a checklist on the league against step 4's design restated from AM-8",
+  "filedBeforeStep": "6",
+  "steps": ["6"],
+  "supersedes": ["guard.mix", "guard.byClass"],
+  "untouched": ["acc.intGuard", "guard.onTheRun.clean", "guard.onTheRun.pressured", "guard.removedClass"],
+  "defaults": ["D9", "D28"],
+  "adrLines": [1306, 1308],
+  "cites": [947, 1063, 1287, 1552, 1555],
+  "record": "ADR-089 Appendix J, J.10",
+  "reason": "AM-1 (Appendix F, F.11) reads the guard at steps 2 to 10 against the previous step's arm and requires each later step's map filed as a named entry before that step's arms run; this is step 6's, filed with AM-11 before any step-6 arm plays, F5 included. In the played order (AM-11) the previous step is 5a, and step 6 builds on pocket-1.s5a on the league (F5), which no record holds: step 5a ran on the clean bench, and AM-8 maps F5 against step 4's design (D1) only at 5b, which now plays after step 7. So this map grades two pairs at step 6: the outs, pocket-1.s6 (H0), against F5; and the 5a checklist on the league, F5 against D1, restated from AM-8 so step 6 does not build on a pair nobody has read. The two pairs share F5's draw. F5 is played fresh, twice in separate processes, with identical stream digests. D1 replays step 4's records, except the generated league's seed set 2, which is dated history on trees with AB-L (Appendix I, I.13): it is re-played, its move printed, and never a fault. Every other rule value is AM-8's, step 5's class view included. Section 8 prices each change at its step, so each part alone, the probes, the information arms, the mirrored arm and every bench arm are printed beside, unguarded, each with its Z. With nothing changed this map stops the step by chance about 10% of the time (9.6%; 9.7% and 9.9% on two more seed offsets), computed before filing as AM-8's figure was: AM-1's statistic, 100,000 trials, step 4's records for D1 standing in for all three arms, on the classes step 5's view scores; J.10 gives the method. A breach stops the step and goes to the owner with both seed sets (D9). How the outs are read is AM-13's.",
+  "ownersWord": null,
+  "rule": {
+    "base": "previousStepArm",
+    "pricingBase": "previousStepPricingArm",
+    "bases": {
+      "6": {
+        "H0": "F5",
+        "F5": "D1"
+      }
+    },
+    "laterBases": "filed as a named entry before that step's arms run",
+    "gradedArms": "every arm in the step's map",
+    "replayMustEqualPreviousRecords": true,
+    "freshBases": {
+      "F5": "no committed record holds pocket-1.s5a on the league (step 5a ran on the clean bench, and AM-8's 5b map plays after step 7): played fresh and twice in separate processes, identical stream digests required, both sets, both leagues; its overlay digest equals POCKET_1_S5A_DIGEST"
+    },
+    "replayExceptions": [
+      {
+        "arm": "D1",
+        "league": "gen",
+        "seedSet": 2,
+        "record": "ADR-089 Appendix I, I.13",
+        "how": "dated history on trees with AB-L: re-played, its move from step 4's record printed beside, never a fault; the pair F5 against D1 reads the re-played D1 on that set"
+      }
+    ],
+    "skipEqualDials": true,
+    "classView": "S5",
+    "allowance": "filed",
+    "se": "binomialIndependent",
+    "statistic": "pooledZ",
+    "seedSets": [1, 2],
+    "zLeague": 2.0,
+    "zClass": 3.0,
+    "breachIf": "greaterThan",
+    "zSetSE0": 0,
+    "classes": "GUARD_CLASSES",
+    "reportedSplits": {
+      "DESPERATION": ["DIRTY", "CLEAN"],
+      "PROGRESSION": ["AFTER_CLEAN_MOVE", "OTHER"],
+      "CLEAN_EXPIRY": ["AFTER_CLEAN_MOVE", "OTHER"],
+      "ON_THE_RUN": ["CLEAN_BREAKOUT", "PRESSURED"]
+    },
+    "dirtyPocket": "lastStatusAtOrBeforeRelease",
+    "onCompositionClassBreach": ["DESPERATION", "CHECKDOWN"],
+    "reportFiledReading": true,
+    "reportMinimumExcess": true,
+    "reportPairedSE": true,
+    "cumulative": {
+      "design": "A0",
+      "pricing": "A14",
+      "graded": false
+    },
+    "acceptedState": {
+      "design": "A1",
+      "pricing": "A11",
+      "fromStep": "3",
+      "graded": false
+    }
+  }
+} as const;
+
+/** A stand-in for AM-11 (the reorder, filed with AM-12): filed before step 6, read at 6, 7, 5b and later, no guard rule. Test copies only. */
+const STAND_IN_AM11 = {
+  id: "AM-11",
+  name: "a stand-in for the reorder (test only)",
+  filedBeforeStep: "6",
+  steps: ["6", "7", "5b", "8a", "8b", "9", "10", "11"],
+  supersedes: [],
+  untouched: ["s5a.cleanScramble"],
+  defaults: [],
+  adrLines: [946],
+  cites: [],
+  record: "ADR-089 Appendix J, J.9",
+  reason: "a stand-in",
+  ownersWord: null,
+  rule: { readings: { order: "a stand-in" } },
+} as const;
+
+/** A copy of the committed file with the stand-in AM-11 and AM-12 as its filing states it appended (entries 10 and 11). */
+const withStep6 = (): ReturnType<typeof copy> => {
+  const j = copy();
+  j.entries.push(JSON.parse(JSON.stringify(STAND_IN_AM11)) as Record<string, unknown>, JSON.parse(JSON.stringify(AM12_FILING)) as Record<string, unknown>);
+  return j;
+};
+const AM12_AT = 11;
+
+describe("ADR-089 step 6 (K0): every lookup of a step's place reads the played order (plan §3.1 item 1)", () => {
+  it("is the step ids with 5b moved after step 7: the same steps, and 0 to 5a and 8a to 11 at the same place", () => {
+    expect([...ADR_089_PLAYED_ORDER]).toEqual(["0", "1", "2", "3", "4", "5a", "6", "7", "5b", "8a", "8b", "9", "10", "11"]);
+    expect([...ADR_089_PLAYED_ORDER].sort()).toEqual([...ADR_089_STEP_IDS].sort());
+    for (const step of ADR_089_STEP_IDS) {
+      expect(playedIndexOf(step), step).toBe(ADR_089_PLAYED_ORDER.indexOf(step));
+      if (!["5b", "6", "7"].includes(step)) expect(playedIndexOf(step), step).toBe(ADR_089_STEP_IDS.indexOf(step));
+    }
+    // Only 5b, 6 and 7 move: 5b comes before 6 in the ids and after 7 in play.
+    expect(ADR_089_STEP_IDS.indexOf("5b")).toBeLessThan(ADR_089_STEP_IDS.indexOf("6"));
+    expect(playedIndexOf("5b")).toBeGreaterThan(playedIndexOf("7"));
+    expect(playedIndexOf("5b")).toBeLessThan(playedIndexOf("8a"));
+  });
+
+  it("leaves every view of a step already played where it was: 2, 3, 4 and 5a digest as before, on the committed file and with step 6's entries appended", () => {
+    for (const file of [committed(), withStep6() as unknown as AmendmentsFile]) {
+      expect(amendmentsDigestAtStep(file, "2")).toBe(STEP2_VIEW_DIGEST);
+      expect(amendmentsDigestAtStep(file, "3")).toBe(STEP3_VIEW_DIGEST);
+      expect(amendmentsDigestAtStep(file, "4")).toBe(STEP4_VIEW_DIGEST);
+      expect(amendmentsDigestAtStep(file, "5a")).toBe(PINNED_DIGEST);
+      for (const step of ["0", "1"] as const) expect(amendmentsAtStep(file, step).entries, step).toEqual([]);
+    }
+    expect(amendmentsProblems(withStep6(), filing())).toEqual([]);
+  });
+
+  it("an entry filed before step 6 reads at 5b and sits in the views of 6, 7, 5b and every later step, never in 5a's", () => {
+    const j = withStep6() as unknown as AmendmentsFile;
+    const ids = (step: (typeof ADR_089_STEP_IDS)[number]): readonly string[] => amendmentsAtStep(j, step).entries.map((e) => e.id);
+    expect(ids("5a")).toEqual(UP_TO_AM10);
+    for (const step of ["6", "7", "5b", "8a", "8b", "9", "10", "11"] as const) expect(ids(step), step).toEqual([...UP_TO_AM10, "AM-11", "AM-12"]);
+    // The same entry is refused where it reads at a step played before the one it is filed before.
+    const early = withStep6();
+    early.entries[10]!["steps"] = ["5a", "6"];
+    expect(amendmentsProblems(early, filing())).toEqual(["entries.10.steps.0: step 5a comes before filedBeforeStep 6; an entry reads only at the step it was filed before and later ones"]);
+    // An entry filed before 5b may not read at 6 or 7, which play before it.
+    const late = withStep6();
+    late.entries[10]!["filedBeforeStep"] = "5b";
+    late.entries[10]!["steps"] = ["5b", "7"];
+    expect(amendmentsProblems(late, filing())).toEqual(["entries.10.steps.1: step 7 comes before filedBeforeStep 5b; an entry reads only at the step it was filed before and later ones"]);
+  });
+
+  it("a rule.amends target is filed before the same step or one played earlier: an entry filed before 5b may amend one filed before 6, not the reverse", () => {
+    const amending = (targetStep: string, ownStep: string): ReturnType<typeof copy> => {
+      const j = withStep6();
+      const target = j.entries[10]!;
+      target["filedBeforeStep"] = targetStep;
+      target["steps"] = [targetStep];
+      target["rule"] = { readings: { text: "the stand-in's words" } };
+      j.entries.push({
+        ...(JSON.parse(JSON.stringify(STAND_IN_AM11)) as Record<string, unknown>),
+        id: "AM-13",
+        filedBeforeStep: ownStep,
+        steps: [ownStep],
+        rule: { amends: [{ entry: "AM-11", path: "rule.readings.text", was: "stand-in's", becomes: "amended" }] },
+      });
+      return j;
+    };
+    expect(amendmentsProblems(amending("6", "5b"), filing())).toEqual([]);
+    expect(amendmentsProblems(amending("5b", "6"), filing())).toEqual([
+      "entries.12.rule.amends.0.entry: AM-11 is filed before step 5b, a later step than this entry's 6; an entry amends only one filed before the same step or an earlier one",
+    ]);
+    // AM-10, filed before 5a, may be amended by an entry filed before 6.
+    const j = withStep6();
+    j.entries[10]!["rule"] = { amends: [{ entry: "AM-10", path: "rule.readings.step10", was: "Step 10's rerun reads the same curve", becomes: "Step 10's rerun reads the same curve, as amended," }] };
+    expect(amendmentsProblems(j, filing())).toEqual([]);
+  });
+
+  it("a class view still reads from 5a: step 5's view may map 6 and 5b, never a step before 5a", () => {
+    const j = withStep6();
+    expect((j.entries[AM12_AT]!["rule"] as Record<string, unknown>)["classView"]).toBe("S5");
+    expect(amendmentsProblems(j, filing())).toEqual([]);
+    ((j.entries[AM12_AT]!["rule"] as Record<string, unknown>)["bases"] as Record<string, unknown>)["4"] = { D1: "C1" };
+    j.entries[AM12_AT]!["steps"] = ["4", "6"];
+    j.entries[AM12_AT]!["filedBeforeStep"] = "4";
+    expect(amendmentsProblems(j, filing())).toContain("entries.11.rule.classView: S5 reads from step 5a; the rule maps step 4, which keeps the classes it was graded with");
+  });
+});
+
+describe("ADR-089 step 6 (K0): the guard rule's replayExceptions and AM-12 as filed in filing.md (plan §3.1 item 4, §7.2)", () => {
+  const refusesAm12 = (edit: (rule: Record<string, unknown>) => void, problem: RegExp): void => {
+    const j = withStep6();
+    edit(j.entries[AM12_AT]!["rule"] as Record<string, unknown>);
+    const problems = amendmentsProblems(j, filing());
+    expect(problems.some((p) => problem.test(p)), `wanted ${String(problem)}, got:\n${problems.join("\n")}`).toBe(true);
+    expect(() => validateAmendments(j, filing())).toThrow(AmendmentsValidationError);
+  };
+
+  it("AM-12's text digests as the planning measured it, validates beside a stand-in AM-11, and maps step 6's guard: H0 on F5 and F5 on D1, read with step 5's class view", () => {
+    expect(stableDigest(AM12_FILING)).toBe("fnv1a:20b00b24");
+    const j = withStep6() as unknown as AmendmentsFile;
+    expect(amendmentsProblems(j, filing())).toEqual([]);
+    const g = guardWithView(j, "6");
+    expect(g.entry.id).toBe("AM-12");
+    expect(g.bases).toEqual({ H0: "F5", F5: "D1" });
+    expect(g.view).toBe("S5");
+    expect(g.classify).toBe(throwClassOfS5);
+    expect(isFreshBase(g.rule, "F5")).toBe(true);
+    expect(isFreshBase(g.rule, "D1")).toBe(false);
+    // AM-8 still maps 5a and 5b; AM-12 reads at step 6 only.
+    expect(guardFor(j, "5a").entry.id).toBe("AM-8");
+    expect(guardFor(j, "5b").entry.id).toBe("AM-8");
+    expect(AM12_FILING.steps).toEqual(["6"]);
+    expect(() => guardFor(committed(), "6")).toThrow(/no filed amendment maps step 6's guard bases/);
+  });
+
+  it("is AM-8's rule but for bases, freshBases and replayExceptions (I.10's pattern), in AM-8's key order with replayExceptions after freshBases", () => {
+    const am8 = JSON.parse(JSON.stringify(entryOf(committed(), "AM-8").rule)) as Record<string, unknown>;
+    const am12 = JSON.parse(JSON.stringify(AM12_FILING.rule)) as Record<string, unknown>;
+    const differ = [...new Set([...Object.keys(am8), ...Object.keys(am12)])].filter((k) => JSON.stringify(am8[k]) !== JSON.stringify(am12[k])).sort();
+    expect(differ).toEqual(["bases", "freshBases", "replayExceptions"]);
+    expect("replayExceptions" in am8).toBe(false);
+    const order = Object.keys(am8);
+    order.splice(order.indexOf("freshBases") + 1, 0, "replayExceptions");
+    expect(Object.keys(am12)).toEqual(order);
+    expect(am12["bases"]).toEqual({ "6": { H0: "F5", F5: "D1" } });
+    // F5 against D1 restates AM-8's 5b pair; F5 is fresh in place of AM-8's E0.
+    expect((am8["bases"] as Record<string, Record<string, string>>)["5b"]!["F5"]).toBe("D1");
+    expect(Object.keys(am8["freshBases"] as object)).toEqual(["E0"]);
+    expect(Object.keys(am12["freshBases"] as object)).toEqual(["F5"]);
+    expect(am12["replayExceptions"]).toEqual([
+      {
+        arm: "D1",
+        league: "gen",
+        seedSet: 2,
+        record: "ADR-089 Appendix I, I.13",
+        how: "dated history on trees with AB-L: re-played, its move from step 4's record printed beside, never a fault; the pair F5 against D1 reads the re-played D1 on that set",
+      },
+    ]);
+    // The entry's other fields are AM-8's where a guard entry keeps them.
+    const am8Entry = entryOf(committed(), "AM-8");
+    expect(AM12_FILING.untouched).toEqual(am8Entry.untouched);
+    expect(AM12_FILING.defaults).toEqual(am8Entry.defaults);
+    expect(AM12_FILING.supersedes).toEqual(["guard.mix", "guard.byClass"]);
+    expect(AM12_FILING.ownersWord).toBeNull();
+    expect(AM12_FILING.record).toBe("ADR-089 Appendix J, J.10");
+    expect(AM12_FILING.reason).toContain("about 10% of the time (9.6%; 9.7% and 9.9% on two more seed offsets)");
+  });
+
+  it("replayExceptionOf reads AM-12's one exception, D1 on gen seed set 2, and nothing else; a rule without the field excepts nothing", () => {
+    const rule = guardRuleOf(entryOf(withStep6() as unknown as AmendmentsFile, "AM-12"));
+    const x = replayExceptionOf(rule, "D1", "gen", 2);
+    expect(x?.record).toBe("ADR-089 Appendix I, I.13");
+    expect(x?.how).toMatch(/^dated history on trees with AB-L: re-played, its move from step 4's record printed beside, never a fault/);
+    for (const [arm, league, set] of [["D1", "gen", 1], ["D1", "flat", 2], ["D1", "flat", 1], ["F5", "gen", 2], ["H0", "gen", 2]] as const) expect(replayExceptionOf(rule, arm, league, set), `${arm} ${league} ${String(set)}`).toBeUndefined();
+    for (const id of ["AM-1", "AM-3", "AM-6", "AM-8"]) expect(replayExceptionOf(guardRuleOf(entryOf(committed(), id)), "D1", "gen", 2), id).toBeUndefined();
+    expect([...REPLAY_EXCEPTION_LEAGUES]).toEqual(["flat", "gen"]);
+  });
+
+  it("refuses replayExceptions that are empty or not a list, on a rule that holds no replay to its records, or with an item that is not one", () => {
+    refusesAm12((r) => (r["replayExceptions"] = []), /^entries\.11\.rule\.replayExceptions: must be a non-empty array of \{ arm, league, seedSet, record, how \}$/);
+    refusesAm12((r) => (r["replayExceptions"] = { D1: "gen 2" }), /^entries\.11\.rule\.replayExceptions: must be a non-empty array/);
+    refusesAm12((r) => (r["replayMustEqualPreviousRecords"] = false), /^entries\.11\.rule\.replayExceptions: the rule holds no replay to its records \(replayMustEqualPreviousRecords is not true\), so it has no replay to except$/);
+    refusesAm12((r) => (r["replayExceptions"] = ["D1"]), /^entries\.11\.rule\.replayExceptions\.0: must be an object$/);
+    const item = AM12_FILING.rule.replayExceptions[0];
+    refusesAm12((r) => (r["replayExceptions"] = [{ ...item, why: "x" }]), /^entries\.11\.rule\.replayExceptions\.0\.why: not a field of a replay exception$/);
+  });
+
+  it("refuses an item whose arm is no arm, no base of the maps, or a fresh base; whose league or seed set is not one; or whose record or reading is empty; and an item named twice", () => {
+    const item = AM12_FILING.rule.replayExceptions[0];
+    const withItem = (x: Record<string, unknown>) => (r: Record<string, unknown>): void => {
+      r["replayExceptions"] = [x];
+    };
+    refusesAm12(withItem({ ...item, arm: "Z9" }), /^entries\.11\.rule\.replayExceptions\.0\.arm: "Z9" is not an arm of this build$/);
+    refusesAm12(withItem({ ...item, arm: "H0" }), /^entries\.11\.rule\.replayExceptions\.0\.arm: H0 is not a base in the rule's maps$/);
+    refusesAm12(withItem({ ...item, arm: "F5" }), /^entries\.11\.rule\.replayExceptions\.0\.arm: F5 is played fresh \(freshBases\), so no record holds it and there is no replay to except$/);
+    refusesAm12(withItem({ ...item, league: "both" }), /^entries\.11\.rule\.replayExceptions\.0\.league: must be one of flat, gen \(got "both"\)$/);
+    refusesAm12(withItem({ ...item, seedSet: 3 }), /^entries\.11\.rule\.replayExceptions\.0\.seedSet: must be one of the rule's seed sets \[1,2\] \(got 3\)$/);
+    refusesAm12(withItem({ ...item, seedSet: "2" }), /^entries\.11\.rule\.replayExceptions\.0\.seedSet: must be one of the rule's seed sets \[1,2\] \(got "2"\)$/);
+    refusesAm12(withItem({ ...item, record: "" }), /^entries\.11\.rule\.replayExceptions\.0\.record: must name the record that explains it/);
+    const { how: _how, ...noHow } = item;
+    refusesAm12(withItem(noHow), /^entries\.11\.rule\.replayExceptions\.0\.how: must say how the replay is read instead/);
+    refusesAm12((r) => (r["replayExceptions"] = [item, { ...item, how: "again" }]), /^entries\.11\.rule\.replayExceptions\.1: D1 on gen seed set 2 is named twice$/);
+    // Another league or set of the same arm is its own exception.
+    const j = withStep6();
+    (j.entries[AM12_AT]!["rule"] as Record<string, unknown>)["replayExceptions"] = [item, { ...item, league: "flat" }, { ...item, seedSet: 1 }];
+    expect(amendmentsProblems(j, filing())).toEqual([]);
   });
 });
