@@ -66,7 +66,7 @@ import { S4_TUNABLES } from "./step4Fixtures.js";
 import { CLEAN_POCKET_FILED, DROP_FLOOR_FILED, S5L_TUNABLES, S5S_TUNABLES, S5_TUNABLES, cleanParts, onCleanBench, restampS5, withCleanPocket } from "./step5Fixtures.js";
 import { throwawayLegalInPocket } from "../src/sim/outs.js";
 import type { OutsTunables } from "../src/tunables.js";
-import { outsParts, playS6, withOuts } from "./step6Fixtures.js";
+import { OUTS_FILED, outsParts, playS6, withOuts } from "./step6Fixtures.js";
 import type { Step6Play } from "./step6Fixtures.js";
 import {
   RUN_SCHEMES,
@@ -1315,7 +1315,7 @@ describe("ADR-004 roll accounting", () => {
   });
 
   /**
-   * ADR-089 step 6, R-4: ROLL ACCOUNTING BY PART (step-6 plan §8.2), for the parts built so far.
+   * ADR-089 step 6, R-4: ROLL ACCOUNTING BY PART AND FOR THE WHOLE STEP (step-6 plan §8.2, §2.13).
    * Each part alone is played against `pocket-1.s5a` (D1's shape with the picture, and shape S on
    * the clean bench, where clean expiries come in number), every pass fixture and seed, through the
    * engine's seam with step 6's petitions:
@@ -1334,13 +1334,20 @@ describe("ADR-004 roll accounting", () => {
    *      up to and with the play's first caught escape roll under SEEN alone, and up to and with the
    *      play's first escape roll under the unseen leaf (played with the side-aware catch, which it
    *      needs to have an unregistered man, and which moves that roll's target), the contest at the
-   *      catch coming after; the failed scramble scored as a sack draws them all;
+   *      catch coming after; the drill draws them up to and with the play's first escape he won, and
+   *      the side-aware drill the same (with escape direction, which it reads); the deadline pick
+   *      draws them up to where s5a's deadline run draws its first carrier die (all of them on a run
+   *      that draws none); the failed scramble scored as a sack draws them all;
    *  28. after each cut no family is new over s5a's (the carrier's labels left out and the rush
-   *      bucket's men read as one, as step 5a's pairing reads them): the parts built so far draw no
-   *      new die (2.8's contest at the escape is on step 4's labels, `:contest` and `:contest2`, a
-   *      family s5a draws), and the later parts' families (`:deadline`, `:drill:`) are 2.9 and 2.11's;
-   *  29. under every part built so far together: no RollDetail twice in a play, and no `:deadline`,
-   *      `:drill:`, `:contact` or `:dodge`.
+   *      bucket's men read as one, as step 5a's pairing reads them) but the part's own: 2.9's and
+   *      2.10's `/movement/t#:drill:<id>` and 2.11's `/movement/t#:deadline`; 2.8's contest at the
+   *      escape is on step 4's labels, `:contest` and `:contest2`, a family s5a draws;
+   *  29. the whole step, every part on with the recommended answers (`OUTS_FILED`): no RollDetail
+   *      twice in a play, nor in a game-shaped run of plays (one seed and one game, the plays
+   *      numbered 1 to N as a game numbers them, every fixture in turn; `simulateGame` has no seam
+   *      for the petitions, so the game is played play by play through `simulatePassPlayWith`); over
+   *      s5a's families only the drill's and the pick's are new, and the contest at a caught escape
+   *      is on step 4's family; no step-7 label (`:contact`, `:dodge`, `:alarm`).
    */
   describe("step 6 (R-4)", () => {
     const family = (label: string): string =>
@@ -1529,7 +1536,7 @@ describe("ADR-004 roll accounting", () => {
     ];
     const SEEDS = 30;
 
-    it("each part alone draws s5a's rolls up to its own cut, and adds no family (27, 28)", () => {
+    it("each part alone draws s5a's rolls up to its own cut, and adds no family but its own (27, 28)", () => {
       for (const part of PARTS) {
         const baseKinds = new Set<string>();
         const armFamilies = new Set<string>();
@@ -1563,23 +1570,9 @@ describe("ADR-004 roll accounting", () => {
       }
     });
 
-    it("no RollDetail twice in a play under every part built so far, and no later part's family (29)", () => {
-      // Every part built so far, the bundles' default leaf where a part has two.
-      const together = outsParts({
-        throwawayRule: true,
-        scrambleStart: "ZERO_GAIN_ONLY",
-        escapeCap: { maxPerPlay: 1, whenSpent: "HOLD" },
-        pursuit: { speedBaseline: 70, speedDivisor: 5, mobilityDivisor: 10, mobilityCentering: 7 },
-        noLateHorizonSack: true,
-        direction: true,
-        sideCatch: { perLiveThreat: 10, perUnregistered: 15 },
-        caughtAsContact: true,
-        caughtSeen: "SEEN",
-        drill: true,
-        drillBySide: true,
-        deadlinePick: { runMargin: 1 },
-        failedScrambleSack: true,
-      });
+    it("the whole step: no RollDetail twice in a play, and no step-7 label (29)", () => {
+      // Every part on, the recommended answer where a part has more than one: the bundles' block.
+      const together = OUTS_FILED;
       const LATER = /:contact(:|$)|:dodge(:|$)|:alarm(:|$)/;
       let rolls = 0;
       let drills = 0;
@@ -1600,6 +1593,59 @@ describe("ADR-004 roll accounting", () => {
       expect(rolls).toBeGreaterThan(1000);
       expect(drills).toBeGreaterThan(20);
       expect(deadlines).toBeGreaterThan(5);
+    });
+
+    it("the whole step in a game-shaped run: no RollDetail twice, over s5a only the drill's and the pick's families, the caught escape's contest on step 4's (29)", () => {
+      const NEW_AT_ESCAPE = /\/movement\/t#:(deadline|drill:[^/:]+)$/;
+      const CONTEST = /\/rush\/t#\/[^/:]+:(contest|contest:[^/:]+|contest2)$/;
+      const LATER = /:contact(:|$)|:dodge(:|$)|:alarm(:|$)/;
+      const ROUNDS = 12;
+      const seen = { plays: 0, rolls: 0, drills: 0, deadlines: 0, caughtContests: 0 };
+      for (const { name, tunables, fixtures } of BASES) {
+        const baseKinds = new Set<string>();
+        const armFamilies = new Set<string>();
+        const inGame = new Map<string, string>();
+        let playNumber = 0;
+        let gameId: Parameters<typeof simulatePassPlay>[0]["gameId"] | undefined;
+        for (let round = 0; round < ROUNDS; round++) {
+          for (const [fixture, build] of fixtures()) {
+            const { state, calls } = build();
+            gameId ??= state.gameId;
+            playNumber += 1;
+            const at = { ...state, gameId, playNumber };
+            const where = `${name} play ${playNumber} (${fixture})`;
+            const arm: Rolls = lifted(playS6(at, calls, "s6-whole-step", withOuts(tunables, OUTS_FILED)));
+            const base: Rolls = ticked(simulatePassPlay(at, calls, "s6-whole-step", tunables).events);
+            for (const r of base) baseKinds.add(kind(family(r.label)));
+            for (const r of arm) {
+              expect(inGame.get(r.label), `${where}: ${r.label} first drawn at ${inGame.get(r.label) ?? "-"}`).toBeUndefined();
+              inGame.set(r.label, where);
+              armFamilies.add(family(r.label));
+              expect(LATER.test(r.label), `${where}: ${r.label}`).toBe(false);
+            }
+            // The contest at a caught escape: the next roll after a CAUGHT_FROM_BEHIND escape roll, on its tick.
+            for (const [k, r] of arm.entries()) {
+              const next = arm[k + 1];
+              if (!r.label.endsWith(":scramble") || r.band !== "CAUGHT_FROM_BEHIND" || next === undefined || next.tick !== r.tick || !next.label.includes("/rush/")) continue;
+              expect(family(next.label), where).toMatch(CONTEST);
+              seen.caughtContests += 1;
+            }
+            seen.plays += 1;
+            seen.rolls += arm.length;
+            seen.drills += arm.filter((r) => r.label.includes(":drill:")).length;
+            seen.deadlines += arm.filter((r) => r.label.endsWith(":deadline")).length;
+          }
+        }
+        const added = [...armFamilies].filter((f) => !f.includes("/carrier/") && !baseKinds.has(kind(f)));
+        expect(added.filter((f) => !NEW_AT_ESCAPE.test(f)), `${name}: ${JSON.stringify(added)}`).toEqual([]);
+        expect(added.some((f) => f.endsWith(":deadline")), `${name}: the pick's family`).toBe(true);
+        expect(added.some((f) => f.includes(":drill:")), `${name}: the drill's family`).toBe(true);
+      }
+      // 336 plays, 7785 rolls, 94 drill dice, 30 picks and 4 caught escapes' contests on these seeds (MEASURED).
+      expect(seen.rolls).toBeGreaterThan(5000);
+      expect(seen.drills).toBeGreaterThan(50);
+      expect(seen.deadlines).toBeGreaterThan(20);
+      expect(seen.caughtContests).toBeGreaterThan(2);
     });
   });
 });

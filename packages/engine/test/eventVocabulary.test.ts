@@ -25,7 +25,7 @@ import { PASS_FIXTURES, RULE_SETS, STEP1_RULE_SET_NAMES, isShapeS, isStep3 } fro
 import { callsUnder, withPicture } from "./snapFixtures.js";
 import { S4C_TUNABLES, S4M_TUNABLES, S4S_TUNABLES, T_TUNABLES } from "./step4Fixtures.js";
 import { S5L_TUNABLES, S5S_TUNABLES, S5_TUNABLES, onCleanBench, tickOfEvent } from "./step5Fixtures.js";
-import { outsParts, playS6, withOuts } from "./step6Fixtures.js";
+import { OUTS_FILED, liftS6, outsParts, playS6, withOuts } from "./step6Fixtures.js";
 import {
   buildMixedCoverageScenario,
   buildScenario,
@@ -925,5 +925,52 @@ describe("ADR-089 step 6 (P11, before the lift): where QB_DECISION.direction wil
     }
     expect([...atLift]).toEqual(["keys:QB_DECISION:choice,direction"]);
     expect(deadline).toBeGreaterThan(20);
+  });
+
+  /**
+   * The whole step, every part on with the recommended answers, on the lifted stream (the records put
+   * where the stream will carry them): the only decision word P11 adds is still
+   * `keys:QB_DECISION:choice,direction`, on SCRAMBLE and HOLD; the deadline's decision, after the
+   * pick's `:deadline` CHECK, carries none, whether it is the run (SCRAMBLE) or the throwaway; and
+   * the throwaway's and the drill's words are the petitions' key orders (P9, P10, P12).
+   */
+  it("the whole step: the deadline's SCRAMBLE and THROWAWAY carry no direction; the new words are the petitions'", () => {
+    const shapes = [[S5_TUNABLES, true], [S5S_TUNABLES, false], [S5L_TUNABLES, false], [onCleanBench(S5S_TUNABLES), false]] as const;
+    const words = new Set<string>();
+    const afterPick: Record<string, number> = {};
+    for (const [tunables, picture] of shapes) {
+      for (const [fixture, build] of PASS_FIXTURES) {
+        for (let i = 0; i < 20; i++) {
+          const { state, calls } = build();
+          const events = liftS6(playS6(state, picture ? withPicture(state, calls) : calls, `vocabulary-s6-whole-${fixture}-${i}`, withOuts(tunables, OUTS_FILED)));
+          for (const [k, e] of events.entries()) {
+            const { event } = e;
+            if (event.type === "QB_DECISION" && "direction" in event.payload) {
+              words.add(`keys:QB_DECISION:${Object.keys(event.payload).join(",")}`);
+              expect(["SCRAMBLE", "HOLD"]).toContain(event.payload.choice);
+            }
+            if (event.type === "THROWAWAY") words.add(`keys:THROWAWAY:${String(event.payload.cause)}:${Object.keys(event.payload).join(",")}`);
+            if (event.type === "CHECK" && String(event.payload.checkKind) === "scramble_drill") words.add(`keys:CHECK:scramble_drill:${Object.keys(event.payload).join(",")}`);
+            const label = event.type === "CHECK" ? (event.payload.roll?.rngLabel ?? "") : "";
+            if (!label.endsWith(":deadline")) continue;
+            const decision = events.slice(k + 1).find((x) => x.event.type === "QB_DECISION");
+            if (decision?.event.type !== "QB_DECISION") throw new Error(`${fixture} ${i}: a pick with no decision after it`);
+            expect("direction" in decision.event.payload, `${fixture} ${i}`).toBe(false);
+            expect(tickOfEvent(decision), `${fixture} ${i}`).toBe(tickOfEvent(e));
+            afterPick[decision.event.payload.choice] = (afterPick[decision.event.payload.choice] ?? 0) + 1;
+          }
+        }
+      }
+    }
+    expect([...words].sort()).toEqual([
+      "keys:CHECK:scramble_drill:checkKind,actors,roll,tier,margin,testsAttrs,target,band,rollRef",
+      "keys:QB_DECISION:choice,direction",
+      "keys:THROWAWAY:CLOCK_EXPIRED:cause,outsideTackleBox",
+      "keys:THROWAWAY:OUT_OF_POCKET:cause,rollRef,outsideTackleBox",
+      "keys:THROWAWAY:POCKET_DURESS:cause,rollRef,outsideTackleBox",
+    ]);
+    expect(Object.keys(afterPick).sort()).toEqual(["SCRAMBLE", "THROWAWAY"]);
+    expect(afterPick["SCRAMBLE"]).toBeGreaterThan(5);
+    expect(afterPick["THROWAWAY"]).toBeGreaterThan(5);
   });
 });

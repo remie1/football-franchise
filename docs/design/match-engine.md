@@ -779,6 +779,18 @@ Results per Tick:
 > with the block clock the filed rule picks (`passRush.beatClock` for shape S or `passRush.repClock`
 > for shape L at the winning point), the contest boundary still 5. No engine change: it plays the
 > s5a rules above on that clock, under its own stamp.
+>
+> **pocket-1.s6 (ADR-089 step 6, built behind the switch; refused until petitions P9 to P12 are in
+> contracts; not measured, not the default).** One more block, `pocket.outs` (his outs, ADR-089
+> §4.6 e and f and §4.7), one leaf a part, each on or off for an arm, and each of the owner's
+> options behind a leaf. It is overlay only, never in `DEFAULT_TUNABLES`, read on shapes S and L
+> only and refused under `legacy` and on kind T. The engine calls `sim/outs.ts` only when the rules
+> carry it, so `legacy`, every bundle before `pocket-1.s6` and kind T play exactly as before, and a
+> block with every part off plays step 5a's outs. Its rules are written where they act: the
+> throwaway rule in §7.2, the escape cap and the spent case in §8.7, and the rest in §8.8. While P9
+> to P12 are outside contracts every tree carrying the block is refused before a die, and the caught
+> escape as contact is refused while P20 is, so no game writes the stream shapes those notes
+> describe.
 
 > **KNOWN ISSUE (logged July 2026, Phase 1 slice) — term asymmetry.**
 > The rusher above carries two-to-three attribute terms (`Pass Rush` plus a move
@@ -1164,6 +1176,29 @@ SACK:
 > `POCKET_STATUS`, so it extends ADR-058's band-floor rule; adopting it would need a named amendment
 > of ADR-058, which ADR-089 does not list. It runs as an information arm and is not ruled on.
 
+> **pocket-1.s6 (ADR-089 step 6, built behind the switch; refused until petitions P9 to P12 are in
+> contracts; not measured, not the default): the real throwaway rule.** Under `pocket.outs` with
+> `throwawayRule` on (ADR-089 §4.7, question 9, answered Real rule; the reading AM-13 is to file as
+> `throwawayRule`, not filed yet), a throwaway in the pocket is legal on a tick at or past his drop
+> floor (§7.1's step-5a note), when the call has one, on which at least one eligible receiver's
+> route has reached its break: that receiver's rep resolved and the tick at or past his depth
+> class's ready time (QUICK 1.0 s, SHORT 1.5 s, INTERMEDIATE 2.0 s and DEEP 2.5 s; MEASURED,
+> `route.readySeconds`). It stands in for the NFL's receiver-in-the-area test, and where the ball
+> lands is not checked. It replaces the 2.0 s gate (`qb.throwawayEarliestSeconds`, MEASURED) at both
+> sites in the pocket, the forced pick's THROWAWAY response and the CLOCK_EXPIRED path, and under
+> the rule the old gate is never read. The floor binds the throwaway as it binds an aimed throw
+> (CHOSEN). A throwaway with a hand on him is the contact choice, which is step 7's (`:contact` is
+> reserved), so under the rule none comes on a tick that ran an arrival contest. There is still no
+> clean throwaway in the pocket. Out of the pocket a throwaway is legal at §8.8's deadline pick by
+> construction, with no grounding penalty.
+>
+> Every throwaway under the rule or the deadline pick carries `THROWAWAY.outsideTackleBox` (P10):
+> false in the pocket and true out of it, so on every one the flag equals
+> `cause === "OUT_OF_POCKET"` (P9). In the pocket no die, no CHECK and no cause is added: a
+> POCKET_DURESS throwaway still names its `pocket_movement` CHECK, and a CLOCK_EXPIRED one names
+> none. With the part off, and under `legacy` and every bundle before `pocket-1.s6`, the 2.0 s gate
+> stands.
+
 ### 7.3 Stunts and Twists
 
 ```
@@ -1533,6 +1568,39 @@ Each tick held:
 > rep-independent, and the two lost-rep rows meeting at the scale floor from tick 3.5 is **football,
 > not a defect.** Brought rather than tidied, which was the correct handling.
 
+> **pocket-1.s6 (ADR-089 step 6, built behind the switch; refused until petitions P9 to P12 are in
+> contracts; not measured, not the default): the escape cap and the spent case.** Under
+> `pocket.outs` with `escapeCap` he has one escape roll a play, forced or clean (`maxPerPlay` 1;
+> ADR-089 §4.7's "Escape capped at one per play", read as one roll, the reading AM-13 is to file as
+> `escapeCap`, CHOSEN): once a `scramble` CHECK is drawn, ESCAPE is offered at no later pick. The
+> forced pick's ranking leaves it out as it leaves out STEP_UP and THROWAWAY when they are not
+> offered, and the clean pick (§7.1's step-5a note) is not offered it. A play that rolls more than
+> one escape today draws fewer dice under the cap.
+>
+> **The spent case** is a clean expiry with his move used or not offered and his one escape spent,
+> so the clean pick has nothing to offer. The design did not foresee it, and every way through it
+> breaks a filed word, so which way is played is the owner's question (step 6's question 1). Each
+> way sits behind `escapeCap.whenSpent`; the recommended one is each bundle's default until they
+> answer, and no answer is recorded here:
+>
+> - `HOLD` (recommended): no die, no throwaway and no CLOCK_EXPIRED. He publishes `QB_DECISION` HOLD
+>   and keeps reading, so a man at the normal bar, or at 30 or more on a later expiry tick (D23's
+>   bar, CHOSEN), still gets the ball. These holds are counted apart.
+> - `TODAYS_PATH`: no die, and the path after the pick runs as at 5a, a CLOCK_EXPIRED throwaway
+>   where the throwaway gate allows one (§7.2: the real rule, or without it the 2.0 s gate), else a
+>   hold.
+> - `SECOND_ESCAPE`: the clean pick offers ESCAPE once more, the play's one second escape roll; once
+>   it is drawn the case holds (CHOSEN).
+> - `BELOW_30`: no movement die, and today's decision roll over the tick's candidates with no floor,
+>   in place of D23's 30; with nobody read, a hold.
+> - `CONTAINED_DOES_NOT_SPEND`: a CONTAINED roll does not spend the escape (one he won or was caught
+>   on does), so ESCAPE is offered again at a later pick, and in the one spent case left, a
+>   quarterback who shed a caught escape (§8.8), he holds.
+>
+> **How often, as a bound.** Under the cap a play reaches the spent case only after its first escape
+> roll was CONTAINED, or CAUGHT and then shed under §8.8's contact, so at most 4.6 per 100 clean
+> dropbacks on flat and 2.6 on gen (MEASURED on E9's first seed set, ADR-089 step 6's plan §2.3).
+
 ### 8.8 Scramble Decision
 
 ```
@@ -1608,6 +1676,164 @@ Scramble Resolution:
 > inverting §5.3's own protected finding that a missed blitz is the most dangerous snap in the sample.
 > See `resolve/scramble.ts`'s `pursuitForcesDecision` for the full account, kept rather than smoothed
 > over per this project's standing rule that a wrong premise is reported, not erased.
+
+> **pocket-1.s6 (ADR-089 step 6, built behind the switch; refused until petitions P9 to P12 are in
+> contracts, and the caught escape as contact until P20 is; not measured, not the default): his
+> outs.** These rules run only under `pocket.outs` (§7.1's step-6 note), each behind its own part's
+> leaf. The stream shapes not yet in contracts are the engine's stand-ins until the petitions land:
+> the OUT_OF_POCKET cause (P9), `THROWAWAY.outsideTackleBox` (P10), `QB_DECISION.direction` (P11)
+> and the `scramble_drill` CHECK (P12). A reading the design leaves is CHOSEN and is one AM-13 is to
+> file; where a part is the owner's question, the recommended answer is each bundle's default until
+> they answer, and no answer is recorded here.
+>
+> - **Where a failed scramble starts** (`scrambleStart`; the owner's step-6 question 2).
+>   `ZERO_GAIN_ONLY` (recommended): a scramble run that gains nothing ends where he is, at minus the
+>   card's `dropDepthYards` (5.0 yards shotgun and 7.0 under center, D22; MEASURED, the playbook's
+>   cards), and every other run keeps its yards. `EVERY_RUN`: every scramble run starts there, the
+>   design's words (ADR-089 §4.6 f and §4.7), so its zone events count from there and a tackle in
+>   the first zone can end behind the line. The run's dice do not change. Under `ZERO_GAIN_ONLY` the
+>   zone events are the run as played (zone 1, 0 yards), and only `RUN_RESOLUTION.yards` takes the
+>   minus 5 or minus 7, as a designed run's tackle for a loss already breaks the zone sum; the debug
+>   printout words it "tackled behind the line". Before step 6 no scramble run loses yards: it
+>   starts at 0 and no tackle band pays less (0 of about 25,000 scramble runs over the eight probe
+>   corpora; MEASURED, ADR-089 step 6's plan §2.2).
+> - **The failed scramble scored as a sack** (`failedScrambleSack`; ADR-089 §4.7, question 8,
+>   answered Sack). The rule, written once here: on a play whose `PLAY_START` carries
+>   `scoring.failedScramble` "SACK" (written only under the part), a `RUN_RESOLUTION` of carry type
+>   SCRAMBLE with yards at or below 0 is a sack. Its yards are sack yards, it is not a rush, and it
+>   is credited to the run's tackler (the defender in the last tackle contest he lost, the box
+>   score's ADR-010 inference) as a sack with no tackle and no tackle for a loss, as a sack in the
+>   pocket is (CHOSEN). Every reader applies "the marker, carry type SCRAMBLE, yards at or below 0"
+>   before its own branches, because without the scramble start every failed scramble gains exactly
+>   0. The marker is needed because 65 to 71 in 100 scramble runs gain exactly 0 today (MEASURED,
+>   ADR-089 step 6's plan §11.1), and rescoring them without one would change legacy box scores. No
+>   die and no event changes for it.
+> - **Pursuer speed and Mobility's weight** (`pursuit`; CHOSEN). The escape target gains
+>   `round((S - 70) / 5)`, S the highest Speed among the card rushers on the side he breaks to, live
+>   or blocked, and 0 when that side holds none; that man joins the `scramble` CHECK's actors and
+>   Speed its `testsAttrs`. The roll's Mobility term goes from `round(Mobility / 5)` to
+>   `round(Mobility / 10)` plus a flat 7 named "Mobility centering", so a 70 quarterback's roll is
+>   where it was and more mobility still helps, by less. Improvisation stays at `/ 5` (MEASURED,
+>   `scramble.attrDivisor`).
+> - **No late horizon sack** (`noLateHorizonSack`; CHOSEN). The pursuit deadline is
+>   `max(escapeTick + tickStepSeconds, min(escapeTick + pursuitSeconds, maxTick))` (0.5 s, 1.5 s and
+>   6.0 s; MEASURED, the build's tunables), and the play runs one tick past `maxTick` only for a
+>   live scramble whose deadline is past it; that tick runs the scramble's own logic only (his
+>   reads, a throw on the run, the deadline). An escape at 5.0 or 5.5 s reaches its deadline at
+>   6.0 s and one at 6.0 s at 6.5 s, so no escape runs off the clock into the horizon coverage sack.
+>   The desperation bar in the note above reads the same deadline, so it moves with it.
+> - **Escape direction** (`direction`; D15, D16; P11). The side he breaks to is the first of four
+>   rules that decides it: (1) on a forced pick, away from the live threats inside must act's half
+>   second (D32; MEASURED, `arrival.collapsingWithinSeconds`) that set the reaction off, when every
+>   one of them with a side is on one side; (2) else away from the nearest live threat with a side,
+>   `simultaneousArrivalPriority` breaking exact ties; (3) else toward the side with fewer card
+>   rushers; (4) else by the parity of the pick's own d100 face, odd LEFT and even RIGHT
+>   (mirror-balanced in distribution, CHOSEN in the design). A clean break-out has nothing that set
+>   it off and starts at (2). A man's side is his matchup's card side and a looper's his partner's
+>   (D16), read once at the snap and never from the threat. No die. The side is published as
+>   `QB_DECISION.direction` (P11) on the SCRAMBLE of an escape he won and on the HOLD of one he was
+>   contained on, and nowhere else: a caught escape publishes no decision (its contact names the
+>   man), and the deadline's decision carries none, because he is already running that way. Alone,
+>   nothing reads the side.
+> - **The side-aware catch** (`sideCatch`, with the direction; ADR-089 §4.7, question 17, answered
+>   Yes). The escape target becomes `50 + 10 x live + 15 x unregistered + 5 x urgency` plus the
+>   pursuer term, counting the men on his side (50 and 5 MEASURED, `scramble.target` and
+>   `scramble.perUrgencyStepPenalty`; 10 and 15 CHOSEN in the design), in place of today's 10 for
+>   each EDGE threat on either side (MEASURED, `scramble.edgeThreatPenalty`). Every live threat is
+>   registered until step 7, so the unregistered men are the card rushers on his side still in their
+>   blocks whom he had not checked, by the band of the pick that offered the escape: SOUND checked
+>   them all, RUSHED only the men in front (INTERIOR, in front of him by the card's rule for a man
+>   without an arc; INFERRED), and PANICKED none. The roll's actors are the quarterback, every live
+>   threat and the blocked card rushers on his side. A caught escape's catcher is the first
+>   unregistered man on his side (card order), else the nearest live threat on his side, else
+>   today's man, else nobody. Without the caught escape as contact a blocked man's catch is a sack
+>   with no sacker. At the baseline a RUSHED or PANICKED break-out with one unchecked man is caught
+>   about 16 times in 100 instead of about 1, and with two about 31 (INFERRED, the roll's
+>   arithmetic).
+> - **The caught escape as contact** (`caughtAsContact`; ADR-089 §4.7; P20). A caught escape that
+>   names a man is a contact with him, built at the escape site: for a blocked man from the card
+>   (approach BLOCKED, from FRONT for INTERIOR and SIDE for EDGE), for a live man from his approach
+>   and alignment. Its `contactSeconds` is the tick of the escape roll that caught him (ticks are
+>   seconds from the snap). The contest is step 4's by rule on P6's labels (§7.1's step-4 note):
+>   before the play's first shed the rated contest, the rusher's d100 on
+>   `rush/t<tick>/<rusherId>:contest` and the quarterback's on
+>   `rush/t<tick>/<quarterbackId>:contest:<rusherId>`; after it the second arrival, one d100 on
+>   `rush/t<tick>/<rusherId>:contest2`; with step 4's tilt for the catch's tilt class. When that
+>   label was already drawn for him on that tick, no die is drawn and the catch is his sack
+>   (CHOSEN), so no label repeats. RUSHER_SACKS is his sack, and its `QB_HIT` SACK credits him in
+>   the box score. On QB_SHEDS the ball is still in his hand in the pocket: he holds the tick
+>   (`QB_DECISION` HOLD, with no direction), a live catcher's threat goes back by his approach and
+>   is published DELAYED, as step 4's shed, a blocked man stays in his block, and later contacts
+>   follow step 4's rules. A catch that names nobody stays today's sack with no sacker.
+> - **Seen or unseen** (`caughtSeen`; the owner's step-6 question 3). `SEEN` (recommended) keeps
+>   every contact seen, as `QB_HIT.seen` reads before step 7, with the design's "unseen if
+>   unregistered" acting at step 6 through the 15 alone. `UNSEEN_IF_UNREGISTERED` makes an
+>   unregistered blocked man's catch unseen, so it takes the rusher's tilt (BEHIND or NEVER) in
+>   place of the quarterback's (PUSH or BLOCKED), and it needs petition P21 first. With equal
+>   ratings and the boundary at 5 (MEASURED, the step-4 bundle) the rated contest is a sack about 55
+>   times in 100 when the catch is unseen and about 29 when it is seen (INFERRED, the contest's
+>   closed form at the step-4 bundle's tilts).
+> - **The scramble drill** (`drill`; ADR-089 §4.6 e; P12). At every escape he wins, clean or forced,
+>   after the pursuit clock and the threat resets and before the SCRAMBLE decision, each eligible
+>   receiver (on a route, his rep resolved) runs one fresh rep against the defender already on him,
+>   in his read order and then card order. A covered man rolls one d100 on
+>   `movement/t<tick>:drill:<receiverId>` (the label P18 is to reserve). In man coverage it is his
+>   d100 plus his side of his route's own rep (Route Running, Agility and the Route Technician
+>   trait), against the defender's side with no die: the d100's mean, 50.5, in place of his die
+>   (CHOSEN), plus his Man Coverage, Agility and the Shutdown trait, through the man band table. In
+>   zone it is his d100 plus Route Running and the Route Technician trait against the zone rep's own
+>   target, through the zone band table. There is no release carry-over either way. The band is
+>   where the defender stands after the drill, TRAILING, EVEN or IN_FRONT; a man in a hole is
+>   TRAILING with no die. The rep is a `scramble_drill` CHECK (P12): actors the receiver then the
+>   defender, `target` the defender's side, `band` the position, `testsAttrs` the ratings read on
+>   both sides, `rollRef` the escape's `scramble` CHECK. It moves openness only: two burst steps
+>   (CHOSEN) of the route's gain by position, +20, +10 or 0 at the build's 5 a step and burst
+>   multiples 2, 1 and 0 (MEASURED, `route.opennessGainPerTick` and `route.contestGain`), go onto
+>   the base the scramble's climb starts from, then today's +8 a tick to 85 (MEASURED,
+>   `scramble.opennessGainPerTick` and `scramble.maxOpenness`). No contest position is written, so
+>   every contested catch still reads his coverage rep's (D25).
+> - **The drill by break lane** (`drillBySide`, with the direction and the drill; D24). At an escape
+>   toward a side, a route breaking to that side (LW or LH for LEFT, RH or RW for RIGHT) or to the
+>   middle (C) keeps the drill's two burst steps, and one breaking to the far side gets one (+10, +5
+>   or 0; CHOSEN). A route that states no `breakZone` is in the middle lane. No die.
+> - **Run or throw it away at the deadline** (`deadlinePick`; ADR-089 §4.6 f; P9, P10). At the
+>   pursuit deadline, with nobody at the normal bar and no desperation throw taken (none after a
+>   clean break-out, D23 on the run), he picks between RUN and THROWAWAY on one d100, today's
+>   `pocket_movement` CHECK on `movement/t<tick>:deadline` (the label P18 is to reserve): the d100
+>   plus `round(poise / 5)` plus `round(awareness / 5)` against 50, bands SOUND, RUSHED and PANICKED
+>   (MEASURED, the build's `pocketMovement` tunables). It ranks two options of its own at urgency 0,
+>   since every threat was reset at his escape: THROWAWAY is today's throwaway appeal, 25 plus
+>   `(decisionMaking - 70) / 3` plus `(awareness - 70) / 4`, and RUN is that base plus the run
+>   margin plus today's escape terms, `(mobility - 70) / 1.5` plus `(improvisation - 70) / 1.5`,
+>   each term rounded (MEASURED, the build's appeals). SOUND takes the first option and any band
+>   below it the second; THROWAWAY is first on a tie. RUN is today's deadline run, with no
+>   direction. THROWAWAY is `QB_DECISION` THROWAWAY and a `THROWAWAY` with cause OUT_OF_POCKET (P9),
+>   `rollRef` the `:deadline` CHECK and `outsideTackleBox` true (P10), at 0 yards with today's
+>   throwaway runoff.
+> - **K9, the run margin** (`deadlinePick.runMargin`; the reading AM-13 is to file as `runMargin`).
+>   The step-0 filing's margin, 10, is the smallest whole margin at which a quarterback at the 70
+>   baseline ranks RUN strictly first at every urgency 0 to 3 (margin + 5u > 8u; MEASURED,
+>   `FILED_RUN_MARGIN` in `calibration/src/pocket/contest.ts`), and the filing re-derives it by the
+>   same inequality when the deadline reads another range. The deadline reads urgency 0 alone, so
+>   the margin is 1 (CHOSEN by that rule): a 70 quarterback ranks RUN first, 26 against 25. Reading
+>   urgency 3 with the margin at 10 ranks every quarterback the same way, so that choice changes no
+>   play. Under either a flat runner ranks THROWAWAY first (his escape terms trail his throwaway
+>   terms by more than 1), so a flat deadline pick throws it away about 75 times in 100, and gen's
+>   about 73 to 76 (INFERRED, each runner's ratings), against about 88 runs in 100 after a failed
+>   drill in the data (REAL, ADR-089 §4.6 f). The design's other base, THROWAWAY gaining RUN's
+>   mobility terms, is not built; both are fitted at step 10.
+> - **Dice, events and the printout.** The only new families are `movement/t<tick>:deadline`, at
+>   most once a play, and `movement/t<tick>:drill:<receiverId>`, once for each covered receiver at
+>   each escape he wins. The caught escape's contest draws step 4's `:contest`,
+>   `:contest:<rusherId>` and `:contest2` labels at the escape site, and every label is drawn at
+>   most once a play. The start, the scoring rule, the pursuer, the horizon rule, the direction, the
+>   side terms, the lanes and the cap draw nothing. No event kind is added: the four stand-ins above
+>   are the engine's until their petitions land, and `PLAY_START.scoring` is the engine's own
+>   payload. The debug printout marks the deadline pick's `pocket_movement` line "(deadline: run or
+>   throw it away)", read from its die's label alone; prints a SCRAMBLE DRILL section with one row a
+>   rep, the direction on the decision that carries it, the OUT_OF_POCKET throwaway, and a caught
+>   escape's contact "at the caught escape"; and words a scramble that ends behind the line "tackled
+>   behind the line", a sack under the marker.
 
 ---
 

@@ -146,7 +146,7 @@ import { playsLegacyRules, playsTodaysLine } from "../src/sim/pocketRules.js";
 import { PASS_FIXTURES } from "./pocketTunables.js";
 import { S4C_TUNABLES, S4L_TUNABLES, S4M_TUNABLES, S4S_TUNABLES, S4_TUNABLES, T_TUNABLES, playStep4 } from "./step4Fixtures.js";
 import { CLEAN_POCKET_OFF, S5L_TUNABLES, S5S_TUNABLES, S5_TUNABLES, onCleanBench, withCleanPocket } from "./step5Fixtures.js";
-import { OUTS_OFF, outsParts, playS6, withOuts } from "./step6Fixtures.js";
+import { OUTS_FILED, OUTS_OFF, outsParts, playS6, withOuts } from "./step6Fixtures.js";
 import { drawBeat, resolveBeatTick } from "../src/resolve/beatClock.js";
 import { fromOf, threatApproachOf, threatSideOf, withApproach } from "../src/resolve/approach.js";
 import { freeRunClock } from "../src/resolve/freeRun.js";
@@ -603,8 +603,9 @@ describe("ADR-089 step 5a: no rule set before step 5 runs a clean-pocket functio
 /**
  * ADR-089 step 6, P-18 (step-6 plan §8.1): legacy, every set of steps 1 to 5a and kind T call no
  * export of `sim/outs.ts`, play (with and without a picture) and game; the block's parts call every
- * one. P-18b at the engine's reach: an s5a bundle with the all-off block (same stamp) gives the s5a
- * stream byte for byte, play by play, and calls none of them.
+ * one, each part alone and the whole step together (every part on, the bundles' block). P-18b at the
+ * engine's reach: an s5a bundle with the all-off block (same stamp) gives the s5a stream byte for
+ * byte, play by play, and calls none of them.
  */
 describe("ADR-089 step 6: no rule set before step 6 runs an outs function (P-18)", () => {
   const named = (): Record<string, number> => Object.fromEntries(STEP6_SPY_TABLE.map(([name, f]) => [name, vi.mocked(f).mock.calls.length]));
@@ -632,7 +633,7 @@ describe("ADR-089 step 6: no rule set before step 6 runs an outs function (P-18)
     outsParts({ failedScrambleSack: true }),
   ];
 
-  it("the module's exports are the ones the parts built so far name", () => {
+  it("the module's exports are the ones the parts name", () => {
     expect(STEP6_SPY_TABLE.map(([name]) => name)).toEqual([
       "breakSide",
       "cardSidesAtSnap",
@@ -700,6 +701,28 @@ describe("ADR-089 step 6: no rule set before step 6 runs an outs function (P-18)
     const plays = named();
     for (const [name] of STEP6_SPY_TABLE) expect(plays[name], name).toBeGreaterThan(0);
     expect(vi.mocked(loopPartnersAtSnap)).toHaveBeenCalled();
+  });
+
+  it("the whole step together, every part on with the recommended answers, calls every one", () => {
+    // The fronts give the caught escape's shed (`caughtShedDelaySeconds`), which the pass fixtures alone seldom reach.
+    const fronts = [{ extras: 2 }, { extras: 2, extraSides: ["LEFT", "UNSIDED"] }] as const;
+    for (const [tunables, picture] of S5_SETS) {
+      const t = withOuts(tunables, OUTS_FILED);
+      for (const [, build] of PASS_FIXTURES) {
+        for (let i = 0; i < 15; i++) {
+          const { state, calls } = build();
+          playS6(state, picture ? withPicture(state, calls) : calls, `isolation-s6-whole-${i}`, t);
+        }
+      }
+      for (const options of fronts) {
+        for (let i = 0; i < 40; i++) {
+          const f = frontWithPicture(options);
+          playS6(f.scenario.state, f.calls, `isolation-s6-whole-front-${i}`, t);
+        }
+      }
+    }
+    const plays = named();
+    for (const [name] of STEP6_SPY_TABLE) expect(plays[name], name).toBeGreaterThan(0);
   });
 
   it("P-18b (engine): an s5a bundle with the all-off block, same stamp, gives the s5a stream play by play and calls none", () => {

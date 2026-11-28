@@ -19,6 +19,17 @@
  * `RUN_RESOLUTION.yardsBeforeContact`, the named modifiers already inside each
  * `RollDetail` — or nothing at all. A printout that invents a number it cannot
  * read is worse than a printout that is silent about it.
+ *
+ * ADR-089 step 6 (plan §2.13): the outs are printed from what their events say, and only where a
+ * step-6 fact is on the stream, so a stream without one prints as it always did (legacy and
+ * `pocket-1.s1` to `pocket-1.s5a`). The deadline pick is a `pocket_movement` CHECK told apart by its
+ * label (`movement/t<tick>:deadline`), as the clean pick is; the scramble drill's `scramble_drill`
+ * CHECK (P12), the OUT_OF_POCKET throwaway (P9), its `outsideTackleBox` (P10) and the decision's
+ * `direction` (P11) are read structurally until those petitions are in contracts, as step 4's
+ * contact was; a caught escape's contact is the `arrival_contest` right after a CAUGHT_FROM_BEHIND
+ * escape roll on its tick; a scramble that ends behind the line, which only step 6's scramble start
+ * makes, is worded from its yards; and a failed scramble scored as a sack is read off
+ * `PLAY_START.scoring`, the marker `pocket.outs.failedScrambleSack` writes, never off the yards alone.
  */
 import type {
   MatchEvent,
@@ -80,6 +91,7 @@ export function renderPlay(events: readonly MatchEventEnvelope[], names: NameLoo
   lines.push(...renderRunBlocking(events, name));
   lines.push(...renderRoutes(events, name));
   lines.push(...renderPocketMovement(events, name));
+  lines.push(...renderScrambleDrill(events, name));
   lines.push(...renderContact(events, name));
   lines.push(...renderQbDecisionMaking(events, name));
   lines.push(...renderThrow(events, name));
@@ -259,10 +271,27 @@ function renderBallCarrier(events: readonly MatchEventEnvelope[], name: NameLook
   // quarterback with the ball under his arm IS a ball carrier (ADR-010 item 2).
   const carry = firstOfType(events, "RUN_RESOLUTION");
   if (carry !== undefined && carry.payload.carryType === "SCRAMBLE") {
+    // ADR-089 step 6 (plan §2.2, §2.12; AM-13 `scrambleStart`, `rescoring`): a scramble that ends
+    // behind the line, which the scramble start's rule puts at his drop (its zone rows still read
+    // the run as played, so this row says why the total is below them), and on a play whose
+    // PLAY_START carries `scoring.failedScramble` "SACK" a scramble at or below 0 yards, which is a
+    // sack (§8.8). Before step 6 no scramble loses yards (it starts at 0 and every tackle band pays
+    // 0 or more), and a run at 0 without the marker is printed as it always was.
+    const marked = asRecord(asRecord(firstOfType(events, "PLAY_START")?.payload)?.["scoring"])?.["failedScramble"] === "SACK";
+    const yards = carry.payload.yards;
+    const note =
+      yards < 0
+        ? marked
+          ? `Failed scramble: tackled behind the line, a sack for a loss of ${-yards} (§8.8)`
+          : `Tackled behind the line: a run for a loss of ${-yards}, from his drop (§8.8)`
+        : marked && yards === 0
+          ? "Failed scramble: tackled at the line, a sack for no loss (§8.8)"
+          : undefined;
     out.push(
-      `  └─ ${name(carry.payload.carrier)} tucks it and runs: ${carry.payload.yards} yards` +
+      `  ${note === undefined ? "└─" : "├─"} ${name(carry.payload.carrier)} tucks it and runs: ${yards} yards` +
         " (SCRAMBLE — no designed gap)",
     );
+    if (note !== undefined) out.push(`  └─ ${note}`);
   }
 
   if (out.length === 0) return [];
@@ -522,6 +551,10 @@ function renderLineBattle(events: readonly MatchEventEnvelope[], name: NameLooku
  * CHECK of the same form, told apart by its die's label alone
  * (`movement/t<tick>:clean`), so its line says "(clean pocket)". No payload
  * field is read for it and none was added.
+ *
+ * ADR-089 step 6 (plan §2.11): the deadline pick after an escape, run or throw it away, is one more
+ * of the same form on `movement/t<tick>:deadline`, so its line says so; which way it went is the
+ * QB_DECISION beside it.
  */
 function renderPocketMovement(events: readonly MatchEventEnvelope[], name: NameLookup): string[] {
   const out: string[] = [];
@@ -539,8 +572,9 @@ function renderPocketMovement(events: readonly MatchEventEnvelope[], name: NameL
     const p = event.payload;
     if (p.checkKind === "pocket_movement") {
       const actor = p.actors[0];
-      const clean = p.roll?.rngLabel.endsWith(":clean") === true ? " (clean pocket)" : "";
-      out.push(`  ├─ Tick ${tickLabel(event.tick)}: pocket movement${clean}${actor === undefined ? "" : ` (${name(actor)})`}`);
+      const label = p.roll?.rngLabel ?? "";
+      const which = label.endsWith(":clean") ? " (clean pocket)" : label.endsWith(":deadline") ? " (deadline: run or throw it away)" : "";
+      out.push(`  ├─ Tick ${tickLabel(event.tick)}: pocket movement${which}${actor === undefined ? "" : ` (${name(actor)})`}`);
       out.push(`  │    ${formatRoll(p.roll)} vs. target ${p.target ?? "-"}`);
       // SOUND / RUSHED / PANICKED — how far down his own preference list the
       // moment pushed him. WHICH response that landed on is the QB_DECISION
@@ -560,26 +594,69 @@ function renderPocketMovement(events: readonly MatchEventEnvelope[], name: NameL
 }
 
 /**
+ * ADR-089 step 6 (plan §2.9, §2.10; P12): THE SCRAMBLE DRILL, each covered receiver's fresh rep after
+ * a won escape, one row per `scramble_drill` CHECK in stream order: the receiver against his man (or
+ * the defender whose zone he is in), the receiver's roll against the defender's side, stated as the
+ * target with no die, and the band, where the defender stands after the drill. Read structurally
+ * until P12 makes the kind a `CheckKind`; a stream without the CHECK prints no section at all.
+ */
+function renderScrambleDrill(events: readonly MatchEventEnvelope[], name: NameLookup): string[] {
+  const out: string[] = [];
+  for (const { event } of events) {
+    if (event.type !== "CHECK") continue;
+    const p = event.payload;
+    const kind: string = p.checkKind;
+    if (kind !== "scramble_drill") continue;
+    const receiver = p.actors[0];
+    const defender = p.actors[1];
+    out.push(
+      `  ├─ Tick ${tickLabel(event.tick)}: ${receiver === undefined ? "?" : name(receiver)}` +
+        ` vs. ${defender === undefined ? "nobody" : name(defender)}`,
+    );
+    out.push(`  │    ${formatCheckRoll(p)} vs. target ${p.target ?? "-"}`);
+    out.push(`  │    Result: ${bandOf(p)} (${signed(p.margin)})`);
+    out.push("  │");
+  }
+  if (out.length === 0) return [];
+  return ["SCRAMBLE DRILL (§8.8, ADR-089 step 6: each covered receiver's fresh rep):", ...out, ""];
+}
+
+/**
  * ADR-089 step 4 — CONTACT: each `arrival_contest` CHECK (P6) and each `QB_HIT` (P7: ARRIVAL,
  * THROWING, SHED or SACK, the last two right after the CHECK they name), in stream order. Both were
  * read structurally here before P6 and P7 were in contracts, and still are; a stream without them
  * (every stream but `pocket-1` from `pocket-1.s4`) prints no section at all.
+ *
+ * ADR-089 step 6 (plan §2.8; P20): a caught escape's contact is the contest right after the
+ * CAUGHT_FROM_BEHIND escape roll, on its tick (no other CHECK between them; only the catcher's
+ * ARRIVED may come between), and its row says so. Before step 6 a caught escape ended the play at
+ * once, so no earlier stream has such a contest.
  */
 function renderContact(events: readonly MatchEventEnvelope[], name: NameLookup): string[] {
   const out: string[] = [];
+  // The tick of a CAUGHT_FROM_BEHIND escape roll with no CHECK after it yet.
+  let caughtAt: number | undefined;
   for (const { event } of events) {
     const type: string = event.type;
     const payload = (event as { payload?: unknown }).payload as Record<string, unknown> | undefined;
     const tick = (event as { tick?: number }).tick;
     if (payload === undefined) continue;
-    if (type === "CHECK" && String(payload["checkKind"]) === "arrival_contest") {
+    const kind = type === "CHECK" ? String(payload["checkKind"]) : undefined;
+    if (kind === "scramble" && payload["band"] === "CAUGHT_FROM_BEHIND") {
+      caughtAt = tick;
+      continue;
+    }
+    if (kind !== "arrival_contest" && type !== "RUSH_THREAT") caughtAt = undefined;
+    if (kind === "arrival_contest") {
       const actors = payload["actors"] as readonly PlayerId[];
       const roll = payload["roll"] as RollDetail;
       const opposed = payload["opposedRoll"] as RollDetail | undefined;
       const rusher = actors[0];
       const second = opposed === undefined;
+      const atCatch = caughtAt !== undefined && caughtAt === tick ? " at the caught escape" : "";
+      caughtAt = undefined;
       out.push(
-        `  ├─ Tick ${tickLabel(tick)}: ${second ? "second arrival" : "arrival contest"}` +
+        `  ├─ Tick ${tickLabel(tick)}: ${second ? "second arrival" : "arrival contest"}${atCatch}` +
           (rusher === undefined ? "" : ` (${name(rusher)})`),
       );
       if (second) out.push(`  │    ${formatRoll(roll)} vs. target ${String(payload["target"])}`);
@@ -753,7 +830,22 @@ function renderQbDecisionMaking(events: readonly MatchEventEnvelope[], name: Nam
       // ADR-005: no bracket when no decision-quality roll ran. A bare HOLD means
       // "there was nothing to decide", not "he decided badly".
       const tier = p.tier === undefined ? "" : ` [${p.tier}]`;
-      out.push(`  ├─ Tick ${tickLabel(event.tick)}: ${p.choice}${target}${tier}`);
+      // ADR-089 step 6 (plan §2.6; P11): the side of an escape, on the decision that carries it.
+      const direction: unknown = (p as { readonly direction?: unknown }).direction;
+      const side = typeof direction === "string" ? ` (direction ${direction})` : "";
+      out.push(`  ├─ Tick ${tickLabel(event.tick)}: ${p.choice}${target}${tier}${side}`);
+    } else if (event.type === "THROWAWAY") {
+      // ADR-089 step 6 (plan §2.11; P9, P10): the throwaway after an escape, which the deadline
+      // pick chose (its CHECK is the pocket-movement row on `:deadline`). The pocket's two causes
+      // print nothing here, as before: the decision line above says it.
+      const cause: string = event.payload.cause;
+      if (cause === "OUT_OF_POCKET") {
+        const outside: unknown = (event.payload as { readonly outsideTackleBox?: unknown }).outsideTackleBox;
+        out.push(
+          `  ├─ Tick ${tickLabel(event.tick)}: throws it away out of the pocket (OUT_OF_POCKET` +
+            `${outside === true ? ", outside the tackle box" : ""}; the deadline pick)`,
+        );
+      }
     }
   }
   if (out.length === 0) return [];

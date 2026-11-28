@@ -39,14 +39,25 @@
  *     read before every other branch: its yards are sack yards, it is not a rush,
  *     and it is credited to the run's tackler (the defender in the last tackle
  *     contest he lost, item 1's inference) as a sack, with no tackle and no tackle
- *     for loss, as an in-pocket sack is. Every other play reads as before.
+ *     for loss, as an in-pocket sack is. Every other play reads as before. Under
+ *     step 6's caught escape as contact (plan §2.8) a catch that sacks him is the
+ *     contest's RUSHER_SACKS, credited to its rusher as every contest's sack is
+ *     (step 4's rule below); a catch he sheds is no sack, and the play goes on.
  *  3. **Throwaways ARE attempts (ADR-056).** The engine emits no `THROW` for a
  *     throwaway — correctly, since there is no target and no accuracy roll —
  *     but it now emits its own `THROWAWAY` event (Option C: the ACT, distinct
  *     from the `QB_DECISION` that chose it). Real NFL scoring counts a
  *     throwaway as a pass attempt, so `passing.attempts` counts `hadThrow` OR
  *     `hadThrowaway`. This was blocked on a producer decision, not a reducer
- *     one; the producer now exists.
+ *     one; the producer now exists. ADR-089 step 6 (plan §2.11; P9): the
+ *     throwaway after an escape, cause OUT_OF_POCKET, is an attempt as the
+ *     pocket's two causes are; its `outsideTackleBox` (P10) is not read, since no
+ *     grounding rule is modeled.
+ *
+ * Nothing else step 6 adds feeds a line: the drill's `scramble_drill` CHECKs (P12),
+ * the deadline pick's `pocket_movement` CHECK and `QB_DECISION.direction` (P11)
+ * are matched by no branch here (`test/pocketS6.statline.test.ts`, on the stream as
+ * it will stand at the lift).
  */
 import type { PlayerId, TeamId } from "@ff/contracts";
 import { isGameScoped } from "../game/events.js";

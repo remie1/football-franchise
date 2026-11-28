@@ -7,9 +7,10 @@
  * given, never as `undefined`, as `withCleanPocket` does. `GRANTED_S6` grants every petition, step
  * 6's included, so a test reaches the parts through `pocketRulesUnder` or `simulatePassPlayWith`
  * (the flags in `sim/pocketRules.ts` stay false); `recorder()` takes the records the stream cannot
- * carry before the lift, and `playS6` plays one pass play through the seam with both.
+ * carry before the lift, `playS6` plays one pass play through the seam with both, and `liftS6` puts
+ * the records where the stream will carry them, for the readers' tests (the renderer, the statline).
  */
-import type { MatchEventEnvelope } from "@ff/contracts";
+import type { MatchEvent, MatchEventEnvelope } from "@ff/contracts";
 import type { RunSide } from "@ff/contracts";
 import type { ScrambleDrillPayload, Step6Position, Step6Recorder, ThrowawayRecordS6 } from "../src/events.js";
 import { simulatePassPlayWith } from "../src/sim/passPlay.js";
@@ -100,4 +101,48 @@ export function playS6(state: MatchGameState, calls: PlayCalls, seed: string, tu
   const r = recorder();
   const { events } = simulatePassPlayWith(state, calls, seed, tunables, { petitions: GRANTED_S6, step6Recorder: r });
   return { events, records: r.records };
+}
+
+/**
+ * The play's stream as it will stand after the lift, for the readers' tests: each whole record (an
+ * OUT_OF_POCKET throwaway, P9; a scramble drill CHECK, P12) put just before the event whose seq it
+ * names, in the order taken, with its tick; each field record added at the end of the payload of the
+ * event at its seq (`outsideTackleBox` after `rollRef`, P10; `direction` after `tier`, P11); and the
+ * seqs renumbered from the play's first. The casts stand in for the contracts types the petitions
+ * add. Nothing here is read by the engine.
+ */
+export function liftS6(play: Step6Play): MatchEventEnvelope[] {
+  const { events, records } = play;
+  const first = events[0];
+  if (first === undefined) return [];
+  const ids = first.event as { readonly gameId: unknown; readonly playId?: unknown };
+  const before = new Map<number, MatchEvent[]>();
+  const fields = new Map<number, Record<string, unknown>>();
+  const whole = (seq: number, type: "THROWAWAY" | "CHECK", tick: number | undefined, payload: unknown): void => {
+    const event = { type, payload, gameId: ids.gameId, playId: ids.playId, ...(tick === undefined ? {} : { tick }) } as unknown as MatchEvent;
+    before.set(seq, [...(before.get(seq) ?? []), event]);
+  };
+  const field = (seq: number, key: string, value: unknown): void => {
+    fields.set(seq, { ...fields.get(seq), [key]: value });
+  };
+  for (const r of records) {
+    if (r.kind === "outOfPocketThrowaway") whole(r.at.seq, "THROWAWAY", r.at.tick, r.payload);
+    else if (r.kind === "scrambleDrill") whole(r.at.seq, "CHECK", r.at.tick, r.payload);
+    else if (r.kind === "outsideTackleBox") field(r.at.seq, "outsideTackleBox", r.value);
+    else field(r.at.seq, "direction", r.side);
+  }
+  const last = events[events.length - 1] as MatchEventEnvelope;
+  const known = new Set(events.map((e) => e.seq));
+  for (const seq of [...before.keys(), ...fields.keys()]) {
+    if (!known.has(seq)) throw new Error(`a step-6 record at seq ${seq}, past the play's last event (${last.seq})`);
+  }
+  const out: MatchEventEnvelope[] = [];
+  let seq = first.seq;
+  for (const e of events) {
+    for (const event of before.get(e.seq) ?? []) out.push({ seq: seq++, at: e.at, event });
+    const extra = fields.get(e.seq);
+    const event = extra === undefined ? e.event : ({ ...e.event, payload: { ...(e.event.payload as object), ...extra } } as unknown as MatchEvent);
+    out.push({ seq: seq++, at: e.at, event });
+  }
+  return out;
 }
