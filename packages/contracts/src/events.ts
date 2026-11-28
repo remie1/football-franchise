@@ -1073,6 +1073,19 @@ export type FranchiseEvent =
  * `:contact` (the contact choice, a `pocket_movement` CHECK) and `:dodge` are reserved for ADR-089
  * step 7 and drawn nowhere before it.
  *
+ * ADR-089 P18: under `pocket-1` from `pocket-1.s5a`, a clean expiry (his count or his reads
+ * spent at or past his drop floor, nobody forcing him, on a tick whose `POCKET_STATUS` is CLEAN,
+ * in the pocket) that leaves nobody to throw to draws one d100 on `.../movement/t<tick>:clean`,
+ * recorded on a `pocket_movement` CHECK of today's form: the one ranked pick between a clean move
+ * (the `QB_DECISION` STEP_UP that follows) and a break-out (the escape's own `scramble` CHECK
+ * follows, on `.../movement/t<tick>:scramble`). It is drawn even when only one of the two is
+ * offered, and the band then decides nothing. So a `pocket_movement` CHECK does not by itself
+ * mean duress: the label tells the clean pick (`:clean`) from the forced one (`:movement`), and
+ * the two never share a tick. The clean pick has no throwaway, so a `CLOCK_EXPIRED` THROWAWAY
+ * still has no roll behind it. At most one `:clean` a tick; it is drawn nowhere else.
+ * `t<tick>:deadline` (the deadline pick) and `t<tick>:drill:<receiverId>` are reserved for
+ * ADR-089 step 6 and drawn nowhere before it.
+ *
  * Stated here rather than left implicit so the next author does not have to
  * re-derive whether it is allowed. An implicit generalization gets re-litigated
  * at every new site, and the re-derivation is what introduces the divergence —
