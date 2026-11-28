@@ -614,6 +614,7 @@ describe("ADR-089 step 6: no rule set before step 6 runs an outs function (P-18)
     outsParts({ scrambleStart: "ZERO_GAIN_ONLY" }),
     outsParts({ escapeCap: { maxPerPlay: 1, whenSpent: "HOLD" } }),
     outsParts({ noLateHorizonSack: true }),
+    outsParts({ failedScrambleSack: true }),
   ];
 
   it("the module's exports are the ones the parts built so far name", () => {

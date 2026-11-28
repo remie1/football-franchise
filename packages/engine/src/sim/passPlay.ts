@@ -790,11 +790,17 @@ export function simulatePassPlayWith(
       ballOn: state.ballOn,
       clockSeconds: state.clockSeconds,
     },
-    // ADR-089 §9: the rules and their overlay digest, a fresh copy of the stamp, the last key and
-    // only under `pocket-1` (a legacy payload keeps today's keys in today's order).
+    // ADR-089 §9: the rules and their overlay digest, a fresh copy of the stamp, the last key but
+    // `scoring` and `snap`, and only under `pocket-1` (a legacy payload keeps today's keys in today's
+    // order).
     ...(rules.kind === "LEGACY"
       ? {}
       : { rules: { name: rules.rules.name, overlayDigest: rules.rules.overlayDigest } }),
+    // ADR-089 step 6 (plan §1.3, §2.12; AM-13 `rescoring`): how this play scores a failed scramble,
+    // only when the rules carry `pocket.outs.failedScrambleSack`, after `rules` and before `snap`, so
+    // every other play keeps its keys in their order. Every reader keys the rule on this marker,
+    // never on the rules name; the play's dice and its other events do not change.
+    ...(rules.kind !== "LEGACY" && rules.outs?.failedScrambleSack === true ? { scoring: { failedScramble: "SACK" as const } } : {}),
     // ADR-090 S2 and S5: where every man stands at the snap, copied from the calls as they carried
     // it, after `rules` so a play without one keeps today's keys in today's order. Nothing below
     // reads it at ADR-090 step 1.

@@ -39,6 +39,9 @@
  *   escape tick plus `pursuitSeconds` and the last tick, and the play runs one tick past the last
  *   only for a live scramble whose deadline is past it, so no escape runs off the clock into the
  *   horizon coverage sack.
+ * - **2.12 The failed scramble scored as a sack** (AM-13 `rescoring`) has no function here: the
+ *   call site writes `PLAY_START.scoring` under `failedScrambleSack`, and every reader keys the rule
+ *   on that marker (`stats/statline.ts` in the engine).
  *
  * No die is drawn here.
  */

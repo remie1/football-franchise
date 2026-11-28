@@ -1325,7 +1325,7 @@ describe("ADR-004 roll accounting", () => {
    *      the play's first escape roll under HOLD, TODAYS_PATH, SECOND_ESCAPE and BELOW_30, and all of
    *      them under CONTAINED_DOES_NOT_SPEND (without 2.8's shed a roll that spends ends the pocket);
    *      no late horizon sack draws them up to the escape roll of an escape won after 4.5 s, whose
-   *      deadline is the first thing it moves;
+   *      deadline is the first thing it moves; the failed scramble scored as a sack draws them all;
    *  28. after each cut no family is new over s5a's (the carrier's labels left out and the rush
    *      bucket's men read as one, as step 5a's pairing reads them): the parts built so far draw no
    *      new die, and the later parts' families (`:deadline`, `:drill:`, a contest at the escape)
@@ -1420,6 +1420,8 @@ describe("ADR-004 roll accounting", () => {
         dice: "MOVES",
         minCut: 3,
       },
+      // 2.12 writes PLAY_START's marker and moves no die.
+      { name: "the failed scramble scored as a sack", block: outsParts({ failedScrambleSack: true }), cut: () => undefined, dice: "NEVER" },
     ];
     const SEEDS = 30;
 
@@ -1463,6 +1465,7 @@ describe("ADR-004 roll accounting", () => {
         scrambleStart: "ZERO_GAIN_ONLY",
         escapeCap: { maxPerPlay: 1, whenSpent: "HOLD" },
         noLateHorizonSack: true,
+        failedScrambleSack: true,
       });
       const LATER = /:deadline$|:drill:|:contact(:|$)|:dodge(:|$)|:alarm(:|$)/;
       let rolls = 0;

@@ -32,7 +32,14 @@
  *     and no `RUN_RESOLUTION` that lost yards is a sack; the sacker is the last
  *     rusher published as `ARRIVED` on `RUSH_THREAT`. A coverage sack (nobody
  *     arrived) is credited to nobody, which is honest and is why team sacks can
- *     exceed the sum of individual ones.
+ *     exceed the sum of individual ones. ADR-089 step 6 (plan §2.12; AM-13
+ *     `rescoring`): on a play whose `PLAY_START` carries `scoring.failedScramble`
+ *     "SACK" (written only under `pocket.outs.failedScrambleSack`), a
+ *     `RUN_RESOLUTION` of carry type SCRAMBLE with yards at or below 0 is a sack,
+ *     read before every other branch: its yards are sack yards, it is not a rush,
+ *     and it is credited to the run's tackler (the defender in the last tackle
+ *     contest he lost, item 1's inference) as a sack, with no tackle and no tackle
+ *     for loss, as an in-pocket sack is. Every other play reads as before.
  *  3. **Throwaways ARE attempts (ADR-056).** The engine emits no `THROW` for a
  *     throwaway — correctly, since there is no target and no accuracy roll —
  *     but it now emits its own `THROWAWAY` event (Option C: the ACT, distinct
@@ -142,6 +149,8 @@ interface PlayStartView {
   readonly carrier: PlayerId | undefined;
   readonly offensePlayers: readonly PlayerId[];
   readonly defensePlayers: readonly PlayerId[];
+  /** ADR-089 step 6 (plan §2.12): the play carries `scoring.failedScramble` "SACK". */
+  readonly failedScrambleSack: boolean;
 }
 
 function asRecord(v: unknown): Record<string, unknown> | undefined {
@@ -227,6 +236,7 @@ function readPlayStart(payload: unknown): PlayStartView | undefined {
     carrier,
     offensePlayers,
     defensePlayers,
+    failedScrambleSack: asRecord(root["scoring"])?.["failedScramble"] === "SACK",
   };
 }
 
@@ -251,6 +261,8 @@ interface PlayScratch {
   contactSacker: PlayerId | undefined;
   runCarrier: PlayerId | undefined;
   runCarryType: string | undefined;
+  /** ADR-089 step 6 (plan §2.12): the run's `RUN_RESOLUTION.yards`, which the failed-scramble rule reads. */
+  runYards: number | undefined;
   hadThrow: boolean;
   /** ADR-056 — a throwaway is its own event, and it IS a pass attempt. */
   hadThrowaway: boolean;
@@ -418,6 +430,7 @@ function applyPlayEvent(
       contactSacker: undefined,
       runCarrier: undefined,
       runCarryType: undefined,
+      runYards: undefined,
       hadThrow: false,
       hadThrowaway: false,
     };
@@ -452,6 +465,7 @@ function applyPlayEvent(
     case "RUN_RESOLUTION":
       play.runCarrier = event.payload.carrier;
       play.runCarryType = event.payload.carryType;
+      play.runYards = event.payload.yards;
       return play;
 
     case "CHECK": {
@@ -484,6 +498,10 @@ function applyPlayEvent(
       const turnover = event.payload.turnover;
       const passer = play.view.quarterback;
       const isPass = play.view.kind === "PASS_PLAY_V1";
+      // ADR-089 step 6 (plan §2.12): the marker, carry type SCRAMBLE, yards at or below 0, read
+      // before every branch below: a sack, not a rush, credited to the run's tackler.
+      const failedScrambleSack =
+        play.view.failedScrambleSack && play.runCarryType === "SCRAMBLE" && play.runYards !== undefined && play.runYards <= 0;
 
       // Reception: the intended target, or — on a tipped ball the offence came
       // up with — whoever came up with it. Both are completions in real scoring.
@@ -504,8 +522,9 @@ function applyPlayEvent(
             if (scored) line.passing.touchdowns += 1;
           }
           if (turnover) line.passing.interceptions += 1;
-          // A sack: a dropback with no throw and no carry that lost ground.
-          if (!play.hadThrow && play.runCarrier === undefined && yards < 0) {
+          // A sack: a dropback with no throw and no carry that lost ground, or (ADR-089 step 6) a
+          // failed scramble on a play with the marker, at 0 yards too.
+          if (failedScrambleSack || (!play.hadThrow && play.runCarrier === undefined && yards < 0)) {
             line.passing.sacked += 1;
             line.passing.sackYards += -yards;
           }
@@ -529,7 +548,7 @@ function applyPlayEvent(
         if (line !== undefined) line.receiving.drops += 1;
       }
 
-      if (play.runCarrier !== undefined) {
+      if (play.runCarrier !== undefined && !failedScrambleSack) {
         const line = touch(play.runCarrier, teamFor(play.runCarrier));
         if (line !== undefined) {
           line.rushing.attempts += 1;
@@ -542,7 +561,11 @@ function applyPlayEvent(
       // Defence.
       if (play.lastTackler !== undefined) {
         const line = touch(play.lastTackler, teamFor(play.lastTackler));
-        if (line !== undefined) {
+        if (line !== undefined && failedScrambleSack) {
+          // ADR-089 step 6 (plan §2.12): the failed scramble's tackler has the sack, and no tackle
+          // and no tackle for loss, as an in-pocket sacker has none.
+          line.defense.sacks += 1;
+        } else if (line !== undefined) {
           line.defense.tackles += 1;
           if (yards < 0) line.defense.tacklesForLoss += 1;
         }
