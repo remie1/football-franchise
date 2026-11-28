@@ -18,7 +18,9 @@
  * 5. CONTAINED_DOES_NOT_SPEND: a CONTAINED roll leaves ESCAPE offered, so a second roll follows only
  *    contained ones and at most one escape is won a play; without 2.8's shed the spent case never
  *    comes and the play is s5a's, byte for byte (a roll that spends ends the pocket: an escape won
- *    or a sack).
+ *    or a sack). With 2.8's shed (and the side-aware catch, so a man still in his block can catch
+ *    him and he stays in a clean pocket), a caught escape he sheds spends the escape: no roll
+ *    follows it, and the one spent case left holds with no die.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -31,7 +33,7 @@ vi.mock("../src/sim/outs.js", async (importOriginal) => {
   return { ...real, spentBranch: vi.fn(real.spentBranch) };
 });
 
-import { createRng } from "@ff/contracts";
+import { createRng, playerId } from "@ff/contracts";
 import type { MatchEventEnvelope, PlayerState } from "@ff/contracts";
 import { simulatePassPlay } from "../src/index.js";
 import { rankResponses, resolvePocketMovement } from "../src/resolve/pocketMovement.js";
@@ -42,8 +44,9 @@ import { TUNABLES } from "../src/tunables.js";
 import type { EscapeCapTunables, SpentChecklist, Tunables } from "../src/tunables.js";
 import { buildScenario, makePlayer } from "./fixtures.js";
 import { PASS_FIXTURES } from "./pocketTunables.js";
-import { withPicture } from "./snapFixtures.js";
-import { S5L_TUNABLES, S5S_TUNABLES, S5_TUNABLES, checkOf, onCleanBench, tickOfEvent } from "./step5Fixtures.js";
+import { frontWithPicture, withPicture } from "./snapFixtures.js";
+import type { Step3FrontOptions } from "./snapFixtures.js";
+import { S5L_TUNABLES, S5S_TUNABLES, S5_TUNABLES, checkOf, cleanParts, onCleanBench, tickOfEvent, withCleanPocket } from "./step5Fixtures.js";
 import { OUTS_OFF, outsParts, playS6, withOuts } from "./step6Fixtures.js";
 
 const pickSpy = vi.mocked(resolveCleanPick);
@@ -65,6 +68,14 @@ const SEEDS = 40;
 const capOf = (whenSpent: SpentChecklist): EscapeCapTunables => ({ maxPerPlay: 1, whenSpent });
 const CAPPED = (whenSpent: SpentChecklist) => outsParts({ escapeCap: capOf(whenSpent) });
 const ESCAPES_WON = new Set(["CLEAN_ESCAPE", "ESCAPED"]);
+/** The fronts that state each man's side (as `pocketS6.caught.test.ts` plays them), so a man still in his block can catch him (2.7). */
+const SIDED_FRONTS: readonly (readonly [string, Step3FrontOptions])[] = [
+  ["front, one a side", {}],
+  ["front +2, three to one", { extras: 2 }],
+  ["front +2, mixed", { extras: 2, extraSides: ["LEFT", "UNSIDED"] }],
+  ["front +2, the tackle's TRIPLE twist", { extras: 2, stunts: [{ penetrator: playerId("dt1"), looper: playerId("de1"), complexity: "TRIPLE" }] }],
+  ["front +2, the blitzer's T_E twist", { extras: 2, stunts: [{ penetrator: playerId("blz0"), looper: playerId("de1"), complexity: "T_E" }] }],
+];
 
 interface Played {
   readonly events: readonly MatchEventEnvelope[];
@@ -76,12 +87,13 @@ interface Played {
   readonly rolls: readonly number[];
 }
 
-function play(base: Tunables, picture: boolean, scenario: ReturnType<(typeof PASS_FIXTURES)[number][1]>, seed: string, block: unknown): Played {
+/** `recorded`: the block publishes records the stream cannot carry yet (the direction, P11), so they are not held to none. */
+function play(base: Tunables, picture: boolean, scenario: ReturnType<(typeof PASS_FIXTURES)[number][1]>, seed: string, block: unknown, recorded = false): Played {
   pickSpy.mockClear();
   branchSpy.mockClear();
   const { state, calls } = scenario;
   const { events, records } = playS6(state, picture ? withPicture(state, calls) : calls, seed, withOuts(base, block));
-  expect(records).toEqual([]);
+  if (!recorded) expect(records).toEqual([]);
   const scrambles = events.flatMap((e) => {
     const c = checkOf(e);
     return c?.checkKind === "scramble" ? [{ tick: tickOfEvent(e) ?? -1, band: c.band ?? "" }] : [];
@@ -327,5 +339,62 @@ describe("ADR-089 step 6, 2.3: CONTAINED_DOES_NOT_SPEND", () => {
         JSON.stringify(simulatePassPlay(state, c, seed, base).events),
       );
     });
+  });
+});
+
+describe("ADR-089 step 6, 2.3 with 2.8: CONTAINED_DOES_NOT_SPEND after a caught escape he sheds", () => {
+  it("the shed catch spends the escape: no roll follows it, and the spent case after it holds with no die", () => {
+    // The side-aware catch (with the direction it reads) lets a man still in his block catch him, so
+    // after the shed he stays in his block and the pocket can still expire clean (2.7, 2.8); the
+    // fronts state each man's side. With the clean move off, a clean expiry after the shed is the
+    // spent case.
+    const block = outsParts({ escapeCap: capOf("CONTAINED_DOES_NOT_SPEND"), direction: true, sideCatch: { perLiveThreat: 10, perUnregistered: 15 }, caughtAsContact: true, caughtSeen: "SEEN" });
+    const shapes = [
+      { name: "s5a, no clean move", base: withCleanPocket(S5_TUNABLES, cleanParts({ move: false })) },
+      { name: "s5a shape S, clean bench", base: onCleanBench(S5S_TUNABLES) },
+      { name: "s5a shape S, clean bench, no clean move", base: withCleanPocket(onCleanBench(S5S_TUNABLES), cleanParts({ move: false })) },
+    ];
+    const n = { shed: 0, pickAfterShed: 0, spent: 0 };
+    for (const { name, base } of shapes) {
+      for (const [fixture, options] of SIDED_FRONTS) {
+        for (let i = 0; i < 100; i++) {
+          const seed = `s6-cap-shed-${fixture}-${i}`;
+          const f = frontWithPicture(options);
+          const p = play(base, false, { ...f.scenario, calls: f.calls }, seed, block, true);
+          const where = `${name} ${seed}`;
+          // A roll that spends the escape (one he won, or a catch) is the play's last: every roll before it was CONTAINED.
+          for (const s of p.scrambles.slice(0, -1)) expect(s.band, where).toBe("CONTAINED");
+          let k = -1;
+          p.events.forEach((e, j) => {
+            if (checkOf(e)?.checkKind === "scramble") k = j;
+          });
+          const last = k >= 0 ? (p.events[k] as MatchEventEnvelope) : undefined;
+          const tick = last === undefined ? undefined : tickOfEvent(last);
+          const hit = last !== undefined && checkOf(last)?.band === "CAUGHT_FROM_BEHIND" ? p.events.slice(k + 1).find((e) => e.event.type === "QB_HIT") : undefined;
+          const shedAt = hit?.event.type === "QB_HIT" && hit.event.payload.phase === "SHED" && tickOfEvent(hit) === tick ? tick : undefined;
+          if (shedAt !== undefined) {
+            n.shed += 1;
+            // He picked again after the shed (forced or clean), and no roll followed: the caught roll is the play's last (above).
+            if (p.events.slice(k + 1).some((e) => checkOf(e)?.checkKind === "pocket_movement")) n.pickAfterShed += 1;
+          }
+          // The spent case comes only after a caught escape he shed, on a later tick, handed every roll
+          // of the play, and holds: no die, no throwaway, no throw.
+          if (p.spent.length > 0) expect(shedAt, where).toBeDefined();
+          expect(p.rolls, where).toEqual(p.spent.map(() => p.scrambles.length));
+          for (const t of p.spent) {
+            n.spent += 1;
+            expect(t, where).toBeGreaterThan(shedAt ?? Number.POSITIVE_INFINITY);
+            const at = atTick(p.events, t);
+            expect(at.movementDice, `${where} at ${t}`).toBe(0);
+            expect(at.decisions, `${where} at ${t}`).toEqual(["HOLD"]);
+            expect(at.throwaways, `${where} at ${t}`).toEqual([]);
+            expect(at.throws, `${where} at ${t}`).toEqual([]);
+          }
+        }
+      }
+    }
+    expect(n.shed).toBeGreaterThan(20);
+    expect(n.pickAfterShed).toBeGreaterThan(5);
+    expect(n.spent).toBeGreaterThan(5);
   });
 });

@@ -3628,8 +3628,8 @@ export type ScrambleStart = "ZERO_GAIN_ONLY" | "EVERY_RUN";
  * one escape spent. `HOLD` (recommended): no die, no throwaway, no CLOCK_EXPIRED, and he keeps
  * reading. `TODAYS_PATH`: no die, and today's path runs, a CLOCK_EXPIRED throwaway where the
  * throwaway rule allows one, else a hold. `SECOND_ESCAPE`: ESCAPE is offered once more, the one
- * second escape roll a play may have. `BELOW_30`: no movement die, and he throws to the most open
- * eligible receiver he sees, whatever his openness, in place of D23's floor at 30.
+ * second escape roll a play may have. `BELOW_30`: no movement die, and today's decision roll over the
+ * tick's candidates with no floor, in place of D23's at 30 (a hold when he has read nobody).
  * `CONTAINED_DOES_NOT_SPEND`: a CONTAINED roll does not spend the escape (ESCAPED and
  * CAUGHT_FROM_BEHIND do), so ESCAPE is offered again at a later pick, and in the one spent case left
  * (he shed a caught escape) he holds.
