@@ -1857,12 +1857,17 @@ export const TUNABLES = {
    * 10-20, DEEP 20-35, VERY DEEP 35+), so the depth half of a route's cell is
    * derived, not invented.
    *
-   * `defaultHorizontal` is the FAKE. Nothing on a play card says which side of
-   * the field a route runs to, and the engine will not guess from a formation
-   * string it is forbidden to interpret (ADR-006). A route that does not state
-   * its `breakZone` is placed in this lane — which means every silent route
-   * shares a lane, and therefore a zone. Play cards meant to exercise zone
-   * coverage state `breakZone`.
+   * `defaultHorizontal` is the FAKE, for a card that does not say which side of
+   * the field a route runs to. `RouteAssignment.breakZone` is optional in
+   * contracts, and the engine will not guess a lane from a formation string it
+   * is forbidden to interpret (ADR-006), so a route that does not state its
+   * `breakZone` is placed in this lane, which means every silent route shares a
+   * lane, and therefore a zone. The playbook's cards are not silent: in
+   * `@ff/playbook` every route and every hot conversion states its `breakZone`
+   * (required by type, `playbook/src/routes.ts`), so on those cards the lane is
+   * the card's own. Hand-built cards meant to exercise zone coverage, or the
+   * side-aware drill (ADR-089 step 6, plan §2.10, which reads a route's lane
+   * against the side the quarterback breaks to), state `breakZone`.
    */
   zoneModel: {
     horizontalOrder: ["LW", "LH", "C", "RH", "RW"],

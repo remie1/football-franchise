@@ -9,12 +9,14 @@
  *
  * WHAT IS FAKED, and it matters:
  *
- *  - **Horizontal position is not derivable.** Nothing on a play card says which
- *    side of the field a route runs to. A `RouteAssignment` may state a
- *    `breakZone`; one that does not gets `tunables.zoneModel.defaultHorizontal`,
- *    which puts every silent route in the same lane and therefore in the same
- *    zone as every other silent route. That is a fake, not a model, and it is
- *    why the fixtures that exercise zone coverage state `breakZone` explicitly.
+ *  - **Horizontal position is derivable only from the card.** A
+ *    `RouteAssignment` may state a `breakZone`, and the playbook's cards always
+ *    do (`@ff/playbook` requires it by type on every route and hot conversion,
+ *    `playbook/src/routes.ts`); one that does not gets
+ *    `tunables.zoneModel.defaultHorizontal`, which puts every silent route in
+ *    the same lane and therefore in the same zone as every other silent route.
+ *    That is a fake, not a model, and it is why the fixtures that exercise zone
+ *    coverage state `breakZone` explicitly.
  *  - **Players do not move.** A player occupies one cell for the entire play:
  *    receivers their break cell, man defenders their receiver's cell, zone
  *    defenders their ANCHOR cell, everyone in protection the backfield. There is

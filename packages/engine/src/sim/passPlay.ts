@@ -87,11 +87,11 @@ import {
   caughtFactsOf,
   caughtHitOf,
   caughtShedDelaySeconds,
-  DRILL_BURST_STEPS,
   drillDefenderOf,
   drillGainOf,
   drillOrder,
   drillRepOf,
+  drillStepsOf,
   escapeLeft,
   escapeRollSpends,
   escapeTermsOf,
@@ -2425,8 +2425,11 @@ export function simulatePassPlayWith(
                 rollRef: escape.check.roll.rngLabel,
               });
               if (rep.check !== undefined) log.scrambleDrill(rep.check);
+              // 2.10 (AM-13 `drillBySide`; D24): under the side-aware drill the burst steps go by where
+              // his route breaks against the side he broke to (one to the far side); 2.9's two otherwise.
+              const steps = drillStepsOf(outs.drillBySide && broke !== undefined ? broke.side : undefined, track.zone.horizontal);
               const base = track.scrambleBaseOpenness;
-              if (base !== undefined) track.scrambleBaseOpenness = base + drillGainOf(tunables, rep.position, DRILL_BURST_STEPS);
+              if (base !== undefined) track.scrambleBaseOpenness = base + drillGainOf(tunables, rep.position, steps);
             }
           }
           // ADR-089 step 6 (plan §2.6; P11): under direction, the side he broke to, on this

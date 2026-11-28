@@ -1497,6 +1497,18 @@ describe("ADR-004 roll accounting", () => {
         dice: "MOVES",
         adds: /\/movement\/t#:drill:[^/:]+$/,
       },
+      {
+        // 2.10 (with the direction and the drill it needs) draws no die of its own: the drill's dice
+        // come where 2.9's do, and the steps it sizes move the dice after them.
+        name: "the side-aware drill",
+        block: outsParts({ direction: true, drill: true, drillBySide: true }),
+        cut: (base) => {
+          const k = firstEscapeWon(base);
+          return k < 0 ? undefined : k + 1;
+        },
+        dice: "MOVES",
+        adds: /\/movement\/t#:drill:[^/:]+$/,
+      },
       // 2.12 writes PLAY_START's marker and moves no die.
       { name: "the failed scramble scored as a sack", block: outsParts({ failedScrambleSack: true }), cut: () => undefined, dice: "NEVER" },
     ];
@@ -1549,6 +1561,7 @@ describe("ADR-004 roll accounting", () => {
         caughtAsContact: true,
         caughtSeen: "SEEN",
         drill: true,
+        drillBySide: true,
         failedScrambleSack: true,
       });
       const LATER = /:deadline$|:contact(:|$)|:dodge(:|$)|:alarm(:|$)/;

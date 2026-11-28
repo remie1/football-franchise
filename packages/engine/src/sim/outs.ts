@@ -85,6 +85,10 @@
  *   hole is TRAILING with no die. The position moves openness only: two burst steps of the route's
  *   gain by position (+20, +10 or 0) go onto the base the scramble drill climbs from. Nothing here
  *   writes a contest position, so every contested catch reads his coverage rep's (D25).
+ * - **2.10 The side-aware drill, by break lane** (`drillStepsOf`; AM-13 `drillBySide`, D24; it needs
+ *   2.6's direction and 2.9's drill): at an escape toward a side, a route breaking to that side or to
+ *   the middle keeps the drill's two burst steps, and one breaking to the far side gets one (+10, +5
+ *   or 0; CHOSEN). A route with no `breakZone` is in the middle lane. No die.
  * - **2.12 The failed scramble scored as a sack** (AM-13 `rescoring`) has no function here: the
  *   call site writes `PLAY_START.scoring` under `failedScrambleSack`, and every reader keys the rule
  *   on that marker (`stats/statline.ts` in the engine).
@@ -93,7 +97,7 @@
  * faces on the play's labels and hands them in.
  */
 import { getAttr } from "@ff/contracts";
-import type { AttrId, PlayerId, PlayerState, RollDetail } from "@ff/contracts";
+import type { AttrId, HorizontalZone, PlayerId, PlayerState, RollDetail } from "@ff/contracts";
 import { ATTR } from "../attrs.js";
 import { ARRIVAL_CONTEST_KIND, SCRAMBLE_DRILL_KIND } from "../events.js";
 import type { ArrivalContestEmission, QbHitRecord, ScrambleDrillEmission } from "../events.js";
@@ -747,8 +751,9 @@ export function drillRepOf(a: {
 }
 
 /**
- * 2.9: the burst steps the drill gives a receiver, two (+20, +10, 0 by his position after the drill).
- * Under the side-aware drill a route breaking to the far side gets one (2.10).
+ * 2.9: the burst steps the drill gives a receiver, two (+20, +10, 0 by his position after the drill;
+ * CHOSEN). Under the side-aware drill a route breaking to the far side gets one (2.10,
+ * `drillStepsOf`).
  */
 export const DRILL_BURST_STEPS = 2;
 
@@ -761,4 +766,26 @@ export const DRILL_BURST_STEPS = 2;
  */
 export function drillGainOf(tunables: Tunables, position: ContestPosition, steps: number): number {
   return steps * tunables.route.opennessGainPerTick * tunables.route.contestGain.byContest[position].burst;
+}
+
+// ---- 2.10 the side-aware drill, by break lane ---------------------------------------------------
+
+/** 2.10: the burst steps a route breaking to the far side of his escape gets, one (CHOSEN). */
+export const DRILL_FAR_SIDE_STEPS = 1;
+
+/** 2.10: the lanes on each side of the field, in the offense's frame (`zoneModel.horizontalOrder`). */
+const LANES_ON: Readonly<Record<RunSide, readonly HorizontalZone[]>> = { LEFT: ["LW", "LH"], RIGHT: ["RH", "RW"] };
+
+/**
+ * 2.10 (AM-13 `drillBySide`; D24; it needs 2.6's direction and 2.9's drill): the drill's burst steps
+ * for a receiver whose route breaks into `lane`, at an escape toward `side`. A route breaking to that
+ * side (LW or LH for LEFT, RH or RW for RIGHT) or to the middle (C) gets the drill's two
+ * (`DRILL_BURST_STEPS`), one breaking to the far side gets one (`DRILL_FAR_SIDE_STEPS`), so +10, +5
+ * or 0 there (sizes CHOSEN). `side` undefined, the part off, is 2.9's two in every lane. A route that
+ * states no `breakZone` sits in the zone model's default lane, C (`routeZone`). Break lanes and
+ * `RunSide` share the offense's frame (INFERRED in the design; M5 checks it). No die.
+ */
+export function drillStepsOf(side: RunSide | undefined, lane: HorizontalZone): number {
+  if (side === undefined || lane === "C" || LANES_ON[side].includes(lane)) return DRILL_BURST_STEPS;
+  return DRILL_FAR_SIDE_STEPS;
 }
