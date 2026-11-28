@@ -82,6 +82,11 @@ import { bumpFor, cleanExpiry, d23Pool, floorSecondsOf, isScreen, mustDecideNow,
 import {
   breakSide,
   cardSidesAtSnap,
+  caughtContestForm,
+  caughtEscapeContest,
+  caughtFactsOf,
+  caughtHitOf,
+  caughtShedDelaySeconds,
   escapeLeft,
   escapeRollSpends,
   escapeTermsOf,
@@ -94,6 +99,7 @@ import {
   spentBranch,
   throwawayLegalInPocket,
 } from "./outs.js";
+import type { CaughtCatcher, CaughtFaces } from "./outs.js";
 import { ContactBook } from "./contactBook.js";
 import { arrivedInGridOrder, liveAtTick, onFreeRunClockAtContact, onFreeRunClockAtSnap, rebuiltTick, shedDelaySecondsOf } from "./contactTick.js";
 import type { TickStatusInputs } from "./contactTick.js";
@@ -980,6 +986,12 @@ export function simulatePassPlayWith(
   const motion = rules.kind === "LEGACY" ? undefined : rules.motion;
   /** The play's first shed has happened: every later contact is a second arrival (§4.5 item 6). */
   let shedInPlay = false;
+  /**
+   * ADR-089 step 6 (plan §2.8; under the caught escape as contact only): every contest label drawn on
+   * the play, the rusher's `:contest` or `:contest2` fork, so a caught escape's contest draws no
+   * label twice (R-4). `undefined` under every other rule set, so step 4's contests add nothing.
+   */
+  const contestLabelsDrawn = outs?.caughtAsContact === true ? new Set<string>() : undefined;
   /** Rushers live (not ARRIVED) when the quarterback stepped up on this play: an ARC man is BEHIND. */
   const liveAtStepUp = new Set<string>();
   /** The free runners on the free-run clock at the snap under the arm's own reading (AM-2's key). */
@@ -1039,6 +1051,7 @@ export function simulatePassPlayWith(
         const qbDice = tickRng.fork(`${String(qb.bio.id)}:contest:${id}`);
         const rusherFace = dice.d100();
         const quarterbackFace = qbDice.d100();
+        contestLabelsDrawn?.add(dice.label);
         const tilt = tiltOf({ approach, from, seen: true, onFreeRunClock: onFreeRunClockAtContact(freeRunClockMen.has(id), t.origin) }, contact.tilts);
         const r = arrivalContest(m.rusher, qb, tilt, { rusher: rusherFace, quarterback: quarterbackFace, rngLabel: dice.label, quarterbackRngLabel: qbDice.label }, contact.boundary);
         check = {
@@ -1055,6 +1068,7 @@ export function simulatePassPlayWith(
       } else {
         const dice = tickRng.fork(`${id}:contest2`);
         const r = secondArrival(dice.d100(), contact.secondArrival.target, dice.label);
+        contestLabelsDrawn?.add(dice.label);
         const margin = r.roll.total - r.target;
         check = {
           checkKind: ARRIVAL_CONTEST_KIND,
@@ -1084,6 +1098,66 @@ export function simulatePassPlayWith(
         book.delayed(before, delayed);
         retireIfBeyondClock(m);
       }
+    }
+    return "SHED";
+  };
+
+  /**
+   * ADR-089 step 6 (plan §2.8; AM-13 `caughtAsContact`, P20, and `caughtSeen`): THE CAUGHT ESCAPE AS
+   * CONTACT, at a CAUGHT_FROM_BEHIND escape roll that named a catcher, under the contact block only.
+   * Step 4's contest code cannot take it (`contestArrivals` takes threats and reads `contactFactsOf`
+   * and the contact book, which throw for a man with no approach or no entry, and a blocked catcher
+   * has neither), so the contact is built here from `sim/outs.ts`'s pure functions, and neither of
+   * those two throw sites is reached. The contest is step 4's by rule on P6's labels, the tilt by
+   * the catch's tilt class. When this man's label was already drawn on this tick (he was shed at the
+   * escape's own tick) no die is drawn and the catch is his sack (AM-13, CHOSEN), so no label repeats.
+   * RUSHER_SACKS is his sack (its QB_HIT SACK credits him); on QB_SHEDS the shed path is
+   * `caughtShedDelaySeconds`'s: a live catcher's threat goes back by approach, DELAYED, as step 4's
+   * shed, with his contact-time entry restarted at the catch (CHOSEN: the book kept his later D21
+   * time, which the catch overtook), and a blocked man is not re-delayed (he has no threat). The
+   * caller holds the tick on a shed.
+   */
+  const caughtContact = (catcher: CaughtCatcher): "SACK" | "SHED" => {
+    if (contact === undefined || book === undefined || outs?.caughtSeen === undefined) {
+      throw new Error("@ff/engine: a caught escape's contact outside the contact block");
+    }
+    const id = String(catcher.kind === "BLOCKED" ? catcher.rusher : catcher.threat.rusher);
+    const m = matchups.find((x) => String(x.rusher.bio.id) === id);
+    if (m === undefined) throw new Error(`@ff/engine: a caught escape's catcher ${id} has no matchup`);
+    const tickRng = rushRng.fork(`t${tick.toFixed(1)}`);
+    const form = caughtContestForm(contact, shedInPlay);
+    const dice = tickRng.fork(form === "RATED" ? `${id}:contest` : `${id}:contest2`);
+    if (contestLabelsDrawn?.has(dice.label) === true) return "SACK";
+    const facts = caughtFactsOf(outs.caughtSeen, catcher);
+    let faces: CaughtFaces;
+    if (form === "RATED") {
+      // Each face on its own fork (ADR-004), the rusher's first, as step 4 draws them.
+      const qbDice = tickRng.fork(`${String(qb.bio.id)}:contest:${id}`);
+      const rusherFace = dice.d100();
+      const quarterbackFace = qbDice.d100();
+      faces = { form, rusher: rusherFace, quarterback: quarterbackFace, rngLabel: dice.label, quarterbackRngLabel: qbDice.label };
+    } else {
+      faces = { form, rusher: dice.d100(), rngLabel: dice.label };
+    }
+    contestLabelsDrawn?.add(dice.label);
+    const check = caughtEscapeContest({ tunables, contact, rusher: m.rusher, qb, facts, faces });
+    log.arrivalContest(check);
+    const phase = check.band === "RUSHER_SACKS" ? "SACK" : "SHED";
+    // `contactSeconds` is this tick: ticks are seconds from the snap (`clock.tickStepSeconds` 0.5,
+    // `clock.maxTick` 6.0; "Times are expressed in seconds"), so no conversion (P20's doc line).
+    log.qbHit(caughtHitOf({ qb: qb.bio.id, rusher: m.rusher.bio.id, phase, tick, rollRef: check.roll.rngLabel, facts }));
+    if (phase === "SACK") return "SACK";
+    shedInPlay = true;
+    const delay = caughtShedDelaySeconds(catcher, contact);
+    const before = m.threat;
+    if (delay !== undefined && before !== undefined) {
+      const delayed = delayThreat(before, delay);
+      m.threat = delayed;
+      m.announcedArrival = false;
+      publishThreat(delayed, "DELAYED");
+      book.startGrid(before);
+      book.delayed(before, delayed);
+      retireIfBeyondClock(m);
     }
     return "SHED";
   };
@@ -2263,6 +2337,32 @@ export function simulatePassPlayWith(
               if (m.threat !== caught) continue;
               m.threat = arrival;
               m.announcedArrival = true;
+            }
+          }
+          // ADR-089 step 6 (plan §2.8; AM-13 `caughtAsContact`): under the caught escape as contact a
+          // catch that named a man is a contact with him (`caughtContact`): the unregistered blocked
+          // man 2.7 names, or the live man just published ARRIVED. A catch that named nobody stays the
+          // sack above, with no sacker. On a shed the ball is still in his hand in the pocket and he
+          // holds the tick (no direction: a caught escape publishes no decision of its own, 2.6), and
+          // later contacts follow step 4's rules.
+          if (outs?.caughtAsContact === true) {
+            const blockedMan = catcher?.kind === "UNREGISTERED" ? matchups.find((m) => String(m.rusher.bio.id) === String(catcher.rusher)) : undefined;
+            const liveMan = caught === undefined ? undefined : matchups.find((m) => String(m.rusher.bio.id) === String(caught.rusher));
+            const with_: CaughtCatcher | undefined =
+              catcher?.kind === "UNREGISTERED" && blockedMan !== undefined
+                ? { kind: "BLOCKED", rusher: catcher.rusher, alignment: blockedMan.alignment, unregistered: true }
+                : liveMan?.threat !== undefined
+                  ? {
+                      kind: "LIVE",
+                      threat: liveMan.threat,
+                      liveAtStepUp: liveAtStepUp.has(String(liveMan.rusher.bio.id)),
+                      onFreeRunClockAtSnap: freeRunClockMen.has(String(liveMan.rusher.bio.id)),
+                    }
+                  : undefined;
+            if (with_ !== undefined && caughtContact(with_) === "SHED") {
+              log.qbDecision("HOLD");
+              tick = Number((tick + tunables.clock.tickStepSeconds).toFixed(1));
+              continue;
             }
           }
           outcome = sack(tick);

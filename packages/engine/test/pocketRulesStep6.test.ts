@@ -7,7 +7,9 @@
  *    any of P9 to P12 is out, every tree carrying the block is refused before the first die, the
  *    all-off block included, naming the missing ones; with them granted (a test's own set) shapes S
  *    and L read the block, the tunables' own object. P20 gates the caught escape as contact, P21 the
- *    unseen answer, each alone. A withheld petition is still refused by name.
+ *    unseen answer, each alone. A withheld petition is still refused by name. The caught escape as
+ *    contact on a tree with no contact block (`pocket.contact`) is refused by name before either
+ *    gate (step-6 plan §2.8: it is step 4's contest at the escape).
  * 3. The refusals, each named: under legacy (`playsLegacyRules` false for a tree carrying it), on kind
  *    T (`playsTodaysLine` false too), and without its stamp.
  * 4. The dials: seven switches, the three owner questions' closed sets (every option accepted), the
@@ -67,6 +69,8 @@ const P20_GATE =
   "@ff/engine: the caught escape as contact (pocket.outs.caughtAsContact) is refused until petition P20 is in contracts: its QB_HIT's contactSeconds is the time the escape caught him, a reading QB_HIT.contactSeconds' doc does not list yet";
 const P21_GATE =
   "@ff/engine: pocket.outs.caughtSeen UNSEEN_IF_UNREGISTERED is refused until petition P21 is in contracts: QB_HIT.seen is true on every contact before ADR-089 step 7 until its doc allows a catch from a block to be unseen";
+const NO_CONTACT =
+  "@ff/engine: the caught escape as contact (pocket.outs.caughtAsContact) without the contact block (pocket.contact): it is step 4's contest at the escape, with that block's tilts, boundary, second arrival and shed delays";
 
 function refusalUnder(tunables: Tunables, petitions: ContractPetitions | undefined = undefined): string {
   try {
@@ -126,9 +130,11 @@ describe("ADR-089 step 6: the petitions are not in contracts, and the gate is jo
     for (const block of [OUTS_FILED, OUTS_OFF, outsParts({ throwawayRule: true }), outsParts({ failedScrambleSack: true })]) {
       for (const base of [S5S_TUNABLES, S5L_TUNABLES, S4S_TUNABLES, SW_TUNABLES, L5_TUNABLES]) {
         const t = withOuts(base, block);
-        expect(refusalUnder(t)).toBe(GATE("P9, P10, P11, P12"));
+        // The caught escape as contact on a tree with no contact block is a bad tree, named before either gate (below).
+        const refused = block.caughtAsContact && base.pocket.contact === undefined ? NO_CONTACT : GATE("P9, P10, P11, P12");
+        expect(refusalUnder(t)).toBe(refused);
         // Step 4's granted set leaves step 6's out, and they read as their constants.
-        expect(refusalUnder(t, GRANTED)).toBe(GATE("P9, P10, P11, P12"));
+        expect(refusalUnder(t, GRANTED)).toBe(refused);
       }
     }
     const { state, calls } = buildScenario();
@@ -184,6 +190,25 @@ describe("ADR-089 step 6: the petitions are not in contracts, and the gate is jo
     expect(outsOf(S6S_TUNABLES, { ...GRANTED_S6, P21: false })?.caughtSeen).toBe("SEEN");
     // P20 is read first: an unseen contact without P20 names P20.
     expect(refusalUnder(unseen, { ...GRANTED_S6, P20: false, P21: false })).toBe(P20_GATE);
+  });
+
+  it("the caught escape as contact needs the contact block: refused by name before either gate, with every petition or none", () => {
+    for (const base of [S_TUNABLES, SW_TUNABLES, L5_TUNABLES]) {
+      expect(base.pocket.contact, base.engineRules?.name).toBeUndefined();
+      for (const block of [OUTS_FILED, outsParts({ caughtAsContact: true, caughtSeen: "SEEN" }), { ...OUTS_FILED, caughtSeen: "UNSEEN_IF_UNREGISTERED" }]) {
+        for (const petitions of [undefined, GRANTED, GRANTED_S6, { ...GRANTED_S6, P20: false, P21: false }]) {
+          expect(refusalUnder(withOuts(base, block), petitions)).toBe(NO_CONTACT);
+        }
+      }
+      // Off, the same tree reads the block: nothing else in it needs the contact block.
+      const noContact = { ...OUTS_FILED, caughtAsContact: false } as Record<string, unknown>;
+      delete noContact["caughtSeen"];
+      expect(outsOf(withOuts(base, noContact)), base.engineRules?.name).toBe(noContact);
+    }
+    // With the contact block it is read (P20 granted).
+    expect(outsOf(withOuts(S5S_TUNABLES, outsParts({ caughtAsContact: true, caughtSeen: "SEEN" })))?.caughtAsContact).toBe(true);
+    const { state, calls } = buildScenario();
+    expect(() => simulatePassPlayWith(state, calls, "s6-no-contact", withOuts(SW_TUNABLES, OUTS_FILED), { petitions: GRANTED_S6 })).toThrow(NO_CONTACT.slice("@ff/engine: ".length));
   });
 
   it("the step-4 gate is read before step 6's, and a bad dial is named before either", () => {

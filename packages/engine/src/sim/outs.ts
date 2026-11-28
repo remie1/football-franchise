@@ -62,22 +62,41 @@
  *   roll's actors; and a caught escape's catcher is the first unregistered man there, else the
  *   nearest live threat there, else today's man. Without the caught escape as contact (2.8) a blocked
  *   man's catch is a sack that names nobody.
+ * - **2.8 The caught escape as contact** (`caughtFactsOf`, `caughtContestForm`, `caughtEscapeContest`,
+ *   `caughtHitOf`, `caughtShedDelaySeconds`; AM-13 `caughtAsContact`, P20; `caughtSeen` by the owner's answer, `SEEN`
+ *   recommended and each bundle's default until then, `UNSEEN_IF_UNREGISTERED` behind P21): a caught
+ *   escape that names a man is step 4's contest with him on P6's labels, the rated contest before
+ *   the play's first shed and the second arrival after it, with step 4's tilt for the catch's tilt
+ *   class; its `QB_HIT` (P7) has phase SACK or SHED, approach BLOCKED only for a blocked catcher, from
+ *   his approach (a blocked man's from his alignment), `contactSeconds` the catch tick and `seen` by
+ *   the answer. The facts are built at the escape site, never from step 4's `contactFactsOf` or the
+ *   contact book, which throw for a man with no approach or no entry. The call site draws the faces
+ *   and keeps the label rule (no die when that man's label was drawn on that tick: the catch is his
+ *   sack). On a shed a live man's threat goes back by his approach, as step 4's, and a blocked man
+ *   stays in his block. A catch that names nobody stays today's sack with no sacker.
  * - **2.12 The failed scramble scored as a sack** (AM-13 `rescoring`) has no function here: the
  *   call site writes `PLAY_START.scoring` under `failedScrambleSack`, and every reader keys the rule
  *   on that marker (`stats/statline.ts` in the engine).
  *
- * No die is drawn here.
+ * No die is drawn here: where a part rolls (2.8's contest), the call site draws the faces on the
+ * play's labels and hands them in.
  */
 import { getAttr } from "@ff/contracts";
 import type { PlayerId, PlayerState } from "@ff/contracts";
 import { ATTR } from "../attrs.js";
+import { ARRIVAL_CONTEST_KIND } from "../events.js";
+import type { ArrivalContestEmission, QbHitRecord } from "../events.js";
 import { threatSideOf } from "../resolve/approach.js";
+import { arrivalContest, contactFrom, secondArrival, tiltOf } from "../resolve/contact.js";
+import type { ContactFacts } from "../resolve/contact.js";
 import { nearestThreat, timeToArrival } from "../resolve/rushThreat.js";
-import type { ArrivalClock } from "../resolve/rushThreat.js";
+import type { ArrivalClock, RushThreat } from "../resolve/rushThreat.js";
 import type { ScrambleTerms } from "../resolve/scramble.js";
 import type { PocketMovementBandLabel } from "../resolve/pocketMovement.js";
-import type { EscapeCapTunables, OutsTunables, ScrambleStart, SideCatchTunables, Tunables } from "../tunables.js";
+import { tierFor } from "../rolls.js";
+import type { CaughtSeen, ContactTunables, EscapeCapTunables, OutsTunables, ScrambleStart, SideCatchTunables, Tunables } from "../tunables.js";
 import type { RunSide, RushAlignment } from "../types.js";
+import { onFreeRunClockAtContact, shedDelaySecondsOf } from "./contactTick.js";
 import { loopPartnersAtSnap } from "./freeRunTiming.js";
 import type { LineGamesReplayInput } from "./freeRunTiming.js";
 
@@ -433,4 +452,166 @@ export function sideCatcherOf<T extends ArrivalClock>(
   const priority = tunables.arrival.simultaneousArrivalPriority;
   const threat = nearestThreat(live.filter((t) => sides.get(String(t.rusher)) === side), priority) ?? nearestThreat(live, priority);
   return threat === undefined ? { kind: "NONE" } : { kind: "LIVE", threat };
+}
+
+// ---- 2.8 the caught escape as contact ----------------------------------------------------------
+
+/** Who a caught escape's contact is with: a man still in his block (2.7's catcher), or a live threat. */
+export type CaughtCatcher =
+  | {
+      readonly kind: "BLOCKED";
+      readonly rusher: PlayerId;
+      /** The card's alignment: INTERIOR comes from the FRONT, EDGE from the SIDE. */
+      readonly alignment: RushAlignment;
+      /** He had not checked this man (2.7): the only catch that can be unseen. */
+      readonly unregistered: boolean;
+    }
+  | {
+      readonly kind: "LIVE";
+      /** His threat as it stands at the catch (after its ARRIVED). */
+      readonly threat: RushThreat;
+      /** He was live (not ARRIVED) when the quarterback stepped up on this play (an ARC man is then BEHIND). */
+      readonly liveAtStepUp: boolean;
+      /** His record at the snap put him on the free-run clock under the arm's reading (AM-2's key). */
+      readonly onFreeRunClockAtSnap: boolean;
+    };
+
+/**
+ * 2.8 (ADR:772; plan §2.8): the contact facts of a caught escape, built at the escape site and never
+ * from step 4's (`contactFactsOf` throws for a man with no approach, and a blocked man has no
+ * threat). A blocked man: approach BLOCKED, from his alignment (INTERIOR FRONT, EDGE SIDE), never
+ * on the free-run clock. A live man: his threat's approach, `contactFrom`'s from, and his clock by
+ * `onFreeRunClockAtContact`. `seen` is the owner's answer (`caughtSeen`): SEEN, the recommended,
+ * keeps every contact seen, as `QB_HIT.seen` reads before step 7; UNSEEN_IF_UNREGISTERED (P21)
+ * makes an unregistered blocked man's catch unseen, so his tilt class is BEHIND_NEVER. No die.
+ */
+export function caughtFactsOf(caughtSeen: CaughtSeen, catcher: CaughtCatcher): ContactFacts {
+  if (catcher.kind === "BLOCKED") {
+    return {
+      approach: "BLOCKED",
+      from: catcher.alignment === "EDGE" ? "SIDE" : "FRONT",
+      seen: caughtSeen === "SEEN" || !catcher.unregistered,
+      onFreeRunClock: false,
+    };
+  }
+  const { threat } = catcher;
+  if (threat.approach === undefined) throw new Error(`@ff/engine: a caught escape by ${String(threat.rusher)} whose threat carries no approach`);
+  return {
+    approach: threat.approach,
+    from: contactFrom({ approach: threat.approach, alignment: threat.alignment, liveAtStepUp: catcher.liveAtStepUp }),
+    seen: true,
+    onFreeRunClock: onFreeRunClockAtContact(catcher.onFreeRunClockAtSnap, threat.origin),
+  };
+}
+
+/**
+ * 2.8: the caught escape's contest is step 4's by rule (§4.5 items 4 to 6): the rated
+ * `arrival_contest` while no shed has happened on the play, the second arrival after the play's
+ * first shed (each rated when the second arrival is off, D12).
+ */
+export function caughtContestForm(contact: ContactTunables, shedInPlay: boolean): "RATED" | "SECOND" {
+  return !shedInPlay || contact.secondArrival === "RATED" ? "RATED" : "SECOND";
+}
+
+/**
+ * The faces of a caught escape's contest, drawn by the caller on step 4's labels (P6): the rated
+ * contest's rusher face on `.../rush/t<tick>/<rusherId>:contest` and the quarterback's on
+ * `.../rush/t<tick>/<quarterbackId>:contest:<rusherId>`; the second arrival's one face on
+ * `.../rush/t<tick>/<rusherId>:contest2`.
+ */
+export type CaughtFaces =
+  | { readonly form: "RATED"; readonly rusher: number; readonly quarterback: number; readonly rngLabel: string; readonly quarterbackRngLabel: string }
+  | { readonly form: "SECOND"; readonly rusher: number; readonly rngLabel: string };
+
+/**
+ * 2.8: the caught escape's `arrival_contest` CHECK from its faces, as step 4 states one: actors the
+ * rusher then the quarterback; the rated contest with step 4's tilt for the catch's tilt class
+ * (AM-7; `tiltOf` on `facts`) and the bundle's boundary; the second arrival against its target, no
+ * rating read. No die is drawn here.
+ */
+export function caughtEscapeContest(a: {
+  readonly tunables: Tunables;
+  readonly contact: ContactTunables;
+  readonly rusher: PlayerState;
+  readonly qb: PlayerState;
+  readonly facts: ContactFacts;
+  readonly faces: CaughtFaces;
+}): ArrivalContestEmission {
+  const actors = [a.rusher.bio.id, a.qb.bio.id] as const;
+  if (a.faces.form === "RATED") {
+    const r = arrivalContest(
+      a.rusher,
+      a.qb,
+      tiltOf(a.facts, a.contact.tilts),
+      { rusher: a.faces.rusher, quarterback: a.faces.quarterback, rngLabel: a.faces.rngLabel, quarterbackRngLabel: a.faces.quarterbackRngLabel },
+      a.contact.boundary,
+    );
+    return {
+      checkKind: ARRIVAL_CONTEST_KIND,
+      actors,
+      roll: r.rusherRoll,
+      opposedRoll: r.quarterbackRoll,
+      target: r.boundary,
+      tier: tierFor(a.tunables, r.margin),
+      band: r.band,
+      margin: r.margin,
+      testsAttrs: r.testsAttrs,
+    };
+  }
+  if (a.contact.secondArrival === "RATED") throw new Error("@ff/engine: a second arrival's face under a rated second arrival");
+  const r = secondArrival(a.faces.rusher, a.contact.secondArrival.target, a.faces.rngLabel);
+  const margin = r.roll.total - r.target;
+  return {
+    checkKind: ARRIVAL_CONTEST_KIND,
+    actors,
+    roll: r.roll,
+    target: r.target,
+    tier: tierFor(a.tunables, margin),
+    band: r.band,
+    margin,
+    testsAttrs: r.testsAttrs,
+  };
+}
+
+/**
+ * 2.8: the shed path, how far a caught escape's shed puts the catcher back: a live man's threat by
+ * his approach, as step 4's shed (`shedDelaySecondsOf`: a PUSH man the bundle's
+ * `pushShedDelaySeconds`, every other approach its `shedDelaySeconds`), published DELAYED by the
+ * call site; a blocked man not at all (`undefined`): he has no threat, and he stays in his block.
+ * No die.
+ */
+export function caughtShedDelaySeconds(catcher: CaughtCatcher, contact: ContactTunables): number | undefined {
+  if (catcher.kind === "BLOCKED") return undefined;
+  const { approach } = catcher.threat;
+  if (approach === undefined) throw new Error(`@ff/engine: a caught escape by ${String(catcher.threat.rusher)} whose threat carries no approach`);
+  return shedDelaySecondsOf(approach, contact);
+}
+
+/**
+ * 2.8 (P7, P20): the caught escape's `QB_HIT`, in P7's key order: phase SACK or SHED, `rollRef` the
+ * contest's CHECK, approach, from and seen from the catch's facts (BLOCKED only for a blocked
+ * catcher). `contactSeconds` is the tick of the escape roll that caught him, in seconds from the snap:
+ * ticks are seconds here (`clock.tickStepSeconds` 0.5 and `clock.maxTick` 6.0, `tunables.ts`, "Times
+ * are expressed in seconds"), so the tick is written as it stands, with no conversion. It is never
+ * the contact book's time, which for a live catcher is his future arrival (D21), and which a blocked
+ * man does not have.
+ */
+export function caughtHitOf(a: {
+  readonly qb: PlayerId;
+  readonly rusher: PlayerId;
+  readonly phase: "SACK" | "SHED";
+  readonly tick: number;
+  readonly rollRef: string;
+  readonly facts: ContactFacts;
+}): QbHitRecord {
+  return {
+    qb: a.qb,
+    rusher: a.rusher,
+    phase: a.phase,
+    contactSeconds: a.tick,
+    rollRef: a.rollRef,
+    approach: a.facts.approach,
+    from: a.facts.from,
+    seen: a.facts.seen,
+  };
 }

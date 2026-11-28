@@ -1329,12 +1329,15 @@ describe("ADR-004 roll accounting", () => {
    *      no late horizon sack draws them up to the escape roll of an escape won after 4.5 s, whose
    *      deadline is the first thing it moves; escape direction draws them all (it publishes a side
    *      and moves no die); the side-aware catch draws them up to and with the play's first escape
-   *      roll, whose face it keeps and whose target it moves; the failed scramble scored as a sack
-   *      draws them all;
+   *      roll, whose face it keeps and whose target it moves; the caught escape as contact draws them
+   *      up to and with the play's first caught escape roll under SEEN alone, and up to and with the
+   *      play's first escape roll under the unseen leaf (played with the side-aware catch, which it
+   *      needs to have an unregistered man, and which moves that roll's target), the contest at the
+   *      catch coming after; the failed scramble scored as a sack draws them all;
    *  28. after each cut no family is new over s5a's (the carrier's labels left out and the rush
    *      bucket's men read as one, as step 5a's pairing reads them): the parts built so far draw no
-   *      new die, and the later parts' families (`:deadline`, `:drill:`, a contest at the escape)
-   *      are 2.8, 2.9 and 2.11's;
+   *      new die (2.8's contest at the escape is on step 4's labels, `:contest` and `:contest2`, a
+   *      family s5a draws), and the later parts' families (`:deadline`, `:drill:`) are 2.9 and 2.11's;
    *  29. under every part built so far together: no RollDetail twice in a play, and no `:deadline`,
    *      `:drill:`, `:contact` or `:dodge`.
    */
@@ -1447,6 +1450,26 @@ describe("ADR-004 roll accounting", () => {
         },
         dice: "MOVES",
       },
+      {
+        // 2.8 under SEEN: the play's first caught escape roll keeps its die; the contest at the catch comes after it.
+        name: "the caught escape as contact, SEEN",
+        block: outsParts({ caughtAsContact: true, caughtSeen: "SEEN" }),
+        cut: (base) => {
+          const k = base.findIndex((r) => r.label.endsWith(":scramble") && r.band === "CAUGHT_FROM_BEHIND");
+          return k < 0 ? undefined : k + 1;
+        },
+        dice: "MOVES",
+      },
+      {
+        // 2.8's unseen leaf, with the side-aware catch (and its direction): the first escape roll keeps its die.
+        name: "the caught escape as contact, UNSEEN_IF_UNREGISTERED, with the side-aware catch",
+        block: outsParts({ direction: true, sideCatch: { perLiveThreat: 10, perUnregistered: 15 }, caughtAsContact: true, caughtSeen: "UNSEEN_IF_UNREGISTERED" }),
+        cut: (base) => {
+          const k = base.findIndex((r) => r.label.endsWith(":scramble"));
+          return k < 0 ? undefined : k + 1;
+        },
+        dice: "MOVES",
+      },
       // 2.12 writes PLAY_START's marker and moves no die.
       { name: "the failed scramble scored as a sack", block: outsParts({ failedScrambleSack: true }), cut: () => undefined, dice: "NEVER" },
     ];
@@ -1495,6 +1518,8 @@ describe("ADR-004 roll accounting", () => {
         noLateHorizonSack: true,
         direction: true,
         sideCatch: { perLiveThreat: 10, perUnregistered: 15 },
+        caughtAsContact: true,
+        caughtSeen: "SEEN",
         failedScrambleSack: true,
       });
       const LATER = /:deadline$|:drill:|:contact(:|$)|:dodge(:|$)|:alarm(:|$)/;

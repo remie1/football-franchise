@@ -1063,6 +1063,12 @@ export function pocketRulesUnder(tunables: Tunables, petitions: ContractPetition
   const motion = motionBlock === undefined ? undefined : checkMotion(motionBlock, tunables.clock.tickStepSeconds);
   const cleanPocket = cleanPocketBlock === undefined ? undefined : checkCleanPocket(cleanPocketBlock);
   const outs = outsBlock === undefined ? undefined : checkOuts(outsBlock);
+  if (outs?.caughtAsContact === true && contact === undefined) {
+    // ADR-089 step 6 (plan §2.8): the caught escape as contact is step 4's contest at the escape.
+    throw new PocketRulesError(
+      `the caught escape as contact (pocket.outs.caughtAsContact) without ${CONTACT_BLOCK}: it is step 4's contest at the escape, with that block's tilts, boundary, second arrival and shed delays`,
+    );
+  }
   step4Gate(step4Blocks, petitions);
   if (outs !== undefined) step6Gate(outs, petitions);
 

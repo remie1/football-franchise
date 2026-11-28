@@ -625,6 +625,7 @@ describe("ADR-089 step 6: no rule set before step 6 runs an outs function (P-18)
     outsParts({ noLateHorizonSack: true }),
     outsParts({ direction: true }),
     outsParts({ direction: true, sideCatch: { perLiveThreat: 10, perUnregistered: 15 } }),
+    outsParts({ caughtAsContact: true, caughtSeen: "SEEN" }),
     outsParts({ failedScrambleSack: true }),
   ];
 
@@ -632,6 +633,11 @@ describe("ADR-089 step 6: no rule set before step 6 runs an outs function (P-18)
     expect(STEP6_SPY_TABLE.map(([name]) => name)).toEqual([
       "breakSide",
       "cardSidesAtSnap",
+      "caughtContestForm",
+      "caughtEscapeContest",
+      "caughtFactsOf",
+      "caughtHitOf",
+      "caughtShedDelaySeconds",
       "escapeLeft",
       "escapeRollSpends",
       "escapeTermsOf",
