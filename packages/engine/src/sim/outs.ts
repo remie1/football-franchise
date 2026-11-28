@@ -1,6 +1,6 @@
 /**
- * ADR-089 step 6 (the outs; step-6 plan §2; AM-13's readings, filed before step 6's first arm): THE
- * OUTS, AS PURE FUNCTIONS.
+ * ADR-089 step 6 (the outs; step-6 plan §2; the readings AM-13 is to file before step 6's first arm,
+ * not filed yet): THE OUTS, AS PURE FUNCTIONS.
  *
  * Every function here is called by `sim/passPlay.ts` only behind `rules.outs !== undefined` (the
  * `pocket.outs` block, `sim/pocketRules.ts`), and each only behind its own part's leaf. Only a
@@ -34,6 +34,13 @@
  *   forced pick, the clean pick's `escapeOffered` at the call site). On a clean expiry with his move
  *   used or not offered and his escape spent, the clean pick offers nothing, and the call site runs
  *   the answer's branch.
+ * - **2.4 Pursuer speed and Mobility's weight** (`cardSidesAtSnap`, `breakSide`, `escapeTermsOf`;
+ *   AM-13 `pursuit`, CHOSEN): the escape target gains `round((S - 70) / 5)`, S the highest Speed
+ *   among the card rushers on the side he breaks to, live or blocked (0, and nobody read, when that
+ *   side holds none), and that man joins the `scramble` CHECK's actors with Speed in its
+ *   `testsAttrs`; the roll's Mobility term becomes `round(Mobility / 10)` plus a flat 7 named
+ *   "Mobility centering", so a 70 quarterback's roll is where it was. The side is D15's (2.6),
+ *   computed when no part publishes it.
  * - **2.5 No late horizon sack** (`horizonDeadline`, `runsPastLastTick`; AM-13 `horizon`, CHOSEN):
  *   the pursuit deadline is the later of the escape tick plus one tick step and the earlier of the
  *   escape tick plus `pursuitSeconds` and the last tick, and the play runs one tick past the last
@@ -45,7 +52,17 @@
  *
  * No die is drawn here.
  */
-import type { EscapeCapTunables, ScrambleStart, Tunables } from "../tunables.js";
+import { getAttr } from "@ff/contracts";
+import type { PlayerId, PlayerState } from "@ff/contracts";
+import { ATTR } from "../attrs.js";
+import { threatSideOf } from "../resolve/approach.js";
+import { nearestThreat, timeToArrival } from "../resolve/rushThreat.js";
+import type { ArrivalClock } from "../resolve/rushThreat.js";
+import type { ScrambleTerms } from "../resolve/scramble.js";
+import type { EscapeCapTunables, OutsTunables, ScrambleStart, Tunables } from "../tunables.js";
+import type { RunSide } from "../types.js";
+import { loopPartnersAtSnap } from "./freeRunTiming.js";
+import type { LineGamesReplayInput } from "./freeRunTiming.js";
 
 // ---- 2.1 the real throwaway rule ---------------------------------------------------------------
 
@@ -156,6 +173,122 @@ export function spentBranch(cap: EscapeCapTunables, rolls: number): SpentBranch 
     case "BELOW_30":
       return "BELOW_30";
   }
+}
+
+// ---- 2.4, with 2.6 and 2.7: the side he breaks to -----------------------------------------------
+
+/** One card rusher as `cardSidesAtSnap` reads him: who, and the side his card states. */
+export interface CardRusherSide {
+  readonly rusher: PlayerId;
+  /** `PLAY_START.defense.rush[].side`: `undefined` where the card states none (never defaulted). */
+  readonly side: RunSide | undefined;
+}
+
+/**
+ * 2.4, 2.6, 2.7 (D16; step-6 plan §2.6): every card rusher's side as the side-reading parts read it,
+ * keyed by his id: his matchup's card side, and for a man who carries a looper record (STUNT_LOOPER)
+ * at the snap his loop partner's (`threatSideOf`, as the timing pass reads it; the partner from
+ * `loopPartnersAtSnap`). Read once a play, at the snap, so a looper keeps his partner's side when a
+ * later win builds his threat; never from `RushThreat.side` (written for free runners and late
+ * blocks only) and never defaulted: a side the card does not state is `undefined`, a looper whose
+ * partner has none has none, and such a man never sets a direction or counts on a side.
+ */
+export function cardSidesAtSnap(a: LineGamesReplayInput & { readonly card: readonly CardRusherSide[] }): ReadonlyMap<string, RunSide | undefined> {
+  const partners = loopPartnersAtSnap(a);
+  const own = new Map(a.card.map((c) => [String(c.rusher), c.side] as const));
+  return new Map(
+    a.card.map((c) => {
+      const partner = partners.get(String(c.rusher));
+      const side = threatSideOf({ side: c.side, ...(partner === undefined ? {} : { loop: { partnerSide: own.get(String(partner)) } }) });
+      return [String(c.rusher), side] as const;
+    }),
+  );
+}
+
+/** Which of D15's rules set the side (step-6 plan §2.6). */
+export type BreakRule = "SET_OFF" | "NEAREST" | "FEWER" | "PARITY";
+
+/** What `breakSide` reads at an escape roll, every value the tick's own. */
+export interface BreakSideFacts {
+  readonly tick: number;
+  /** The pick that offered ESCAPE was forced (`:movement`); false for a clean break-out (`:clean`). */
+  readonly forced: boolean;
+  /** The tick's live threats, the list the escape roll is handed. */
+  readonly threats: readonly ArrivalClock[];
+  /** Every card rusher's side (`cardSidesAtSnap`). */
+  readonly sides: ReadonlyMap<string, RunSide | undefined>;
+  /** The d100 face of the pick that offered ESCAPE (its `pocket_movement` CHECK's `raw`). */
+  readonly pickFace: number;
+}
+
+const AWAY: Readonly<Record<RunSide, RunSide>> = { LEFT: "RIGHT", RIGHT: "LEFT" };
+
+/**
+ * 2.6 (D15; step-6 plan §2.6): the side he breaks to, by the first rule that decides it:
+ *  1. SET_OFF, on a forced pick only: away from the live threats inside must act's half second (D32,
+ *     `arrival.collapsingWithinSeconds`) that set the reaction off, when every one of them with a
+ *     side is on one side;
+ *  2. NEAREST: away from the nearest live threat with a side (`nearestThreat`, its ties by
+ *     `arrival.simultaneousArrivalPriority`, then the lower id);
+ *  3. FEWER: toward the side with fewer card rushers;
+ *  4. PARITY: by the parity of the pick's own d100 face, odd LEFT and even RIGHT (no new die; mirror
+ *     balanced in distribution, CHOSEN in the design).
+ * A clean break-out has nothing that set it off and starts at rule 2. Sides are `sides`' (D16).
+ */
+export function breakSide(tunables: Tunables, f: BreakSideFacts): { readonly side: RunSide; readonly rule: BreakRule } {
+  const sideOf = (t: ArrivalClock): RunSide | undefined => f.sides.get(String(t.rusher));
+  const sided = f.threats.filter((t) => sideOf(t) !== undefined);
+  if (f.forced) {
+    const setOff = new Set(sided.filter((t) => timeToArrival(t, f.tick) <= tunables.arrival.collapsingWithinSeconds).map(sideOf));
+    const [only] = [...setOff];
+    if (setOff.size === 1 && only !== undefined) return { side: AWAY[only], rule: "SET_OFF" };
+  }
+  const nearest = nearestThreat(sided, tunables.arrival.simultaneousArrivalPriority);
+  const nearestSide = nearest === undefined ? undefined : sideOf(nearest);
+  if (nearestSide !== undefined) return { side: AWAY[nearestSide], rule: "NEAREST" };
+  let left = 0;
+  let right = 0;
+  for (const side of f.sides.values()) {
+    if (side === "LEFT") left += 1;
+    else if (side === "RIGHT") right += 1;
+  }
+  if (left !== right) return { side: left < right ? "LEFT" : "RIGHT", rule: "FEWER" };
+  return { side: f.pickFace % 2 === 1 ? "LEFT" : "RIGHT", rule: "PARITY" };
+}
+
+/** One card rusher as the escape's terms read him at the escape roll. */
+export interface CardMan {
+  readonly rusher: PlayerState;
+  /** His side at the snap (`cardSidesAtSnap`). */
+  readonly side: RunSide | undefined;
+}
+
+/**
+ * 2.4 (AM-13 `pursuit`, CHOSEN) at an escape roll: the terms `resolveScramble` takes (`ScrambleTerms`),
+ * or `undefined` when no part that changes the roll is on (so the roll is today's). Under `pursuit`:
+ * Mobility's divisor and centering, and the pursuer, the card rusher on `side` (live or blocked)
+ * with the highest Speed, ties to card order, with `round((Speed - speedBaseline) / speedDivisor)`
+ * on the target; no pursuer when `side` holds no card rusher. `card` is in card order.
+ */
+export function escapeTermsOf(outs: OutsTunables, side: RunSide, card: readonly CardMan[]): ScrambleTerms | undefined {
+  const pursuit = outs.pursuit;
+  if (pursuit === undefined) return undefined;
+  let pursuer: PlayerState | undefined;
+  let speed = Number.NEGATIVE_INFINITY;
+  for (const man of card) {
+    if (man.side !== side) continue;
+    const s = getAttr(man.rusher.attributes.values, ATTR.speed);
+    if (s > speed) {
+      pursuer = man.rusher;
+      speed = s;
+    }
+  }
+  return {
+    mobility: { divisor: pursuit.mobilityDivisor, centering: pursuit.mobilityCentering },
+    ...(pursuer === undefined
+      ? {}
+      : { pursuit: { pursuer: pursuer.bio.id, term: Math.round((speed - pursuit.speedBaseline) / pursuit.speedDivisor) } }),
+  };
 }
 
 // ---- 2.5 no late horizon sack ------------------------------------------------------------------

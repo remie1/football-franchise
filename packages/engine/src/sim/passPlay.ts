@@ -80,8 +80,11 @@ import { assertSnapPictureFor, timeFreeRunners } from "./freeRunTiming.js";
 import { pocketRulesOf, pocketRulesUnder } from "./pocketRules.js";
 import { bumpFor, cleanExpiry, d23Pool, floorSecondsOf, isScreen, mustDecideNow, resetAfterMove, resolveCleanPick } from "./cleanPocket.js";
 import {
+  breakSide,
+  cardSidesAtSnap,
   escapeLeft,
   escapeRollSpends,
+  escapeTermsOf,
   horizonDeadline,
   runsPastLastTick,
   scrambleRunYards,
@@ -897,6 +900,21 @@ export function simulatePassPlayWith(
   const escapeCap = outs?.escapeCap;
   let escapeRolls = 0;
   let escapesSpent = 0;
+  /**
+   * 2.4, 2.6, 2.7 (D16): every card rusher's side at the snap (`cardSidesAtSnap`), read once a play,
+   * only under a part that reads the side he breaks to: pursuit, escape direction, the side-aware
+   * catch. `undefined` otherwise, so no other play runs the line games' replay it reads.
+   */
+  const sidesAtSnap =
+    outs !== undefined && (outs.pursuit !== undefined || outs.direction || outs.sideCatch !== undefined)
+      ? cardSidesAtSnap({
+          tunables,
+          stunts: preSnap.stunts,
+          pickups,
+          lineGames,
+          card: matchups.map((m) => ({ rusher: m.rusher.bio.id, side: m.side })),
+        })
+      : undefined;
 
   /**
    * ADR-007 — every threat transition is published, not inferred. ADR-022: the
@@ -2134,6 +2152,21 @@ export function simulatePassPlayWith(
       }
 
       if (movement.response === "ESCAPE") {
+        // ADR-089 step 6 (plan §2.4, §2.6; D15): the side he breaks to, before the roll, only under a
+        // part that reads it, from the tick's threats, the card's sides and the pick that offered
+        // ESCAPE (a clean break-out starts at D15's second rule). No die. Pursuit's terms read it.
+        const broke =
+          outs === undefined || sidesAtSnap === undefined
+            ? undefined
+            : breakSide(tunables, { tick, forced: cleanPick === undefined, threats, sides: sidesAtSnap, pickFace: movement.roll.raw });
+        const terms =
+          outs === undefined || sidesAtSnap === undefined || broke === undefined
+            ? undefined
+            : escapeTermsOf(
+                outs,
+                broke.side,
+                matchups.map((m) => ({ rusher: m.rusher, side: sidesAtSnap.get(String(m.rusher.bio.id)) })),
+              );
         const escape = resolveScramble({
           tunables,
           qb,
@@ -2145,6 +2178,8 @@ export function simulatePassPlayWith(
           // no urgency term (the clean pick's own rule, `resolveCleanPick`). A forced escape states
           // none and computes its own, as today.
           ...(cleanPick !== undefined ? { urgency: 0 } : {}),
+          // ADR-089 step 6 (plan §2.4): Mobility's lighter weight and the pursuer, only under pursuit.
+          ...(terms === undefined ? {} : { terms }),
         });
         log.check(escape.check);
         // ADR-089 step 6 (plan §2.3): under the cap the roll is counted, and spends the escape by its band.

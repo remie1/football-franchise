@@ -26,8 +26,9 @@
  * give the s4 stream, play and game (the pinned digests' replay is calibration's, K2b).
  *
  * ADR-089 step 6 (P-18; step-6 plan §8.1): every function export of `sim/outs.ts` is wrapped the
- * same way; legacy, every set of steps 1 to 5a and kind T call none, play (with and without a
- * picture) and game, and the block's parts call every one. P-18b at the engine's reach: the s5a
+ * same way, and so is `sim/freeRunTiming.ts`'s `loopPartnersAtSnap`, the line games' replay the outs
+ * read for a looper's side; legacy, every set of steps 1 to 5a and kind T call none, play (with and
+ * without a picture) and game, and the block's parts call every one. P-18b at the engine's reach: the s5a
  * bundles with the all-off block, same stamp, give the s5a stream, play by play, and call none (a
  * game waits for the lift: until P9 to P12 are in contracts no game can carry the block, and
  * `simulateGame` has no test seam; the pinned digests' replay is calibration's).
@@ -55,7 +56,13 @@ vi.mock("../src/resolve/freeRun.js", async (importOriginal) => {
 });
 vi.mock("../src/sim/freeRunTiming.js", async (importOriginal) => {
   const real = await importOriginal<typeof import("../src/sim/freeRunTiming.js")>();
-  return { ...real, timeFreeRunners: vi.fn(real.timeFreeRunners), assertSnapPictureFor: vi.fn(real.assertSnapPictureFor) };
+  return {
+    ...real,
+    timeFreeRunners: vi.fn(real.timeFreeRunners),
+    assertSnapPictureFor: vi.fn(real.assertSnapPictureFor),
+    // ADR-089 step 6 (P-18): the line games' replay the outs read for a looper's side, counted.
+    loopPartnersAtSnap: vi.fn(real.loopPartnersAtSnap),
+  };
 });
 vi.mock("../src/resolve/lateBlock.js", async (importOriginal) => {
   const real = await importOriginal<typeof import("../src/resolve/lateBlock.js")>();
@@ -145,7 +152,7 @@ import { fromOf, threatApproachOf, threatSideOf, withApproach } from "../src/res
 import { freeRunClock } from "../src/resolve/freeRun.js";
 import { drawLateBeat, lateThreatOf, resolveLateBeatTick, resolveLateTickL } from "../src/resolve/lateBlock.js";
 import { counterExcludes, mustActThreat } from "../src/resolve/pocket.js";
-import { assertSnapPictureFor, timeFreeRunners } from "../src/sim/freeRunTiming.js";
+import { assertSnapPictureFor, loopPartnersAtSnap, timeFreeRunners } from "../src/sim/freeRunTiming.js";
 import { DEFAULT_TUNABLES } from "../src/tunables.js";
 import { buildGameFixture } from "./gameFixtures.js";
 import { buildFrontScenario, buildLopsidedRushScenario, buildScenario, buildScramblerScenario } from "./fixtures.js";
@@ -207,6 +214,7 @@ afterEach(() => {
   for (const spy of STEP4_SPIES) spy.mockClear();
   for (const spy of STEP5_SPIES) spy.mockClear();
   for (const spy of STEP6_SPIES) spy.mockClear();
+  vi.mocked(loopPartnersAtSnap).mockClear();
   vi.restoreAllMocks();
 });
 
@@ -613,14 +621,18 @@ describe("ADR-089 step 6: no rule set before step 6 runs an outs function (P-18)
     outsParts({ scrambleStart: "EVERY_RUN" }),
     outsParts({ scrambleStart: "ZERO_GAIN_ONLY" }),
     outsParts({ escapeCap: { maxPerPlay: 1, whenSpent: "HOLD" } }),
+    outsParts({ pursuit: { speedBaseline: 70, speedDivisor: 5, mobilityDivisor: 10, mobilityCentering: 7 } }),
     outsParts({ noLateHorizonSack: true }),
     outsParts({ failedScrambleSack: true }),
   ];
 
   it("the module's exports are the ones the parts built so far name", () => {
     expect(STEP6_SPY_TABLE.map(([name]) => name)).toEqual([
+      "breakSide",
+      "cardSidesAtSnap",
       "escapeLeft",
       "escapeRollSpends",
+      "escapeTermsOf",
       "horizonDeadline",
       "runsPastLastTick",
       "scrambleRunYards",
@@ -652,6 +664,7 @@ describe("ADR-089 step 6: no rule set before step 6 runs an outs function (P-18)
     simulateGame(fixture.state, fixture.inputs, fixture.seed);
     for (const t of [S2_TUNABLES, S3_TUNABLES, S4_TUNABLES, T_TUNABLES, S5_TUNABLES, S5S_TUNABLES]) simulateGame(fixture.state, pictured(fixture), fixture.seed, t);
     expect(named()).toEqual(zero());
+    expect(vi.mocked(loopPartnersAtSnap)).not.toHaveBeenCalled();
   });
 
   it("the spies are wired: the block's parts call every one", () => {
@@ -667,6 +680,7 @@ describe("ADR-089 step 6: no rule set before step 6 runs an outs function (P-18)
     }
     const plays = named();
     for (const [name] of STEP6_SPY_TABLE) expect(plays[name], name).toBeGreaterThan(0);
+    expect(vi.mocked(loopPartnersAtSnap)).toHaveBeenCalled();
   });
 
   it("P-18b (engine): an s5a bundle with the all-off block, same stamp, gives the s5a stream play by play and calls none", () => {
@@ -685,5 +699,6 @@ describe("ADR-089 step 6: no rule set before step 6 runs an outs function (P-18)
       }
     }
     expect(named()).toEqual(zero());
+    expect(vi.mocked(loopPartnersAtSnap)).not.toHaveBeenCalled();
   });
 });

@@ -246,6 +246,17 @@ function replayLineGames(
   return slots;
 }
 
+/**
+ * D16: a looper record's partner, the man whose side he comes from: the twist's penetrator, or, on a
+ * looper record a passed-off twist carried to another man, the man it was carried from.
+ */
+function loopPartnerOf(slot: Extract<Slot, { readonly earned: Earned }>, carrierId: PlayerId): PlayerId {
+  const isCarried = slot.earned.earner !== carrierId;
+  const partner = isCarried ? slot.from : slot.earned.stunt?.penetrator;
+  if (partner === undefined) throw internal(`lost ${String(carrierId)}'s loop partner`);
+  return partner;
+}
+
 /** `from`'s assignment, handed to `to` by a passed-off twist; a free record remembers who handed it. */
 function carried(to: PlayerId, from: Slot): Slot {
   return from.blocker !== undefined
@@ -331,10 +342,7 @@ export function timeFreeRunners(a: FreeRunTimingInput): readonly RushPlan[] {
     if (toucher !== undefined && earned.margin === undefined) throw internal(`has a toucher for ${String(carrierId)} and no margin`);
 
     // D16: a looper record comes from his partner's side: the penetrator, or the man it was carried from.
-    const loops = free.origin === "STUNT_LOOPER";
-    const isCarried = earned.earner !== carrierId;
-    const partner = !loops ? undefined : isCarried ? slot.from : earned.stunt?.penetrator;
-    if (loops && partner === undefined) throw internal(`lost ${String(carrierId)}'s loop partner`);
+    const partner = free.origin === "STUNT_LOOPER" ? loopPartnerOf(slot, carrierId) : undefined;
     const side = threatSideOf({
       side: plan.side,
       ...(partner === undefined ? {} : { loop: { partnerSide: sideOf(partner) } }),
@@ -391,4 +399,26 @@ export function timeFreeRunners(a: FreeRunTimingInput): readonly RushPlan[] {
     };
     return { ...plan, free: next };
   });
+}
+
+/** What the line games' replay reads: `timeFreeRunners`' input without the picture, the clock or the disguise. */
+export type LineGamesReplayInput = Pick<FreeRunTimingInput, "tunables" | "stunts" | "pickups" | "lineGames">;
+
+/**
+ * ADR-089 step 6 (step-6 plan §2.6; D16): the loop partner of every man who carries a looper record
+ * (STUNT_LOOPER) at the snap, keyed by his id: the same partner `timeFreeRunners` reads, on the same
+ * replay of the line games, so a looper's side is his partner's card side whether or not the timing
+ * pass ran on the play (it runs only under a step-3 block). No die, and nothing else is read or
+ * changed. Called only by `sim/outs.ts`'s `cardSidesAtSnap`, under a step-6 part that reads a side.
+ */
+export function loopPartnersAtSnap(a: LineGamesReplayInput): ReadonlyMap<string, PlayerId> {
+  const slots = replayLineGames(a.tunables, a.stunts, a.pickups, a.lineGames);
+  const partners = new Map<string, PlayerId>();
+  a.lineGames.plans.forEach((plan, i) => {
+    if (plan.free?.origin !== "STUNT_LOOPER") return;
+    const slot = slots[i];
+    if (slot === undefined || slot.earned === undefined) throw internal(`has no record for ${String(plan.rusher.bio.id)}`);
+    partners.set(String(plan.rusher.bio.id), loopPartnerOf(slot, plan.rusher.bio.id));
+  });
+  return partners;
 }

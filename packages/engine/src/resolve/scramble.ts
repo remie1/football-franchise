@@ -16,7 +16,7 @@
  * §14.4's machinery like any other one. This module answers only "did he get
  * out?"; what he does once he is out belongs to §13/§14.
  */
-import type { PlayerState, Rng, RollDetail } from "@ff/contracts";
+import type { PlayerId, PlayerState, Rng, RollDetail } from "@ff/contracts";
 import { ATTR } from "../attrs.js";
 import type { CheckEmission } from "../events.js";
 import { actorAttrModifier, bandFor, clamp, compact, flatModifier, rollD100, tierFor } from "../rolls.js";
@@ -41,6 +41,34 @@ export interface ScrambleArgs {
    * as every forced escape leaves it, it is the tick's own, as today.
    */
   readonly urgency?: number;
+  /**
+   * ADR-089 step 6 (step-6 plan §2.4, §2.7; `pocket.outs` only): the roll's and the target's terms
+   * under the outs' parts, when the caller states them (`sim/outs.ts`'s `escapeTermsOf`). Left out,
+   * as every rule set before step 6 and every step-6 play without pursuit or the side-aware catch
+   * leaves it, the roll, its target, its actors and its `testsAttrs` are today's.
+   */
+  readonly terms?: ScrambleTerms;
+}
+
+/**
+ * ADR-089 step 6: what the outs change in the escape roll. Each key is its part's, present only when
+ * that part is on and has something to say.
+ */
+export interface ScrambleTerms {
+  /**
+   * 2.4, Mobility's weight: the roll's Mobility term is `round(Mobility / divisor)` plus a flat
+   * modifier named "Mobility centering" of `centering`, in place of `round(Mobility / attrDivisor)`,
+   * so the modifiers still sum to the total and a 70 quarterback's roll is where it was
+   * (70 / 10 + 7 = 14 = 70 / 5). Improvisation keeps `attrDivisor`.
+   */
+  readonly mobility?: { readonly divisor: number; readonly centering: number };
+  /**
+   * 2.4, pursuer speed: the fastest card rusher on the side he breaks to and his term on the target,
+   * `round((Speed - speedBaseline) / speedDivisor)`. He joins the CHECK's actors (after every other
+   * actor, when not already one) and Speed joins its `testsAttrs`, as the contact roll lists Speed
+   * when it reads it. Absent when that side holds no card rusher (the term is 0 and nobody is read).
+   */
+  readonly pursuit?: { readonly pursuer: PlayerId; readonly term: number };
 }
 
 export interface ScrambleOutcome {
@@ -66,18 +94,31 @@ export function resolveScramble(args: ScrambleArgs): ScrambleOutcome {
   const t = tunables.scramble;
   const urgency = args.urgency ?? urgencySteps(tunables, minTimeToArrival(args.threats, args.tick));
   const edgeThreats = threatsWithAlignment(args.threats, "EDGE").length;
+  // ADR-089 step 6 (step-6 plan §2.4): Mobility's lighter weight and the pursuer, only when stated.
+  const mobility = args.terms?.mobility;
+  const pursuit = args.terms?.pursuit;
 
   const roll = rollD100(
     args.scrambleRng,
-    compact([
-      actorAttrModifier(args.qb, "Mobility (scramble)", ATTR.mobility, t.attrDivisor),
-      actorAttrModifier(args.qb, "Improvisation (scramble)", ATTR.improvisation, t.attrDivisor),
-    ]),
+    compact(
+      mobility === undefined
+        ? [
+            actorAttrModifier(args.qb, "Mobility (scramble)", ATTR.mobility, t.attrDivisor),
+            actorAttrModifier(args.qb, "Improvisation (scramble)", ATTR.improvisation, t.attrDivisor),
+          ]
+        : [
+            actorAttrModifier(args.qb, "Mobility (scramble)", ATTR.mobility, mobility.divisor),
+            flatModifier("Mobility centering", mobility.centering),
+            actorAttrModifier(args.qb, "Improvisation (scramble)", ATTR.improvisation, t.attrDivisor),
+          ],
+    ),
   );
   const target =
-    t.target + edgeThreats * t.edgeThreatPenalty + urgency * t.perUrgencyStepPenalty;
+    t.target + edgeThreats * t.edgeThreatPenalty + urgency * t.perUrgencyStepPenalty + (pursuit?.term ?? 0);
   const margin = roll.total - target;
   const band = bandFor(t.bands, margin);
+  const actors: PlayerId[] = [args.qb.bio.id, ...args.threats.map((threat) => threat.rusher)];
+  if (pursuit !== undefined && !actors.includes(pursuit.pursuer)) actors.push(pursuit.pursuer);
 
   return {
     band: band.label,
@@ -87,13 +128,13 @@ export function resolveScramble(args: ScrambleArgs): ScrambleOutcome {
     sacked: band.sacked,
     check: {
       checkKind: "scramble",
-      actors: [args.qb.bio.id, ...args.threats.map((threat) => threat.rusher)],
+      actors,
       roll,
       target,
       tier: tierFor(tunables, margin),
       band: band.label,
       margin,
-      testsAttrs: [ATTR.mobility, ATTR.improvisation],
+      testsAttrs: pursuit === undefined ? [ATTR.mobility, ATTR.improvisation] : [ATTR.mobility, ATTR.improvisation, ATTR.speed],
     },
   };
 }

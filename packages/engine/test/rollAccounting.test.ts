@@ -1324,6 +1324,8 @@ describe("ADR-004 roll accounting", () => {
    *      the scramble run's first carrier die; the escape cap draws them up to the first pick after
    *      the play's first escape roll under HOLD, TODAYS_PATH, SECOND_ESCAPE and BELOW_30, and all of
    *      them under CONTAINED_DOES_NOT_SPEND (without 2.8's shed a roll that spends ends the pocket);
+   *      pursuit draws them up to and with the play's first escape roll, whose face it keeps and
+   *      whose total and target it moves;
    *      no late horizon sack draws them up to the escape roll of an escape won after 4.5 s, whose
    *      deadline is the first thing it moves; the failed scramble scored as a sack draws them all;
    *  28. after each cut no family is new over s5a's (the carrier's labels left out and the rush
@@ -1410,6 +1412,16 @@ describe("ADR-004 roll accounting", () => {
         dice: "NEVER",
       },
       {
+        // 2.4: the first escape roll keeps its die and moves its total and target.
+        name: "pursuit",
+        block: outsParts({ pursuit: { speedBaseline: 70, speedDivisor: 5, mobilityDivisor: 10, mobilityCentering: 7 } }),
+        cut: (base) => {
+          const k = base.findIndex((r) => r.label.endsWith(":scramble"));
+          return k < 0 ? undefined : k + 1;
+        },
+        dice: "MOVES",
+      },
+      {
         name: "no late horizon sack",
         block: outsParts({ noLateHorizonSack: true }),
         cut: (base) => {
@@ -1464,6 +1476,7 @@ describe("ADR-004 roll accounting", () => {
         throwawayRule: true,
         scrambleStart: "ZERO_GAIN_ONLY",
         escapeCap: { maxPerPlay: 1, whenSpent: "HOLD" },
+        pursuit: { speedBaseline: 70, speedDivisor: 5, mobilityDivisor: 10, mobilityCentering: 7 },
         noLateHorizonSack: true,
         failedScrambleSack: true,
       });
