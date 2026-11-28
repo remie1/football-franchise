@@ -158,6 +158,13 @@ export interface LeagueYearConfig {
    * one switch, built off.
    */
   priceList?: PriceList;
+  /**
+   * Step 14, scouting veterans by their tape (owner's pick, 2026-11-28): a team's error grading a man
+   * shrinks with the seasons he has played, as real teams judge a veteran from years of NFL games and a
+   * young man from little (`teamGrade`, `TAPE_SEASONS`). A rookie is graded as before. Built switched off
+   * (default false) for the joint tuning with the aging work.
+   */
+  veteranTape?: boolean;
 }
 
 /** The year's config with its view ahead. */
@@ -171,11 +178,23 @@ function normal(u1: number, u2: number): number {
   return Math.sqrt(-2 * Math.log(1 - u1)) * Math.cos(2 * Math.PI * u2);
 }
 
-/** A team's grade of a player this offseason: the truth plus its evaluator's error (as the draft board). */
-export function teamGrade(team: TeamId, p: PlayerState, skill: number, rate: Rate, seed: string, season: number): number {
+/**
+ * Scouting by tape (`LeagueYearConfig.veteranTape`): a team's error grading a man is divided by
+ * sqrt(1 + seasons / TAPE_SEASONS), his seasons in the league (`seasonsIn`). CHOSEN: 4, so a man with
+ * four seasons is graded with about 0.71 of a rookie's error and one with twelve with half. Sized on one
+ * seed (2037-40) and over 20 seasons on the four tuning seeds (the cap doc, 2026-11-28).
+ */
+export const TAPE_SEASONS = 4;
+
+/**
+ * A team's grade of a player this offseason: the truth plus its evaluator's error (as the draft board).
+ * With `tape`, the error shrinks with his seasons in the league (`TAPE_SEASONS`); the draw is the same.
+ */
+export function teamGrade(team: TeamId, p: PlayerState, skill: number, rate: Rate, seed: string, season: number, tape = false): number {
   const sd = BOARD_ERROR.min + BOARD_ERROR.span * (1 - Math.max(0, Math.min(100, skill)) / 100);
   const rng = createRng(seed, `market/${season}/${String(team)}/${String(p.bio.id)}`);
-  return rate(p) + sd * normal(rng.next(), rng.next());
+  const error = sd * normal(rng.next(), rng.next());
+  return rate(p) + (tape ? error / Math.sqrt(1 + seasonsIn(p, season) / TAPE_SEASONS) : error);
 }
 
 /** A team's win share in a finished season, 0..1 (0.5 when unknown). */
@@ -497,7 +516,7 @@ function reSign(
     };
     const skill = skillOf(team.id, people);
     const roster = playersOf(team, byId);
-    const grade = (p: PlayerState) => teamGrade(team.id, p, skill, config.ahead.forTeam(team.id), ctx.seed, ctx.season);
+    const grade = (p: PlayerState) => teamGrade(team.id, p, skill, config.ahead.forTeam(team.id), ctx.seed, ctx.season, config.veteranTape === true);
     // Kept: every man with a deal for next season (one re-signed when re-signing opened among them)
     // or whose deal does not end now; the rest are its own free agents to be. A deal whose bonus runs
     // on into void years still ends now: the void years are played by nobody, so he is a free agent to be.
@@ -616,7 +635,7 @@ function campExtensions(
     const carry = adjustedCap(team.id, season, people, config.cap) - config.cap(season);
     const skill = skillOf(team.id, people);
     const roster = playersOf(team, byId);
-    const grade = (p: PlayerState) => teamGrade(team.id, p, skill, config.ahead.forTeam(team.id), ctx.seed, ctx.season);
+    const grade = (p: PlayerState) => teamGrade(team.id, p, skill, config.ahead.forTeam(team.id), ctx.seed, ctx.season, config.veteranTape === true);
     const gradesAt = (pos: Position) => roster.filter((k) => k.bio.position === pos).map(grade);
     const oldDeal = (p: PlayerState) => book.contracts.findIndex((c) => String(c.player) === String(p.bio.id) && c.team === team.id && endsAfter(c, season));
     // The men it would extend, its stars first: the room goes to them before the rest.
@@ -834,7 +853,7 @@ function getUnderCap(
    */
   newYear?: { want: number; curves: MarketCurves; plan: CapPlan; restructureTo?: number },
 ): Team {
-  const grade = (p: PlayerState) => teamGrade(t.id, p, skill, config.ahead.forTeam(t.id), ctx.seed, ctx.season);
+  const grade = (p: PlayerState) => teamGrade(t.id, p, skill, config.ahead.forTeam(t.id), ctx.seed, ctx.season, config.veteranTape === true);
   const capNow = adjustedCap(t.id, year, carried, config.cap);
   const room = () => capNow - teamCapTotal(t.id, year, book.contracts, book.dead, { top51, at: ctx.day }).total;
   const live = () => book.contracts.map((c, i) => ({ c, i })).filter(({ c }) => c.team === t.id && liveIn(c, year));
@@ -1098,7 +1117,7 @@ function freeAgency(
       const grade = (p: PlayerState) => {
         const k = `${String(t.id)}|${String(p.bio.id)}`;
         let g = graded.get(k);
-        if (g === undefined) { g = teamGrade(t.id, p, skill, judge, ctx.seed, season); graded.set(k, g); }
+        if (g === undefined) { g = teamGrade(t.id, p, skill, judge, ctx.seed, season, config.veteranTape === true); graded.set(k, g); }
         return g;
       };
       const roster = playersOf(t, byId);

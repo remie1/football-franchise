@@ -121,7 +121,7 @@ export {
   type NegotiationNeed, type OfferTerms, type MarketWindow,
 } from "./cap/negotiation.js";
 export {
-  leagueYearSteps, countsForComp, adjustedCap, marketWindow, teamGrade, winShareOf, rookieReserve, LEAGUE_YEAR_DAYS, MARKET, type LeagueYearConfig,
+  leagueYearSteps, countsForComp, adjustedCap, marketWindow, teamGrade, TAPE_SEASONS, winShareOf, rookieReserve, LEAGUE_YEAR_DAYS, MARKET, type LeagueYearConfig,
 } from "./cap/leagueYear.js";
 export { capForecast } from "./cap/forecast.js";
 export { CAP_LEANING, capLeaning, capPlan, floorShortfall, planWithFloor, presidentOf, teamCapPlan, type CapPlan } from "./cap/leaning.js";

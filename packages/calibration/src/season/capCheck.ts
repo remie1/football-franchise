@@ -119,6 +119,8 @@ export interface CapCheckInput {
    * (`LeagueYearConfig.priceList` "typical"; switched off by default while the middle class is looked at).
    */
   readonly marketPrices?: "calendar" | "offers";
+  /** ADR-085 step 14: teams scout veterans by their tape (`LeagueYearConfig.veteranTape`). Absent or false, as before. */
+  readonly veteranTape?: boolean;
 }
 
 /** One position group's share of the money. OverTheCap's groups. */
@@ -538,6 +540,7 @@ export function runCapCheck(input: CapCheckInput): CapYear[] {
         rate, cap, campExtensionsFrom: first + 1,
         ...(input.marketPrices !== undefined ? { marketPrices: input.marketPrices } : {}),
         ...(input.marketPrices === "offers" ? { priceList: "typical" as const } : {}),
+        ...(input.veteranTape === true ? { veteranTape: true } : {}),
       },
       draft: { rate, makeClass, cap },
       ...players,
