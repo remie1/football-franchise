@@ -608,10 +608,22 @@ describe("ADR-089 step 6: no rule set before step 6 runs an outs function (P-18)
   /** The s5a shapes, each with the picture it needs. */
   const S5_SETS = [[S5_TUNABLES, true], [S5S_TUNABLES, false], [S5L_TUNABLES, false], [onCleanBench(S5S_TUNABLES), false]] as const;
   /** Blocks that between them reach every export: each part built so far, alone. */
-  const PARTS = [outsParts({ throwawayRule: true }), outsParts({ scrambleStart: "EVERY_RUN" }), outsParts({ scrambleStart: "ZERO_GAIN_ONLY" })];
+  const PARTS = [
+    outsParts({ throwawayRule: true }),
+    outsParts({ scrambleStart: "EVERY_RUN" }),
+    outsParts({ scrambleStart: "ZERO_GAIN_ONLY" }),
+    outsParts({ escapeCap: { maxPerPlay: 1, whenSpent: "HOLD" } }),
+  ];
 
   it("the module's exports are the ones the parts built so far name", () => {
-    expect(STEP6_SPY_TABLE.map(([name]) => name)).toEqual(["scrambleRunYards", "scrambleStartYards", "throwawayLegalInPocket"]);
+    expect(STEP6_SPY_TABLE.map(([name]) => name)).toEqual([
+      "escapeLeft",
+      "escapeRollSpends",
+      "scrambleRunYards",
+      "scrambleStartYards",
+      "spentBranch",
+      "throwawayLegalInPocket",
+    ]);
   });
 
   it("legacy, every s1 to s4 set, T and the s5a sets call none of them, play (with and without a picture) and game", () => {

@@ -79,7 +79,7 @@ import type { RushPlan } from "./preSnap.js";
 import { assertSnapPictureFor, timeFreeRunners } from "./freeRunTiming.js";
 import { pocketRulesOf, pocketRulesUnder } from "./pocketRules.js";
 import { bumpFor, cleanExpiry, d23Pool, floorSecondsOf, isScreen, mustDecideNow, resetAfterMove, resolveCleanPick } from "./cleanPocket.js";
-import { scrambleRunYards, scrambleStartYards, throwawayLegalInPocket } from "./outs.js";
+import { escapeLeft, escapeRollSpends, scrambleRunYards, scrambleStartYards, spentBranch, throwawayLegalInPocket } from "./outs.js";
 import { ContactBook } from "./contactBook.js";
 import { arrivedInGridOrder, liveAtTick, onFreeRunClockAtContact, onFreeRunClockAtSnap, rebuiltTick, shedDelaySecondsOf } from "./contactTick.js";
 import type { TickStatusInputs } from "./contactTick.js";
@@ -875,6 +875,13 @@ export function simulatePassPlayWith(
    * step 5a has them, so the all-off block replays step 5a's stream (P-18b).
    */
   const inPocketTackleBox = outs?.throwawayRule === true || outs?.deadlinePick !== undefined ? false : undefined;
+  /**
+   * 2.3 (AM-13 `escapeCap`): the cap, and the play's escape rolls (`scramble` CHECKs) and the rolls
+   * among them that spent the escape (`escapeRollSpends`), both counted only under the cap.
+   */
+  const escapeCap = outs?.escapeCap;
+  let escapeRolls = 0;
+  let escapesSpent = 0;
 
   /**
    * ADR-007 — every threat transition is published, not inferred. ADR-022: the
@@ -2038,17 +2045,30 @@ export function simulatePassPlayWith(
       (cleanPocket.move || cleanPocket.breakOut) &&
       cleanExpiry({ mustDecide, forced, scrambling: scramble !== undefined, publishedStatus, contested: contestedThisTick })
     ) {
-      cleanPick = resolveCleanPick({
-        tunables,
-        qb,
-        tick,
-        threats,
-        climbLane,
-        stepUpsUsed,
-        moveOffered: cleanPocket.move && !cleanMoveUsed,
-        escapeOffered: cleanPocket.breakOut,
-        movementRng,
-      });
+      const pick = { tunables, qb, tick, threats, climbLane, stepUpsUsed, moveOffered: cleanPocket.move && !cleanMoveUsed, movementRng };
+      // ADR-089 step 6 (plan §2.3; AM-13 `escapeCap`): under the cap ESCAPE is offered only while his
+      // one escape is not spent; without it, as at 5a.
+      const escapeOpen = escapeCap === undefined || escapeLeft(escapeCap, escapesSpent);
+      cleanPick = resolveCleanPick({ ...pick, escapeOffered: cleanPocket.breakOut && escapeOpen });
+      // ADR-089 step 6 (plan §2.3; AM-13 `spentChecklist`, by the owner's answer): THE SPENT CASE.
+      // On a clean expiry with his move used or not offered and his escape spent the pick offers
+      // nothing, and the answer's branch runs (`spentBranch`): a second escape offered at the pick,
+      // a throw on today's decision roll to the tick's candidates with no floor (a hold when he has
+      // read nobody), the path below as today, or a hold with no die, no throwaway and no
+      // CLOCK_EXPIRED, after which he keeps reading.
+      if (cleanPick === undefined && escapeCap !== undefined && cleanPocket.breakOut && !escapeOpen) {
+        const branch = spentBranch(escapeCap, escapeRolls);
+        if (branch === "SECOND_ESCAPE") {
+          cleanPick = resolveCleanPick({ ...pick, escapeOffered: true });
+        } else if (branch === "BELOW_30" && candidates.length > 0) {
+          outcome = throwTo(selectTarget(tunables, qb, candidates, qbReadRng.fork(`t${tick.toFixed(1)}:decision`)), outletId);
+          break;
+        } else if (branch !== "TODAYS_PATH") {
+          log.qbDecision("HOLD");
+          tick = Number((tick + tunables.clock.tickStepSeconds).toFixed(1));
+          continue;
+        }
+      }
     }
     if (forced || cleanPick !== undefined) {
       const movement =
@@ -2062,6 +2082,8 @@ export function simulatePassPlayWith(
           climbLane,
           stepUpsUsed,
           throwawayAvailable: inPocketThrowaway(),
+          // ADR-089 step 6 (plan §2.3): under the cap no ESCAPE once his one escape is spent.
+          ...(escapeCap === undefined ? {} : { escapeAvailable: escapeLeft(escapeCap, escapesSpent) }),
           movementRng: movementRng.fork(`t${tick.toFixed(1)}:movement`),
         });
       log.check(movement.check);
@@ -2105,6 +2127,11 @@ export function simulatePassPlayWith(
           ...(cleanPick !== undefined ? { urgency: 0 } : {}),
         });
         log.check(escape.check);
+        // ADR-089 step 6 (plan §2.3): under the cap the roll is counted, and spends the escape by its band.
+        if (escapeCap !== undefined) {
+          escapeRolls += 1;
+          if (escapeRollSpends(escapeCap, escape.band)) escapesSpent += 1;
+        }
         if (escape.sacked) {
           // ADR-007 — the man who got him is PUBLISHED, not left to be inferred.
           //

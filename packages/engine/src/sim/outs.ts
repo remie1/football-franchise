@@ -27,10 +27,17 @@
  *   `ZERO_GAIN_ONLY` a scramble run that gains nothing ends where he is, at minus the card's
  *   `dropDepthYards` (5.0 shotgun, 7.0 under center, D22), its zone events the run as played; under
  *   `EVERY_RUN` every run starts there. The run's dice do not change.
+ * - **2.3 The escape cap and the spent case** (`escapeRollSpends`, `escapeLeft`, `spentBranch`;
+ *   AM-13 `escapeCap`, CHOSEN, and `spentChecklist`, by the owner's answer, `HOLD` recommended and
+ *   each bundle's default until then): one escape roll a play, forced or clean, so once a `scramble`
+ *   CHECK is drawn ESCAPE is offered at no later pick (`rankResponses`' `escapeAvailable` at the
+ *   forced pick, the clean pick's `escapeOffered` at the call site). On a clean expiry with his move
+ *   used or not offered and his escape spent, the clean pick offers nothing, and the call site runs
+ *   the answer's branch.
  *
  * No die is drawn here.
  */
-import type { ScrambleStart } from "../tunables.js";
+import type { EscapeCapTunables, ScrambleStart } from "../tunables.js";
 
 // ---- 2.1 the real throwaway rule ---------------------------------------------------------------
 
@@ -90,4 +97,55 @@ export function scrambleStartYards(start: ScrambleStart, dropDepthYards: number)
  */
 export function scrambleRunYards(start: ScrambleStart, dropDepthYards: number, runYards: number): number {
   return start === "ZERO_GAIN_ONLY" && runYards <= 0 ? -dropDepthYards : runYards;
+}
+
+// ---- 2.3 the escape cap and the spent case -----------------------------------------------------
+
+/**
+ * 2.3 (AM-13 `escapeCap`): whether an escape roll of this band spends the play's escape. Every roll
+ * does, but under `CONTAINED_DOES_NOT_SPEND`, where a CONTAINED roll does not (CLEAN_ESCAPE, ESCAPED
+ * and CAUGHT_FROM_BEHIND do), so ESCAPE is offered again at a later pick.
+ */
+export function escapeRollSpends(cap: EscapeCapTunables, band: string): boolean {
+  return cap.whenSpent !== "CONTAINED_DOES_NOT_SPEND" || band !== "CONTAINED";
+}
+
+/**
+ * 2.3: whether ESCAPE may be offered at a pick, forced or clean, after `spent` escape rolls that
+ * spent the escape: fewer than the cap's one a play (`maxPerPlay`).
+ */
+export function escapeLeft(cap: EscapeCapTunables, spent: number): boolean {
+  return spent < cap.maxPerPlay;
+}
+
+/**
+ * 2.3: what the call site does in the spent case. `HOLD`: no die, no throwaway, no CLOCK_EXPIRED, and
+ * he keeps reading. `TODAYS_PATH`: no die, and the path after the pick runs as today (a
+ * CLOCK_EXPIRED throwaway where the throwaway rule, or without it the 2.0 s gate, allows one, else a
+ * hold). `SECOND_ESCAPE`: the clean pick offers ESCAPE once more. `BELOW_30`: no movement die, and
+ * today's decision roll on the tick's candidates with no floor, in place of D23's at 30.
+ */
+export type SpentBranch = "HOLD" | "TODAYS_PATH" | "SECOND_ESCAPE" | "BELOW_30";
+
+/**
+ * 2.3 (AM-13 `spentChecklist`, by the owner's answer, the five options of the step-6 filing §4.4):
+ * the spent case's branch, after `rolls` escape rolls on the play. Under `SECOND_ESCAPE` the one
+ * second escape roll a play may have is offered while the play has drawn no more than the cap's
+ * one, and once it is drawn the case holds (CHOSEN: the option names no branch past it, and HOLD
+ * keeps the clean pocket's throwaway out as the recommended answer does). Under
+ * `CONTAINED_DOES_NOT_SPEND` the one spent case left, a quarterback shed on a caught escape (2.8),
+ * holds, as the option states.
+ */
+export function spentBranch(cap: EscapeCapTunables, rolls: number): SpentBranch {
+  switch (cap.whenSpent) {
+    case "HOLD":
+    case "CONTAINED_DOES_NOT_SPEND":
+      return "HOLD";
+    case "TODAYS_PATH":
+      return "TODAYS_PATH";
+    case "SECOND_ESCAPE":
+      return rolls <= cap.maxPerPlay ? "SECOND_ESCAPE" : "HOLD";
+    case "BELOW_30":
+      return "BELOW_30";
+  }
 }

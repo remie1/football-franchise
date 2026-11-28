@@ -1321,7 +1321,9 @@ describe("ADR-004 roll accounting", () => {
    *  27. the throwaway rule alone draws s5a's rolls, label and value, in order, up to the first tick
    *      on which the rule is read (the forced pick or the CLOCK_EXPIRED path); the scramble start
    *      `ZERO_GAIN_ONLY` draws them all (it moves yards, not dice), and `EVERY_RUN` draws them up to
-   *      the scramble run's first carrier die;
+   *      the scramble run's first carrier die; the escape cap draws them up to the first pick after
+   *      the play's first escape roll under HOLD, TODAYS_PATH, SECOND_ESCAPE and BELOW_30, and all of
+   *      them under CONTAINED_DOES_NOT_SPEND (without 2.8's shed a roll that spends ends the pocket);
    *  28. after each cut no family is new over s5a's (the carrier's labels left out and the rush
    *      bucket's men read as one, as step 5a's pairing reads them): the parts built so far draw no
    *      new die, and the later parts' families (`:deadline`, `:drill:`, a contest at the escape)
@@ -1353,9 +1355,16 @@ describe("ADR-004 roll accounting", () => {
      * `MOVES` (some play parts from the base), `NEVER` (no play does), or `MAY` (EVERY_RUN: a run
      * that starts behind the line draws the base's zone dice unless a broken tackle carries the base
      * past a zone the run must still play, or the goal line ends one run and not the other, which
-     * these seeds need not show).
+     * these seeds need not show). `minCut`: the fewest plays these seeds must cut, 20 unless stated
+     * (the escape cap acts only after a first escape roll that leaves him in the pocket).
      */
-    type Part = { readonly name: string; readonly block: OutsTunables; readonly cut: (base: Rolls) => number | undefined; readonly dice: "MOVES" | "NEVER" | "MAY" };
+    type Part = {
+      readonly name: string;
+      readonly block: OutsTunables;
+      readonly cut: (base: Rolls) => number | undefined;
+      readonly dice: "MOVES" | "NEVER" | "MAY";
+      readonly minCut?: number;
+    };
     const PARTS: readonly Part[] = [
       {
         name: "the throwaway rule",
@@ -1375,6 +1384,27 @@ describe("ADR-004 roll accounting", () => {
           return k < 0 ? undefined : k;
         },
         dice: "MAY",
+      },
+      ...(["HOLD", "TODAYS_PATH", "SECOND_ESCAPE", "BELOW_30"] as const).map(
+        (whenSpent): Part => ({
+          name: `the escape cap, ${whenSpent}`,
+          block: outsParts({ escapeCap: { maxPerPlay: 1, whenSpent } }),
+          cut: (base) => {
+            const first = base.findIndex((r) => r.label.endsWith(":scramble"));
+            if (first < 0) return undefined;
+            const k = base.findIndex((r, i) => i > first && /:(movement|clean)$/.test(r.label));
+            return k < 0 ? undefined : k;
+          },
+          // SECOND_ESCAPE's second roll is the one s5a's clean pick would draw with his move used.
+          dice: whenSpent === "SECOND_ESCAPE" ? "MAY" : "MOVES",
+          minCut: 5,
+        }),
+      ),
+      {
+        name: "the escape cap, CONTAINED_DOES_NOT_SPEND",
+        block: outsParts({ escapeCap: { maxPerPlay: 1, whenSpent: "CONTAINED_DOES_NOT_SPEND" } }),
+        cut: () => undefined,
+        dice: "NEVER",
       },
     ];
     const SEEDS = 30;
@@ -1406,7 +1436,7 @@ describe("ADR-004 roll accounting", () => {
         const added = [...armFamilies].filter((f) => !f.includes("/carrier/") && !baseKinds.has(kind(f)));
         expect(added, `${part.name}: ${JSON.stringify(added)}`).toEqual([]);
         if (part.dice === "NEVER") expect(differ, part.name).toBe(0);
-        else expect(cutPlays, part.name).toBeGreaterThan(20);
+        else expect(cutPlays, part.name).toBeGreaterThan(part.minCut ?? 20);
         // The part acts: some plays part from the base after their cut.
         if (part.dice === "MOVES") expect(differ, part.name).toBeGreaterThan(0);
       }
@@ -1414,7 +1444,7 @@ describe("ADR-004 roll accounting", () => {
 
     it("no RollDetail twice in a play under every part built so far, and no later part's family (29)", () => {
       // Every part built so far, the bundles' default leaf where a part has two.
-      const together = outsParts({ throwawayRule: true, scrambleStart: "ZERO_GAIN_ONLY" });
+      const together = outsParts({ throwawayRule: true, scrambleStart: "ZERO_GAIN_ONLY", escapeCap: { maxPerPlay: 1, whenSpent: "HOLD" } });
       const LATER = /:deadline$|:drill:|:contact(:|$)|:dodge(:|$)|:alarm(:|$)/;
       let rolls = 0;
       for (const { name, tunables, fixtures } of BASES) {

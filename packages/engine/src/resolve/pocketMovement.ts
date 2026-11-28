@@ -84,6 +84,12 @@ export interface PocketMovementArgs {
   readonly stepUpsUsed: number;
   /** §8.7 — a throwaway is only legal once the concept has had time to develop. */
   readonly throwawayAvailable: boolean;
+  /**
+   * ADR-089 step 6 (plan §2.3; AM-13 `escapeCap`): false when the play's one escape is spent, so
+   * ESCAPE is not offered. Left out, as every rule set before step 6 and a block without the cap
+   * leave it, ESCAPE is offered as today.
+   */
+  readonly escapeAvailable?: boolean;
   readonly movementRng: Rng;
 }
 
@@ -162,6 +168,8 @@ export function rankResponses(args: {
   readonly climbLane: ClimbLaneRule;
   readonly stepUpsUsed: number;
   readonly throwawayAvailable: boolean;
+  /** ADR-089 step 6 (plan §2.3): false filters ESCAPE, as `throwawayAvailable` filters THROWAWAY; left out, today's. */
+  readonly escapeAvailable?: boolean;
   /**
    * ADR-089 step 5a (D27; the Orchestrator's ruling on the clean pick's urgency): the urgency the
    * appeals are computed at, when the caller states it. Only the clean pick states it (0: a tick
@@ -180,6 +188,7 @@ export function rankResponses(args: {
     const response = RESPONSE_BY_APPEAL_KEY[key];
     if (response === "STEP_UP" && !canClimb) continue;
     if (response === "THROWAWAY" && !args.throwawayAvailable) continue;
+    if (response === "ESCAPE" && args.escapeAvailable === false) continue;
     const spec: AppealSpec = t.appeal[key];
     let appeal = appealFrom(tunables, args.qb, spec, urgency);
     // The bonus that makes interior pressure hurt: with the climb lane gone,
