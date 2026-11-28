@@ -20,6 +20,12 @@
  *   Each side is credited in the ratings its own roll used (its modifiers' `attr`). Checks that
  *   re-read an earlier roll (`rollRef`, e.g. a pass-rush tick jittering its rep) are not counted
  *   again. A tie (margin 0) is neither.
+ * - Ratings rolled (ADR-087 G2, §12.13; only with `uses: true`, which the growth curve asks for):
+ *   every `CHECK` that rolls (not a re-read, `rollRef`) counts once, for each rating its roll's
+ *   modifiers name: the first actor's `roll`; the second actor's `opposedRoll` when there is one; on a
+ *   stunt call (`stunt_communication`) the exchange partner, who rolls the same awareness. Other
+ *   actors of a many-actor check are not credited (the event names one roll's player only), and
+ *   modifiers carry no player of their own. Without `uses`, no report carries the count.
  */
 import type { AttrId, GameParticipation, MatchEvent, MatchEventEnvelope, PlayerId, RollDetail, TeamId } from "@ff/contracts";
 import type { GameSnapshot } from "@ff/engine";
@@ -41,7 +47,7 @@ function named(card: unknown, known: ReadonlyMap<string, TeamId>, out: Set<strin
 /** The ratings one side of a contest used: its roll's modifiers that name a rating, each once. */
 const attrsOf = (roll: RollDetail): AttrId[] => [...new Set(roll.modifiers.flatMap((m) => (m.attr === undefined ? [] : [m.attr])))];
 
-export function participationFrom(events: readonly MatchEventEnvelope[], snapshot: GameSnapshot): GameParticipation[] {
+export function participationFrom(events: readonly MatchEventEnvelope[], snapshot: GameSnapshot, opts: { readonly uses?: boolean } = {}): GameParticipation[] {
   const teams = [snapshot.home, snapshot.away];
   const teamOf = new Map<string, TeamId>();
   for (const t of teams) for (const id of Object.keys(t.players)) teamOf.set(id, t.team);
@@ -61,6 +67,18 @@ export function participationFrom(events: readonly MatchEventEnvelope[], snapsho
       mine.set(String(attr), c);
     }
     contests.set(String(player), mine);
+  };
+  const counting = opts.uses === true;
+  const uses = new Map<string, Map<string, { attr: AttrId; n: number }>>();
+  const use = (player: PlayerId | undefined, attrs: readonly AttrId[]) => {
+    if (player === undefined || attrs.length === 0) return;
+    const mine = uses.get(String(player)) ?? new Map<string, { attr: AttrId; n: number }>();
+    for (const attr of attrs) {
+      const u = mine.get(String(attr)) ?? { attr, n: 0 };
+      u.n += 1;
+      mine.set(String(attr), u);
+    }
+    uses.set(String(player), mine);
   };
 
   let offense: TeamId | undefined;
@@ -91,6 +109,11 @@ export function participationFrom(events: readonly MatchEventEnvelope[], snapsho
         break;
       case "CHECK": {
         const c = e.payload;
+        if (counting && c.rollRef === undefined && c.roll !== undefined && c.actors.length > 0) {
+          use(c.actors[0], attrsOf(c.roll));
+          if (c.opposedRoll !== undefined) use(c.actors[1], attrsOf(c.opposedRoll));
+          else if (c.checkKind === "stunt_communication") use(c.actors[1], attrsOf(c.roll));
+        }
         if (c.opposedRoll === undefined || c.actors.length !== 2 || c.rollRef !== undefined || c.margin === 0) break;
         credit(c.actors[0]!, attrsOf(c.roll), c.margin > 0);
         credit(c.actors[1]!, attrsOf(c.opposedRoll), c.margin < 0);
@@ -102,11 +125,15 @@ export function participationFrom(events: readonly MatchEventEnvelope[], snapsho
   }
 
   const out: GameParticipation[] = [];
-  const ids = [...new Set([...snaps.keys(), ...contests.keys()])].filter((id) => teamOf.has(id)).sort();
+  const ids = [...new Set([...snaps.keys(), ...contests.keys(), ...uses.keys()])].filter((id) => teamOf.has(id)).sort();
   for (const id of ids) {
     const s = snaps.get(id) ?? { offense: 0, defense: 0, special: 0 };
     const c = [...(contests.get(id)?.values() ?? [])].sort((a, b) => String(a.attr).localeCompare(String(b.attr)));
-    out.push({ player: id as PlayerId, team: teamOf.get(id)!, snaps: { offense: s.offense, defense: s.defense, special: s.special }, contests: c });
+    const u = [...(uses.get(id)?.values() ?? [])].sort((a, b) => String(a.attr).localeCompare(String(b.attr)));
+    out.push({
+      player: id as PlayerId, team: teamOf.get(id)!, snaps: { offense: s.offense, defense: s.defense, special: s.special }, contests: c,
+      ...(counting ? { uses: u } : {}),
+    });
   }
   return out;
 }

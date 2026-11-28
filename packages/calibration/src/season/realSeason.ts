@@ -152,7 +152,17 @@ export function agingOf(s: PlayerSwitches | undefined): AgingSwitches {
     ...(s.healingByAge === undefined ? {} : { healingByAge: s.healingByAge }),
     ...(s.perContact === undefined ? {} : { perContact: s.perContact }),
     ...(s.retirement === undefined ? {} : { retirement: s.retirement }),
+    ...(s.growth === undefined ? {} : { growth: s.growth }),
   };
+}
+
+/**
+ * ADR-087 §12.13: does the growth curve act under these switches (development on, the ability path,
+ * `growth: "curve"`)? Then the resolver counts every rating rolled (G2) and the meeting reads the
+ * typical man's growth; otherwise neither, so a run without the curve passes what it did before.
+ */
+export function growthCurveOn(s: PlayerSwitches | undefined): boolean {
+  return s?.development === true && s.aging === "ability" && s.growth === "curve";
 }
 const switchedOn = (s: PlayerSwitches | undefined): boolean => s?.development === true || s?.injuries === true;
 
@@ -289,7 +299,7 @@ function asFielded(p: PlayerState): PlayerState {
  * who cannot play, fields the ones playing hurt with their penalties, and returns the who-played
  * report beside the result.
  */
-export function peopleResolver(rated: AnyProvenancedLeague, opts: Omit<RealSimOptions, "rated"> = {}): GameResolver {
+export function peopleResolver(rated: AnyProvenancedLeague, opts: Omit<RealSimOptions, "rated"> & { readonly uses?: boolean } = {}): GameResolver {
   const rules = opts.rules ?? DEFAULT_LEAGUE_RULES;
   return (game, seed, people) => {
     if (people === undefined) throw new Error("peopleResolver: the season hands its people to the resolver, and none came");
@@ -318,7 +328,8 @@ export function peopleResolver(rated: AnyProvenancedLeague, opts: Omit<RealSimOp
     });
     // The result and the who-played report first, then the watcher (review NPC-N2): the report
     // feeds development and injuries, and so later games, and nothing the watcher does reaches it.
-    const resolved = { result: resultOf(game, seed, observation.summary), extras: { participation: participationFrom(observation.events, built.snapshot) } };
+    const counted = opts.uses === true ? { uses: true } : {};
+    const resolved = { result: resultOf(game, seed, observation.summary), extras: { participation: participationFrom(observation.events, built.snapshot, counted) } };
     opts.onGame?.(observation, game, built.snapshot);
     return resolved;
   };
@@ -487,11 +498,11 @@ export function runRealSeason(input: RealSeasonInput): { league: League; rated?:
   })();
   const run = runSeason({
     ...common,
-    resolve: peopleResolver(squads, { rules, ...caller, ...games }),
+    resolve: peopleResolver(squads, { rules, ...caller, ...games, ...(growthCurveOn(input.players) ? { uses: true } : {}) }),
     people,
     through: "YEAR",
     // ADR-081: with the coaches, each team's end-of-season meeting too (before the carousel).
-    ...(people.coaching ? { coaching: {}, meeting: {} } : {}),
+    ...(people.coaching ? { coaching: {}, meeting: growthCurveOn(input.players) ? { growth: "curve" as const } : {} } : {}),
     players: {
       development,
       injuries: input.players?.injuries === true,

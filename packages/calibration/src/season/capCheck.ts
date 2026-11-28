@@ -34,7 +34,7 @@ import { buildLeague, buildStaff, capForecast, runSeason, teamCapTotal, type Lea
 import { generateDraftClass } from "@ff/attributes";
 import type { CallerVersion } from "../caller/anticipate.js";
 import { unfilledPosition } from "./lineup.js";
-import { agingOf, peopleResolver, type PlayerSwitches, type SeasonPeople } from "./realSeason.js";
+import { agingOf, growthCurveOn, peopleResolver, type PlayerSwitches, type SeasonPeople } from "./realSeason.js";
 import { buildStandInLeague, type readStandInFile } from "./standInLeague.js";
 
 type StandInFile = ReturnType<typeof readStandInFile> & {
@@ -371,7 +371,9 @@ export function runCapCheck(input: CapCheckInput): CapYear[] {
   } : {};
   // The coaches' steps (ADR-084: views, weekly drift, the carousel) and the end-of-season meeting
   // (ADR-081), as `runRealSeason` runs them with a coaching world; switched off, neither.
-  const coachingSteps: Pick<SeasonInput, "coaching" | "meeting"> = switched ? { coaching: {}, meeting: {} } : {};
+  // ADR-087 §12.13: under the growth curve the meetings read the typical man's growth, and the games count every rating rolled.
+  const curve = growthCurveOn(input.players);
+  const coachingSteps: Pick<SeasonInput, "coaching" | "meeting"> = switched ? { coaching: {}, meeting: curve ? { growth: "curve" } : {} } : {};
   // The day watcher: a day step that only looks, first in the day's order; absent, no step is added.
   const { onDay, onEvent } = input;
   const watchers = (season: number): Pick<SeasonInput, "daySteps" | "onEvent"> => ({
@@ -392,7 +394,7 @@ export function runCapCheck(input: CapCheckInput): CapYear[] {
     const run = runSeason({
       league: { ...current, teams: people.teams },
       season, seed: `${input.seed}/${season}`,
-      resolve: peopleResolver(rated, input.callerVersion === undefined ? {} : { callerVersion: input.callerVersion }),
+      resolve: peopleResolver(rated, { ...(input.callerVersion === undefined ? {} : { callerVersion: input.callerVersion }), ...(curve ? { uses: true } : {}) }),
       people,
       through: "YEAR",
       leagueYear: { rate, cap },

@@ -135,4 +135,33 @@ describe("participationFrom on a real game", () => {
   it("is the same report for the same game", () => {
     expect(participationFrom(observation.events, built.snapshot)).toEqual(report);
   });
+
+  // ADR-087 G2 (§12.13): every rating rolled, only when asked.
+  const counted = participationFrom(observation.events, built.snapshot, { uses: true });
+
+  it("carries no count of ratings rolled unless asked, and asked, the same snaps and contests beside it", () => {
+    expect(report.every((r) => !("uses" in r))).toBe(true);
+    expect(counted.map(({ uses: _uses, ...rest }) => rest)).toEqual(report);
+    expect(counted.every((r) => Array.isArray(r.uses))).toBe(true);
+    expect(participationFrom(observation.events, built.snapshot, { uses: true })).toEqual(counted);
+  });
+
+  it("counts each rolling check once a rating, for its first actor, the opposed roll's second actor, and a stunt call's partner", () => {
+    let expected = 0;
+    for (const e of events) {
+      if (e.type !== "CHECK" || e.payload.rollRef !== undefined || e.payload.roll === undefined || e.payload.actors.length === 0) continue;
+      const names = (r: NonNullable<typeof e.payload.roll>) => new Set(r.modifiers.flatMap((m) => (m.attr === undefined ? [] : [m.attr]))).size;
+      const onTeam = (pid: unknown) => pid !== undefined && [built.snapshot.home, built.snapshot.away].some((t) => String(pid) in t.players);
+      if (onTeam(e.payload.actors[0])) expected += names(e.payload.roll);
+      if (e.payload.opposedRoll !== undefined) { if (onTeam(e.payload.actors[1])) expected += names(e.payload.opposedRoll); }
+      else if (e.payload.checkKind === "stunt_communication" && onTeam(e.payload.actors[1])) expected += names(e.payload.roll);
+    }
+    const total = counted.reduce((n, r) => n + r.uses!.reduce((m, u) => m + u.n, 0), 0);
+    expect(total).toBe(expected);
+    expect(total).toBeGreaterThan(counted.reduce((n, r) => n + r.contests.reduce((m, c) => m + c.won + c.lost, 0), 0));
+    // Every rating a man won or lost a contest in, he rolled at least that often; passes are counted, which contests leave out.
+    for (const r of counted) for (const c of r.contests) expect(r.uses!.find((u) => u.attr === c.attr)!.n, `${String(r.player)} ${String(c.attr)}`).toBeGreaterThanOrEqual(c.won + c.lost);
+    const qb = counted.find((r) => r.player === built.snapshot.home.offense.quarterback)!;
+    expect(qb.uses!.some((u) => String(u.attr) === "accuracy" && u.n > 0)).toBe(true);
+  });
 });
