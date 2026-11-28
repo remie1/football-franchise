@@ -87,6 +87,11 @@ import {
   caughtFactsOf,
   caughtHitOf,
   caughtShedDelaySeconds,
+  DRILL_BURST_STEPS,
+  drillDefenderOf,
+  drillGainOf,
+  drillOrder,
+  drillRepOf,
   escapeLeft,
   escapeRollSpends,
   escapeTermsOf,
@@ -2399,6 +2404,30 @@ export function simulatePassPlayWith(
           // §8.8 — receivers stop running routes and find open grass from here.
           for (const track of tracks) {
             track.scrambleBaseOpenness = currentOpenness(tunables, track, tick, undefined);
+          }
+          // ADR-089 step 6 (plan §2.9; AM-13 `drill`; P12): THE DRILL'S FRESH REP, after the pursuit
+          // clock and the resets and before the SCRAMBLE decision. Each eligible receiver (on a route,
+          // his rep resolved), in his read order and then card order, gets one rep against the
+          // defender already on him: a covered man one d100 on `movement/t<tick>:drill:<receiverId>`,
+          // recorded on a `scramble_drill` CHECK that names this escape's `scramble` CHECK (P12's
+          // stand-in until the lift); a man in a hole is TRAILING with no die. His scramble base gains
+          // burst steps for where the rep leaves his defender, before the clamp. Openness only: the
+          // track's `contestPosition`, which the passing-lane and catch rules read, is never written
+          // (D25).
+          if (outs?.drill === true) {
+            for (const track of drillOrder(tracks, readOrder)) {
+              const dice =
+                drillDefenderOf(track) === undefined ? undefined : movementRng.fork(`t${tick.toFixed(1)}:drill:${String(track.receiver.bio.id)}`);
+              const rep = drillRepOf({
+                tunables,
+                track,
+                face: dice === undefined ? undefined : { face: dice.d100(), rngLabel: dice.label },
+                rollRef: escape.check.roll.rngLabel,
+              });
+              if (rep.check !== undefined) log.scrambleDrill(rep.check);
+              const base = track.scrambleBaseOpenness;
+              if (base !== undefined) track.scrambleBaseOpenness = base + drillGainOf(tunables, rep.position, DRILL_BURST_STEPS);
+            }
           }
           // ADR-089 step 6 (plan §2.6; P11): under direction, the side he broke to, on this
           // SCRAMBLE and the contained HOLD below only (never the deadline's SCRAMBLE).

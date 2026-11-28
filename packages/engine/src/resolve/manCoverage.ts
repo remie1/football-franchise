@@ -43,8 +43,11 @@ export interface ManCoverageOutcome {
  * Both sides' modifiers for one rep. Shared by the rolled rep and the typical one, so the
  * expectation a quarterback forms before the snap is built from exactly the terms the
  * snap resolves.
+ *
+ * ADR-089 step 6 (plan §2.9): exported for the drill's fresh rep (`sim/outs.ts`), which reads
+ * both sides with no release carry-over. Unchanged in behavior.
  */
-function manCoverageModifiers(
+export function manCoverageModifiers(
   tunables: Tunables,
   receiver: PlayerState,
   defender: PlayerState,

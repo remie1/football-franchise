@@ -74,28 +74,41 @@
  *   and keeps the label rule (no die when that man's label was drawn on that tick: the catch is his
  *   sack). On a shed a live man's threat goes back by his approach, as step 4's, and a blocked man
  *   stays in his block. A catch that names nobody stays today's sack with no sacker.
+ * - **2.9 The drill's fresh rep** (`drillOrder`, `drillDefenderOf`, `drillRepOf`, `drillGainOf`;
+ *   AM-13 `drill`, P12): at every escape he wins, clean or forced, each eligible receiver (his rep
+ *   resolved) runs a fresh rep against the man on him, in his read order and then card order. A
+ *   covered man rolls one d100: in man his Route Running, Agility and Route Technician against the
+ *   d100's mean plus the defender's Man Coverage, Agility and Shutdown, in zone his Route Running and
+ *   Route Technician against the zone rep's own target, with no release carry-over either way. The
+ *   margin maps through that coverage's band table to TRAILING, EVEN or IN_FRONT, and the rep is a
+ *   `scramble_drill` CHECK (P12, the stand-in until the lift) whose band is that word. A man in a
+ *   hole is TRAILING with no die. The position moves openness only: two burst steps of the route's
+ *   gain by position (+20, +10 or 0) go onto the base the scramble drill climbs from. Nothing here
+ *   writes a contest position, so every contested catch reads his coverage rep's (D25).
  * - **2.12 The failed scramble scored as a sack** (AM-13 `rescoring`) has no function here: the
  *   call site writes `PLAY_START.scoring` under `failedScrambleSack`, and every reader keys the rule
  *   on that marker (`stats/statline.ts` in the engine).
  *
- * No die is drawn here: where a part rolls (2.8's contest), the call site draws the faces on the
- * play's labels and hands them in.
+ * No die is drawn here: where a part rolls (2.8's contest, 2.9's drill), the call site draws the
+ * faces on the play's labels and hands them in.
  */
 import { getAttr } from "@ff/contracts";
-import type { PlayerId, PlayerState } from "@ff/contracts";
+import type { AttrId, PlayerId, PlayerState, RollDetail } from "@ff/contracts";
 import { ATTR } from "../attrs.js";
-import { ARRIVAL_CONTEST_KIND } from "../events.js";
-import type { ArrivalContestEmission, QbHitRecord } from "../events.js";
+import { ARRIVAL_CONTEST_KIND, SCRAMBLE_DRILL_KIND } from "../events.js";
+import type { ArrivalContestEmission, QbHitRecord, ScrambleDrillEmission } from "../events.js";
 import { threatSideOf } from "../resolve/approach.js";
 import { arrivalContest, contactFrom, secondArrival, tiltOf } from "../resolve/contact.js";
 import type { ContactFacts } from "../resolve/contact.js";
+import { manCoverageModifiers } from "../resolve/manCoverage.js";
 import { nearestThreat, timeToArrival } from "../resolve/rushThreat.js";
 import type { ArrivalClock, RushThreat } from "../resolve/rushThreat.js";
 import type { ScrambleTerms } from "../resolve/scramble.js";
 import type { PocketMovementBandLabel } from "../resolve/pocketMovement.js";
-import { tierFor } from "../rolls.js";
+import { zoneCoverageModifiers, zoneCoverageTarget } from "../resolve/zoneCoverage.js";
+import { D100_MEAN, bandFor, sumModifiers, tierFor } from "../rolls.js";
 import type { CaughtSeen, ContactTunables, EscapeCapTunables, OutsTunables, ScrambleStart, SideCatchTunables, Tunables } from "../tunables.js";
-import type { RunSide, RushAlignment } from "../types.js";
+import type { ContestPosition, RunSide, RushAlignment } from "../types.js";
 import { onFreeRunClockAtContact, shedDelaySecondsOf } from "./contactTick.js";
 import { loopPartnersAtSnap } from "./freeRunTiming.js";
 import type { LineGamesReplayInput } from "./freeRunTiming.js";
@@ -614,4 +627,138 @@ export function caughtHitOf(a: {
     from: a.facts.from,
     seen: a.facts.seen,
   };
+}
+
+// ---- 2.9 the drill's fresh rep -----------------------------------------------------------------
+
+/**
+ * A receiver as the drill reads him (read only: the drill never writes his contest position, D25).
+ * `coverage` is how he is played: a man defender, or a zone cell with the defender responsible for it
+ * or nobody (a hole).
+ */
+export interface DrillTrack {
+  readonly receiver: PlayerState;
+  readonly coverage: { readonly kind: "MAN"; readonly defender: PlayerState } | { readonly kind: "ZONE"; readonly defender: PlayerState | undefined };
+  /** Set once his rep resolved (his break, or an anticipation that turned him loose early). */
+  readonly baseOpenness: number | undefined;
+}
+
+/**
+ * 2.9 (AM-13 `drill`): the receivers the drill takes at an escape he won, in its order: every
+ * eligible receiver (on a route, his rep resolved) in his read order, then the rest in card order
+ * (the routes as run). Each rep is on its own label, so the order moves no die; it is the order of
+ * the CHECKs.
+ */
+export function drillOrder<T extends DrillTrack>(tracks: readonly T[], readOrder: readonly PlayerId[]): T[] {
+  const rankOf = (t: T): number => {
+    const k = readOrder.findIndex((id) => String(id) === String(t.receiver.bio.id));
+    return k < 0 ? readOrder.length : k;
+  };
+  return tracks
+    .flatMap((track, card) => (track.baseOpenness === undefined ? [] : [{ track, card, rank: rankOf(track) }]))
+    .sort((a, b) => a.rank - b.rank || a.card - b.card)
+    .map((x) => x.track);
+}
+
+/**
+ * 2.9: the defender a receiver's drill is against, the one already on him: his man, or the zone
+ * defender responsible for his cell. `undefined` for a man in a hole, who is TRAILING with no die.
+ */
+export function drillDefenderOf(track: DrillTrack): PlayerState | undefined {
+  return track.coverage.defender;
+}
+
+/** 2.9: the face the call site drew for a covered receiver, on `.../movement/t<tick>:drill:<receiverId>`. */
+export interface DrillFace {
+  readonly face: number;
+  readonly rngLabel: string;
+}
+
+/** 2.9: where a receiver's drill leaves his defender, and its CHECK when a die was drawn. */
+export interface DrillRep {
+  readonly position: ContestPosition;
+  readonly check?: ScrambleDrillEmission;
+}
+
+/** The ratings a man rep reads on both sides, as its own CHECK lists them (`resolve/manCoverage.ts`). */
+const DRILL_MAN_ATTRS: readonly AttrId[] = [ATTR.routeRunning, ATTR.agility, ATTR.manCoverage];
+/** The ratings a zone rep reads, as its own CHECK lists them (`resolve/zoneCoverage.ts`). */
+const DRILL_ZONE_ATTRS: readonly AttrId[] = [ATTR.routeRunning, ATTR.zoneCoverage];
+
+/**
+ * 2.9 (AM-13 `drill`, CHOSEN; P12): one receiver's fresh rep at an escape he won, from the face the
+ * call site drew. "One d100 per receiver" cannot be today's opposed man rep, which draws two, so:
+ *
+ * - **Man coverage:** his d100 plus his side of his route's own rep, its ratings and traits (Route
+ *   Running, Agility and the Route Technician trait; `manCoverageModifiers` with no release
+ *   carry-over), against the defender's side with no die: the d100's mean (`D100_MEAN`, 50.5) plus
+ *   his Man Coverage, Agility and the Shutdown trait, as ADR-070 §3's typical rep reads him
+ *   (`typicalManCoverage`). The target is never a whole number, so a margin never sits on a band
+ *   boundary. The margin maps through the man band table.
+ * - **Zone coverage:** his d100 plus Route Running and the Route Technician trait
+ *   (`zoneCoverageModifiers`) against the zone rep's own target (`zoneCoverageTarget`), through the
+ *   zone band table, as the zone rep's own roll does.
+ * - **Uncovered** (nobody responsible for his cell): TRAILING with no die
+ *   (`zoneCoverage.uncoveredContestPosition`), and no CHECK.
+ *
+ * The band's contest position is where the defender stands after the drill: TRAILING, EVEN or
+ * IN_FRONT, and the CHECK's `band` is that word. The CHECK (`scramble_drill`, P12's stand-in until the
+ * lift): actors the receiver then the defender; `roll` his d100 with its modifiers; no
+ * `opposedRoll`; `target` the defender's side; `margin` and its `tier`; `testsAttrs` the ratings
+ * read on both sides, as the coverage rep's own CHECK lists them; `rollRef` the escape's `scramble`
+ * CHECK. No die is drawn here, and nothing here writes the receiver's track.
+ */
+export function drillRepOf(a: {
+  readonly tunables: Tunables;
+  readonly track: DrillTrack;
+  /** The face, for a covered receiver only. */
+  readonly face: DrillFace | undefined;
+  /** The escape's `scramble` CHECK. */
+  readonly rollRef: string;
+}): DrillRep {
+  const { tunables, track } = a;
+  const defender = drillDefenderOf(track);
+  if (defender === undefined) {
+    if (a.face !== undefined) throw new Error(`@ff/engine: a drill die for ${String(track.receiver.bio.id)}, who has nobody on him`);
+    return { position: tunables.zoneCoverage.uncoveredContestPosition };
+  }
+  if (a.face === undefined) throw new Error(`@ff/engine: no drill die for ${String(track.receiver.bio.id)}, who is covered`);
+  const man = track.coverage.kind === "MAN";
+  const sides = man ? manCoverageModifiers(tunables, track.receiver, defender, undefined, undefined) : undefined;
+  const modifiers = sides === undefined ? zoneCoverageModifiers(tunables, track.receiver) : sides.receiverMods;
+  const target = sides === undefined ? zoneCoverageTarget(tunables, defender) : D100_MEAN + sumModifiers(sides.defenderMods);
+  const roll: RollDetail = { die: "d100", raw: a.face.face, modifiers: [...modifiers], total: a.face.face + sumModifiers(modifiers), rngLabel: a.face.rngLabel };
+  const margin = roll.total - target;
+  const position = man ? bandFor(tunables.manCoverage.bands, margin).contest : bandFor(tunables.zoneCoverage.bands, margin).contest;
+  return {
+    position,
+    check: {
+      checkKind: SCRAMBLE_DRILL_KIND,
+      actors: [track.receiver.bio.id, defender.bio.id],
+      roll,
+      target,
+      tier: tierFor(tunables, margin),
+      band: position,
+      margin,
+      testsAttrs: man ? DRILL_MAN_ATTRS : DRILL_ZONE_ATTRS,
+      rollRef: a.rollRef,
+    },
+  };
+}
+
+/**
+ * 2.9: the burst steps the drill gives a receiver, two (+20, +10, 0 by his position after the drill).
+ * Under the side-aware drill a route breaking to the far side gets one (2.10).
+ */
+export const DRILL_BURST_STEPS = 2;
+
+/**
+ * 2.9 and 2.10: what a receiver's drill adds to his scramble base, before the clamp: `steps` burst
+ * steps for his position after the drill, `route.opennessGainPerTick` (5) times the position's burst
+ * multiple (TRAILING 2, EVEN 1, IN_FRONT 0) a step, as the window bump (`bumpFor`) reads one step.
+ * Two steps are +20, +10 or 0; one is +10, +5 or 0. Then today's gain a tick and its cap
+ * (`scrambleOpennessAt`). Openness only: his contest position is never written (D25).
+ */
+export function drillGainOf(tunables: Tunables, position: ContestPosition, steps: number): number {
+  return steps * tunables.route.opennessGainPerTick * tunables.route.contestGain.byContest[position].burst;
 }

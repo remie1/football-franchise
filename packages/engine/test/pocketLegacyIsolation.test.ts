@@ -626,6 +626,7 @@ describe("ADR-089 step 6: no rule set before step 6 runs an outs function (P-18)
     outsParts({ direction: true }),
     outsParts({ direction: true, sideCatch: { perLiveThreat: 10, perUnregistered: 15 } }),
     outsParts({ caughtAsContact: true, caughtSeen: "SEEN" }),
+    outsParts({ drill: true }),
     outsParts({ failedScrambleSack: true }),
   ];
 
@@ -638,6 +639,10 @@ describe("ADR-089 step 6: no rule set before step 6 runs an outs function (P-18)
       "caughtFactsOf",
       "caughtHitOf",
       "caughtShedDelaySeconds",
+      "drillDefenderOf",
+      "drillGainOf",
+      "drillOrder",
+      "drillRepOf",
       "escapeLeft",
       "escapeRollSpends",
       "escapeTermsOf",

@@ -67,6 +67,7 @@ import { CLEAN_POCKET_FILED, DROP_FLOOR_FILED, S5L_TUNABLES, S5S_TUNABLES, S5_TU
 import { throwawayLegalInPocket } from "../src/sim/outs.js";
 import type { OutsTunables } from "../src/tunables.js";
 import { outsParts, playS6, withOuts } from "./step6Fixtures.js";
+import type { Step6Play } from "./step6Fixtures.js";
 import {
   RUN_SCHEMES,
   buildDeflectionScenario,
@@ -1348,9 +1349,19 @@ describe("ADR-004 roll accounting", () => {
     const ticked = (events: readonly MatchEventEnvelope[]) => {
       const tickOfSeq = new Map(events.map((e) => [e.seq, (e.event as { tick?: number }).tick]));
       const bandOfSeq = new Map(events.flatMap((e) => (e.event.type === "CHECK" ? [[e.seq, e.event.payload.band] as const] : [])));
-      return allRolls(events).map((r) => ({ label: r.roll.rngLabel, raw: r.roll.raw, seq: r.seq, tick: tickOfSeq.get(r.seq), band: bandOfSeq.get(r.seq) }));
+      return allRolls(events).map((r) => ({ label: r.roll.rngLabel, raw: r.roll.raw, seq: r.seq, tick: tickOfSeq.get(r.seq), band: bandOfSeq.get(r.seq) as string | undefined }));
     };
     type Rolls = ReturnType<typeof ticked>;
+    /**
+     * A step-6 play's rolls as the stream will carry them at the lift: the stream's, with each drill
+     * CHECK the recorder took (P12's stand-in) put just before the event it stands before.
+     */
+    const lifted = (play: Step6Play): Rolls => {
+      const drills = play.records.flatMap((r) =>
+        r.kind === "scrambleDrill" ? [{ label: r.payload.roll.rngLabel, raw: r.payload.roll.raw, seq: r.at.seq - 0.5, tick: r.at.tick, band: r.payload.band as string | undefined }] : [],
+      );
+      return [...ticked(play.events), ...drills].sort((a, b) => a.seq - b.seq);
+    };
     const BASES: readonly { readonly name: string; readonly tunables: Tunables; readonly fixtures: () => readonly (readonly [string, () => { state: Parameters<typeof simulatePassPlay>[0]; calls: Parameters<typeof simulatePassPlay>[1] }])[] }[] = [
       { name: "s5a", tunables: S5_TUNABLES, fixtures: () => step3Fixtures() },
       { name: "s5a shape S, clean bench", tunables: onCleanBench(S5S_TUNABLES), fixtures: () => PASS_FIXTURES },
@@ -1375,7 +1386,11 @@ describe("ADR-004 roll accounting", () => {
       readonly cut: (base: Rolls) => number | undefined;
       readonly dice: "MOVES" | "NEVER" | "MAY";
       readonly minCut?: number;
+      /** The one new family the part may add (plan §8.2 R-4: 2.9's `:drill:<id>`, 2.11's `:deadline`). */
+      readonly adds?: RegExp;
     };
+    /** The first escape he won, as the base drew it: the drill's cut is the roll after it. */
+    const firstEscapeWon = (base: Rolls): number => base.findIndex((r) => r.label.endsWith(":scramble") && (r.band === "ESCAPED" || r.band === "CLEAN_ESCAPE"));
     const PARTS: readonly Part[] = [
       {
         name: "the throwaway rule",
@@ -1470,6 +1485,18 @@ describe("ADR-004 roll accounting", () => {
         },
         dice: "MOVES",
       },
+      {
+        // 2.9: the drill's dice come after the play's first escape he won, on their own family; the
+        // openness it gives moves the dice after them.
+        name: "the drill",
+        block: outsParts({ drill: true }),
+        cut: (base) => {
+          const k = firstEscapeWon(base);
+          return k < 0 ? undefined : k + 1;
+        },
+        dice: "MOVES",
+        adds: /\/movement\/t#:drill:[^/:]+$/,
+      },
       // 2.12 writes PLAY_START's marker and moves no die.
       { name: "the failed scramble scored as a sack", block: outsParts({ failedScrambleSack: true }), cut: () => undefined, dice: "NEVER" },
     ];
@@ -1488,7 +1515,7 @@ describe("ADR-004 roll accounting", () => {
               const { state, calls } = build();
               vi.mocked(throwawayLegalInPocket).mockClear();
               const base: Rolls = ticked(simulatePassPlay(state, calls, seed, tunables).events);
-              const arm: Rolls = ticked(playS6(state, calls, seed, withOuts(tunables, part.block)).events);
+              const arm: Rolls = lifted(playS6(state, calls, seed, withOuts(tunables, part.block)));
               for (const r of base) baseKinds.add(kind(family(r.label)));
               for (const r of arm) armFamilies.add(family(r.label));
               const cut = part.cut(base);
@@ -1500,7 +1527,8 @@ describe("ADR-004 roll accounting", () => {
           }
         }
         const added = [...armFamilies].filter((f) => !f.includes("/carrier/") && !baseKinds.has(kind(f)));
-        expect(added, `${part.name}: ${JSON.stringify(added)}`).toEqual([]);
+        expect(added.filter((f) => part.adds === undefined || !part.adds.test(f)), `${part.name}: ${JSON.stringify(added)}`).toEqual([]);
+        if (part.adds !== undefined) expect(added.length, `${part.name} adds its family`).toBeGreaterThan(0);
         if (part.dice === "NEVER") expect(differ, part.name).toBe(0);
         else expect(cutPlays, part.name).toBeGreaterThan(part.minCut ?? 20);
         // The part acts: some plays part from the base after their cut.
@@ -1520,22 +1548,26 @@ describe("ADR-004 roll accounting", () => {
         sideCatch: { perLiveThreat: 10, perUnregistered: 15 },
         caughtAsContact: true,
         caughtSeen: "SEEN",
+        drill: true,
         failedScrambleSack: true,
       });
-      const LATER = /:deadline$|:drill:|:contact(:|$)|:dodge(:|$)|:alarm(:|$)/;
+      const LATER = /:deadline$|:contact(:|$)|:dodge(:|$)|:alarm(:|$)/;
       let rolls = 0;
+      let drills = 0;
       for (const { name, tunables, fixtures } of BASES) {
         for (const [fixture, build] of fixtures()) {
           for (let i = 0; i < SEEDS; i++) {
             const { state, calls } = build();
-            const labels = allRolls(playS6(state, calls, `s6-once-${fixture}-${i}`, withOuts(tunables, together)).events).map((r) => r.roll.rngLabel);
+            const labels = lifted(playS6(state, calls, `s6-once-${fixture}-${i}`, withOuts(tunables, together))).map((r) => r.label);
             rolls += labels.length;
+            drills += labels.filter((l) => l.includes(":drill:")).length;
             expect(new Set(labels).size, `${name} ${fixture} ${i}`).toBe(labels.length);
             expect(labels.filter((l) => LATER.test(l)), `${name} ${fixture} ${i}`).toEqual([]);
           }
         }
       }
       expect(rolls).toBeGreaterThan(1000);
+      expect(drills).toBeGreaterThan(20);
     });
   });
 });

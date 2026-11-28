@@ -64,8 +64,11 @@ export interface ZoneCoverageOutcome {
 
 const ZONE_COVERAGE_ATTRS: readonly AttrId[] = [ATTR.routeRunning, ATTR.zoneCoverage];
 
-/** The receiver's side of the rep. Shared by the rolled rep and the typical one. */
-function zoneCoverageModifiers(tunables: Tunables, receiver: PlayerState): RollModifier[] {
+/**
+ * The receiver's side of the rep. Shared by the rolled rep and the typical one. ADR-089 step 6
+ * (plan §2.9): exported for the drill's fresh rep (`sim/outs.ts`). Unchanged in behavior.
+ */
+export function zoneCoverageModifiers(tunables: Tunables, receiver: PlayerState): RollModifier[] {
   return compact([
     actorAttrModifier(receiver, "Route Running", ATTR.routeRunning, tunables.zoneCoverage.receiverAttrDivisor),
     traitModifier(
@@ -77,8 +80,11 @@ function zoneCoverageModifiers(tunables: Tunables, receiver: PlayerState): RollM
   ]);
 }
 
-/** The defender's rating is the TARGET, not a roll (see the module comment). */
-function zoneCoverageTarget(tunables: Tunables, defender: PlayerState): number {
+/**
+ * The defender's rating is the TARGET, not a roll (see the module comment). ADR-089 step 6 (plan
+ * §2.9): exported for the drill's fresh rep (`sim/outs.ts`). Unchanged in behavior.
+ */
+export function zoneCoverageTarget(tunables: Tunables, defender: PlayerState): number {
   const t = tunables.zoneCoverage;
   return t.target + Math.round(getAttr(defender.attributes.values, ATTR.zoneCoverage) / t.defenderAttrDivisor);
 }
