@@ -17,7 +17,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { FLAT_RATING, buildFlatLeague } from "../src/league/flat.js";
 import { indexLeague, type LeagueIndex } from "../src/league/snapshot.js";
 import { emptyAccumulator, foldGame } from "../src/metrics/collect.js";
-import { buildStep6Arm, step6ArmDef, STEP6_PROBE_RATINGS } from "../src/pocket/arms.js";
+import { armById, buildStep6Arm, step6ArmDef, STEP6_PROBE_RATINGS } from "../src/pocket/arms.js";
 import { CORPORA, goldenGames } from "../src/pocket/corpus.js";
 import { gameDigest } from "../src/pocket/golden.js";
 import { registryAttr } from "../src/pocket/freeRun.js";
@@ -139,6 +139,9 @@ describe("the step-6 folds on constructed games, with a golden game's rosters", 
     // A dropback the step-6 reading does not read (a play stamped before step 6) on an agreement arm.
     const early = fold([{ ...withQb(DEADLINE_THROWAWAY), rules: "pocket-1.s5a" }], { statlines: [] });
     expect(why(early.L, "S-14")).toBe("g g:play:1: a dropback with no step-6 reading on an agreement arm");
+    // A failed-scramble sack (the marker on PLAY_START) on a play stamped before step 6, on a tree with no outs block (F5's).
+    const before = fold([{ ...scramblePlay(-5, { quarterback: qb }), rules: "pocket-1.s5a" }], { tunables: armById("F5").tunables, statlines: [{ player: qb, passing: { sacked: 1 }, defense: { sacks: 0 } }] });
+    expect(why(before.L, "S-14")).toBe("g g:play:1: a failed-scramble sack on a play before step 6");
     // Off an agreement arm S-14 reads nothing.
     const off = fold(plays(), { statlines: null, options: { agree: false } });
     expect(off.L.checked["S-14"]).toBe(0);
