@@ -1975,6 +1975,8 @@ export function simulatePassPlayWith(
       // ball carrier, so he goes through §14.4's machinery like any other one.
       // This replaced a flat five yards; it is not a tuned version of it.
       if (tick >= scramble.pursuitAtTick) {
+        // ADR-089 step 6 (plan §2.6): this SCRAMBLE never carries a direction, under any part: he is
+        // already running the way his escape's SCRAMBLE stated (the vocabulary test pins it).
         log.qbDecision("SCRAMBLE");
         // ADR-089 step 6 (plan §2.2; AM-13 `scrambleStart`, by the owner's answer): under the
         // scramble start every run starts where he is (`EVERY_RUN`), or a run that gains nothing
@@ -2263,12 +2265,14 @@ export function simulatePassPlayWith(
           for (const track of tracks) {
             track.scrambleBaseOpenness = currentOpenness(tunables, track, tick, undefined);
           }
-          log.qbDecision("SCRAMBLE");
+          // ADR-089 step 6 (plan §2.6; P11): under direction, the side he broke to, on this
+          // SCRAMBLE and the contained HOLD below only (never the deadline's SCRAMBLE).
+          log.qbDecision("SCRAMBLE", outs?.direction === true && broke !== undefined ? { direction: broke.side } : {});
           tick = Number((tick + tunables.clock.tickStepSeconds).toFixed(1));
           continue;
         }
         // CONTAINED: he tried to get out, got walled in, and lost the tick.
-        log.qbDecision("HOLD");
+        log.qbDecision("HOLD", outs?.direction === true && broke !== undefined ? { direction: broke.side } : {});
         tick = Number((tick + tunables.clock.tickStepSeconds).toFixed(1));
         continue;
       }

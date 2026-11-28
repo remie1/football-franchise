@@ -46,6 +46,14 @@
  *   escape tick plus `pursuitSeconds` and the last tick, and the play runs one tick past the last
  *   only for a live scramble whose deadline is past it, so no escape runs off the clock into the
  *   horizon coverage sack.
+ * - **2.6 Escape direction** (`breakSide`, `cardSidesAtSnap`; D15, D16; P11): the side he breaks
+ *   to, by the first of D15's four rules that decides it, each man's side his matchup's card side
+ *   and a looper's his partner's (D16, read once at the snap). No die. Published as
+ *   `QB_DECISION.direction` (P11, the engine's stand-in until the lift) on the SCRAMBLE of an escape
+ *   he won and on the HOLD of one he was contained on, nowhere else: a caught escape publishes no
+ *   decision (its contact names the man, 2.8), and the deadline's SCRAMBLE carries none, because he
+ *   is already running that way. Alone nothing reads the side, so the stream is step 5a's apart from
+ *   the direction.
  * - **2.12 The failed scramble scored as a sack** (AM-13 `rescoring`) has no function here: the
  *   call site writes `PLAY_START.scoring` under `failedScrambleSack`, and every reader keys the rule
  *   on that marker (`stats/statline.ts` in the engine).

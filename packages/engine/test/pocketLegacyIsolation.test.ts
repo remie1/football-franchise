@@ -623,6 +623,7 @@ describe("ADR-089 step 6: no rule set before step 6 runs an outs function (P-18)
     outsParts({ escapeCap: { maxPerPlay: 1, whenSpent: "HOLD" } }),
     outsParts({ pursuit: { speedBaseline: 70, speedDivisor: 5, mobilityDivisor: 10, mobilityCentering: 7 } }),
     outsParts({ noLateHorizonSack: true }),
+    outsParts({ direction: true }),
     outsParts({ failedScrambleSack: true }),
   ];
 

@@ -28,6 +28,7 @@ vi.mock("../src/sim/freeRunTiming.js", async (importOriginal) => {
 
 import { playerId } from "@ff/contracts";
 import type { MatchEventEnvelope, PlayerId } from "@ff/contracts";
+import { threatFromWonRep } from "../src/resolve/rushThreat.js";
 import type { ArrivalClock } from "../src/resolve/rushThreat.js";
 import { timeFreeRunners } from "../src/sim/freeRunTiming.js";
 import { breakSide, cardSidesAtSnap } from "../src/sim/outs.js";
@@ -78,6 +79,26 @@ describe("ADR-089 step 6, D15: the order", () => {
     expect(T.arrival.simultaneousArrivalPriority).toBe("EDGE");
     expect(breakSide(T, facts({ forced: false, threats: [threat("a", "INTERIOR", 3.0), threat("b", "EDGE", 3.0)], sides }))).toEqual({ side: "LEFT", rule: "NEAREST" });
     expect(breakSide(T, facts({ forced: false, threats: [threat("b", "EDGE", 3.0), threat("a", "EDGE", 3.0)], sides }))).toEqual({ side: "RIGHT", rule: "NEAREST" });
+  });
+
+  it("won reps: a threat `threatFromWonRep` built carries no side, and rules 1 and 2 decide on his card's", () => {
+    const sides = sidesOf({ a: "LEFT", b: "RIGHT" });
+    const won = (rusher: string, tick: number) =>
+      threatFromWonRep({ tunables: T, rusher: id(rusher), alignment: "EDGE", move: "SPEED", margin: 10, tick, rollRef: `test/${rusher}` });
+    const a = won("a", 1.0);
+    const b = won("b", 2.0);
+    expect("side" in a || "side" in b).toBe(false);
+    expect(a.origin).toBe("WON_REP");
+    // a inside the half second, b not: away from a's card side (LEFT).
+    const at = Number((a.etaTick - HALF).toFixed(1));
+    expect(b.etaTick - at).toBeGreaterThan(HALF);
+    expect(breakSide(T, facts({ tick: at, threats: [a, b], sides }))).toEqual({ side: "RIGHT", rule: "SET_OFF" });
+    // Both inside, one a side: rule 2, away from the nearer, b (RIGHT), who won half a second sooner.
+    const early = won("b", 0.5);
+    expect(early.etaTick).toBe(Number((a.etaTick - 0.5).toFixed(1)));
+    expect(breakSide(T, facts({ tick: at, threats: [a, early], sides }))).toEqual({ side: "LEFT", rule: "NEAREST" });
+    // The first two at a clean break-out: rule 2 from the start, away from a, the nearer.
+    expect(breakSide(T, facts({ forced: false, tick: at, threats: [a, b], sides }))).toEqual({ side: "RIGHT", rule: "NEAREST" });
   });
 
   it("FEWER: no live threat with a side, toward the side with fewer card rushers", () => {

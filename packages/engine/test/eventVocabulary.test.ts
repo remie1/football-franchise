@@ -22,8 +22,10 @@ import { TUNABLES } from "../src/tunables.js";
 import { buildGameFixture } from "./gameFixtures.js";
 import type { Tunables } from "../src/tunables.js";
 import { PASS_FIXTURES, RULE_SETS, STEP1_RULE_SET_NAMES, isShapeS, isStep3 } from "./pocketTunables.js";
-import { callsUnder } from "./snapFixtures.js";
+import { callsUnder, withPicture } from "./snapFixtures.js";
 import { S4C_TUNABLES, S4M_TUNABLES, S4S_TUNABLES, T_TUNABLES } from "./step4Fixtures.js";
+import { S5L_TUNABLES, S5S_TUNABLES, S5_TUNABLES, onCleanBench, tickOfEvent } from "./step5Fixtures.js";
+import { outsParts, playS6, withOuts } from "./step6Fixtures.js";
 import {
   buildMixedCoverageScenario,
   buildScenario,
@@ -879,5 +881,49 @@ describe("ADR-089 step 2 — must act adds no event, CHECK kind, choice or cause
         expect(seen.has(w), `${name}: ${w}`).toBe(true);
       }
     }
+  });
+});
+
+/**
+ * ADR-089 step 6, P11 BEFORE THE LIFT (step-6 plan §2.6; `petitions.md` §3, contracts-guardian's
+ * pin): under the direction part the stream keeps its words (the side goes to the test recorder,
+ * P11's stand-in, at the decision's seq), the decisions that will carry `direction` are the SCRAMBLE
+ * of an escape he won and the HOLD of one he was contained on, each with no other key, so at the lift
+ * their word is `keys:QB_DECISION:choice,direction`; and the deadline's SCRAMBLE, the run at the
+ * pursuit deadline, carries none: no key on the stream and no record at its seq, so a reader must not
+ * assume every SCRAMBLE has a direction.
+ */
+describe("ADR-089 step 6 (P11, before the lift): where QB_DECISION.direction will be, and the deadline's SCRAMBLE without it", () => {
+  it("SCRAMBLE and HOLD only, keys choice,direction at the lift; never the deadline's SCRAMBLE; no key on the stream", () => {
+    const shapes = [[S5_TUNABLES, true], [S5S_TUNABLES, false], [S5L_TUNABLES, false], [onCleanBench(S5S_TUNABLES), false]] as const;
+    const atLift = new Set<string>();
+    let deadline = 0;
+    for (const [tunables, picture] of shapes) {
+      for (const [fixture, build] of PASS_FIXTURES) {
+        for (let i = 0; i < 30; i++) {
+          const { state, calls } = build();
+          const { events, records } = playS6(state, picture ? withPicture(state, calls) : calls, `vocabulary-s6-${fixture}-${i}`, withOuts(tunables, outsParts({ direction: true })));
+          for (const { event } of events) {
+            if (event.type === "QB_DECISION") expect("direction" in event.payload).toBe(false);
+          }
+          const recorded = new Set(records.flatMap((r) => (r.kind === "direction" ? [r.at.seq] : [])));
+          for (const seq of recorded) {
+            const e = events.find((x) => x.seq === seq);
+            if (e?.event.type !== "QB_DECISION") throw new Error(`a direction at seq ${seq} that is no decision`);
+            expect(["SCRAMBLE", "HOLD"]).toContain(e.event.payload.choice);
+            atLift.add(`keys:QB_DECISION:${[...Object.keys(e.event.payload), "direction"].join(",")}`);
+          }
+          const pursuit = events.find((e) => e.event.type === "QB_PURSUIT");
+          if (pursuit?.event.type !== "QB_PURSUIT") continue;
+          const at = pursuit.event.payload.deadlineTick;
+          const tuck = events.find((e) => e.event.type === "QB_DECISION" && e.event.payload.choice === "SCRAMBLE" && (tickOfEvent(e) ?? -1) >= at);
+          if (tuck === undefined) continue;
+          deadline += 1;
+          expect(recorded.has(tuck.seq), `${fixture} ${i}`).toBe(false);
+        }
+      }
+    }
+    expect([...atLift]).toEqual(["keys:QB_DECISION:choice,direction"]);
+    expect(deadline).toBeGreaterThan(20);
   });
 });
