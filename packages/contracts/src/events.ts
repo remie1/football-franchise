@@ -552,6 +552,9 @@ export type MatchEvent =
          * `RUSH_THREAT.etaTick` states it. A THROWING hit's `contactSeconds`, rounded to whole
          * milliseconds, is at or before its THROW's `releaseSeconds`. `RUSH_THREAT.etaTick` keeps
          * its own meaning.
+         * ADR-089 P20: on a caught escape (from `pocket-1.s6`) it is the time, in seconds from the
+         * snap, at which the escape's `scramble` CHECK caught him, whether he was a live threat or
+         * still in his block; none of the readings above applies.
          */
         contactSeconds: number;
         /** The `arrival_contest` CHECK behind a SHED or a SACK (its `roll.rngLabel`); absent on ARRIVAL and THROWING. */
