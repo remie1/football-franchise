@@ -55,11 +55,12 @@ describe("scale surface", () => {
         "punt",
         "qb_read",
         "route_break",
+        "scramble_drill",
         "snap_jump",
         "unseen_defender",
       ].sort(),
     );
-    expect(Object.keys(SURFACE)).toHaveLength(56);
+    expect(Object.keys(SURFACE)).toHaveLength(57);
   });
 
   it("resolves every derived term source against the committed tree", () => {
@@ -98,6 +99,6 @@ describe("scale surface", () => {
     // Not an assertion — the report the backlog's Phase 3 deliverable asks for, emitted where a
     // reader of a CI log will see it rather than filed somewhere that rots.
     console.log(`\n${renderScaleSurface(sweepScaleSurface())}\n`);
-    expect(sweepScaleSurface()).toHaveLength(56);
+    expect(sweepScaleSurface()).toHaveLength(57);
   });
 });

@@ -500,6 +500,14 @@ export const SURFACE: Record<CheckKind, CheckDescriptor> = {
       "rating cannot move this check at all. The flat range is the edge-threat and urgency " +
       "penalties, both situational rather than rating-driven.",
   },
+  scramble_drill: {
+    form: "UNIMPLEMENTED",
+    docRef: "ADR-089 §4.6 e",
+    note:
+      "pocket-1 only (from pocket-1.s6); the receiver's d100 + his side of his route rep (ratings and traits, no release carry-over) against " +
+      "the defender's side with no die (man: the d100 mean + his side, ADR-070 §3's typical rep; zone: the zone target), one die a covered " +
+      "receiver at each escape he wins; band TRAILING, EVEN or IN_FRONT",
+  },
   arrival_contest: {
     form: "UNIMPLEMENTED",
     docRef: "ADR-089 §4.5",

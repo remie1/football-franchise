@@ -104,6 +104,15 @@ const STEP4_BANDED: readonly string[] = [
   "arrival_contest",      // ADR-089 §4.5 RUSHER_SACKS / QB_SHEDS
 ];
 
+/**
+ * ADR-089 P12: BANDED (TRAILING, EVEN or IN_FRONT), but drawn only under `pocket-1` from
+ * `pocket-1.s6`, so the legacy, shape-S and step-4 sweeps never see it; the step-6 sweep, which
+ * lands with the step-6 gate, must.
+ */
+const STEP6_BANDED: readonly string[] = [
+  "scramble_drill",       // ADR-089 §4.6 e TRAILING / EVEN / IN_FRONT
+];
+
 /** The step-4 bundles play only once P6, P7 and P8 are all in contracts (the engine's gate is joint). */
 const STEP4_PLAYS = P6_IN_CONTRACTS && P7_IN_CONTRACTS && P8_IN_CONTRACTS;
 
@@ -236,6 +245,7 @@ describe("ADR-011 — the band invariant", () => {
     }
     if (tunables === undefined) for (const kind of TIMING_DRAWS) expect(seen).not.toContain(kind);
     for (const kind of STEP4_BANDED) expect(seen, `${kind} is drawn only from pocket-1.s4`).not.toContain(kind);
+    for (const kind of STEP6_BANDED) expect(seen, `${kind} is drawn only from pocket-1.s6`).not.toContain(kind);
   });
   }
 

@@ -1,5 +1,5 @@
 /**
- * ADR-089 P2 to P8 and P17: what the edits allow and what they still refuse.
+ * ADR-089 P2 to P12 and P17: what the edits allow and what they still refuse.
  *
  * The cases are type-level: the `@ts-expect-error` lines fail `pnpm --filter @ff/contracts
  * typecheck` (part of `pnpm verify`) if the edit is loosened or lost. The runtime asserts only
@@ -7,13 +7,15 @@
  */
 import { describe, expect, it } from "vitest";
 import { attrId } from "../src/ids.js";
-import type { ContactFrom, MatchEvent, PlayerId, QbHitPhase, ResultTier, RollDetail, RushApproach } from "../src/index.js";
+import type { ContactFrom, MatchEvent, PlayerId, QbHitPhase, ResultTier, RollDetail, RunSide, RushApproach, ThrowawayCause } from "../src/index.js";
 
 type CheckPayload = Extract<MatchEvent, { type: "CHECK" }>["payload"];
 type ThreatPayload = Extract<MatchEvent, { type: "RUSH_THREAT" }>["payload"];
 type PresnapPayload = Extract<MatchEvent, { type: "PRESNAP_READ" }>["payload"];
 type QbHitPayload = Extract<MatchEvent, { type: "QB_HIT" }>["payload"];
 type ThrowPayload = Extract<MatchEvent, { type: "THROW" }>["payload"];
+type ThrowawayPayload = Extract<MatchEvent, { type: "THROWAWAY" }>["payload"];
+type DecisionPayload = Extract<MatchEvent, { type: "QB_DECISION" }>["payload"];
 
 const p = "p1" as PlayerId;
 const tier: ResultTier = "TIE";
@@ -180,5 +182,70 @@ describe("ADR-089 P8: THROW.releaseSeconds", () => {
     expect(Object.keys(plain)).not.toContain("releaseSeconds");
     expect(Object.keys(timed).at(-1)).toBe("releaseSeconds");
     expect([undef, text].length).toBe(2);
+  });
+});
+
+describe("ADR-089 P9: the OUT_OF_POCKET throwaway", () => {
+  it("a throwaway after an escape names the deadline pick's CHECK; the two causes before it stand", () => {
+    const out: ThrowawayPayload = { cause: "OUT_OF_POCKET", rollRef: "g/movement/t4.5:deadline" };
+    const duress: ThrowawayPayload = { cause: "POCKET_DURESS", rollRef: "g/movement/t2.5:movement" };
+    const clock: ThrowawayPayload = { cause: "CLOCK_EXPIRED" };
+    const causes: ThrowawayCause[] = [out.cause, duress.cause, clock.cause];
+    expect(causes).toEqual(["OUT_OF_POCKET", "POCKET_DURESS", "CLOCK_EXPIRED"]);
+    expect(Object.keys(clock)).not.toContain("rollRef");
+  });
+
+  it("the union is closed at three", () => {
+    // @ts-expect-error GROUNDED is not a throwaway cause
+    const fourth: ThrowawayCause = "GROUNDED";
+    expect(fourth).toBe("GROUNDED");
+  });
+});
+
+describe("ADR-089 P10: THROWAWAY.outsideTackleBox", () => {
+  it("a throwaway may say where he was; one without it writes no key", () => {
+    const inPocket: ThrowawayPayload = { cause: "POCKET_DURESS", rollRef: "g/movement/t2.5:movement", outsideTackleBox: false };
+    const plain: ThrowawayPayload = { cause: "CLOCK_EXPIRED" };
+    // @ts-expect-error exactOptionalPropertyTypes: outsideTackleBox: undefined is refused
+    const undef: ThrowawayPayload = { cause: "CLOCK_EXPIRED", outsideTackleBox: undefined };
+    // @ts-expect-error a flag, not a distance
+    const yards: ThrowawayPayload = { cause: "CLOCK_EXPIRED", outsideTackleBox: 3 };
+    expect(Object.keys(plain)).not.toContain("outsideTackleBox");
+    expect([inPocket, undef, yards].length).toBe(3);
+  });
+});
+
+describe("ADR-089 P11: QB_DECISION.direction", () => {
+  it("an escape's decision may carry the side he went; every other decision writes no key", () => {
+    const left: RunSide = "LEFT";
+    const won: DecisionPayload = { choice: "SCRAMBLE", direction: left };
+    const contained: DecisionPayload = { choice: "HOLD", direction: "RIGHT" };
+    const plain: DecisionPayload = { choice: "THROW", target: p, tier };
+    // @ts-expect-error exactOptionalPropertyTypes: direction: undefined is refused
+    const undef: DecisionPayload = { choice: "SCRAMBLE", direction: undefined };
+    // @ts-expect-error a side is LEFT or RIGHT, as RunSide is on the play cards
+    const middle: DecisionPayload = { choice: "SCRAMBLE", direction: "MIDDLE" };
+    expect(Object.keys(plain)).not.toContain("direction");
+    expect([won, contained, undef, middle].map((d) => d.choice)).toEqual(["SCRAMBLE", "HOLD", "SCRAMBLE", "SCRAMBLE"]);
+  });
+});
+
+describe("ADR-089 P12: the scramble_drill CHECK", () => {
+  const cb = "cb1" as PlayerId;
+  it("one d100 for the receiver against the defender's side, banded by position, naming the escape", () => {
+    const drill: CheckPayload = {
+      checkKind: "scramble_drill", actors: [p, cb], tier, margin: 3.5, target: 66.5, band: "TRAILING",
+      roll: { ...d100, raw: 52, total: 70, rngLabel: "g/movement/t3.0:drill:p1" },
+      testsAttrs: ["routeRunning", "agility", "manCoverage"].map(attrId),
+      rollRef: "g/movement/t3.0:scramble",
+    };
+    expect(drill.rollRef).toBe("g/movement/t3.0:scramble");
+    expect("opposedRoll" in drill).toBe(false);
+  });
+
+  it("a PRESNAP_READ is never a scramble_drill", () => {
+    // @ts-expect-error scramble_drill happens only after the snap
+    const drill: PresnapPayload = { actor: p, kind: "scramble_drill", roll: d100, target: 50, tier };
+    expect(drill.tier).toBe(tier);
   });
 });

@@ -14,6 +14,7 @@ import type { FoulKind, FoulTiming, PenaltyEnforcement, PenaltyOutcome } from ".
 import type { MeetingPoint, StaffMeeting, TeamDirection, TeamStance } from "./meeting.js";
 import type { MoodReading } from "./mood.js";
 import type { SidelineAdjustmentPayload, StemPayload } from "./stem.js";
+import type { RunSide } from "./playcalls.js";
 
 export interface RollModifier {
   source: string;
@@ -151,6 +152,25 @@ export type CheckKind =
   | "pass_rush_tick" | "run_block" | "second_level_climb" | "stunt_communication" | "blitz_pickup"
   | "qb_read" | "anticipation" | "qb_decision" | "unseen_defender" | "hold_decision" | "pocket_movement" | "scramble"
   /**
+   * ADR-089 P12: the scramble drill's fresh rep (ADR-089 §4.6 e), written only under `pocket-1`
+   * from `pocket-1.s6`, never `legacy`. At each escape he wins, forced or a clean break-out, every
+   * eligible receiver with a defender on him gets one rep against that defender: one d100 on
+   * `.../movement/t<tick>:drill:<receiverId>`, recorded on one CHECK, after the escape's
+   * `QB_PURSUIT` and before its `SCRAMBLE` decision. `actors` are the receiver, then the
+   * defender. `roll` is the receiver's d100 plus his side of his route's own rep, its ratings and
+   * traits (in man Route Running, Agility and Route Technician; in zone Route Running and Route
+   * Technician), with no release carry-over. There is no `opposedRoll`: the defender's side is
+   * set with no die and stated as `target` (in man, the d100's mean plus his Man Coverage,
+   * Agility and Shutdown, as ADR-070 §3's typical rep reads him; in zone, the zone rep's own
+   * target). `margin` is `roll.total` minus `target` and `tier` its tier; `band`, not `tier`,
+   * decides (ADR-011): where the defender stands after the drill, TRAILING, EVEN or IN_FRONT, the
+   * words of the coverage rep's position. `rollRef` names the escape's `scramble` CHECK;
+   * `testsAttrs` lists the ratings read on both sides, as the coverage rep's own CHECK does. The
+   * drill moves openness only, never the coverage rep's position, and a receiver with nobody on
+   * him draws no die and has no CHECK.
+   */
+  | "scramble_drill"
+  /**
    * ADR-089 P6: a rusher reaching the quarterback while the ball is in his hand (ADR-089 §4.5),
    * written only under `pocket-1` from `pocket-1.s4`, never `legacy`. One CHECK per contact, with
    * no `rollRef` (a contact derives from no earlier roll); `tier` is the ladder's tier of `margin`,
@@ -249,19 +269,29 @@ export type ThrowType = "BULLET" | "TOUCH" | "BACK_SHOULDER";
 /**
  * WHY A THROWAWAY HAS A CAUSE (ADR-056).
  *
- * Two paths reach a throwaway and they are DIFFERENT FOOTBALL. `POCKET_DURESS` is §7.2's
+ * Three paths reach a throwaway and they are DIFFERENT FOOTBALL. `POCKET_DURESS` is §7.2's
  * pocket forcing him out of the play, and it carries the `pocket_movement` CHECK that
  * produced the choice. `CLOCK_EXPIRED` is the clock or the read budget running out with
  * nobody open — "the clock ran out rather than the pocket: no duress, so no movement
  * check" (`sim/passPlay.ts`) — and therefore has no roll behind it at all.
  *
- * REQUIRED, not optional: both emit sites know which they are, so an optional field would
+ * `OUT_OF_POCKET` (ADR-089 P9; under `pocket-1` from `pocket-1.s6`, never `legacy`) is the
+ * ball thrown away after an escape, forced or a clean break-out. At the pursuit deadline with
+ * nobody open, one d100 on `.../movement/t<tick>:deadline`, recorded on a `pocket_movement`
+ * CHECK, ranks running against throwing it away, and a throwaway it picks has that CHECK
+ * behind it. He is outside the tackle box, so the pocket's throwaway rule does not apply. A
+ * throwaway in the pocket keeps one of the first two causes: one the pocket forces, at must
+ * act and (from ADR-089 step 7) at the alarm or at contact, is `POCKET_DURESS` with its CHECK
+ * (ADR-089 §4.7).
+ *
+ * REQUIRED, not optional: every emit site knows which it is, so an optional field would
  * make "not published" and "not applicable" arrive identically — the same ambiguity
  * `playId?: never` was introduced to prevent (ADR-014 item 13).
  *
- * CLOSED at two. A third throwaway path is a widening petition, not a default.
+ * CLOSED at three since ADR-089 P9. A fourth throwaway path is a widening petition, not a
+ * default.
  */
-export type ThrowawayCause = "POCKET_DURESS" | "CLOCK_EXPIRED";
+export type ThrowawayCause = "POCKET_DURESS" | "CLOCK_EXPIRED" | "OUT_OF_POCKET";
 export type RushAlignment = "EDGE" | "INTERIOR";
 export type RushThreatState = "TRAVELLING" | "DELAYED" | "RESET" | "ARRIVED";
 
@@ -365,10 +395,10 @@ export type MatchEvent =
         /**
          * ADR-093 F4: every kind but the foul roll and the officials' two, which are always CHECKs:
          * a `penalty_check` is the CHECK a `FOUL`, a `PENALTY` and the officials' rolls name, and
-         * each officials' roll names the `penalty_check` it judges. ADR-089 P6: nor
-         * `arrival_contest`, which happens only after the snap.
+         * each officials' roll names the `penalty_check` it judges. ADR-089 P6 and P12: nor
+         * `arrival_contest` or `scramble_drill`, which happen only after the snap.
          */
-        kind: Exclude<CheckKind, "penalty_check" | "official_sees" | "phantom_flag" | "arrival_contest">;
+        kind: Exclude<CheckKind, "penalty_check" | "official_sees" | "phantom_flag" | "arrival_contest" | "scramble_drill">;
         roll: RollDetail; target: number; tier: ResultTier;
         /** The read's own band label (a free string, ADR-011): §5.1's six-band ladder for
          *  `coverage_read` and `blitz_recognition` (ADR-068 §2, ADR-073); HELD / BROKE for
@@ -596,6 +626,16 @@ export type MatchEvent =
          * failed check — absent tier means "no roll", never "bad decision".
          */
         tier?: ResultTier;
+        /**
+         * ADR-089 P11: which way he went, LEFT or RIGHT in the offense's own frame, as `RunSide`
+         * is on the play cards; the side ADR-089 §4.7's rule picks (default D15). On the
+         * decision that follows each of ADR-089's moves under `pocket-1`: from `pocket-1.s6`, the
+         * `SCRAMBLE` of an escape he won and the `HOLD` of one he was contained on, whether the
+         * escape was forced or a clean break-out; from ADR-089 step 7, a slide's decision (P14).
+         * Absent on every other decision, on the `SCRAMBLE` of the run at the pursuit deadline
+         * (he is already running that way), and under `legacy` and `pocket-1.s1` to `.s5a`.
+         */
+        direction?: RunSide;
       } } & MatchEventBase)
   | ({ type: "THROW"; payload: {
         target: PlayerId;
@@ -626,11 +666,24 @@ export type MatchEvent =
   | ({ type: "THROWAWAY"; payload: {
         cause: ThrowawayCause;
         /**
-         * The `pocket_movement` CHECK behind a `POCKET_DURESS` throwaway. ABSENT on
-         * `CLOCK_EXPIRED`, where no roll ran at all — ADR-005 forbids reporting a tier
-         * where nothing was rolled, and the same reasoning governs a roll reference.
+         * The `pocket_movement` CHECK behind a `POCKET_DURESS` throwaway, and behind an
+         * `OUT_OF_POCKET` one the deadline pick's `pocket_movement` CHECK (its
+         * `.../movement/t<tick>:deadline` label; ADR-089 P9). ABSENT on `CLOCK_EXPIRED`, where
+         * no roll ran at all: ADR-005 forbids reporting a tier where nothing was rolled, and the
+         * same reasoning governs a roll reference.
          */
         rollRef?: string;
+        /**
+         * ADR-089 P10: whether he was outside the tackle box when he threw it away. Written on
+         * every THROWAWAY of a play whose rules carry ADR-089 step 6's outs (`pocket-1` from
+         * `pocket-1.s6`): false in the pocket, where the throwaway rule reads his receivers'
+         * routes (ADR-089 §4.7), and true out of it, where the ball need only reach the line.
+         * Absent under `legacy` and `pocket-1.s1` to `.s5a`, whose throwaways read no position.
+         * It records a position, not a cause. At ADR-089 step 6 it equals cause === OUT_OF_POCKET;
+         * a reader that needs the place reads this field, so the two may part later without a
+         * contract change. There is no grounding penalty yet.
+         */
+        outsideTackleBox?: boolean;
       } } & MatchEventBase)
   | ({ type: "CATCH_RESOLUTION"; payload: {
         receiver: PlayerId;

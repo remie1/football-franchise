@@ -335,10 +335,10 @@ export interface PresnapEmission {
   /**
    * Every kind but the foul roll and the officials' two (ADR-093 F4), which are always CHECKs and
    * never a pre-snap read: a `penalty_check` is the CHECK a foul and a flag name, and each
-   * officials' roll names the `penalty_check` it judges. Nor `arrival_contest` (ADR-089 P6), which
-   * happens only after the snap.
+   * officials' roll names the `penalty_check` it judges. Nor `arrival_contest` (ADR-089 P6) or
+   * `scramble_drill` (P12), which happen only after the snap.
    */
-  readonly kind: Exclude<CheckKind, "penalty_check" | "official_sees" | "phantom_flag" | "arrival_contest">;
+  readonly kind: Exclude<CheckKind, "penalty_check" | "official_sees" | "phantom_flag" | "arrival_contest" | "scramble_drill">;
   readonly roll: RollDetail;
   readonly target: number;
   readonly tier: ResultTier;
