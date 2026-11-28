@@ -7,7 +7,8 @@
  *
  *  - **the rows** (`s6Rows.ts`): the failed scrambles' share of sacks, the failed-escape rate, the
  *    box-score scramble count, the pressure variants, the real figures beside, the drill and the
- *    Mobility thirds (from the seed set's rosters, `thirdsOf`, on the generated league);
+ *    Mobility thirds (each team's starting quarterback on the seed set's rosters, `thirdsOf`, on the
+ *    generated league; any other passer's dropbacks counted apart, in no third);
  *  - **the structural proofs S-11 to S-20**, each a fold-time check on every play stamped
  *    `pocket-1.s6` (`readS6Play`), bound to the arms that carry the part it tests (R-3): the side
  *    with the part reads the part's rule, the side without it reads that the stream carries none of
@@ -36,7 +37,7 @@ import type { MatchEventEnvelope, PlayerId, PlayerState, Position } from "@ff/co
 import type { GameSnapshot, Tunables } from "@ff/engine";
 import { buildLeague } from "@ff/franchise";
 import { positionsFromSnapshot } from "../knownTruth/pocketChannelShares.js";
-import { indexLeague } from "../league/snapshot.js";
+import { buildTeamSnapshot, fullStrength, indexLeague, type LeagueIndex } from "../league/snapshot.js";
 import type { SimAccumulator } from "../metrics/collect.js";
 import { buildGeneratedLeague } from "../season/generatedLeague.js";
 import { cleanPocketOf } from "./cleanPick.js";
@@ -46,9 +47,9 @@ import { GOLDEN_STRIP, gameDigest, type StripEntry } from "./golden.js";
 import { emptyM3Fold, foldM3Dropback, s4SackCreditOf, s6SackCreditOf, sackCreditsOf } from "./m3SackerMix.js";
 import { m5GameOf, type M5Game } from "./m5Mirror.js";
 import { appealOf, crossCheckMovement, emptyM6Fold, movementBandOf, ratingReader } from "./m6Contact.js";
-import type { OutsPart } from "./rules.js";
+import { readsStep4Facts, rulesOnPlayStart, type OutsPart } from "./rules.js";
 import { rowPocketOf, type RowPocket } from "./rows.js";
-import type { S5Dropback } from "./s5Stream.js";
+import type { S5CleanExpiry, S5Dropback } from "./s5Stream.js";
 import { emptyS6RowsFold, foldS6RowsDropback, type S6RowsFold, type ThirdOf } from "./s6Rows.js";
 import { isDeadlinePickLabel, OUT_OF_POCKET, outsOf, readS6Play, SCRAMBLE_DRILL_KIND, throwawayLegalAt, type OutsTunables, type S6Play } from "./s6Stream.js";
 import { isAimed, playsOf, readDropback, type Dropback, type ThrowClassifier } from "./throwClass.js";
@@ -76,7 +77,7 @@ export const S6_PROOFS = Object.freeze({
   "S-17": { parts: ["direction"], clause: undefined, what: "the first decision after each roll on its tick: ESCAPED a SCRAMBLE with its side, CONTAINED a HOLD with its side, a catch no side; no other decision names a side, and none without the part" },
   "S-18": { parts: ["deadlinePick"], clause: undefined, what: "the deadline pick at the pursuit's deadline, at most one a play, THROWAWAY (OUT_OF_POCKET naming it) or RUN (a SCRAMBLE run on its tick), no THROW on its tick, its band and choice the restated ranking's; none without the part" },
   "S-19": { parts: ["caughtAsContact"], clause: undefined, what: "a caught escape's contest has its QB_HIT (its roll, its phase, the roll's tick, BLOCKED for a man not ARRIVED, seen by the answer); without the part no contest or QB_HIT follows a catch" },
-  "S-20": { parts: ["escapeCap"], clause: undefined, what: "a clean expiry with his escape spent runs the answer's branch (HOLD: a hold; TODAYS_PATH: a throwaway, a hold or nothing; SECOND_ESCAPE: an escape while one is left, then a hold; BELOW_30: a throw or a hold); one with his escape open neither holds nor throws away" },
+  "S-20": { parts: ["escapeCap"], clause: undefined, what: "a clean expiry with his escape spent that D23's throw does not take first (a throw to a man at the expiry bar or more) runs the answer's branch (HOLD: a hold; TODAYS_PATH: a throwaway, a hold or nothing; SECOND_ESCAPE: an escape while one is left, then a hold; BELOW_30: a throw or a hold); one with his escape open neither holds nor throws away" },
 } as const satisfies Readonly<Record<string, { readonly parts: readonly OutsPart[]; readonly clause: string | undefined; readonly what: string }>>);
 export type S6ProofId = keyof typeof S6_PROOFS;
 export const S6_PROOF_IDS = Object.keys(S6_PROOFS) as readonly S6ProofId[];
@@ -283,6 +284,22 @@ export function spentBranchS6(cap: NonNullable<OutsTunables["escapeCap"]>, rolls
     case "BELOW_30":
       return "BELOW_30";
   }
+}
+
+/**
+ * Whether a clean expiry's THROW is the one the engine takes before the clean pick, so the spent case
+ * never ran (`passPlay.ts`: the normal-bar throw, the outlet's look, then D23's roll on the pool cut at
+ * the expiry bar, then the pick, whose spent case follows): under `d23`, a THROW to a man at the expiry
+ * bar or more (D23 throws to nobody below it, and the spent case runs only on an empty cut pool, so
+ * BELOW_30's throw is always to a man below it); without `d23`, today's desperation throw (the best
+ * read at the desperation threshold or more). Every step-6 arm carries `d23` at the bar 30 (MEASURED,
+ * `step6ArmsWith` under every answer), so the second rule is read only by a tree no arm plays.
+ */
+export function throwBeforeCleanPick(tunables: Tunables, e: S5CleanExpiry): boolean {
+  if (e.outcome !== "THROW") return false;
+  const block = cleanPocketOf(tunables);
+  if (block?.d23 === true) return e.targetOpenness !== undefined && e.targetOpenness >= block.expiryBar;
+  return e.best !== undefined && e.best >= tunables.qb.desperationThreshold;
 }
 
 /** S-20's allowed clean-expiry outcomes in the spent case, by branch (CHOSEN from the engine's call site, `passPlay.ts` THE SPENT CASE). */
@@ -604,6 +621,8 @@ export function checkS6Play(L: Step6LeagueFolds, tunables: Tunables, d: Dropback
         continue;
       }
       if (pick !== undefined && pick.option === "MOVE") continue;
+      // D23's throw comes before the pick, so it is not the spent case under any branch (the smoke's finding).
+      if (throwBeforeCleanPick(tunables, e)) continue;
       const branch = spentBranchS6(cap, rollsBefore);
       bump(c, `spent.${branch}.${e.outcome}`);
       if (pick !== undefined && pick.option === "ESCAPE" && branch !== "SECOND_ESCAPE") fault(L, "S-20", `${at}: an escape offered with his escape spent (${cap.whenSpent}, branch ${branch})`);
@@ -613,6 +632,12 @@ export function checkS6Play(L: Step6LeagueFolds, tunables: Tunables, d: Dropback
 }
 
 // --- one game -------------------------------------------------------------------------------------------
+
+/** A play's `PLAY_START.rules` name (its stamp), or undefined on a stream with none (legacy). */
+function rulesNameOf(events: readonly MatchEventEnvelope[]): string | undefined {
+  const start = events.find((e) => e.event.type === "PLAY_START");
+  return rulesOnPlayStart((start?.event as { readonly payload?: unknown } | undefined)?.payload)?.name;
+}
 
 /** What the visit hands one game: its events, the engine's statlines and the seed. */
 export interface Step6Game {
@@ -667,22 +692,29 @@ export function foldStep6Game(L: Step6LeagueFolds, game: Step6Game, snapshot: Ga
     if (opts.agree === true) {
       read(L, "S-14");
       const where = `${String(game.seed ?? "?")} ${d.playId}`;
-      if (s6 === undefined) {
+      // A step-6 arm's tree carries the outs block, so every dropback it plays has a step-6 reading
+      // (K14). On a tree before step 6 (no outs block) S-14 reads each sack by its own stamp's credit,
+      // as the sacker mix does (P-21 on the legacy golden games, `pocketStep6LegacyAgree.test.ts`).
+      if (s6 === undefined && outs !== undefined) {
         fault(L, "S-14", `${where}: a dropback with no step-6 reading on an agreement arm`);
         continue;
       }
-      if (d.sacked !== s6.sacked) fault(L, "S-14", `${where}: the dropback reader says ${d.sacked ? "sacked" : "not sacked"}, the step-6 reading ${s6.sacked ? "sacked" : "not sacked"}`);
-      if ((d.failedScrambleSack === true) !== s6.failedScrambleSack) fault(L, "S-14", `${where}: the failed-scramble sack read two ways`);
-      if (outs?.failedScrambleSack !== true && s6.failedScrambleSack) fault(L, "S-14", `${where}: a rescored sack without the marker`);
-      if (!s6.marker && d.scramble && (d.scrambleYards ?? 0) <= 0 && d.sacked) fault(L, "S-14", `${where}: a run of 0 or less read as a sack without the marker`);
-      foldM3Dropback(m3, d, positionOf, true, s6);
+      if (s6 !== undefined) {
+        if (d.sacked !== s6.sacked) fault(L, "S-14", `${where}: the dropback reader says ${d.sacked ? "sacked" : "not sacked"}, the step-6 reading ${s6.sacked ? "sacked" : "not sacked"}`);
+        if ((d.failedScrambleSack === true) !== s6.failedScrambleSack) fault(L, "S-14", `${where}: the failed-scramble sack read two ways`);
+        if (outs?.failedScrambleSack !== true && s6.failedScrambleSack) fault(L, "S-14", `${where}: a rescored sack without the marker`);
+        if (!s6.marker && d.scramble && (d.scrambleYards ?? 0) <= 0 && d.sacked) fault(L, "S-14", `${where}: a run of 0 or less read as a sack without the marker`);
+      } else if (d.failedScrambleSack === true) fault(L, "S-14", `${where}: a failed-scramble sack on a play before step 6`);
+      // Step 4's credit from pocket-1.s4 on (every s6 play included), the last arrival before it.
+      const s4 = s6 !== undefined || readsStep4Facts(rulesNameOf(play.events));
+      foldM3Dropback(m3, d, positionOf, s4, s6);
       if (d.sacked) {
         readerSacks += 1;
-        if (s6.failedScrambleSack) failedScrambleSacks += 1;
-        const own = s6SackCreditOf(d, s6);
+        if (s6?.failedScrambleSack === true) failedScrambleSacks += 1;
+        const own = s6 === undefined ? undefined : s6SackCreditOf(d, s6);
         if (own === null) nobody += 1;
         if (own?.statlineFallback === true) fallbacks += 1;
-        const credit = own === null ? undefined : (own ?? s4SackCreditOf(d) ?? sackCreditsOf(d));
+        const credit = own === null ? undefined : (own ?? (s4 ? s4SackCreditOf(d) : undefined) ?? sackCreditsOf(d));
         if (credit !== undefined) credits.set(credit.last, (credits.get(credit.last) ?? 0) + 1);
       }
     }
@@ -781,7 +813,7 @@ export function foldRatingsGame(L: Step6LeagueFolds, unpatched: GameSnapshot, pa
   }
 }
 
-// --- the Mobility thirds (plan §6.2; CHOSEN) -----------------------------------------------------------
+// --- the Mobility thirds (plan §6.2; AM-13 `probes`; CHOSEN) ------------------------------------------------
 
 /** The thirds a passer falls in. */
 export const MOBILITY_THIRDS = ["LOW", "MID", "HIGH"] as const;
@@ -797,16 +829,46 @@ export function thirdsByMobility(men: readonly { readonly id: string; readonly m
 }
 
 /**
+ * Each team's starting quarterback on a league's rosters, by team: the man the engine plays. The
+ * engine plays the snapshot's `offense.quarterback` on every play of a game (`simulateGame.ts`, and
+ * `atTheLine.ts` refuses a change during one), and the snapshot builder takes him as the first QB of
+ * the team's depth chart who is available (`buildTeamSnapshot`). He is read here through that same
+ * builder at full strength, as the corpora play every game (`realSimResolver` and the round robin's
+ * fixtures, `fullStrength`), so the read and the engine cannot disagree. The chart's first QB
+ * (`Team.depthChart`) and the engine's man differ only when the chart's first QB is out, in a replay
+ * with injuries or real availability, which no corpus here plays (an empty chart refuses the game):
+ * then the man read is the engine's. MEASURED (fix-1's probe): on both seed sets' 2027 rosters the
+ * engine's man is the chart's first QB on all 32 teams.
+ */
+export function startingQuarterbacks(index: LeagueIndex, season: number): ReadonlyMap<string, string> {
+  const out = new Map<string, string>();
+  for (const id of index.teamIds()) {
+    const team = index.teams.get(String(id))!;
+    out.set(String(id), String(buildTeamSnapshot(index, fullStrength(team, season, 1)).snapshot.offense.quarterback));
+  }
+  return out;
+}
+
+/**
+ * A league's thirds (plan §6.2; AM-13's `probes` reading): each team's starting quarterback
+ * (`startingQuarterbacks`) by his own Mobility (`thirdsByMobility`), read through the registry. Any
+ * other passer (a backup, or a man the rosters do not hold) is in no third: he reads `undefined`, and
+ * the rows count his dropbacks apart (`foldS6RowsDropback`), beside the thirds.
+ */
+export function startersThirdOf(index: LeagueIndex, season: number): ThirdOf {
+  const mobility = registryAttr("mobility");
+  const men = [...startingQuarterbacks(index, season).values()].map((id) => ({ id, mobility: getAttr(index.players.get(id)!.attributes.values, mobility) }));
+  const map = thirdsByMobility(men);
+  return (passer) => map.get(passer);
+}
+
+/**
  * A seed set's thirds on the generated league, from its rosters before any arm plays (plan §6.2;
- * cal-2's handoff): every quarterback on the season's rated rosters (CHOSEN: every man listed QB,
- * starters and backups, read through the registry), by Mobility. A passer the rosters do not hold
- * reads UNKNOWN (`foldS6RowsDropback`).
+ * cal-2's handoff): the starters of the season's rated rosters (`startersThirdOf`). The flat league
+ * has no cut: every flat quarterback has the same Mobility (`FLAT_RATING`), so its rows hold one
+ * third, ALL (`foldS6RowsDropback` with no `thirdOf`).
  */
 export function thirdsOf(seedSet: SeedSet): ThirdOf {
   const def = CORPORA.genSeason;
-  const index = indexLeague(buildGeneratedLeague(buildLeague(def.seasonSeed[seedSet]), { season: def.season }));
-  const mobility = registryAttr("mobility");
-  const men = [...index.players.values()].filter((p) => p.bio.position === "QB").map((p) => ({ id: String(p.bio.id), mobility: getAttr(p.attributes.values, mobility) }));
-  const map = thirdsByMobility(men);
-  return (passer) => map.get(passer);
+  return startersThirdOf(indexLeague(buildGeneratedLeague(buildLeague(def.seasonSeed[seedSet]), { season: def.season })), def.season);
 }

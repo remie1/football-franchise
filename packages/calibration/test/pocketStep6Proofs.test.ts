@@ -30,6 +30,7 @@ import {
   S6_PROOFS,
   SPENT_OUTCOMES,
   spentBranchS6,
+  throwBeforeCleanPick,
   type Step6LeagueFolds,
 } from "../src/pocket/s6Checks.js";
 import { S6_AGREE_ARMS, armsOfProof } from "../src/pocket/s6Grade.js";
@@ -499,6 +500,31 @@ describe("S-20: a clean expiry with his escape spent runs the answer's branch", 
     const moved = proofsOn(CONTAINED_THEN_SPENT_HOLD, H0, SPENT_AT_3("THROWAWAY", [{ tick: 3, option: "MOVE" }]));
     expect(faulted(moved)).toEqual({});
     expect(Object.keys(moved.counts).filter((k) => k.startsWith("spent."))).toEqual([]);
+  });
+
+  it("D23's throw comes before the pick: a THROW to a man at the expiry bar or more is not the spent case under any branch, one below it is (the smoke's finding)", () => {
+    // The smoke's play (H0, flat, g:2024:w1:t:30@t:01 play 81): a clean break-out caught and shed at 2.0 s
+    // spent his escape; at the clean expiry at 2.5 s D23 threw to a man read at 62, before any pick.
+    const d23At = (openness: number | undefined, best = openness): ReadOptions => ({ x5: { cleanExpiries: [{ tick: 3, outcome: "THROW", best, pool: 1, belowBar: openness === undefined || openness >= 30 ? 0 : 1, targetOpenness: openness }] } });
+    for (const spentChecklist of SPENT_CHECKLISTS) {
+      for (const openness of [30, 62]) {
+        const L = proofsOn(CONTAINED_THEN_SPENT_HOLD, treeOf("H0", { spentChecklist }), d23At(openness));
+        expect(faulted(L), `${spentChecklist} ${String(openness)}`).toEqual({});
+        expect(Object.keys(L.counts).filter((k) => k.startsWith("spent.")), `${spentChecklist} ${String(openness)}`).toEqual([]);
+        expect(L.checked["S-20"]).toBe(1);
+      }
+    }
+    // Below the bar the throw is the spent case's: BELOW_30's alone (no floor); the others fault it.
+    const below = (spentChecklist: OutsOptions["spentChecklist"]) => faulted(proofsOn(CONTAINED_THEN_SPENT_HOLD, treeOf("H0", { spentChecklist }), d23At(29)))["S-20"] ?? 0;
+    expect(SPENT_CHECKLISTS.map(below)).toEqual([1, 1, 1, 0, 0]);
+    expect(why(proofsOn(CONTAINED_THEN_SPENT_HOLD, H0, d23At(29)), "S-20")).toBe("g:play:1 t3: the spent case's THROW under HOLD (branch HOLD: HOLD)");
+    expect(proofsOn(CONTAINED_THEN_SPENT_HOLD, treeOf("H0", { spentChecklist: "BELOW_30" }), d23At(29)).counts["spent.BELOW_30.THROW"]).toBe(1);
+    // The rule, alone: only a THROW; under d23 by the thrown man's openness, without it by the best read at the desperation threshold.
+    const e = (outcome: string, targetOpenness: number | undefined, best: number | undefined): S5CleanExpiry => ({ tick: 3, trigger: "count", outcome: outcome as S5CleanExpiry["outcome"], best, pool: 1, belowBar: 0, targetOpenness });
+    expect([throwBeforeCleanPick(H0, e("THROW", 30, 30)), throwBeforeCleanPick(H0, e("THROW", 29, 62)), throwBeforeCleanPick(H0, e("HOLD", undefined, 62)), throwBeforeCleanPick(H0, e("THROW", undefined, 62))]).toEqual([true, false, false, false]);
+    const noD23: Tunables = { ...H0, pocket: { ...H0.pocket, cleanPocket: { ...H0.pocket.cleanPocket!, d23: false } } };
+    expect(H0.qb.desperationThreshold).toBe(25);
+    expect([throwBeforeCleanPick(noD23, e("THROW", 10, 25)), throwBeforeCleanPick(noD23, e("THROW", 62, 24)), throwBeforeCleanPick(noD23, e("THROW", 10, undefined))]).toEqual([true, false, false]);
   });
 
   it("with his escape open, a clean expiry neither holds nor throws away under the break-out", () => {

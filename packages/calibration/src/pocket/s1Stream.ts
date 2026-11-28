@@ -20,7 +20,9 @@
  *    its band, its tier, both rolls, the rep's `rollRef`, the rep's actors, no attributes).
  *  - **`reproduceMargins`** (S-4): every `pass_rush_tick`'s margin, band and tier rebuilt from the
  *    rep, the beat (S) or the tick's rolls (L, legacy), with the dials `armOfDigest` names for the
- *    stream's stamp (N9; a legacy stream has none and is rebuilt with today's formula). S's T is
+ *    stream's stamp (N9; a legacy stream has none and is rebuilt with today's formula; a step-6
+ *    stamp, whose arms only the step-6 harness builds under the owner's answers, names the bundle's
+ *    own dials, checked by their digest). S's T is
  *    rebuilt by `clocks.ts`'s closed form (`shapeSBreakingTime`), so the engine and step 0's
  *    instrument are checked against each other; L's margin by the engine's exact form,
  *    `round(min(t, R) * x / R)`, not `clocks.ts`'s `shapeLMargin`, which stays step 0's filed
@@ -74,7 +76,7 @@ import {
 } from "./clocks.js";
 import { cleanPocketOf, isCleanPickLabel } from "./cleanPick.js";
 import { centerOfEvents, clockKeyOf, onClockUnder, touchOfCheck, type Touch } from "./freeRunKey.js";
-import { isStampedRules, overlayDigestOf, readsStep3Facts, rulesOnPlayStart, type PlayStartRules } from "./rules.js";
+import { isStampedRules, overlayDigestOf, readsStep3Facts, readsStep6Facts, rulesOnPlayStart, type PlayStartRules } from "./rules.js";
 import { readS2Play, threatPartAt } from "./s2Stream.js";
 import { isDeadlinePickLabel, outsOf } from "./s6Stream.js";
 import { playsOf } from "./throwClass.js";
@@ -565,12 +567,23 @@ export function reproduceMargins(fold: ReproduceFold, play: S1Play, d: Dials): v
       fail(fold, at(play), `the stream's stamp ${JSON.stringify(play.rules)} is not the bundle's ${JSON.stringify(d.stamp ?? null)}`);
       return;
     }
-    const arm = armOfDigest(play.rules.overlayDigest, isStampedRules(play.rules.name) ? play.rules.name : undefined);
-    if (overlayDigestOf(d.tunables) !== arm.digest) {
-      fail(fold, at(play), `the bundle's dials digest to ${overlayDigestOf(d.tunables)}, not to ${arm.digest}, the dials its stamp names`);
-      return;
+    if (readsStep6Facts(play.rules.name)) {
+      // N9 at step 6: a step-6 arm is built only under the owner's answers (`buildStep6Arm`), so no
+      // table of this build carries its dials; the stamp names the bundle's own dials when they
+      // digest to its overlay digest (an arm's stamp digest is its `digest`, `overlayDigestOf`).
+      if (overlayDigestOf(d.tunables) !== play.rules.overlayDigest) {
+        fail(fold, at(play), `the bundle's dials digest to ${overlayDigestOf(d.tunables)}, not to ${play.rules.overlayDigest}, the dials its stamp names`);
+        return;
+      }
+      own = dialsOf(d.tunables);
+    } else {
+      const arm = armOfDigest(play.rules.overlayDigest, isStampedRules(play.rules.name) ? play.rules.name : undefined);
+      if (overlayDigestOf(d.tunables) !== arm.digest) {
+        fail(fold, at(play), `the bundle's dials digest to ${overlayDigestOf(d.tunables)}, not to ${arm.digest}, the dials its stamp names`);
+        return;
+      }
+      own = dialsOf(arm.tunables);
     }
-    own = dialsOf(arm.tunables);
   }
   for (const m of play.matchups) {
     const repMargin = m.rep.c.margin;

@@ -15,7 +15,8 @@
  *     desperation throws, the rows' two pockets, the contact share against its row, the cross-check;
  *     the replays (AM-12's exception for D1 on gen seed set 2, the plan's for E9), F5's fresh plays,
  *     S-8', the stream equalities; M5; a guard breach and AM-12's equal-dials skip.
- *  4. One seed set (reported, never graded), and the clauses whose arms did not play.
+ *  4. One seed set (reported, never graded), and the clauses whose arms did not play; a partial run,
+ *     H0 alone on one seed set (the smoke's grading), whose banded clauses need F5 beside it.
  *  5. The report's shape: the title, the clock label, "rusher got close", every clause once with its
  *     verdict, the sections in order, the revisit in both counts, the funnel rung by rung, the
  *     interaction, the counts beside, the misses, and the summary lines.
@@ -97,6 +98,8 @@ function scenarioOne(): SynthRecords {
     s6Of(r, "gen").rows.byPocket.PRESSURED.failedScrambleSacks = 15;
     s6Of(r, "gen").pocket!.failedScrambleSacks = 16;
     setRow(r, "clean_outs_rate", { flat: 7, gen: 10 });
+    // Set 2's generated league: 25 dropbacks by passers in no third (no team's starter), counted apart.
+    if (s === 2) s6Of(r, "gen").rows.otherPassers = { cleanDropbacks: 20, cleanScrambles: 1, cleanBoxScoreScrambles: 1, deadlineThrowaways: 0, dropbacks: 25 };
   });
   onRecord(m, "H12", (r) => setRow(r, "sack_rate", 6.5));
   onRecord(m, "H7", (r) => setRow(r, "sack_rate", 6.3));
@@ -259,8 +262,12 @@ describe("one grading, every verdict word (scenario one)", () => {
     expect(clauseOf(s, "s6.drillShare").values[0]).toMatch(/^flat set 1 3\.00 against 3\.0 \(/);
     expect(clauseOf(s, "s6.onTheRun.cleanCompletion").values[0]).toMatch(/^flat set 1 65\.00 \(SE \d+\.\d\d, 200 aimed\); beside, the registered ON_THE_RUN row 60\.00 and step 5's CLEAN_BREAKOUT split \d+ INT of \d+$/);
     expect(clauseOf(s, "s6.onTheRun.pressuredInt").values[1]).toMatch(new RegExp(`^gen set 1 3\\.00 \\(SE \\d+\\.\\d\\d, 100 aimed, ${ROW_RULE_LABEL}\\); beside, the registered ON_THE_RUN row 2\\.50 and step 5's PRESSURED split `));
-    expect(clauseOf(s, "s6.mobilityThirds").values[0]).toMatch(/^flat set 1 one third \(every flat quarterback has the same Mobility\): MID: clean scrambles 2\.61 registered, 2\.17 box score of 230; deadline throwaways 1\.21 \(REAL /);
-    expect(clauseOf(s, "s6.mobilityThirds").values[1]).toMatch(/^gen set 1 HIGH: .*; LOW: .*; MID: /);
+    // The flat league's one third; the generated league's starters' thirds, any other passer counted apart beside them.
+    const thirds = clauseOf(s, "s6.mobilityThirds").values;
+    expect(thirds[0]).toMatch(/^flat set 1 one third \(every flat quarterback has the same Mobility\): ALL: clean scrambles 2\.61 registered, 2\.17 box score of 230; deadline throwaways 1\.21 \(REAL /);
+    expect(thirds[1]).toMatch(/^gen set 1 the starters' thirds: HIGH: .*; LOW: .*; MID: [^;]*; deadline throwaways [^;]*; beside, in no third, other passers \(no team's starter\): 0 dropbacks \(REAL /);
+    expect(thirds[3]).toMatch(/^gen set 2 the starters' thirds: HIGH: .*; beside, in no third, other passers \(no team's starter\): 25 dropbacks, clean scrambles 5\.00 registered, 5\.00 box score of 20; deadline throwaways 0\.00 \(REAL /);
+    expect(thirds.filter((v) => v.includes("in no third"))).toHaveLength(2);
     expect(clauseOf(s, "s6.sackerShift.offBall").values[0]).toMatch(/^flat set 1 out of the pocket 20\.00 minus in it 10\.00: 10\.00 \(/);
     expect(clauseOf(s, "s6.sackerShift.interior").values[0]).toMatch(/^flat set 1 out of the pocket 20\.00 minus in it 30\.00: -10\.00 \(/);
     expect(clauseOf(s, "s6.drillArms").values[0]).toMatch(/^flat set 1 H9 minus F5: sacks 0\.00, clean_drill_share 0\.00, completion on the run 0\.00, throwaways 0\.00; H10 minus F5: /);
@@ -504,6 +511,28 @@ describe("one seed set, and arms not played", () => {
     expect(none.outcome.faults).toEqual([]);
     expect(new Set(none.proofs.map((p) => p.verdict))).toEqual(new Set(["NOT READ"]));
     expect(none.proofs.find((p) => p.id === "rows:pocket")!.detail).toBe("no arm played");
+  });
+});
+
+describe("a partial run: H0 alone on one seed set (the smoke's grading; the smoke found it throwing)", () => {
+  it("grades what played and nothing else: H0's banded clauses, which read F5 for D6, are NOT PLAYED naming F5, H0's printed clauses and proofs read, nothing faults", () => {
+    const all = scenarioOne();
+    const m: SynthRecords = new Map([["H0", { 1: all.get("H0")![1]! }]]);
+    const s = gradeOf(m, { oneSet: 1, references: new Map(), fresh: {} });
+    for (const id of ["s6.pressuredThrowaway", "s6.falsifier.pressuredThrowaway", "s6.throwaways", "s6.failedScrambles", "s6.cleanOutOfPocket", "s6.contactsInOut"]) {
+      expect(clauseOf(s, id), id).toMatchObject({ verdict: "NOT PLAYED", arms: ["H0"], values: ["not played: F5"] });
+    }
+    for (const id of ["s6.drillShare", "s6.onTheRun.cleanCompletion", "s6.mobilityThirds", "s6.sackerShift.offBall"]) expect(clauseOf(s, id).verdict, id).toBe("REPORTED");
+    expect(clauseOf(s, "s6.readersAgree")).toMatchObject({ verdict: "PASS", arms: ["H0"] });
+    expect(clauseOf(s, "s6.oneEscape")).toMatchObject({ verdict: "PASS", arms: ["H0"] });
+    expect(clauseOf(s, "s6.mirror").verdict).toBe("NOT PLAYED");
+    expect(clauseOf(s, "s6.falsifiers").verdict).toBe("NOT PLAYED");
+    expect(s.proofs.filter((p) => p.verdict === "FAIL")).toEqual([]);
+    expect(s.outcome.faults).toEqual([]);
+    // With F5 beside it (and no other arm) the same clauses read.
+    const withBase: SynthRecords = new Map([["H0", { 1: all.get("H0")![1]! }], ["F5", { 1: all.get("F5")![1]! }]]);
+    const b = gradeOf(withBase, { oneSet: 1, references: new Map(), fresh: {} });
+    for (const id of ["s6.pressuredThrowaway", "s6.throwaways", "s6.contactsInOut"]) expect(clauseOf(b, id).verdict, id).toBe("REPORTED");
   });
 });
 

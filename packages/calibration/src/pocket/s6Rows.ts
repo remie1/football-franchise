@@ -32,8 +32,11 @@
  *  - **The drill** (P12): escapes won, those the drill ran on (a `scramble_drill` CHECK after the
  *    escape), its dice, and the clean break-out aimed throws with and without a drill CHECK.
  *  - **The mobility thirds** (`s6.mobilityThirds`): clean dropbacks, clean scrambles (both counts) and
- *    deadline throwaways by the passer's Mobility third, from a caller's `thirdOf` (computed from the
- *    seed set's rosters before any arm plays, plan §6.2); without one every passer is in "ALL".
+ *    deadline throwaways by the passer's Mobility third, from a caller's `thirdOf` (each team's
+ *    starting quarterback on the seed set's rosters, cut before any arm plays, plan §6.2); a dropback
+ *    by any other passer is in no third, counted apart and printed beside (`otherPassers`); without a
+ *    `thirdOf` every passer is in the one third "ALL" (the flat league, where every quarterback has
+ *    the same Mobility).
  *
  * REAL figures are the filing's (plan §6.2, REAL (c3): nflverse play-by-play with FTN charting,
  * 2023-24); every count here is MEASURED by the fold on the games it is given.
@@ -66,10 +69,13 @@ export const S6_REAL_BESIDE = Object.freeze({
   }),
 });
 
-/** A passer's Mobility third, or `undefined` when the caller does not know him. */
+/**
+ * A passer's Mobility third, or `undefined` for a passer in no third (no team's starting quarterback:
+ * his dropbacks are counted apart, `S6RowsFold.otherPassers`).
+ */
 export type ThirdOf = (passer: string) => string | undefined;
 
-/** The third every passer falls in without a `thirdOf`. */
+/** The one third every passer falls in without a `thirdOf` (the flat league: every quarterback there has the same Mobility). */
 export const ALL_THIRD = "ALL";
 
 interface PocketCell {
@@ -126,6 +132,8 @@ export interface S6RowsFold {
   wholePlayPocketDisagreements: number;
   drill: { escapesWon: number; escapesWithDrill: number; dice: number; cleanBreakoutAimed: number; cleanBreakoutAimedWithDrill: number };
   thirds: Record<string, ThirdCell>;
+  /** Dropbacks by a passer in no third (`thirdOf` names none for him: no team's starter), counted apart. */
+  otherPassers: ThirdCell;
   /** The sacker mix with step 6's credit, by pocket (`byPocket` on an s6 fold). */
   m3: M3Fold;
 }
@@ -141,6 +149,7 @@ export function emptyS6RowsFold(): S6RowsFold {
     wholePlayPocketDisagreements: 0,
     drill: { escapesWon: 0, escapesWithDrill: 0, dice: 0, cleanBreakoutAimed: 0, cleanBreakoutAimedWithDrill: 0 },
     thirds: {},
+    otherPassers: emptyThirdCell(),
     m3: emptyM3Fold(),
   };
 }
@@ -223,8 +232,8 @@ export function foldS6RowsDropback(fold: S6RowsFold, d: Dropback, tunables: Tuna
       if (dice > 0) fold.drill.cleanBreakoutAimedWithDrill += 1;
     }
   }
-  const third = (thirdOf === undefined ? ALL_THIRD : thirdOf(d.start.quarterback)) ?? "UNKNOWN";
-  const t = (fold.thirds[third] ??= emptyThirdCell());
+  const third = thirdOf === undefined ? ALL_THIRD : thirdOf(d.start.quarterback);
+  const t = third === undefined ? fold.otherPassers : (fold.thirds[third] ??= emptyThirdCell());
   t.dropbacks += 1;
   if (pocket === "CLEAN") {
     t.cleanDropbacks += 1;
@@ -246,6 +255,12 @@ export function foldS6RowsGame(fold: S6RowsFold, events: readonly MatchEventEnve
 }
 
 const pct = (n: number, den: number): number | null => (den === 0 ? null : (100 * n) / den);
+
+/** One third's cells, or the other passers' beside them. */
+const thirdRows = (c: ThirdCell): Record<string, unknown> => ({
+  cleanScrambles: { registered: { per100: pct(c.cleanScrambles, c.cleanDropbacks), n: c.cleanScrambles }, boxScore: { per100: pct(c.cleanBoxScoreScrambles, c.cleanDropbacks), n: c.cleanBoxScoreScrambles }, cleanDropbacks: c.cleanDropbacks },
+  deadlineThrowaways: { per100: pct(c.deadlineThrowaways, c.dropbacks), n: c.deadlineThrowaways, dropbacks: c.dropbacks },
+});
 
 const add = (a: PocketCell, b: PocketCell): PocketCell => {
   const out = emptyPocketCell();
@@ -299,14 +314,9 @@ export function s6Rows(fold: S6RowsFold): Readonly<Record<string, unknown>> {
     mobilityThirds: Object.fromEntries(
       Object.entries(fold.thirds)
         .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-        .map(([third, c]) => [
-          third,
-          {
-            cleanScrambles: { registered: { per100: pct(c.cleanScrambles, c.cleanDropbacks), n: c.cleanScrambles }, boxScore: { per100: pct(c.cleanBoxScoreScrambles, c.cleanDropbacks), n: c.cleanBoxScoreScrambles }, cleanDropbacks: c.cleanDropbacks },
-            deadlineThrowaways: { per100: pct(c.deadlineThrowaways, c.dropbacks), n: c.deadlineThrowaways, dropbacks: c.dropbacks },
-          },
-        ]),
+        .map(([third, c]) => [third, thirdRows(c)]),
     ),
+    mobilityThirdsOther: { ...thirdRows(fold.otherPassers), reading: "MEASURED: dropbacks by a passer in no third (no team's starting quarterback on the seed set's rosters), counted apart and printed beside the thirds" },
     s6Dropbacks: fold.s6Dropbacks,
     dropbacks: fold.dropbacks,
   };

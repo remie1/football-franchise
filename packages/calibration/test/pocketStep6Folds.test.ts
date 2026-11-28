@@ -10,21 +10,24 @@
  *  - `finishStep6League`: the metrics fold's counts and S-14's league totals;
  *  - the stream equalities' strip (S-8'), the probes' rating fold and the Mobility thirds.
  */
-import type { MatchEventEnvelope, PlayerState } from "@ff/contracts";
+import { setAttr, type MatchEventEnvelope, type PlayerState } from "@ff/contracts";
 import type { GameSnapshot } from "@ff/engine";
 import { buildLeague } from "@ff/franchise";
 import { beforeAll, describe, expect, it } from "vitest";
-import { indexLeague } from "../src/league/snapshot.js";
+import { FLAT_RATING, buildFlatLeague } from "../src/league/flat.js";
+import { indexLeague, type LeagueIndex } from "../src/league/snapshot.js";
 import { emptyAccumulator, foldGame } from "../src/metrics/collect.js";
 import { buildStep6Arm, step6ArmDef, STEP6_PROBE_RATINGS } from "../src/pocket/arms.js";
 import { CORPORA, goldenGames } from "../src/pocket/corpus.js";
 import { gameDigest } from "../src/pocket/golden.js";
+import { registryAttr } from "../src/pocket/freeRun.js";
 import { playersOfSnapshot, ratingReader } from "../src/pocket/m6Contact.js";
 import { m5GameOf } from "../src/pocket/m5Mirror.js";
 import { applyRatingOverrides } from "../src/pocket/ratingOverride.js";
 import { STEP6_PETITIONS_GRANTED } from "../src/pocket/rules.js";
 import { s2ContextOf } from "../src/pocket/s2Stream.js";
 import { s5DropbacksOf } from "../src/pocket/s5Stream.js";
+import { ALL_THIRD, emptyS6RowsFold, foldS6RowsGame, s6Rows, type ThirdOf } from "../src/pocket/s6Rows.js";
 import {
   deadlineChoiceOf,
   emptyStep6LeagueFolds,
@@ -32,6 +35,8 @@ import {
   foldRatingsGame,
   foldStep6Game,
   MOBILITY_THIRDS,
+  startersThirdOf,
+  startingQuarterbacks,
   STEP6_EQUALITY_STRIP,
   thirdsByMobility,
   thirdsOf,
@@ -211,7 +216,7 @@ describe("the step-6 folds on constructed games, with a golden game's rosters", 
   });
 });
 
-describe("the Mobility thirds (plan §6.2; CHOSEN)", () => {
+describe("the Mobility thirds (plan §6.2; AM-13 probes; CHOSEN): each team's starting quarterback", () => {
   it("sorts by Mobility, then id: the first floor(n/3) LOW, the next MID, the rest HIGH", () => {
     const men = [
       { id: "q7", mobility: 90 },
@@ -235,21 +240,97 @@ describe("the Mobility thirds (plan §6.2; CHOSEN)", () => {
     expect(thirdsByMobility([]).size).toBe(0);
   });
 
-  it("reads a seed set's generated rosters before any arm plays: every quarterback in a third by Mobility, any other man in none", () => {
+  /** A league index with some men's Mobility set (the rest as built). */
+  const withMobility = (index: LeagueIndex, set: ReadonlyMap<string, number>): LeagueIndex => {
+    const mobility = registryAttr("mobility");
+    const players = new Map([...index.players].map(([id, p]) => [id, set.has(id) ? { ...p, attributes: { ...p.attributes, values: setAttr(p.attributes.values, mobility, set.get(id)!) } } : p]));
+    return { ...index, players };
+  };
+
+  it("cuts each team's starting quarterback, the man the engine plays, on a small fixture league: a backup with a high Mobility moves no starter's third", () => {
+    // Four flat teams, two quarterbacks each: the chart's first starts. The starters' Mobility 70, 40,
+    // 55 and 85; every backup at 30, then one team's backup at 99, the most mobile man in the league.
+    const flat = indexLeague(buildFlatLeague({ teams: 4 }));
+    const teams = flat.teamIds().map((t) => flat.teams.get(String(t))!);
+    const starters = teams.map((t) => String(t.depthChart.QB![0]));
+    const backups = teams.map((t) => String(t.depthChart.QB![1]));
+    const low = new Map<string, number>([...starters.map((id, i) => [id, [70, 40, 55, 85][i]!] as const), ...backups.map((id) => [id, 30] as const)]);
+    const high = new Map<string, number>([...low, [backups[1]!, 99]]);
+    const cuts = [low, high].map((set) => {
+      const index = withMobility(flat, set);
+      expect([...startingQuarterbacks(index, 2024).values()]).toEqual(starters);
+      const third = startersThirdOf(index, 2024);
+      for (const b of backups) expect(third(b), b).toBeUndefined();
+      expect(third(String([...index.players.values()].find((p) => p.bio.position !== "QB")!.bio.id))).toBeUndefined();
+      return starters.map(third);
+    });
+    // floor(4 / 3) = 1 a third: 40 LOW, 55 MID, 70 and 85 HIGH, with the backup at 30 or at 99.
+    expect(cuts).toEqual([
+      ["HIGH", "LOW", "MID", "HIGH"],
+      ["HIGH", "LOW", "MID", "HIGH"],
+    ]);
+    // The old cut (every man listed QB) moves a starter when a backup's Mobility moves: the 40 starter goes from HIGH to MID.
+    const everyQb = (set: ReadonlyMap<string, number>) => thirdsByMobility([...set].map(([id, mobility]) => ({ id, mobility })));
+    expect([everyQb(low).get(starters[1]!), everyQb(high).get(starters[1]!)]).toEqual(["HIGH", "MID"]);
+  });
+
+  it("follows the engine where the chart and the engine could disagree: a chart whose first QB is not on the roster starts its next", () => {
+    const flat = indexLeague(buildFlatLeague({ teams: 4 }));
+    const first = flat.teams.get(String(flat.teamIds()[0]))!;
+    const ghost = "p:ghost:QB" as never;
+    const edited = { ...first, depthChart: { ...first.depthChart, QB: [ghost, ...first.depthChart.QB!] } };
+    const index: LeagueIndex = { ...flat, teams: new Map([...flat.teams, [String(first.id), edited]]) };
+    expect(startingQuarterbacks(index, 2024).get(String(first.id))).toBe(String(first.depthChart.QB![0]));
+    expect(startersThirdOf(index, 2024)(String(ghost))).toBeUndefined();
+  });
+
+  it("counts a non-starter's dropbacks apart, in no third, and prints them beside the thirds", () => {
+    const positions = new Map([["dt1", "DT"], ["de1", "DE"], ["lb1", "MLB"]]) as never;
+    const fold = emptyS6RowsFold();
+    const third: ThirdOf = (passer) => (passer === "starter" ? "LOW" : undefined);
+    foldS6RowsGame(fold, constructedGame("g", [{ ...DEADLINE_THROWAWAY, quarterback: "starter" }, { ...DEADLINE_THROWAWAY, quarterback: "backup" }, { ...SHED_THEN_SACK, quarterback: "backup" }]), H0, positions, third);
+    expect(Object.keys(fold.thirds)).toEqual(["LOW"]);
+    expect(fold.thirds["LOW"]).toMatchObject({ dropbacks: 1, deadlineThrowaways: 1 });
+    expect(fold.otherPassers).toMatchObject({ dropbacks: 2, deadlineThrowaways: 1 });
+    const rows = s6Rows(fold);
+    expect(Object.keys(rows["mobilityThirds"] as object)).toEqual(["LOW"]);
+    expect(rows["mobilityThirdsOther"]).toMatchObject({ deadlineThrowaways: { n: 1, dropbacks: 2, per100: 50 } });
+  });
+
+  it("the flat league has one third, ALL: every flat quarterback has the same Mobility, and a fold with no thirdOf puts every passer in it", () => {
+    const flat = indexLeague(buildFlatLeague({ teams: CORPORA.flatBaseline.teams }));
+    const qbs = [...flat.players.values()].filter((p) => p.bio.position === "QB");
+    expect(qbs.length).toBe(64);
+    expect(new Set(qbs.map((p) => ratingReader(p)("mobility")))).toEqual(new Set([FLAT_RATING]));
+    const positions = new Map([["dt1", "DT"], ["de1", "DE"], ["lb1", "MLB"]]) as never;
+    const fold = emptyS6RowsFold();
+    foldS6RowsGame(fold, constructedGame("f", [{ ...DEADLINE_THROWAWAY, quarterback: "a" }, { ...SHED_THEN_SACK, quarterback: "b" }]), H0, positions);
+    expect(Object.keys(fold.thirds)).toEqual([ALL_THIRD]);
+    expect(fold.thirds[ALL_THIRD]).toMatchObject({ dropbacks: 2, deadlineThrowaways: 1 });
+    expect(fold.otherPassers.dropbacks).toBe(0);
+    expect(Object.keys(s6Rows(fold)["mobilityThirds"] as object)).toEqual([ALL_THIRD]);
+  });
+
+  it("reads a seed set's generated rosters before any arm plays: each team's starting quarterback in a third by Mobility, every backup and any other man in none", () => {
     const def = CORPORA.genSeason;
     const index = indexLeague(buildGeneratedLeague(buildLeague(def.seasonSeed[1]), { season: def.season }));
-    const men = [...index.players.values()];
-    const qbs = men.filter((p) => p.bio.position === "QB").map((p) => String(p.bio.id));
+    const teams = index.teamIds().map((t) => index.teams.get(String(t))!);
+    const starters = teams.map((t) => String(t.depthChart.QB![0]));
+    // The engine's man is the chart's first QB on every team (the corpus plays at full strength).
+    expect([...startingQuarterbacks(index, def.season).values()]).toEqual(starters);
     const third = thirdsOf(1);
-    const counts: Record<string, number> = { LOW: 0, MID: 0, HIGH: 0 };
-    for (const id of qbs) counts[third(id) ?? "none"] = (counts[third(id) ?? "none"] ?? 0) + 1;
-    expect(qbs.length).toBeGreaterThan(30);
-    expect(counts).toEqual({ LOW: Math.floor(qbs.length / 3), MID: Math.floor(qbs.length / 3), HIGH: qbs.length - 2 * Math.floor(qbs.length / 3) });
-    expect(third(String(men.find((p) => p.bio.position !== "QB")!.bio.id))).toBeUndefined();
+    const counts: Record<string, number> = {};
+    for (const id of starters) counts[third(id) ?? "none"] = (counts[third(id) ?? "none"] ?? 0) + 1;
+    expect(starters.length).toBe(32);
+    expect(counts).toEqual({ LOW: 10, MID: 10, HIGH: 12 });
+    const backups = [...index.players.values()].filter((p) => p.bio.position === "QB" && !starters.includes(String(p.bio.id)));
+    expect(backups.length).toBeGreaterThan(0);
+    for (const b of backups) expect(third(String(b.bio.id)), String(b.bio.id)).toBeUndefined();
+    expect(third(String([...index.players.values()].find((p) => p.bio.position !== "QB")!.bio.id))).toBeUndefined();
     // The LOW third's Mobility is never above the HIGH third's.
     const mobility = (id: string): number => ratingReader(index.players.get(id as never)!)("mobility");
-    const low = Math.max(...qbs.filter((id) => third(id) === "LOW").map(mobility));
-    const high = Math.min(...qbs.filter((id) => third(id) === "HIGH").map(mobility));
-    expect(low).toBeLessThanOrEqual(high);
+    const lowMax = Math.max(...starters.filter((id) => third(id) === "LOW").map(mobility));
+    const highMin = Math.min(...starters.filter((id) => third(id) === "HIGH").map(mobility));
+    expect(lowMax).toBeLessThanOrEqual(highMin);
   }, 120_000);
 });

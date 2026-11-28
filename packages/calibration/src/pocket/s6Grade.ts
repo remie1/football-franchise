@@ -356,20 +356,23 @@ export function gradeStep6(x: GradeStep6Inputs): Step6Grade {
   const replays: string[] = [];
   const counts: string[] = [];
 
-  const notPlayed = (id: string, arms: readonly string[]): void => {
+  /** A clause NOT PLAYED: its row names `arms`, its value the arms of `needs` (the arms it reads) that did not play. */
+  const notPlayed = (id: string, arms: readonly string[], needs: readonly string[] = arms): void => {
     const c = clauseOf(id);
-    clauses.push({ id, kind: c?.kind ?? "reported", arms, filed: c === undefined ? "not filed" : bandTextOf(c), values: [`not played: ${arms.filter((a) => sets.some((s) => at(a, s) === undefined)).join(", ")}`], verdict: "NOT PLAYED" });
+    clauses.push({ id, kind: c?.kind ?? "reported", arms, filed: c === undefined ? "not filed" : bandTextOf(c), values: [`not played: ${needs.filter((a) => sets.some((s) => at(a, s) === undefined)).join(", ")}`], verdict: "NOT PLAYED" });
   };
 
   /**
    * A banded clause read by `read` on `arms` (the first the arm read), graded on gen at the graded set
    * when the filing grades it; `change` is the reading's change against the base for D6 (the value
-   * itself on a difference clause).
+   * itself on a difference clause). `needs` is every arm the two read, `arms` and a base `change`
+   * reads beside them: NOT PLAYED unless each played (a partial run, one seed set and some arms, grades
+   * what it played; the smoke's finding).
    */
-  const banded = (id: string, arms: readonly string[], read: (s: SeedSet, l: League) => Reading, change: (s: SeedSet, l: League) => number | null, note?: string): void => {
+  const banded = (id: string, arms: readonly string[], read: (s: SeedSet, l: League) => Reading, change: (s: SeedSet, l: League) => number | null, note?: string, needs: readonly string[] = arms): void => {
     const c = clauseOf(id);
     if (c === undefined) throw new Error(`ADR-089 step 6: the clause ${id} is not in the filing`);
-    if (!played(arms)) return notPlayed(id, arms);
+    if (!played(needs)) return notPlayed(id, arms, needs);
     const values = sets.flatMap((s) =>
       LEAGUES.map((l) => {
         const r = read(s, l);
@@ -569,9 +572,11 @@ export function gradeStep6(x: GradeStep6Inputs): Step6Grade {
 
   // --- the clauses ---------------------------------------------------------------------------------------
   const H0 = ["H0"];
-  banded("s6.pressuredThrowaway", H0, onArm("H0", (r, l) => rated(rowValueOf(r, "throwaway_rate_pressured", l), r.report.sacks[l].pressuredDropbacks, ROW_RULE_LABEL)), levelChange("H0", "F5", (r, l) => rated(rowValueOf(r, "throwaway_rate_pressured", l), 1)), `per 100 pressured dropbacks, ${ROW_RULE_LABEL} (real 8.84%)`);
-  banded("s6.falsifier.pressuredThrowaway", H0, onArm("H0", (r, l) => rated(rowValueOf(r, "throwaway_rate_pressured", l), r.report.sacks[l].pressuredDropbacks, ROW_RULE_LABEL)), levelChange("H0", "F5", (r, l) => rated(rowValueOf(r, "throwaway_rate_pressured", l), 1)), ROW_RULE_LABEL);
-  banded("s6.throwaways", H0, onArm("H0", throwawayRateOf), levelChange("H0", "F5", throwawayRateOf), "per 100 dropbacks, from the metrics fold's counts");
+  /** What H0's banded clauses read: H0, and F5 for D6's change against the base. */
+  const H0_AND_BASE = ["H0", "F5"];
+  banded("s6.pressuredThrowaway", H0, onArm("H0", (r, l) => rated(rowValueOf(r, "throwaway_rate_pressured", l), r.report.sacks[l].pressuredDropbacks, ROW_RULE_LABEL)), levelChange("H0", "F5", (r, l) => rated(rowValueOf(r, "throwaway_rate_pressured", l), 1)), `per 100 pressured dropbacks, ${ROW_RULE_LABEL} (real 8.84%)`, H0_AND_BASE);
+  banded("s6.falsifier.pressuredThrowaway", H0, onArm("H0", (r, l) => rated(rowValueOf(r, "throwaway_rate_pressured", l), r.report.sacks[l].pressuredDropbacks, ROW_RULE_LABEL)), levelChange("H0", "F5", (r, l) => rated(rowValueOf(r, "throwaway_rate_pressured", l), 1)), ROW_RULE_LABEL, H0_AND_BASE);
+  banded("s6.throwaways", H0, onArm("H0", throwawayRateOf), levelChange("H0", "F5", throwawayRateOf), "per 100 dropbacks, from the metrics fold's counts", H0_AND_BASE);
   const rescoring = between("H12", "F5", sackRate);
   const rescoringNote = (): string =>
     `H12 minus F5, sacks per 100 dropbacks; beside, H0's own failed-scramble sacks per 100 dropbacks: ${sets.map((s) => (at("H0", s) === undefined ? `set ${String(s)} n/a` : `set ${String(s)} ${LEAGUES.map((l) => `${l} ${num(per100(at("H0", s)!.s6[l].pocket?.failedScrambleSacks ?? 0, at("H0", s)!.s6[l].pocket?.dropbacks ?? 0))}`).join(", ")}`)).join("; ")}`;
@@ -586,7 +591,7 @@ export function gradeStep6(x: GradeStep6Inputs): Step6Grade {
     const row = rowsOf(r, l)["row:failed_scramble_share_of_sacks"] as { readonly pct: number | null; readonly sacks: number };
     return rated(row.pct, row.sacks, "SIS charts failed scrambles at 10% of sacks (REAL)");
   };
-  banded("s6.failedScrambles", H0, onArm("H0", failedShare), levelChange("H0", "F5", failedShare), "share of sacks the rescoring scores");
+  banded("s6.failedScrambles", H0, onArm("H0", failedShare), levelChange("H0", "F5", failedShare), "share of sacks the rescoring scores", H0_AND_BASE);
   structural("s6.horizonSacks", ["H0", "H5", "HB0", "HB5", "HF2", "HF3", "HF4", "HF5"], proofProblems.get("S-12"), "S-12 on every arm with the part");
   structural("s6.oneEscape", ["H0", "H3", "HB0", "HB3", "HF1", "HF2", "HF3", "HF4", "HF5"], proofProblems.get("S-11"), "S-11 on every arm with the cap");
   if (played(["H13", "H14"])) {
@@ -612,8 +617,8 @@ export function gradeStep6(x: GradeStep6Inputs): Step6Grade {
   structural("s6.behindLine", ["H0", "H2", "HB0", "HB2"], behind(["H0", "H2", "HB0", "HB2"].filter((a) => records.has(a))), "some scramble run ends behind the line on each arm (and S-13 holds)");
   const cleanOuts = (r: Step6Record, l: League): Reading =>
     rated(rowValueOf(r, "clean_outs_rate", l), r.report.sacks[l].dropbacks - r.report.sacks[l].pressuredDropbacks, `REAL 10.63, and ${String(S6_REAL_BESIDE.cleanOutOfPocketNoPlayAction.per100)} without play action (${S6_REAL_BESIDE.cleanOutOfPocketNoPlayAction.label})`);
-  banded("s6.cleanOutOfPocket", H0, onArm("H0", cleanOuts), levelChange("H0", "F5", cleanOuts), "per 100 clean dropbacks, a falsifier");
-  banded("s6.contactsInOut", H0, onArm("H0", contactsInOutOf), levelChange("H0", "F5", contactsInOutOf), "in the pocket minus out of it, points, a falsifier");
+  banded("s6.cleanOutOfPocket", H0, onArm("H0", cleanOuts), levelChange("H0", "F5", cleanOuts), "per 100 clean dropbacks, a falsifier", H0_AND_BASE);
+  banded("s6.contactsInOut", H0, onArm("H0", contactsInOutOf), levelChange("H0", "F5", contactsInOutOf), "in the pocket minus out of it, points, a falsifier", H0_AND_BASE);
   const sideAware = between("H7", "F5", sackRate);
   if (played(["H7", "F5"])) banded("s6.sideAwareCatch", ["H7", "F5"], sideAware, valueOf(sideAware), "H7 minus F5, sacks per 100 dropbacks, direction UP");
   else notPlayed("s6.sideAwareCatch", ["H7", "F5"]);
@@ -641,9 +646,15 @@ export function gradeStep6(x: GradeStep6Inputs): Step6Grade {
   printed("s6.onTheRun.pressuredCompletion", H0, (s, l) => onRun(s, l, "PRESSURED", "completion"));
   printed("s6.onTheRun.pressuredInt", H0, (s, l) => onRun(s, l, "PRESSURED", "int"));
   printed("s6.mobilityThirds", H0, (s, l) => {
-    const t = rowsOf(at("H0", s)!, l)["mobilityThirds"] as Readonly<Record<string, { readonly cleanScrambles: { readonly registered: { readonly per100: number | null }; readonly boxScore: { readonly per100: number | null }; readonly cleanDropbacks: number }; readonly deadlineThrowaways: { readonly per100: number | null } }>>;
-    const cells = Object.entries(t).map(([third, c]) => `${third}: clean scrambles ${num(c.cleanScrambles.registered.per100)} registered, ${num(c.cleanScrambles.boxScore.per100)} box score of ${String(c.cleanScrambles.cleanDropbacks)}; deadline throwaways ${num(c.deadlineThrowaways.per100)}`);
-    return `${l === "flat" ? "one third (every flat quarterback has the same Mobility): " : ""}${cells.join("; ")} (REAL 2.44 to 5.18 by designed runs per dropback, a behavior and not a rating; fewer deadline throwaways with more Mobility is expected and reported)`;
+    type Third = { readonly cleanScrambles: { readonly registered: { readonly per100: number | null }; readonly boxScore: { readonly per100: number | null }; readonly cleanDropbacks: number }; readonly deadlineThrowaways: { readonly per100: number | null; readonly dropbacks: number } };
+    const rows = rowsOf(at("H0", s)!, l);
+    const t = rows["mobilityThirds"] as Readonly<Record<string, Third>>;
+    const cell = (c: Third): string => `clean scrambles ${num(c.cleanScrambles.registered.per100)} registered, ${num(c.cleanScrambles.boxScore.per100)} box score of ${String(c.cleanScrambles.cleanDropbacks)}; deadline throwaways ${num(c.deadlineThrowaways.per100)}`;
+    const cells = Object.entries(t).map(([third, c]) => `${third}: ${cell(c)}`);
+    // The generated league's thirds cut each team's starting quarterback; any other passer is counted apart, beside them.
+    const other = rows["mobilityThirdsOther"] as Third;
+    const apart = l === "flat" ? "" : `; beside, in no third, other passers (no team's starter): ${String(other.deadlineThrowaways.dropbacks)} dropbacks${other.deadlineThrowaways.dropbacks === 0 ? "" : `, ${cell(other)}`}`;
+    return `${l === "flat" ? "one third (every flat quarterback has the same Mobility): " : "the starters' thirds: "}${cells.join("; ")}${apart} (REAL 2.44 to 5.18 by designed runs per dropback, a behavior and not a rating; fewer deadline throwaways with more Mobility is expected and reported)`;
   });
   for (const [id, cls] of [["s6.sackerShift.offBall", "offball"], ["s6.sackerShift.interior", "interior"]] as const) {
     printed(id, H0, (s, l) => {

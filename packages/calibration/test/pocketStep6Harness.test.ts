@@ -6,7 +6,9 @@
  * answers a test gives, never a recorded answer.
  *
  *  1. The gate at this head refuses the run, F5's second fresh play and R-1 before anything plays,
- *     and makes no cache; then the preflight, the arms' build and a dirty tree refuse in that order.
+ *     and makes no cache; then the preflight, the arms' build and a dirty tree refuse in that order;
+ *     a shortened corpus never reaches the cache or the records (the run takes none, and the cache
+ *     refuses a record played on one).
  *  2. The preflight refuses each condition alone, by name: the filing, the amendments file (missing,
  *     unloadable), its step-3, step-4 and step-5a views, the step-6 view's pin, AM-12 (absent, its
  *     class view, its base map), AM-13 (absent, its answers), a choice not yet made; and passes for
@@ -14,7 +16,9 @@
  *  3. The arms, the plan, the cache, the records: the arms refused without petitions and distinct with
  *     them; the plan's targets and shards; the cache refused on a dirty tree; F5's fresh file and its
  *     command; the writes over committed records; a cached record's problems; the folds and recipe a
- *     step-6 arm plays with; `playStep6Arm`'s refusals and its wiring into step 5's play.
+ *     step-6 arm plays with; `playStep6Arm`'s refusals and its wiring into step 5's play; step 5's
+ *     margin rebuild (S-4) on a step-6 stamp, whose dials no table names (N9): the bundle's own, by
+ *     their digest (one F5 golden game restamped, since the engine plays no step-6 stamp yet).
  *  4. The run with fakes: shards, the cache read back, the grade once every target and F5's second
  *     fresh plays are there (or the commands it waits on), the report and the measures, one seed set,
  *     and each refusal of a cached record, of a fresh play and of a committed report from a dirty tree.
@@ -23,16 +27,31 @@
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { MatchEventEnvelope } from "@ff/contracts";
+import type { Tunables } from "@ff/engine";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { AMENDMENTS_DIGEST, STEP3_AMENDMENTS_DIGEST, AMENDMENTS_PATH } from "../src/pocket/amendments.js";
-import { STEP6_ARM_IDS, STEP6_RUN_IDS, type ArmId, type Step6Arm, type Step6ArmId } from "../src/pocket/arms.js";
-import type { SeedSet } from "../src/pocket/corpus.js";
+import { armById, armOfDigest, STEP6_ARM_IDS, STEP6_RUN_IDS, type ArmId, type Step6Arm, type Step6ArmId } from "../src/pocket/arms.js";
+import { goldenGames, type SeedSet } from "../src/pocket/corpus.js";
 import { STEP0_FILED_DIGEST } from "../src/pocket/filed.js";
-import { POCKET_1_S5A_DIGEST, POCKET_1_S6_DIGEST, readsStep3Facts, RECOMMENDED_OUTS_OPTIONS, everyOutsOptions, STEP6_PETITIONS_GRANTED, step6PetitionsUnder, type OutsOptions } from "../src/pocket/rules.js";
+import {
+  POCKET_1_S5A_DIGEST,
+  POCKET_1_S6_DIGEST,
+  POCKET_1_S6_RULES,
+  overlayDigestOf,
+  readsStep3Facts,
+  RECOMMENDED_OUTS_OPTIONS,
+  everyOutsOptions,
+  rulesOnPlayStart,
+  STEP6_PETITIONS_GRANTED,
+  step6PetitionsUnder,
+  type OutsOptions,
+} from "../src/pocket/rules.js";
+import { dialsOf, emptyReproduceFold, reproduceMargins, s1PlaysOf } from "../src/pocket/s1Stream.js";
 import { emptyStep6LeagueFolds } from "../src/pocket/s6Checks.js";
 import { STEP6_ARM_FORMAT, STEP6_CLOCK_LABEL, STEP6_MEASURES_FORMAT, type Step6Record } from "../src/pocket/s6Grade.js";
 import { POCKET_1_S6_PIN_STRIP, POCKET_1_S6_PINS, POCKET_1_S6_PINS_MEASURED_AT, S6_PIN_ARM_IDS, type S6PinArmId } from "../src/pocket/s6Pins.js";
-import { STEP1_CALLER, FULL_CORPUS, armFileOf, jsonText, type Step1Env } from "../src/pocket/step1.js";
+import { STEP1_CALLER, FULL_CORPUS, armFileOf, jsonText, type Step1Corpus, type Step1Env } from "../src/pocket/step1.js";
 import { step3StampOf } from "../src/pocket/step3.js";
 import { STEP4_AMENDMENTS_PIN, type PlayStep4Options, type Step4Record } from "../src/pocket/step4.js";
 import { emptyStep5LeagueFolds, STEP5A_AMENDMENTS_PIN, step5FoldsOf } from "../src/pocket/step5.js";
@@ -52,6 +71,7 @@ import {
   step6CacheDir,
   step6Command,
   STEP6_DIRTY_REFUSAL,
+  STEP6_SHORT_CORPUS_REFUSAL,
   step6FoldsOf,
   step6FreshCommandOf,
   step6FreshFileOf,
@@ -180,6 +200,24 @@ describe("refused before anything plays, in order: the gate, the preflight, the 
     expect(() => runStep6Digests({ filedPath: FILED, amendmentsPath: SI.path, node: "v22", gate: OPEN, preflight: { pin: SI.pin } })).toThrow(NOT_YOURS);
     expect(calls).toEqual([]);
     expect(existsSync(join(dir, "cache"))).toBe(false);
+  });
+
+  it("a shortened corpus never reaches the cache or the records: the run refuses any corpus before anything plays, and a record played on one is not the cache's", () => {
+    const dir = freshDir("short");
+    const calls: PlayCall[] = [];
+    const o = runOptions(dir, calls, [], []);
+    const SHORT: Step1Corpus = { flatFirst: 32, genThroughWeek: 2 };
+    for (const corpus of [SHORT, FULL_CORPUS]) expect(() => runStep6({ ...o, corpus } as Step6Options)).toThrow(STEP6_SHORT_CORPUS_REFUSAL);
+    expect(calls).toEqual([]);
+    expect([existsSync(join(dir, "cache")), existsSync(o.report!), existsSync(o.out!)]).toEqual([false, false, false]);
+    // A record played on a shortened corpus (as the smoke plays H0, through playStep6Arm, which writes
+    // nothing) and put into the cache by hand: the run refuses to read it, and grades nothing.
+    const short = fakePlayer([])("H0", 1, ENV, { amendments: SI.pin, classify: (() => "PROGRESSION") as never, arm: armOf("H0"), corpus: SHORT });
+    expect(short.stamp.corpus).toEqual(SHORT);
+    writeFileSync(armFileOf(step6CacheDir(o.cacheParent, ENV), "H0", 1), jsonText(short));
+    expect(() => runStep6({ ...o, arms: ["H0"], seedSet: 1 })).toThrow(/the cached H0\.set1 at .* is not this build's arm: .*corpus: cached \{"flatFirst":32,"genThroughWeek":2\}, this build \{"flatFirst":null,"genThroughWeek":null\}/);
+    expect(calls).toEqual([]);
+    expect([existsSync(o.report!), existsSync(o.out!)]).toEqual([false, false]);
   });
 
   it("the command with the gate open refuses a write over committed records before its preflight", async () => {
@@ -398,6 +436,42 @@ describe("the arms, the plan, the cache and the records", () => {
       expect(r.s5, id).toEqual({ flat: emptyStep5LeagueFolds(), gen: emptyStep5LeagueFolds() });
     }
   });
+});
+
+describe("step 5's margin rebuild on a step-6 stamp (S-4, N9): the harness's own fold, which the smoke found refusing", () => {
+  it("reads a step-6 stamp's dials from the bundle itself, since no table names a step-6 arm, and refuses a bundle whose dials are not the ones its stamp names", () => {
+    // One golden game under F5 (step 5a's dials), restamped pocket-1.s6 with the same dials: the engine
+    // plays no step-6 stamp before the lift, and F5's margins are the ones these dials rebuild.
+    const f5 = armById("F5").tunables;
+    let events: MatchEventEnvelope[] = [];
+    goldenGames("flat", (o) => (events = structuredClone(o.events) as MatchEventEnvelope[]), { tunables: f5, callerVersion: STEP1_CALLER, first: 1 });
+    const digest = overlayDigestOf(f5);
+    const rules = { name: POCKET_1_S6_RULES, overlayDigest: digest };
+    const restamped = events.map((e) =>
+      e.event.type === "PLAY_START" && rulesOnPlayStart(e.event.payload) !== undefined ? { ...e, event: { ...e.event, payload: { ...(e.event.payload as object), rules } } } : e,
+    ) as MatchEventEnvelope[];
+    const s6: Tunables = { ...f5, engineRules: rules };
+    expect(() => armOfDigest(digest, POCKET_1_S6_RULES)).toThrow(/its dials cannot be named \(N9\)/);
+    const plays = s1PlaysOf(restamped);
+    expect(plays.every((p) => p.rules?.name === POCKET_1_S6_RULES)).toBe(true);
+    const fold = emptyReproduceFold();
+    for (const play of plays) reproduceMargins(fold, play, dialsOf(s6));
+    expect(fold.problems).toEqual([]);
+    expect(fold.stamps).toEqual({ [digest]: plays.length });
+    expect(fold.ticks.S).toBeGreaterThan(0);
+    // The same stream as F5 stamped it is read through armOfDigest, as before, to the same rebuild.
+    const asPlayed = emptyReproduceFold();
+    for (const play of s1PlaysOf(events)) reproduceMargins(asPlayed, play, dialsOf(f5));
+    expect(asPlayed.problems).toEqual([]);
+    expect(asPlayed.ticks).toEqual(fold.ticks);
+    // A bundle stamped with these dials' digest whose dials are other ones: every play refused, nothing rebuilt.
+    const other: Tunables = { ...s6, passRush: { ...s6.passRush, beatClock: { ...s6.passRush.beatClock!, thetaSeconds: s6.passRush.beatClock!.thetaSeconds + 1 } } };
+    const wrong = emptyReproduceFold();
+    for (const play of plays) reproduceMargins(wrong, play, dialsOf(other));
+    expect(wrong.problemCount).toBe(plays.length);
+    expect(wrong.problems[0]).toMatch(new RegExp(`the bundle's dials digest to ${overlayDigestOf(other)}, not to ${digest}, the dials its stamp names`));
+    expect(wrong.ticks).toEqual({ LEGACY: 0, S: 0, L: 0 });
+  }, 120_000);
 });
 
 describe("the run with fakes: the cache, the grade, the report and the measures", () => {

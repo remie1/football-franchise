@@ -69,11 +69,6 @@ export function failedScrambleMarkerOf(playStartPayload: unknown): boolean {
   return obj(obj(playStartPayload)?.["scoring"])?.["failedScramble"] === "SACK";
 }
 
-/** Whether a play's `PLAY_START` payload names rules read with step 6's readers. */
-export function playReadsStep6Facts(playStartPayload: unknown): boolean {
-  return readsStep6Facts(rulesOnPlayStart(playStartPayload)?.name);
-}
-
 /** An escape roll's band read by the arm's own §8.8 table. */
 export type EscapeBandOutcome = "ESCAPED" | "CONTAINED" | "CAUGHT";
 

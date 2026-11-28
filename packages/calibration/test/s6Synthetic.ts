@@ -103,7 +103,8 @@ export function synthS6Folds(id: string, league: League): Step6LeagueFolds {
   f.rows.pressuredOrSacked = { dropbacks: 320, sacks: 60 };
   f.rows.rollsByOfferBand = { RUSHED: { rolls: 40, failed: 16 }, SOUND: { rolls: 80, failed: 20 } };
   const third = (k: number) => ({ cleanDropbacks: 230 + k, cleanScrambles: 6 + k, cleanBoxScoreScrambles: 5 + k, deadlineThrowaways: 4 - k, dropbacks: 330 + k });
-  f.rows.thirds = league === "flat" ? { MID: third(0) } : { LOW: third(0), MID: third(1), HIGH: third(2) };
+  // The flat league holds one third, ALL (no cut: every flat quarterback has the same Mobility); the generated league cuts its starters.
+  f.rows.thirds = league === "flat" ? { ALL: third(0) } : { LOW: third(0), MID: third(1), HIGH: third(2) };
   f.rows.m3.byPocket = { in: { interior: 30, edge: 50, offball: 10, db: 10 }, out: { interior: 20, edge: 50, offball: 20, db: 10 } };
   Object.assign(f.counts, {
     behindLine: 1,

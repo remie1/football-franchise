@@ -453,7 +453,9 @@ function playedArmProblem(id: ArmId, arm: Step6Arm | undefined): string | undefi
  * folds (`foldStep5Game`) and step 6's (`foldStep6Game`) on every game, each league's metrics totals
  * at its end (`finishStep6League`), and AM-11's clock label beside the stamp. A step-6 arm plays its
  * built tree (`opts.arm`), its probes' overrides patched on both leagues' rosters and its mirror; D1,
- * F5 and E9 play as step 5 played them.
+ * F5 and E9 play as step 5 played them. It writes nothing and reads no gate: `runStep6` writes the
+ * cache from the full corpus alone, and the smoke (`test/pocketStep6Smoke.test.ts`) plays H0 here on a
+ * shortened one (`opts.corpus`), its record kept in memory.
  */
 export function playStep6Arm(id: ArmId, seedSet: SeedSet, env: Step1Env, opts: PlayStep6Options): Step6Record {
   const arm = opts.arm;
@@ -628,7 +630,6 @@ export interface Step6Options {
   readonly amendmentsPath: string;
   readonly env: Step1Env;
   readonly committedDir?: string;
-  readonly corpus?: Step1Corpus;
   readonly log?: (line: string) => void;
   /** Tests only: the gate's state (default `step6GateState()`), the pin, the petitions the arms are built under (default: the flags), the player, F5's fresh play, the references and the thirds. */
   readonly gate?: Step6GateState;
@@ -662,17 +663,22 @@ export function buildStep6Arms(answers: OutsOptions, petitions: StampPetitions =
   return step6ArmsWith(answers, petitions, [armById("D1"), armById("F5"), armById("E9")]);
 }
 
+export const STEP6_SHORT_CORPUS_REFUSAL =
+  "ADR-089 step 6: refused before anything plays: step 6's cache and records are made from the full corpus only (it takes no corpus); a shortened corpus plays one arm through playStep6Arm, which writes nothing (the smoke, test/pocketStep6Smoke.test.ts). Nothing has played and no cache was made";
+
 /**
  * Plays this shard's targets, then grades once every target is cached. Refused, before anything
- * plays, by the gate (plan §10.3), then the preflight, then the arms' build.
+ * plays, by a corpus given (step 6's cache and records are the full corpus's alone:
+ * `STEP6_SHORT_CORPUS_REFUSAL`), then the gate (plan §10.3), then the preflight, then the arms' build.
  */
 export function runStep6(opts: Step6Options): Step6RunResult {
+  if ((opts as { readonly corpus?: unknown }).corpus !== undefined) throw new Error(STEP6_SHORT_CORPUS_REFUSAL);
   const log = opts.log ?? ((): void => undefined);
   const gate = step6GateRefusal(opts.gate ?? step6GateState());
   if (gate !== undefined) throw new Error(gate);
   const { file, guard } = preflightStep6(opts.filedPath, opts.amendmentsPath, opts.preflight);
   const plan = planStep6({ ...(opts.arms === undefined ? {} : { arms: opts.arms }), ...(opts.shard === undefined ? {} : { shard: opts.shard }), ...(opts.seedSet === undefined ? {} : { seedSet: opts.seedSet }) });
-  const corpus = opts.corpus ?? FULL_CORPUS;
+  const corpus = FULL_CORPUS;
   const built = buildStep6Arms(guard.answers, opts.petitions);
   const armOf = (id: ArmId): Step6Arm | undefined => (isStep6ArmId(id) ? built.get(id) : undefined);
   const committed = opts.committedDir !== undefined && [opts.report, opts.out].some((p) => p !== undefined && isUnder(p, opts.committedDir!));
