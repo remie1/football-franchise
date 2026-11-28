@@ -10,8 +10,13 @@
  * The projected team keeps everyone under contract next season. A player whose deal ends after this
  * season is "who we lose" (point 5): the projection drops him and the next man up starts. Rookies to
  * come and free agents to sign are not in it; the meeting is about the team as it stands.
+ *
+ * ADR-087 §12.13: under the growth curve (`growth: "curve"`) every man is projected at the typical
+ * growth, 1: the curve is hidden from every GM and coach (the owner, 2026-11-27), and the staff's
+ * claims are read off this table.
  */
 import { positionOverall, type PlayerContract, type PlayerState, type Team } from "@ff/contracts";
+import type { GrowthRule } from "../players/growthCurve.js";
 import { teamStrength, type MeetingGroup, type TeamStrength } from "./strength.js";
 
 /** [first age of the band, mean change a year]: ADR-087 D5a, starters, development arm (MEASURED). */
@@ -28,11 +33,14 @@ export function expectedChange(age: number, growth: number = 1): number {
   return age < AGING_FROM ? change * growth : change;
 }
 
-/** A copy of the player a year on: one year older, every rating moved by his expected change. */
-export function projectPlayer(p: PlayerState, years: number = 1): PlayerState {
+/**
+ * A copy of the player a year on: one year older, every rating moved by his expected change. `growth`
+ * `"curve"` (§12.13) reads the typical man's growth, 1, in place of his own.
+ */
+export function projectPlayer(p: PlayerState, years: number = 1, growthRule: GrowthRule = "standard"): PlayerState {
   let values = { ...p.attributes.values };
   let age = p.bio.age;
-  const growth = p.attributes.development?.growth ?? 1;
+  const growth = growthRule === "curve" ? 1 : p.attributes.development?.growth ?? 1;
   for (let y = 0; y < years; y++) {
     const d = expectedChange(age, growth);
     values = Object.fromEntries(Object.entries(values).map(([k, v]) => [k, v === undefined ? v : Math.max(0, Math.min(99, v + d))]));
@@ -60,9 +68,9 @@ export interface TeamProjection {
 
 /**
  * A team now and as it would stand in a year and in two, with no one added. `season` is the season
- * just played.
+ * just played. `growth` as `projectPlayer` takes it.
  */
-export function projectTeam(team: Team, players: readonly PlayerState[], contracts: readonly PlayerContract[], season: number): TeamProjection {
+export function projectTeam(team: Team, players: readonly PlayerState[], contracts: readonly PlayerContract[], season: number, growth: GrowthRule = "standard"): TeamProjection {
   const byId = new Map(players.map((p) => [String(p.bio.id), p]));
   const lastSeason = new Map<string, number>();
   for (const c of contracts) {
@@ -80,14 +88,14 @@ export function projectTeam(team: Team, players: readonly PlayerState[], contrac
   const yearOn = (years: number): TeamStrength => {
     const keep = (id: string) => ends(id) >= season + years;
     const m = new Map<string, PlayerState>();
-    for (const p of roster) if (keep(String(p.bio.id))) m.set(String(p.bio.id), projectPlayer(p, years));
+    for (const p of roster) if (keep(String(p.bio.id))) m.set(String(p.bio.id), projectPlayer(p, years, growth));
     const kept = { ...team, roster: team.roster.filter((id) => m.has(String(id))) };
     return teamStrength(kept, m);
   };
 
   const change = roster.map((p) => {
     const now = positionOverall(p.bio.position, p.attributes.values);
-    return { player: p, now, next: positionOverall(p.bio.position, projectPlayer(p).attributes.values) };
+    return { player: p, now, next: positionOverall(p.bio.position, projectPlayer(p, 1, growth).attributes.values) };
   });
   return { now: teamStrength(team, byId), next: yearOn(1), after: yearOn(2), expiring, expiringNext, change };
 }

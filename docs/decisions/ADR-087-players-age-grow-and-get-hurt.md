@@ -408,6 +408,7 @@ No change to `GameResult` or the engine's types.
 
 §12 adds P7, E6, P8 and W1 (§12.2.2, §12.4.1, §12.3.7, §12.8), and lists the further edits as
 NEW-1 to NEW-5 (§12.10). NEW-1 and NEW-2 were approved by the owner's typed yes on 2026-11-14.
+§12.13 adds G1 and G2 (the owner's typed yeses 2026-11-27 and 2026-11-28).
 
 ## 9. Build plan
 
@@ -963,6 +964,7 @@ his answers to its six questions (2026-11-07 12:15Z, §12.12).
   needs the owner's own typed yes. NEW-1 (Q3) and NEW-2 (Q4) were chosen on 2026-11-07 and waited for
   their typed names, which the owner typed on 2026-11-14 (*"Yes on NEW-1 and NEW-2"*). NEW-1's line landed with
   AB8; NEW-2 was built as AB-L on 2026-11-14, its own PR (§12.9, the AB-L note). NEW-3 is not made (Q5); NEW-4 is not asked; NEW-5, a comment fix, is asked with a later step.
+- Growth edits G1 and G2 (§12.13): the owner's typed yeses 2026-11-27 20:08Z and 2026-11-28 16:47Z; built switched off with §12.13. G3 is not made.
 
 This section replaces §2.4's age profiles by position, and §6.1's "unsigned only" retirement, wherever
 growth is on.
@@ -1012,6 +1014,7 @@ Each new rule is an option. Each option defaults to today's rule while it is bui
 | `aging` | `PlayerStepsConfig.aging`, its own optional field (franchise `players/steps.ts`); also the `generateLeagueRosters` / `generateDraftClass` options (attributes) | `"position"` \| `"ability"` | Profiles by position (§2.4), or the ability curves (§12.2). In attributes: today's rookie and specialist ages, or §12.5's ages. |
 | `injuryRisk` | `PlayerStepsConfig.injuryRisk`, its own optional field (`injuries` is a boolean, `config.injuries === true`, and stays one) | `"group"` \| `"spot"` | Today's `byGroup` by `POSITION_GROUP[bio.position]` with the age rule from 26, or §12.3's spot and age factors, marks and healing. |
 | `retirement` | `PlayerStepsConfig.retirement`, its own optional field | `"unsigned"` \| `"choice"` | Today's unsigned-only rule, or §12.4 added on top of it. |
+| `growth` (§12.13, added 2026-11-28) | `AgingOptions.growth`, so `PlayerStepsConfig.growth` and the expected walk's options | `"standard"` \| `"curve"` | Today's growth, or each man's own hidden curve (§12.13). An aging option: it acts only with `development` on and `aging: "ability"`. |
 
 Each option does nothing unless its parent switch is on:
 - `aging` only acts with `development` on;
@@ -2857,6 +2860,9 @@ How far each run moved. Score counts compare games with the same game id in both
 | NEW-2 | The INSIDE_LB profile: swap gapDiscipline for acceleration | Real inside linebackers are young | Owner chose "change it now" (Q4, 2026-11-07); typed yes 2026-11-14; made-up ratings kept as today (option A, the owner's choice on a decision card, 2026-11-14 02:44Z). Own step AB-L (§12.7), its own PR, built 2026-11-14 (`3dc78ff`; §12.9, the AB-L note) |
 | NEW-3 | A `longSnapping` rating plus the LS profile | Snappers have no rating of their own | Owner: wait until bad snaps are part of the game (Q5, 2026-11-07); not made |
 | NEW-4 | A contact count on the growth record | Seeding real veterans' past wear | Not asked now |
+| G1 (typed yes 2026-11-27 20:08Z) | `PlayerDevelopment.timing?: number`, his growth timing, a hidden draw in [0, 1) | Each man's own growth curve: when in his career he learns most (§12.13) | Built with §12.13, switched off |
+| G2 (typed yes 2026-11-28 16:47Z) | `GameParticipation.uses?: { attr, n }[]`, every rating his rolls named in a game | Snap growth by the ratings he used (§12.13) | Built with §12.13; filled only under the curve |
+| G3 | A second hidden growth level for the body | Body 99s | Not made: AB9 round 8 found it a weak lever (§12.13) |
 | NEW-5 | Reword the `TrueAttributes` reader comment (`contracts/src/players.ts` and `docs/design/contracts.md`) so the five franchise steps it names are called ADR-087's, or list every franchise reader of truth (also ADR-081, ADR-085 step 13, ADR-094 and ADR-096, §7) | The comment's "only … plus five franchise steps" was already short of the truth before NEW-1 (found in NEW-1's review, 2026-11-14) | A comment only; no step waits for it. Asked with a later step; then a franchise test could check the readers against the comment |
 
 ### 12.11 Notes for other threads
@@ -2917,6 +2923,111 @@ retirements after being let go."*
 - Making the new rules the growth-on default (AB11) needs no new answer: R1-R3 already cover it.
 - Switching growth and injuries on by default (Q8) still waits for the 20-season check (played with
   the cap thread's step 14, §12.11 M5), and comes back to the owner then.
+
+### 12.13 Each man's own growth curve (`growth: "curve"`; edits G1 and G2)
+
+**Status.** Built switched off, 2026-11-28. It carries out the owner's answers on where top players
+come from (2026-11-27 14:06Z and 20:08Z, plan doc "Where top players come from",
+https://claude.ai/artifact/Ff3CQ3UhLtKD4pL82SvmJT, revision 14). Contracts edits G1 and G2 only:
+- G1, the owner's typed yes 2026-11-27 20:08Z (*"yes on edit G1"*);
+- G2, the owner's typed yes 2026-11-28 16:47Z (*"yes on edit G2"*);
+- G3 (a second hidden level for the body) is not made: AB9 round 8 found the split a weak lever, and
+  the plan doc recommended skipping it.
+
+**The owner's rulings it carries out** (2026-11-27).
+- No hard age rule ends growth. Each man gets a hidden personal curve, most of them lower than today's
+  typical one. A top player is a high curve, a high start, playing time and a young age; playing time
+  alone must not mean big gains.
+- Playing time counts more than practice: practice 1.6 and snaps 2.4 points a year (not the full swap
+  to 1.2 and 2.8). Workouts at a third.
+- Snap growth follows the ratings a man actually used in plays (a back never thrown to gets no
+  receiving growth from his snaps); practice stays general. Spots with far fewer snaps are allowed for.
+- GMs must not see the curve.
+- The timing mix starts at 40% early, 40% steady and 20% late developers.
+
+**The switch.** `growth`, an aging option (`AgingOptions.growth`, franchise `players/aging.ts`):
+`"standard"` (the default: today's growth, to the byte) or `"curve"`. It acts only with development on
+and `aging: "ability"`, plays its own fitted set (so it refuses `abilityCurves`), and is recorded in
+`PlayerMemory.switches` only as `"curve"`. Calibration takes `--growth standard|curve` on `season`,
+`career-check` and `player-checks`; it needs the ability path, and the rules are named
+`ability-curve…` in records and caches.
+
+**What it changes** (franchise `players/growthCurve.ts`, `aging.ts` `GROWTH_CURVE_SET`):
+
+| Part | Today (`standard`) | The curve | Label |
+|---|---|---|---|
+| His level | the stored growth draw (lognormal, median 1, sdLog 0.25) | the draw to the power 1.5 (median 1, sdLog 0.375) | CHOSEN (AB9 g8m) |
+| His timing (G1) | one timetable for all | early (today's), steady or late, 40/40/20, from `PlayerDevelopment.timing`, else from his id | mix CHOSEN (owner); steady and late timetables GUESS |
+| Practice and snaps, points a year | 2.8 and 1.2 | 1.6 and 2.4 | CHOSEN (owner) |
+| Body-plus-practice share | 0.4 | 0.2 | GUESS |
+| Snap growth by use (G2) | every rating by his snap share | each rating by his rolls of it per snap over the median man's (`USE_YARDSTICK`, at most one in ten snaps); a rating no play rolls keeps the full share | MEASURED (20 flat-league games), the 0.1 top CHOSEN |
+| Technique's snap points | at the set's floor | at a 0.25 floor (practice still at the set's) | CHOSEN (AB9 g12 against g13) |
+| Fades | set D | D's starts and caps with every `per` doubled | CHOSEN (AB9 g3g) |
+| Learning floor | D's 0.08 | 0.15 | CHOSEN (AB9 g4f) |
+| Workouts by age | D's [[22, 1], [25, 0.1], [28, 0]] | a third: [[22, 0.33], [25, 0.033], [28, 0]] | CHOSEN (owner) |
+| Smarts from snaps | 0.45 per 1,000 | 0.15 | CHOSEN (AB9 g10s) |
+
+**Hidden from GMs, coaches and fans.** Under the curve, every read of the year ahead
+(`expectedOverallChange`, `expectedOverallPath`) is blind to his level and timing: it reads the
+typical man's (the mean level, about 1.0728, and the timing mix's mean learning rate). A measuring
+caller may pass `truth: true`. The end-of-season meeting's projections read the typical growth, 1
+(`MeetingStepsConfig.growth`, which calibration sets under the curve). The money side's look-ahead
+(`cap/ahead.ts`) on main still walks the position path with no aging options; when the cap thread
+lands M2 (§12.11), it should pass `growth` with the rest, so the GMs' read stays blind.
+
+**The contracts edits.**
+- **G1** `PlayerDevelopment.timing?: number` (`players.ts`): when in his career he learns most, a hidden
+  draw in [0, 1), fixed for life. Franchise cuts it at 0.4 and 0.8. Nothing writes it yet: the made-up
+  classes and the stand-in league file can draw it on their own stream in a later step. Until then the
+  curve reads one from his id (FNV-1a), the same for the same man in every run.
+- **G2** `GameParticipation.uses?: { attr, n }[]` (`league.ts`): every rating his rolls named in a
+  game, opposed or not, counted once a roll. The season runner fills it only when asked
+  (`participationFrom(…, { uses: true })`), and calibration asks only under the curve.
+  - Known limit: a check with more than two actors credits its first actor only (a stunt call's
+    partner too), and roll modifiers name no player.
+  - Known limit: seven ratings are never rolled yet (touch, release, pullSkill, spectacularCatch,
+    ballSecurity, puntHangTime, pocketPatience). They keep the full snap share.
+  - The engine naming each roll's player is engine work, after the pocket fix.
+
+**As tuned** (MEASURED, AB9 g12, 4 tune seeds, 20 seasons, on the local joint tree with step 14,
+the seat value, record sight and durability × 0.037; grade
+`/mnt/project-files/design/aging-redesign/ab9/growth/g12-4s.md`; the league file's year 0 or REAL
+in brackets):
+
+| Measure | g12 | File or REAL |
+|---|---|---|
+| League level, 2036-2045 mean | 66.26 | 66.4 (file) |
+| 99s a season | 36.3 | 40.5 (file) |
+| Technique 99s | 14.9 | 21.5 (file) |
+| Smarts 99s | 6.3 | 5 (file) |
+| Share 31 and over | .119 | .101 (REAL) |
+| Mean age | 26.40 | 26.27 (REAL) |
+| Picks not kept | .305 | |
+| GATE rows | 9 pass, 15 fail (1 not resolvable, 2 other) | |
+
+**The same rules as g12.** The switch plays the same franchise rules as g12's local tree. MEASURED:
+six made-up men of 22 to 33 were each played two years as a starter and as a backup, with rolls by
+rating, and walked three years blind and true. The output was byte-identical between this build with
+`growth: "curve"` and g12's tree at `8608b1d`.
+
+**Not the default.** The curve was tuned against step 14's market, which is not on main. The gaps
+left are on the market side (veterans signed again, starters gone after the cut-down; §12.11 M4 and
+the cap thread). The injury refit follows on top of it. Making it the growth-on default comes back
+to the owner after the joint 20-season check passes (§12.11 M5).
+
+**Inert by default** (tests: franchise `players.growthCurve.test.ts`; calibration
+`agingFlags.test.ts`, `participation.test.ts` and `realSeasonPlayers.test.ts`).
+- With `growth` absent or `"standard"`, the development week, the walk and the meeting are main's to
+  the byte, on both paths, whatever a week's rolls say.
+- No who-played report carries `uses` unless asked.
+- No save records `growth` unless the curve acts.
+- The two contracts fields are optional, so old saves and files load.
+
+**Left for later.**
+- A GM's read of "growth so far" (judging the curve from how far a man has grown, as the injury record
+  is read). It needs a ratings history; the cap thread looks at it first.
+- Drawing G1's number in the made-up classes and the stand-in file.
+- Real-league comparison rows on the list-based measures.
 
 ## Conjoined mechanisms
 

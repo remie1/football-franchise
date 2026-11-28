@@ -55,7 +55,8 @@ export const PLAYER_STEP_PREFIX = "players:";
  * options act only on the spot path and are recorded only where they act and are not the default:
  * `healingByAge: false` (AB9-T6) with injuries on and `injuryRisk: "spot"`; `perContact` above 0
  * (AB9-T5) with that and development on with `aging: "ability"` too. `retirement` (AB8) acts with
- * either switch on and is recorded only when not the default (`"unsigned"`).
+ * either switch on and is recorded only when not the default (`"unsigned"`). `growth` (§12.13) is an
+ * aging option: it acts and is recorded only as `"curve"`, with development on and `aging: "ability"`.
  */
 export interface PlayerStepsConfig extends AgingOptions {
   /** Growth and aging (§2, §4). */
@@ -217,6 +218,15 @@ export function playerWeeks(people: LeaguePeople, ctx: DayStepContext, reports: 
         contests.set(String(c.attr), { attr: c.attr, won: (was?.won ?? 0) + c.won, lost: (was?.lost ?? 0) + c.lost });
       }
     }
+    // ADR-087 §12.13 (G2): the ratings he rolled, only when a report of his carries the count.
+    const counted = mine.some((r) => r.uses !== undefined);
+    const uses = new Map<string, { attr: GameParticipation["contests"][number]["attr"]; n: number }>();
+    for (const r of mine) {
+      for (const u of r.uses ?? []) {
+        const was = uses.get(String(u.attr));
+        uses.set(String(u.attr), { attr: u.attr, n: (was?.n ?? 0) + u.n });
+      }
+    }
     const coach = side === undefined ? undefined : coordinator(people.staff, p.teamId, SIDE_SEAT[side]);
     const dc = coordinator(people.staff, p.teamId, "DC");
     const development = coach?.attributes["development"];
@@ -227,6 +237,7 @@ export function playerWeeks(people: LeaguePeople, ctx: DayStepContext, reports: 
       playShare: teamSnaps > 0 ? Math.min(1, ownSnaps / teamSnaps) : 0,
       snaps: mine.reduce((n, r) => n + r.snaps.offense + r.snaps.defense + r.snaps.special, 0),
       contests: [...contests.values()].sort((a, b) => String(a.attr).localeCompare(String(b.attr))),
+      ...(counted ? { uses: [...uses.values()].sort((a, b) => String(a.attr).localeCompare(String(b.attr))) } : {}),
       ...(development === undefined ? {} : { coachDevelopment: development }),
       ...(teaching === undefined ? {} : { dcTeaching: teaching }),
     });

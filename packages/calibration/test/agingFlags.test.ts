@@ -13,13 +13,13 @@ import { describe, expect, it } from "vitest";
 import { ABILITY_GROUPS, type CalendarStamp, type PlayerState } from "@ff/contracts";
 import { generateDraftClass } from "@ff/attributes";
 import {
-  SET_SMARTS_SNAPS, actingRules, agingFromRecord, agingLabel, assertRulesAct, readAgingFlag, sameAging, seasonAging, seasonPlayers, settleAging,
+  CURVE_SMARTS_SNAPS, SET_SMARTS_SNAPS, actingRules, agingFromRecord, agingLabel, assertRulesAct, readAgingFlag, sameAging, seasonAging, seasonPlayers, settleAging,
   type AgingFlags,
 } from "../src/season/agingFlags.js";
 import { draftClassOptions, runCapCheck, type CapCheckInput } from "../src/season/capCheck.js";
 import { ABILITY_GROUP_COPY, ABILITY_GROUP_DIGEST, CONTACT_ROLL_SETS, CONTACT_ROLL_SETS_DIGEST, contactOf } from "../src/season/careerAging.js";
 import { ARMS, agingActsOn, agingForArms, armRules, armSwitches, injuryRiskActsOn, retirementActsOn } from "../src/season/playerChecksRun.js";
-import { agingOf, runRealSeason } from "../src/season/realSeason.js";
+import { agingOf, growthCurveOn, runRealSeason } from "../src/season/realSeason.js";
 import { participationFrom } from "../src/season/participation.js";
 import { readStandInFile } from "../src/season/standInLeague.js";
 import type { SeasonPeople } from "../src/season/realSeason.js";
@@ -65,6 +65,35 @@ describe("the aging flags (§12.1)", () => {
     expect(own("D")).toBe(SET_SMARTS_SNAPS.D);
     expect(own("B")).toBe(SET_SMARTS_SNAPS.B);
     expect(SET_SMARTS_SNAPS).toEqual({ D: 0.45, B: 0.45 });
+  });
+
+  it("reads --growth (§12.13) on the ability path only, never beside --ability-curves, and names it", () => {
+    expect(flags("--aging", "ability", "--growth", "standard")).toStrictEqual({ aging: "ability" });
+    expect(flags("--aging", "ability", "--growth", "curve")).toStrictEqual({ aging: "ability", growth: "curve" });
+    expect(flags("--ability-rules", "--growth", "curve")).toStrictEqual({ aging: "ability", growth: "curve", injuryRisk: "spot", retirement: "choice" });
+    // The curve's set takes 0.15 smarts snaps of its own: that value is its rules, D's 0.45 is not.
+    expect(flags("--aging", "ability", "--growth", "curve", "--smarts-snaps", "0.15")).toStrictEqual({ aging: "ability", growth: "curve" });
+    expect(flags("--aging", "ability", "--growth", "curve", "--smarts-snaps", "0.45")).toStrictEqual({ aging: "ability", growth: "curve", smartsSnaps: 0.45 });
+    expect(() => flags("--growth", "curve")).toThrow(/act only on the ability path/);
+    expect(() => flags("--aging", "ability", "--growth", "Curve")).toThrow(/standard or curve/);
+    expect(() => flags("--aging", "ability", "--growth", "curve", "--ability-curves", "D")).toThrow(/drop --ability-curves/);
+    expect(agingLabel({ aging: "ability", growth: "curve" })).toBe("ability-curve");
+    expect(agingLabel({ aging: "ability", growth: "curve", smartsSnaps: 0.15 })).toBe("ability-curve");
+    expect(agingLabel({ ...flags("--ability-rules", "--growth", "curve", "--technique-knee") })).toBe("ability-curve-knee-spot-choice");
+    expect(sameAging({ aging: "ability", growth: "curve" }, { aging: "ability" })).toBe(false);
+    expect(agingFromRecord({ development: true, injuries: true, aging: "ability", growth: "curve" })).toStrictEqual({ aging: "ability", growth: "curve" });
+    expect(() => agingFromRecord({ development: true, injuries: true, aging: "ability", growth: "wavy" })).toThrow(/does not know/);
+    expect(actingRules({ aging: "ability", growth: "curve" }, { development: false, injuries: true })).toStrictEqual({});
+    expect(actingRules({ aging: "ability", growth: "curve" }, { development: true, injuries: false })).toStrictEqual({ aging: "ability", growth: "curve" });
+    expect(agingOf({ development: true, aging: "ability", growth: "curve" })).toStrictEqual({ aging: "ability", growth: "curve" });
+    expect([growthCurveOn({ development: true, aging: "ability", growth: "curve" }), growthCurveOn({ development: false, aging: "ability", growth: "curve" }),
+      growthCurveOn({ development: true, aging: "ability" }), growthCurveOn(undefined)]).toEqual([true, false, false, false]);
+  });
+
+  it("holds the growth curve's set's own smarts snaps as franchise's GROWTH_CURVE_SET does (read from its source)", () => {
+    const source = readFileSync(join(__dirname, "..", "..", "franchise", "src", "players", "aging.ts"), "utf8");
+    const own = Number(/\nexport const GROWTH_CURVE_SET: AbilityCurves = \{[\s\S]*?\n  smartsSnaps: ([0-9.]+),/.exec(source)?.[1]);
+    expect(own).toBe(CURVE_SMARTS_SNAPS);
   });
 
   it("refuses the season command's aging flags with --load and --aging ability without --development, and carries a save's own on", () => {

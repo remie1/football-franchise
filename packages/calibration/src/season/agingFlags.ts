@@ -12,6 +12,10 @@
  *    slow smarts; `B` is variant B's whole set, AB9-T2).
  *  - `--technique-knee`: TECHNIQUE's steeper slope from 31 (§12.2.5; AB9-T3).
  *  - `--smarts-snaps <n>`: smarts from snaps, points per 1,000 snaps, in place of the set's (AB9-T4, O2: 0.225).
+ *  - `--growth standard|curve` (§12.13): today's growth (the default) or each man's own hidden growth
+ *    curve (franchise `AgingOptions.growth`), which plays its own fitted set, so it refuses
+ *    `--ability-curves`; under it the games count every rating rolled (G2) and the meetings read the
+ *    typical man's growth. An aging option: it needs the ability path and acts with development on.
  *  - `--injury-risk group|spot` (AB5): where injury risk comes from (franchise
  *    `PlayerStepsConfig.injuryRisk`, default `group`, by the listed position's group; `spot`, by the
  *    depth-chart key, §12.3.1-12.3.2). Acts only with injuries on.
@@ -32,7 +36,7 @@
  *    same thing. Needs the ability path and the spot path (`--ability-rules`, or both flags), since the
  *    contact count is kept on the one and wear acts on the other.
  *
- * The three aging tuning flags need the ability path (`--aging ability` or `--ability-rules`); AB6's
+ * The aging tuning flags (and `--growth`) need the ability path (`--aging ability` or `--ability-rules`); AB6's
  * two need the spot path. A value the flags do not take is refused, so a misspelling never plays the
  * position path silently. The options are kept only when they are not the default (`--aging position`,
  * `--ability-curves D`, `--injury-risk group`, `--per-contact 0` and `--retirement unsigned` are the
@@ -59,6 +63,8 @@ export interface AgingSwitches {
   readonly perContact?: number;
   /** AB8: `"unsigned"` (the default) or `"choice"`. Acts with development or injuries on. */
   readonly retirement?: "unsigned" | "choice";
+  /** §12.13: `"standard"` (the default) or `"curve"`; kept only as `"curve"`. An aging option: acts with development on, on the ability path. */
+  readonly growth?: "standard" | "curve";
 }
 
 type Mutable<T> = { -readonly [K in keyof T]: T[K] };
@@ -69,6 +75,13 @@ type Mutable<T> = { -readonly [K in keyof T]: T[K] };
  * R1), which a test reads from franchise's source. A `--smarts-snaps` equal to it is the set's rules.
  */
 export const SET_SMARTS_SNAPS: Readonly<Record<"D" | "B", number>> = { D: 0.45, B: 0.45 };
+
+/** The growth curve's set's own smarts from snaps: a copy of franchise's `GROWTH_CURVE_SET.smartsSnaps` (§12.13), read by the same test. */
+export const CURVE_SMARTS_SNAPS = 0.15;
+
+/** The smarts from snaps of the set these options play: the growth curve's, else the fitted set's. */
+const setSmartsSnaps = (o: Pick<AgingSwitches, "growth" | "abilityCurves">): number =>
+  (o.growth === "curve" ? CURVE_SMARTS_SNAPS : SET_SMARTS_SNAPS[o.abilityCurves ?? "D"]);
 
 /** A plain decimal number, no sign, with an optional exponent (`--per-contact`'s value). */
 const PLAIN_DECIMAL = /^(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
@@ -106,6 +119,10 @@ export function readAgingFlag(arg: string, next: () => string, into: AgingFlags)
     const v = next();
     if (v !== "unsigned" && v !== "choice") throw new SyntaxError(`--retirement is unsigned or choice, not ${JSON.stringify(v)}`);
     into.retirement = v;
+  } else if (arg === "--growth") {
+    const v = next();
+    if (v !== "standard" && v !== "curve") throw new SyntaxError(`--growth is standard or curve, not ${JSON.stringify(v)}`);
+    into.growth = v;
   } else if (arg === "--ability-rules") into.abilityRules = true;
   else if (arg === "--no-healing-by-age") into.healingByAge = false;
   else if (arg === "--per-contact") {
@@ -137,8 +154,12 @@ export function settleAging(flags: AgingFlags): AgingSwitches {
     flags.abilityCurves !== undefined ? "--ability-curves" : undefined,
     flags.techniqueKnee === true ? "--technique-knee" : undefined,
     flags.smartsSnaps !== undefined ? "--smarts-snaps" : undefined,
+    flags.growth !== undefined ? "--growth" : undefined,
   ].filter((f): f is string => f !== undefined);
   if (aging !== "ability" && tuning.length > 0) throw new SyntaxError(`${tuning.join(", ")} act only on the ability path; add --aging ability (or --ability-rules)`);
+  // §12.13: the growth curve plays its own set.
+  if (flags.growth === "curve" && flags.abilityCurves !== undefined) throw new SyntaxError("--growth curve plays its own fitted set; drop --ability-curves");
+  const curve = flags.growth === "curve";
   // AB6: the spot path's two tuning flags.
   const spotTuning = [
     flags.healingByAge !== undefined ? "--no-healing-by-age" : undefined,
@@ -160,9 +181,10 @@ export function settleAging(flags: AgingFlags): AgingSwitches {
   if (aging !== "ability") return others;
   return {
     aging: "ability",
+    ...(curve ? { growth: "curve" as const } : {}),
     ...(flags.abilityCurves === "B" ? { abilityCurves: "B" as const } : {}),
     ...(flags.techniqueKnee === true ? { techniqueKnee: true } : {}),
-    ...(flags.smartsSnaps !== undefined && flags.smartsSnaps !== SET_SMARTS_SNAPS[flags.abilityCurves ?? "D"] ? { smartsSnaps: flags.smartsSnaps } : {}),
+    ...(flags.smartsSnaps !== undefined && flags.smartsSnaps !== setSmartsSnaps(flags) ? { smartsSnaps: flags.smartsSnaps } : {}),
     ...others,
   };
 }
@@ -237,7 +259,7 @@ export function seasonPlayers(o: {
 }
 
 /**
- * A short name for the options, for cache keys and file names: `ability`, `ability-B`,
+ * A short name for the options, for cache keys and file names: `ability`, `ability-curve` (§12.13), `ability-B`,
  * `ability-knee`, `ability-smarts0.225` and their joins, then `spot` for `injuryRisk: "spot"` (AB5:
  * `spot` alone, `ability-spot`, `ability-B-spot`), then on the spot path AB6's `healflat` (back and
  * rib healing flat with age, `healingByAge: false`) and `wear<n>` (`perContact` n): `spot-healflat`,
@@ -252,8 +274,8 @@ export function agingLabel(o: AgingSwitches): string | undefined {
     : "";
   const rest = [spot, o.retirement === "choice" ? "choice" : ""].filter(Boolean);
   if (o.aging !== "ability") return rest.length === 0 ? undefined : rest.join("-");
-  const smarts = o.smartsSnaps !== undefined && o.smartsSnaps !== SET_SMARTS_SNAPS[o.abilityCurves ?? "D"];
-  return ["ability", o.abilityCurves === "B" ? "B" : "", o.techniqueKnee === true ? "knee" : "", smarts ? `smarts${o.smartsSnaps}` : "", ...rest]
+  const smarts = o.smartsSnaps !== undefined && o.smartsSnaps !== setSmartsSnaps(o);
+  return ["ability", o.growth === "curve" ? "curve" : "", o.abilityCurves === "B" ? "B" : "", o.techniqueKnee === true ? "knee" : "", smarts ? `smarts${o.smartsSnaps}` : "", ...rest]
     .filter(Boolean).join("-");
 }
 
@@ -265,7 +287,8 @@ export function agingLabel(o: AgingSwitches): string | undefined {
  */
 export function agingFromRecord(switches: Readonly<Record<string, unknown>> | undefined): AgingSwitches {
   if (switches === undefined) return {};
-  const { aging, abilityCurves, techniqueKnee, smartsSnaps, injuryRisk, healingByAge, perContact, retirement } = switches;
+  const { aging, abilityCurves, techniqueKnee, smartsSnaps, injuryRisk, healingByAge, perContact, retirement, growth } = switches;
+  if (growth !== undefined && growth !== "standard" && growth !== "curve") throw new Error(`the save's growth is ${JSON.stringify(growth)}, which this version does not know`);
   if (injuryRisk !== undefined && injuryRisk !== "group" && injuryRisk !== "spot") throw new Error(`the save's injuryRisk is ${JSON.stringify(injuryRisk)}, which this version does not know`);
   if (retirement !== undefined && retirement !== "unsigned" && retirement !== "choice") throw new Error(`the save's retirement is ${JSON.stringify(retirement)}, which this version does not know`);
   if (aging !== undefined && aging !== "position" && aging !== "ability") throw new Error(`the save's aging is ${JSON.stringify(aging)}, which this version does not know`);
@@ -287,6 +310,7 @@ export function agingFromRecord(switches: Readonly<Record<string, unknown>> | un
     ...(healingByAge === false ? { healingByAge: false } : {}),
     ...(perContact === undefined ? {} : { perContact }),
     ...(retirement === undefined ? {} : { retirement }),
+    ...(growth === undefined ? {} : { growth }),
   });
 }
 

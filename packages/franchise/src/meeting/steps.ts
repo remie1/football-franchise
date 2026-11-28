@@ -22,6 +22,7 @@ import type { RelationshipContext } from "../relationships/ledger.js";
 import { makeGm } from "./gm.js";
 import { applyMeetingMoves, holdMeeting, meetingStaff } from "./meeting.js";
 import { leagueTruth } from "./truth.js";
+import type { GrowthRule } from "../players/growthCurve.js";
 
 export const MEETING_STEP_PREFIX = "meeting:";
 
@@ -34,6 +35,11 @@ export interface MeetingStepsConfig {
    * cap thread's step 14 panels are graded (it reads `Team.direction`); off, the meeting is as before.
    */
   readonly headCoach?: boolean;
+  /**
+   * ADR-087 §12.13: the players' growth rule, so that under the growth curve (`"curve"`) the meeting's
+   * projections read the typical man's growth and never his hidden curve. Default `"standard"`.
+   */
+  readonly growth?: GrowthRule;
 }
 
 /** When a team's season is over, the day of its last game; undefined while it has games left. */
@@ -86,7 +92,10 @@ export function meetingSteps(config: MeetingStepsConfig = {}): DayStep[] {
           return over !== undefined && compareStamps(day.day, over) > 0;
         });
         if (due.length === 0) return undefined;
-        const truths = new Map(leagueTruth({ teams: people.teams, players: people.players, contracts: people.contracts ?? [], state: day.state }).map((t) => [String(t.team), t]));
+        const truths = new Map(leagueTruth({
+          teams: people.teams, players: people.players, contracts: people.contracts ?? [], state: day.state,
+          ...(config.growth === "curve" ? { growth: "curve" as const } : {}),
+        }).map((t) => [String(t.team), t]));
         const events: FranchiseEvent[] = [];
         let views = coaching.relationships;
         const meetings = new Map((people.meetings ?? []).map((m) => [String(m.team), m]));

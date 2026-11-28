@@ -1,7 +1,7 @@
 /**
  * `pnpm --filter @ff/calibration career-check -- --league <file> (--seed <seed> | --seed-set tune|grade --index <n>) [--arm both|development|incumbent|form] [--seasons 20] [--out <file>]`
  * `pnpm --filter @ff/calibration career-check -- --grade --pass 1|2 --league <file> [--seasons 20] [--seeds a,b] [--coach-seeds a,b] [--build <fingerprint>] [--report <path>] [--smoke]`
- *   either with `[--aging position|ability] [--ability-curves D|B] [--technique-knee] [--smarts-snaps <n>] [--injury-risk group|spot]`
+ *   either with `[--aging position|ability] [--ability-curves D|B] [--technique-knee] [--smarts-snaps <n>] [--growth standard|curve] [--injury-risk group|spot]`
  *   `[--no-healing-by-age] [--per-contact <n>]` (AB6: the spot path's tuning switches, AB9-T6 and T5; they join the rules' label)
  *   `[--retirement unsigned|choice] [--ability-rules]`
  *
@@ -32,7 +32,7 @@
  * are missing, the command lists the builds the cache holds.
  *
  * Aging (ADR-087 §12.1, AB3): `--aging ability` plays every arm with the players aging by ability
- * group (`--ability-curves`, `--technique-knee`, `--smarts-snaps` tune it, `--ability-rules` is the
+ * group (`--ability-curves`, `--technique-knee`, `--smarts-snaps` tune it, `--growth curve` gives each man his own hidden growth curve, §12.13, `--ability-rules` is the
  * shorthand; `agingFlags.ts`). The options join the build's fingerprint by name when not the default,
  * so their rows keep a folder of their own and a default run's folder is what it was; a seed's
  * record and checkpoint name them, and a resumed seed plays under its checkpoint's. `--grade` with

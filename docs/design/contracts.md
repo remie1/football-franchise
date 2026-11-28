@@ -118,7 +118,7 @@ export interface TrueAttributes {
   readonly kind: "true";
   values: AttributeMap;
   traits: TraitSet;
-  development?: PlayerDevelopment;  // ADR-087 P1, P7: { growth, snaps, carry, body: { forty, cone, vertical, bench }, fadeShift? }; absent = never changes
+  development?: PlayerDevelopment;  // ADR-087 P1, P7, G1: { growth, snaps, carry, body: { forty, cone, vertical, bench }, fadeShift?, timing? }; absent = never changes
 }
 
 /** One observer's belief about one player. This is all the UI and AI teams ever see. */
@@ -233,6 +233,8 @@ Cap *math* lives in franchise; contracts only defines shapes.
 - C1 `StaffState.lineup?: { incumbent, veteran, form }` (0..100 each): a head coach's depth-chart leanings.
 - P7 `ABILITY_GROUPS` / `AbilityGroup` (the 12 ability groups, names only) and `PlayerDevelopment.fadeShift?: Partial<Record<AbilityGroup, number>>` (in `players.ts`): for each ability, how many years earlier (minus) or later (plus) than usual it starts to fade, fixed for life; missing, or a group missing, reads 0. Drawn by the generator, written by the importer for real veterans, read by franchise's development step; the curves stay in franchise.
 - P8 `InjuryRecord { kind, weeks, since, healed }` and `PlayerCondition.injuryHistory?: InjuryRecord[]` (in `players.ts`): injuries before the league's first day, oldest first, public like an injury report; absent = none known. Written by the importer only; franchise seeds its own injury memory from it once.
+- G1 `PlayerDevelopment.timing?: number` (in `players.ts`, ADR-087 §12.13): when in his career he learns most, a hidden draw in [0, 1), fixed for life. Franchise's growth curve reads it as early, steady or late; the timetables stay in franchise. Read only under that curve; missing, franchise reads one from his id.
+- G2 `GameParticipation.uses?: { attr, n }[]` (in `league.ts`, ADR-087 §12.13): every rating his rolls named in the game, opposed or not, each counted once a roll. Filled by the season runner only when asked (the growth curve reads it); absent, nothing reads it.
 
 The rookie scale, minimum salaries and tag formulas are CBA data and live in franchise.
 

@@ -30,6 +30,7 @@ import {
 import { bodyScale, FOLLOWS, type BodyChange, type BodyRating } from "./body.js";
 import { curveAt, weeklyShare, workoutShare } from "./curves.js";
 import { AGING_SHARES, GROUP_MEMBERS, LEARNING_RATE, OWN_CURVES, SKILL_INPUTS, WORKOUTS, type AgeCurve } from "./developmentTables.js";
+import { GROWTH_CURVE, type GrowthRule } from "./growthCurve.js";
 
 // ---------------------------------------------------------------------------------------------
 // The options (§12.1).
@@ -54,6 +55,11 @@ export interface AgingOptions {
   readonly techniqueKnee?: boolean;
   /** Smarts from snaps, points per 1,000 snaps, in place of the set's own (AB9-T4, O2: 0.225). Default the set's. */
   readonly smartsSnaps?: number;
+  /**
+   * §12.13: today's growth (`"standard"`, the default) or each man's own hidden curve (`"curve"`,
+   * `growthCurve.ts`), which plays its own set (`GROWTH_CURVE_SET`), so it takes no `abilityCurves`.
+   */
+  readonly growth?: GrowthRule;
 }
 
 /** A fade (§12.2.1): `per` a year for each year past `start`, the years past capped at `cap`. */
@@ -123,6 +129,28 @@ export const ABILITY_CURVES: Readonly<Record<AbilityCurveName, AbilityCurves>> =
 };
 
 /**
+ * §12.13: the set the growth curve plays (`growth: "curve"`): variant D's starts and caps with every
+ * fade's `per` doubled (AB9 g3g: with more growth, steeper fades put the age rows on the real ones), the
+ * learning floor at main's 0.15 (g4f), workouts at a third of D's (the owner's, 2026-11-27), smarts
+ * from snaps at 0.15 (g10s); passing snaps and slow smarts as D. CHOSEN (AB9's 20-season rounds).
+ */
+export const GROWTH_CURVE_SET: AbilityCurves = {
+  SPEED: { start: 25, per: 0.01462, cap: 8 },
+  QUICKNESS: { start: 23, per: 0.024, cap: 8 },
+  SPRING: { start: 28, per: 0.3164, cap: 8 },
+  STRENGTH: { start: 28, per: 0.412, cap: 8 },
+  TECHNIQUE: { start: 29, per: 0.3955, cap: 8 },
+  PASSING: { start: 33, per: 1.25, cap: 8 },
+  KICKING: { start: 30, per: 1.17188, cap: 8 },
+  SMARTS: { start: 26, per: 0.70312, cap: 10 },
+  learningFloor: 0.15,
+  workoutAge: [[22, 0.33], [25, 0.033], [28, 0]],
+  smartsSnaps: 0.15,
+  passingSnaps: 0.15,
+  slowSmarts: 0.2,
+};
+
+/**
  * §12.2.5: the steeper technique fade, as an option (`techniqueKnee`). From effective age `age` (31,
  * CHOSEN, the owner's) TECHNIQUE's loss climbs by `perAfterKnee` a year past instead of the fitted
  * `per` (0.19775). `perAfterKnee` 0.6 is a GUESS; tuning (AB9-T3) sets it.
@@ -139,10 +167,13 @@ export interface AbilityRules {
   readonly knee?: typeof TECHNIQUE_KNEE;
   /** Points per 1,000 snaps the smarts take: the override, else the set's. */
   readonly smartsSnaps: number;
+  /** §12.13: present (`"curve"`) when each man grows on his own hidden curve; absent, today's growth. */
+  readonly growth?: "curve";
 }
 
 const AGING_RULES: readonly AgingRule[] = ["position", "ability"];
 const CURVE_NAMES: readonly AbilityCurveName[] = ["D", "B"];
+const GROWTH_RULES: readonly GrowthRule[] = ["standard", "curve"];
 
 /**
  * The ability path's rules for these options, or undefined on the position path. Throws on a value
@@ -156,22 +187,30 @@ export function abilityRules(o: AgingOptions): AbilityRules | undefined {
   if (o.smartsSnaps !== undefined && !(typeof o.smartsSnaps === "number" && Number.isFinite(o.smartsSnaps) && o.smartsSnaps >= 0)) {
     throw new RangeError(`smartsSnaps is a number of points per 1,000 snaps, 0 or more, not ${JSON.stringify(o.smartsSnaps)}`);
   }
+  if (o.growth !== undefined && !GROWTH_RULES.includes(o.growth)) throw new RangeError(`growth is "standard" or "curve", not ${JSON.stringify(o.growth)}`);
+  const curve = o.growth === "curve";
+  if (curve && o.abilityCurves !== undefined) throw new RangeError(`growth "curve" plays its own set (GROWTH_CURVE_SET); drop abilityCurves ${JSON.stringify(o.abilityCurves)}`);
   if (o.aging !== "ability") return undefined;
-  const curves = ABILITY_CURVES[o.abilityCurves ?? "D"];
-  return { curves, ...(o.techniqueKnee === true ? { knee: TECHNIQUE_KNEE } : {}), smartsSnaps: o.smartsSnaps ?? curves.smartsSnaps };
+  const curves = curve ? GROWTH_CURVE_SET : ABILITY_CURVES[o.abilityCurves ?? "D"];
+  return {
+    curves, ...(o.techniqueKnee === true ? { knee: TECHNIQUE_KNEE } : {}), smartsSnaps: o.smartsSnaps ?? curves.smartsSnaps,
+    ...(curve ? { growth: "curve" as const } : {}),
+  };
 }
 
 /**
  * The options as the players' steps record them in `PlayerMemory.switches` (§12.1, "Records"): only
  * what is not the default, and only on the ability path with development on, where they act. Empty at
  * the defaults, so a save made at the defaults is main's to the byte. A smarts-snaps override equal
- * to the chosen set's own value is the set's rules, so it is dropped too (D and B both take 0.45).
+ * to the chosen set's own value is the set's rules, so it is dropped too (D and B both take 0.45;
+ * the growth curve's set 0.15). `growth` is written only as `"curve"` (§12.13).
  */
-export function agingSwitches(o: AgingOptions, development: boolean): Pick<AgingOptions, "aging" | "abilityCurves" | "techniqueKnee" | "smartsSnaps"> {
+export function agingSwitches(o: AgingOptions, development: boolean): Pick<AgingOptions, "aging" | "abilityCurves" | "techniqueKnee" | "smartsSnaps" | "growth"> {
   const rules = abilityRules(o);
   if (rules === undefined || !development) return {};
   return {
     aging: "ability",
+    ...(rules.growth === "curve" ? { growth: "curve" as const } : {}),
     ...(o.abilityCurves === "B" ? { abilityCurves: "B" as const } : {}),
     ...(o.techniqueKnee === true ? { techniqueKnee: true } : {}),
     ...(o.smartsSnaps !== undefined && o.smartsSnaps !== rules.curves.smartsSnaps ? { smartsSnaps: o.smartsSnaps } : {}),
@@ -354,8 +393,12 @@ export function slowSmartsWeek(c: number, legLoss: number, share: number, rules:
 
 /** What a week holds for one player on the ability path, as the development week works it out. Points, already × learning rate × growth where they learn. */
 export interface AbilityWeekInputs {
-  /** Practice, play and coaching (× the ability learning rate × growth): the same for every rating that learns. */
+  /** Practice, play and coaching (× the ability learning rate × growth): the same for every rating that learns (play left out when `playOf` is set). */
   readonly common: number;
+  /** §12.13 (G2): this week's snap points for one rating, by the ratings he rolled; absent, the snap points are in `common`. */
+  readonly playOf?: (attr: string) => number;
+  /** §12.13: TECHNIQUE's learning rate at `GROWTH_CURVE.techniqueFloor` over the set's, for its snap points (`playOf`); absent, 1. */
+  readonly techniqueScale?: number;
   /** `disguise`'s own practice and coaching. */
   readonly disguise: number;
   readonly practising: boolean;
@@ -385,7 +428,9 @@ const OWN = Object.keys(OWN_CURVES) as (keyof typeof OWN_CURVES)[];
  * - SMARTS: learning plus smarts snaps plus slow smarts less the SMARTS fade;
  * - ARM, LEG, STAMINA, DURABILITY: main's own curve, a gain at his age × growth, a loss read at his
  *   shifted age (DURABILITY's also worn).
- * Fades read his age less his shift for the group (missing reads 0).
+ * Fades read his age less his shift for the group (missing reads 0). Under the growth curve (§12.13)
+ * the body-plus-practice ratings take `GROWTH_CURVE.bodyPracticeShare`, each rating's snap points come
+ * from `playOf` when the week has them (G2), and TECHNIQUE's snap points are × `techniqueScale`.
  */
 export function abilityRatingDeltas(
   age: number, development: Pick<PlayerDevelopment, "fadeShift">, inputs: AbilityWeekInputs, wobble: () => number, growth: number,
@@ -393,17 +438,24 @@ export function abilityRatingDeltas(
 ): number[] {
   const shift = development.fadeShift;
   const out: number[] = [];
-  const perf = (attr: string) => (inputs.performance.size === 0 ? 0 : inputs.performance.get(attr) ?? 0);
+  const checks = (attr: string) => (inputs.performance.size === 0 ? 0 : inputs.performance.get(attr) ?? 0);
+  // §12.13 (G2): with the week's ratings rolled, each rating's snap points join its checks; disguise takes none (its own windows).
+  const playOf = inputs.playOf;
+  const perf = playOf === undefined ? checks : (attr: string) => checks(attr) + (attr === "disguise" ? 0 : playOf(attr));
   const fade = (g: "TECHNIQUE" | "PASSING" | "KICKING" | "SMARTS") =>
     fadeLoss(ability.curves[g], age, shiftOf(shift, g), 0, g === "TECHNIQUE" ? ability.knee : undefined) * inputs.ageShare;
   const technique = fade("TECHNIQUE"), passing = fade("PASSING"), kicking = fade("KICKING"), smarts = fade("SMARTS");
-  for (const attr of GROUP_MEMBERS.BODY_PRACTICE) out.push(SKILL_INPUTS.bodyPracticeShare * (inputs.common + perf(attr) + wobble()));
+  const bodyShare = ability.growth === "curve" ? GROWTH_CURVE.bodyPracticeShare : SKILL_INPUTS.bodyPracticeShare;
+  // §12.13: the technique floor lifts only his snap points (practice fades as before).
+  const k = inputs.techniqueScale;
+  for (const attr of GROUP_MEMBERS.BODY_PRACTICE) out.push(bodyShare * (inputs.common + perf(attr) + wobble()));
   for (const attr of GROUP_MEMBERS.SKILL) {
     const step = wobble();
     const group = ABILITY_GROUP_OF[attr];
     if (attr === "disguise") out.push((inputs.practising ? inputs.disguise + perf(attr) + step : 0) - technique);
     else if (group === "PASSING") out.push(inputs.common + perf(attr) + step + inputs.passingSnaps - passing);
     else if (group === "KICKING") out.push(inputs.common + perf(attr) + step - kicking);
+    else if (group === "TECHNIQUE" && k !== undefined && playOf !== undefined) out.push(inputs.common + perf(attr) + (k - 1) * playOf(attr) + step - technique);
     else if (group === "TECHNIQUE") out.push(inputs.common + perf(attr) + step - technique);
     else out.push(inputs.common + perf(attr) + step);
   }

@@ -1,7 +1,7 @@
 /**
  * `pnpm --filter @ff/calibration season -- --seed <seed> [--season 2027] [--caller v5] [--engine-rules <name>] [--out <file>]`
  *   `[--rosters generated|flat|standin] [--league <file>] [--team-sd <n>] [--stop-after <week> | playoffs:<week>] [--save <file>]`
- *   `[--development] [--injuries] [--aging position|ability] [--ability-curves D|B] [--technique-knee] [--smarts-snaps <n>]`
+ *   `[--development] [--injuries] [--aging position|ability] [--ability-curves D|B] [--technique-knee] [--smarts-snaps <n>] [--growth standard|curve]`
  *   `[--injury-risk group|spot] [--no-healing-by-age] [--per-contact <n>] [--retirement unsigned|choice] [--ability-rules]`
  * `pnpm --filter @ff/calibration season -- --load <file> [--caller v5] [--stop-after …] [--save <file>]`
  *
@@ -61,7 +61,8 @@
  * games and move his lineup (ADR-094 §9: a look at the young men, a desperate shake-up); off by
  * default, and not kept in saves yet, so not with `--load`.
  * `--aging ability` (with `--development`) ages the players by ability group, not by position (ADR-087
- * §12; `--ability-curves`, `--technique-knee` and `--smarts-snaps` tune it, `agingFlags.ts`); the
+ * §12; `--ability-curves`, `--technique-knee` and `--smarts-snaps` tune it, `--growth curve` gives each man
+ * his own hidden growth curve, §12.13, `agingFlags.ts`); the
  * default `--aging position` is exactly today's. `--injury-risk spot` (with `--injuries`; ADR-087
  * §12.3.1, AB5) reads injury risk by each man's depth-chart key with the measured age factor; the
  * default `--injury-risk group` is exactly today's; the spot path also plays §12.3.3-12.3.4's lengths

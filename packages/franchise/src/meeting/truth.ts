@@ -3,6 +3,7 @@
  * sees it; the staff's claims are graded against it.
  */
 import type { PlayerContract, PlayerId, PlayerState, SeasonState, Team, TeamDirection, TeamId } from "@ff/contracts";
+import type { GrowthRule } from "../players/growthCurve.js";
 import { seasonLuck, type TeamLuck } from "./luck.js";
 import { projectTeam, weakestGroups, type TeamProjection } from "./projection.js";
 import { STRENGTH, strengthWinShare, UNIT_OF, type MeetingGroup, type Unit } from "./strength.js";
@@ -51,12 +52,14 @@ export interface LeagueTruthInput {
   players: readonly PlayerState[];
   contracts: readonly PlayerContract[];
   state: SeasonState;
+  /** ADR-087 §12.13: `"curve"` projects every man at the typical growth (`projectPlayer`). Default `"standard"`. */
+  growth?: GrowthRule;
 }
 
 /** Every team's truth for the season just played. */
 export function leagueTruth(input: LeagueTruthInput): MeetingTruth[] {
   const luck = new Map(seasonLuck(input.state).map((l) => [String(l.team), l]));
-  const projections = input.teams.map((t) => projectTeam(t, input.players, input.contracts, input.state.season));
+  const projections = input.teams.map((t) => projectTeam(t, input.players, input.contracts, input.state.season, input.growth ?? "standard"));
   const mean = (xs: number[]) => xs.reduce((s, x) => s + x, 0) / xs.length;
   const meanNext = mean(projections.map((p) => p.next.total));
   const meanAfter = mean(projections.map((p) => p.after.total));

@@ -1,6 +1,6 @@
 /**
  * `pnpm --filter @ff/calibration player-checks -- [--seeds 20] [--arms off,development,injuries,both] [--shard 1/3] [--league <file>]`
- *   `[--aging position|ability] [--ability-curves D|B] [--technique-knee] [--smarts-snaps <n>] [--injury-risk group|spot] [--ability-rules]`
+ *   `[--aging position|ability] [--ability-curves D|B] [--technique-knee] [--smarts-snaps <n>] [--growth standard|curve] [--injury-risk group|spot] [--ability-rules]`
  *
  * ADR-087 D5a, the single-season checks: plays `--seeds` seasons (seeds `spread-1`… , ADR-079 R5's)
  * in each arm and writes `reports/player-checks.md` and `.json`:

@@ -139,4 +139,25 @@ describe("peopleResolver", () => {
   it("refuses to play without the people", () => {
     expect(() => resolve(game as never, "s1")).toThrow(/none came/);
   });
+
+  it("counts every rating rolled only when asked (ADR-087 G2, the growth curve), the same game beside it", () => {
+    const plain = (resolve(game as never, "s1", people) as { extras: { participation: GameParticipation[] } }).extras.participation;
+    const asked = (peopleResolver(rated, { uses: true })(game as never, "s1", people) as { extras: { participation: GameParticipation[] } }).extras.participation;
+    expect(plain.every((r) => !("uses" in r))).toBe(true);
+    expect(asked.map(({ uses: _uses, ...rest }) => rest)).toEqual(plain);
+    expect(asked.reduce((n, r) => n + (r.uses ?? []).reduce((m, u) => m + u.n, 0), 0)).toBeGreaterThan(1000);
+  });
+});
+
+describe("a season under the growth curve (ADR-087 §12.13)", () => {
+  it("records the curve, and plays other weeks than today's growth on the ability path", () => {
+    const week1 = { season, phase: "REGULAR_SEASON", week: 1, day: 7 } as const;
+    const curve = { development: true, injuries: false, aging: "ability", growth: "curve" } as const;
+    const a = runRealSeason({ seed: "curve-made-up", season, players: curve, stopAfter: week1 }).run;
+    expect(a.people!.playerMemory!.switches).toStrictEqual(curve);
+    const today = runRealSeason({ seed: "curve-made-up", season, players: { development: true, injuries: false, aging: "ability" }, stopAfter: week1 }).run;
+    expect(today.people!.playerMemory!.switches).toStrictEqual({ development: true, injuries: false, aging: "ability" });
+    const ratings = (r: typeof a) => JSON.stringify(r.people!.players.map((p) => [String(p.bio.id), p.attributes.values]));
+    expect(ratings(a)).not.toBe(ratings(today));
+  }, 600_000);
 });

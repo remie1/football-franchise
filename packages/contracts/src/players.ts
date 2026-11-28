@@ -44,6 +44,12 @@ export interface PlayerDevelopment {
    * for life. Missing, or a group missing, reads 0 (typical), so old saves and files load.
    */
   fadeShift?: Partial<Record<AbilityGroup, number>>;
+  /**
+   * ADR-087 G1 (§12.13): when in his career he learns most, a hidden draw in [0, 1), fixed for life;
+   * franchise's growth curve reads it as early, steady or late (the timetables live in franchise).
+   * Read only under that curve; missing, franchise reads one from his id, so old saves and files load.
+   */
+  timing?: number;
 }
 
 /** One observer's belief about one player. All the UI and AI teams ever see. */
