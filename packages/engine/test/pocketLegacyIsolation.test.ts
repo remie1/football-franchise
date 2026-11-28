@@ -613,12 +613,15 @@ describe("ADR-089 step 6: no rule set before step 6 runs an outs function (P-18)
     outsParts({ scrambleStart: "EVERY_RUN" }),
     outsParts({ scrambleStart: "ZERO_GAIN_ONLY" }),
     outsParts({ escapeCap: { maxPerPlay: 1, whenSpent: "HOLD" } }),
+    outsParts({ noLateHorizonSack: true }),
   ];
 
   it("the module's exports are the ones the parts built so far name", () => {
     expect(STEP6_SPY_TABLE.map(([name]) => name)).toEqual([
       "escapeLeft",
       "escapeRollSpends",
+      "horizonDeadline",
+      "runsPastLastTick",
       "scrambleRunYards",
       "scrambleStartYards",
       "spentBranch",

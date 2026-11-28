@@ -79,7 +79,16 @@ import type { RushPlan } from "./preSnap.js";
 import { assertSnapPictureFor, timeFreeRunners } from "./freeRunTiming.js";
 import { pocketRulesOf, pocketRulesUnder } from "./pocketRules.js";
 import { bumpFor, cleanExpiry, d23Pool, floorSecondsOf, isScreen, mustDecideNow, resetAfterMove, resolveCleanPick } from "./cleanPocket.js";
-import { escapeLeft, escapeRollSpends, scrambleRunYards, scrambleStartYards, spentBranch, throwawayLegalInPocket } from "./outs.js";
+import {
+  escapeLeft,
+  escapeRollSpends,
+  horizonDeadline,
+  runsPastLastTick,
+  scrambleRunYards,
+  scrambleStartYards,
+  spentBranch,
+  throwawayLegalInPocket,
+} from "./outs.js";
 import { ContactBook } from "./contactBook.js";
 import { arrivedInGridOrder, liveAtTick, onFreeRunClockAtContact, onFreeRunClockAtSnap, rebuiltTick, shedDelaySecondsOf } from "./contactTick.js";
 import type { TickStatusInputs } from "./contactTick.js";
@@ -1317,7 +1326,12 @@ export function simulatePassPlayWith(
     }
   };
 
-  while (outcome === undefined && tick <= tunables.clock.maxTick) {
+  // ADR-089 step 6 (plan §2.5; AM-13 `horizon`): under the rule the play runs one tick past the last
+  // for a live scramble whose deadline is past it (`runsPastLastTick`); otherwise to the last tick.
+  while (
+    outcome === undefined &&
+    (tick <= tunables.clock.maxTick || (outs?.noLateHorizonSack === true && runsPastLastTick(tunables, tick, scramble?.pursuitAtTick)))
+  ) {
     log.tickStart(tick);
 
     // §7.2 — every input is last tick's: the bands each rusher posted (the doc's
@@ -2181,7 +2195,9 @@ export function simulatePassPlayWith(
           if (cleanPick !== undefined) cleanBreakOut = true;
           scramble = {
             sinceTick: tick,
-            pursuitAtTick: pursuitDeadline(tunables, tick),
+            // ADR-089 step 6 (plan §2.5; AM-13 `horizon`): under the rule the filed deadline, at most a
+            // tick past the last, so no escape runs off the clock into the horizon sack below.
+            pursuitAtTick: outs?.noLateHorizonSack === true ? horizonDeadline(tunables, tick) : pursuitDeadline(tunables, tick),
             escapeRollRef: escape.check.roll.rngLabel,
           };
           // ADR-054 — publish the pursuit clock itself. One publication per

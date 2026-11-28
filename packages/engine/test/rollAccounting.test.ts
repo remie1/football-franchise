@@ -1324,6 +1324,8 @@ describe("ADR-004 roll accounting", () => {
    *      the scramble run's first carrier die; the escape cap draws them up to the first pick after
    *      the play's first escape roll under HOLD, TODAYS_PATH, SECOND_ESCAPE and BELOW_30, and all of
    *      them under CONTAINED_DOES_NOT_SPEND (without 2.8's shed a roll that spends ends the pocket);
+   *      no late horizon sack draws them up to the escape roll of an escape won after 4.5 s, whose
+   *      deadline is the first thing it moves;
    *  28. after each cut no family is new over s5a's (the carrier's labels left out and the rush
    *      bucket's men read as one, as step 5a's pairing reads them): the parts built so far draw no
    *      new die, and the later parts' families (`:deadline`, `:drill:`, a contest at the escape)
@@ -1337,7 +1339,8 @@ describe("ADR-004 roll accounting", () => {
     const kind = (f: string): string => f.replace(/\/rush\/t#\/[^/:]+/, "/rush/t#/*").replace(/:contest:[^/:]+$/, ":contest:*");
     const ticked = (events: readonly MatchEventEnvelope[]) => {
       const tickOfSeq = new Map(events.map((e) => [e.seq, (e.event as { tick?: number }).tick]));
-      return allRolls(events).map((r) => ({ label: r.roll.rngLabel, raw: r.roll.raw, seq: r.seq, tick: tickOfSeq.get(r.seq) }));
+      const bandOfSeq = new Map(events.flatMap((e) => (e.event.type === "CHECK" ? [[e.seq, e.event.payload.band] as const] : [])));
+      return allRolls(events).map((r) => ({ label: r.roll.rngLabel, raw: r.roll.raw, seq: r.seq, tick: tickOfSeq.get(r.seq), band: bandOfSeq.get(r.seq) }));
     };
     type Rolls = ReturnType<typeof ticked>;
     const BASES: readonly { readonly name: string; readonly tunables: Tunables; readonly fixtures: () => readonly (readonly [string, () => { state: Parameters<typeof simulatePassPlay>[0]; calls: Parameters<typeof simulatePassPlay>[1] }])[] }[] = [
@@ -1406,6 +1409,17 @@ describe("ADR-004 roll accounting", () => {
         cut: () => undefined,
         dice: "NEVER",
       },
+      {
+        name: "no late horizon sack",
+        block: outsParts({ noLateHorizonSack: true }),
+        cut: (base) => {
+          const late = S5_TUNABLES.clock.maxTick - S5_TUNABLES.scramble.pursuitSeconds;
+          const k = base.findIndex((r) => r.label.endsWith(":scramble") && (r.tick ?? 0) > late && (r.band === "ESCAPED" || r.band === "CLEAN_ESCAPE"));
+          return k < 0 ? undefined : k + 1;
+        },
+        dice: "MOVES",
+        minCut: 3,
+      },
     ];
     const SEEDS = 30;
 
@@ -1444,7 +1458,12 @@ describe("ADR-004 roll accounting", () => {
 
     it("no RollDetail twice in a play under every part built so far, and no later part's family (29)", () => {
       // Every part built so far, the bundles' default leaf where a part has two.
-      const together = outsParts({ throwawayRule: true, scrambleStart: "ZERO_GAIN_ONLY", escapeCap: { maxPerPlay: 1, whenSpent: "HOLD" } });
+      const together = outsParts({
+        throwawayRule: true,
+        scrambleStart: "ZERO_GAIN_ONLY",
+        escapeCap: { maxPerPlay: 1, whenSpent: "HOLD" },
+        noLateHorizonSack: true,
+      });
       const LATER = /:deadline$|:drill:|:contact(:|$)|:dodge(:|$)|:alarm(:|$)/;
       let rolls = 0;
       for (const { name, tunables, fixtures } of BASES) {

@@ -34,10 +34,15 @@
  *   forced pick, the clean pick's `escapeOffered` at the call site). On a clean expiry with his move
  *   used or not offered and his escape spent, the clean pick offers nothing, and the call site runs
  *   the answer's branch.
+ * - **2.5 No late horizon sack** (`horizonDeadline`, `runsPastLastTick`; AM-13 `horizon`, CHOSEN):
+ *   the pursuit deadline is the later of the escape tick plus one tick step and the earlier of the
+ *   escape tick plus `pursuitSeconds` and the last tick, and the play runs one tick past the last
+ *   only for a live scramble whose deadline is past it, so no escape runs off the clock into the
+ *   horizon coverage sack.
  *
  * No die is drawn here.
  */
-import type { EscapeCapTunables, ScrambleStart } from "../tunables.js";
+import type { EscapeCapTunables, ScrambleStart, Tunables } from "../tunables.js";
 
 // ---- 2.1 the real throwaway rule ---------------------------------------------------------------
 
@@ -148,4 +153,31 @@ export function spentBranch(cap: EscapeCapTunables, rolls: number): SpentBranch 
     case "BELOW_30":
       return "BELOW_30";
   }
+}
+
+// ---- 2.5 no late horizon sack ------------------------------------------------------------------
+
+/**
+ * 2.5 (AM-13 `horizon`, CHOSEN): the pursuit deadline under the rule, the later of the escape tick
+ * plus one tick step and the earlier of the escape tick plus `scramble.pursuitSeconds` (1.5 s) and
+ * the last tick (`clock.maxTick`, 6.0 s), rounded as the tick clock rounds: an escape at 5.0 or
+ * 5.5 s reaches it at 6.0 s, and one at 6.0 s at 6.5 s. Without the rule it is `pursuitDeadline`'s,
+ * the escape tick plus `pursuitSeconds` whatever the clock, so an escape after 4.5 s runs off the
+ * loop's end into the horizon coverage sack. The desperation bar (`pursuitForcesDecision`) reads
+ * the same deadline, so it moves with it.
+ */
+export function horizonDeadline(tunables: Tunables, escapeTick: number): number {
+  const nextTick = Number((escapeTick + tunables.clock.tickStepSeconds).toFixed(1));
+  const pursuit = Number((escapeTick + tunables.scramble.pursuitSeconds).toFixed(1));
+  return Math.max(nextTick, Math.min(pursuit, tunables.clock.maxTick));
+}
+
+/**
+ * 2.5: whether the play runs `tick`, a tick past the last (`clock.maxTick`): only while a scramble
+ * is live (`pursuitAtTick` set) and only up to its deadline. Out of the pocket a tick runs no line
+ * battle, no status and no arrival, so that tick runs the scramble's own logic only: his reads, a
+ * throw on the run, and the tuck at the deadline.
+ */
+export function runsPastLastTick(tunables: Tunables, tick: number, pursuitAtTick: number | undefined): boolean {
+  return pursuitAtTick !== undefined && tick > tunables.clock.maxTick && tick <= pursuitAtTick;
 }
