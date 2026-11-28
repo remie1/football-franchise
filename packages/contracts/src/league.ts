@@ -53,13 +53,19 @@ export interface GameResult {
  * ADR-087 P4: who played in a game and how, one entry per player who took a snap. Built by whoever
  * plays the game (the season runner, from the match events) and handed back beside the result, so
  * franchise reads who played without parsing play events (Iron Rule 1). `contests`: his one-on-one
- * checks by the rating he used, won and lost.
+ * checks by the rating he used, won and lost. `uses` (G2): every rating he rolled, opposed or not.
  */
 export interface GameParticipation {
   player: PlayerId;
   team: TeamId;
   snaps: { offense: number; defense: number; special: number };
   contests: { attr: AttrId; won: number; lost: number }[];
+  /**
+   * ADR-087 G2 (§12.13): every rating his rolls named in the game, opposed or not, each counted once a
+   * roll (a check that re-reads an earlier roll is not counted again). Filled only when the season
+   * runner is asked (franchise's growth curve reads it); absent, nothing reads it.
+   */
+  uses?: { attr: AttrId; n: number }[];
 }
 
 // C5 — standings. A view: everything here is derivable from results + LeagueStructure,

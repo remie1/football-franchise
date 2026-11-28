@@ -91,7 +91,7 @@ describe("aging by ability: the AB0 edits (ADR-087 §12)", () => {
         "STAMINA", "DURABILITY", "TECHNIQUE", "PASSING", "KICKING", "SMARTS",
       ]>,
       true as Is<AbilityGroup, (typeof ABILITY_GROUPS)[number]>,
-      true as Is<OptionalKeys<PlayerDevelopment>, "fadeShift">,
+      true as Is<OptionalKeys<PlayerDevelopment>, "fadeShift" | "timing">,
       true as Is<UndefinedKeys<PlayerDevelopment>, never>,
       true as Is<NonNullable<PlayerDevelopment["fadeShift"]>, Partial<Record<AbilityGroup, number>>>,
       // Two all-optional records are each assignable to the other whatever their keys, so the keys are pinned on their own.
@@ -154,5 +154,47 @@ describe("aging by ability: the AB0 edits (ADR-087 §12)", () => {
     expect(Object.keys(freeAgent)).not.toContain("team");
     expect([released, undef]).toHaveLength(2);
     expect(pins).toHaveLength(5);
+  });
+});
+
+/**
+ * ADR-087 §12.13 (G1, G2; the owner's typed yeses 2026-11-27 and 2026-11-28): two optional fields,
+ * which only franchise's growth curve reads, so a record or a report without them is read as before.
+ */
+describe("the growth curve: edits G1 and G2 (ADR-087 §12.13)", () => {
+  it("G1: his growth timing is one optional hidden number on his development record", () => {
+    const timed: PlayerDevelopment = { ...development, timing: 0.62 };
+    // @ts-expect-error exactOptionalPropertyTypes: timing: undefined is refused, so a record with none writes no key
+    const undef: PlayerDevelopment = { ...development, timing: undefined };
+    // @ts-expect-error a number, not a label: franchise reads it as early, steady or late
+    const named: PlayerDevelopment = { ...development, timing: "LATE" };
+    const pins: true[] = [
+      true as Is<NonNullable<PlayerDevelopment["timing"]>, number>,
+      true as Is<UndefinedKeys<PlayerDevelopment>, never>,
+    ];
+    expect(Object.keys(development)).not.toContain("timing");
+    expect(JSON.parse(JSON.stringify(timed))).toEqual(timed);
+    expect([undef, named]).toHaveLength(2);
+    expect(pins).toHaveLength(2);
+  });
+
+  it("G2: a who-played report may count every rating he rolled, and one without the count still reads", () => {
+    const counted: GameParticipation = {
+      player: playerId("p1"), team: teamId("T1"), snaps: { offense: 41, defense: 0, special: 6 },
+      contests: [{ attr: attrId("passBlock"), won: 3, lost: 1 }],
+      uses: [{ attr: attrId("catching"), n: 4 }, { attr: attrId("passBlock"), n: 4 }],
+    };
+    const { uses: _uses, ...before } = counted;
+    // @ts-expect-error exactOptionalPropertyTypes: uses: undefined is refused, so a report with no count writes no key
+    const undef: GameParticipation = { ...before, uses: undefined };
+    const pins: true[] = [
+      true as Is<OptionalKeys<GameParticipation>, "uses">,
+      true as Is<UndefinedKeys<GameParticipation>, never>,
+      true as Is<NonNullable<GameParticipation["uses"]>, { attr: ReturnType<typeof attrId>; n: number }[]>,
+    ];
+    expect(JSON.parse(JSON.stringify(counted))).toEqual(counted);
+    expect(Object.keys(before)).not.toContain("uses");
+    expect([undef]).toHaveLength(1);
+    expect(pins).toHaveLength(3);
   });
 });
