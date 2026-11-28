@@ -59,6 +59,7 @@ import { ARM_DEFS, ARM_IDS, armById, exclusiveMechanisms, STEP2_ARM_DEFS, STEP3_
 import { FILED_PATH, intGuard, intGuardByClass, type GuardVerdict, type IntMix } from "./bands.js";
 import { constructById } from "./constructs.js";
 import { flatBaseline, genSeason, goldenGames, type CorpusVisitor, type SeedSet } from "./corpus.js";
+import { applyRatingOverrides, type RatingOverride } from "./ratingOverride.js";
 import { filedDigest, pendingPaths, STEP0_FILED_DIGEST, type BandClause, type FiledFile, type JsonValue } from "./filed.js";
 import { treeState } from "./gitTree.js";
 import { foldDigests, gameBytesDigest, gameDigest, GOLDEN_LEAGUES } from "./golden.js";
@@ -207,8 +208,11 @@ export interface Step1Stamp {
   readonly node: string;
 }
 
-export function stampOf(id: ArmId, seedSet: SeedSet, env: Step1Env, corpus: Step1Corpus = FULL_CORPUS): Step1Stamp {
-  const arm = armById(id);
+/**
+ * `arm` is the built arm the record plays (default `armById(id)`); ADR-089 step 6's harness passes a
+ * step-6 arm, which only `buildStep6Arm` builds (plan §3.2 K2), so every earlier caller is as before.
+ */
+export function stampOf(id: ArmId, seedSet: SeedSet, env: Step1Env, corpus: Step1Corpus = FULL_CORPUS, arm: Arm = armById(id)): Step1Stamp {
   return {
     arm: id,
     filedDigest: STEP0_FILED_DIGEST,
@@ -408,11 +412,31 @@ export interface PlayArmOptions {
    * record.
    */
   readonly finish?: (league: League, accumulator: SimAccumulator) => void;
+  /**
+   * ADR-089 step 6's seam (`step6.ts`, plan §3.2 K2): the built arm to play in place of
+   * `armById(id)`'s, with the rating overrides its recipe patches on both leagues' rosters before
+   * play (the probes H13 to H15) and whether it plays mirrored (H0M). Only the step-6 harness builds
+   * a step-6 arm (`buildStep6Arm`); absent, the arm is `armById(id)`'s and every game is today's,
+   * unpatched and unmirrored, so every earlier step's record is as before.
+   */
+  readonly arm?: PlayedArm;
+}
+
+/** A built arm as the step-6 harness plays it: the arm, the rosters' rating overrides and the mirror (plan §5.1). */
+export interface PlayedArm {
+  readonly arm: Arm;
+  readonly ratings?: readonly RatingOverride[];
+  readonly mirror?: boolean;
+  /**
+   * Called on each game whose rosters `ratings` patch, with the rosters before the overrides and as
+   * played (the probes' rating fold reads both). Every fold and `visit` read the rosters as played.
+   */
+  readonly rosters?: (league: League, before: GameSnapshot, asPlayed: GameSnapshot) => void;
 }
 
 /** Plays one arm on both leagues at its seed set and returns its record (plain data). */
 export function playArm(id: ArmId, seedSet: SeedSet, env: Step1Env, opts: PlayArmOptions = {}): ArmRecord {
-  const arm = armById(id);
+  const arm = opts.arm?.arm ?? armById(id);
   const corpus = opts.corpus ?? FULL_CORPUS;
   const tunables = arm.tunables;
   const reference = referenceOf(id);
@@ -420,11 +444,23 @@ export function playArm(id: ArmId, seedSet: SeedSet, env: Step1Env, opts: PlayAr
   const folds = {} as Record<League, LeagueFolds>;
   for (const league of LEAGUES) {
     const f = emptyLeagueFolds(id, mechanisms);
+    // Step 6's probes and mirror (`opts.arm`): written only where the arm carries them, so every other game is today's.
+    const ratings = opts.arm?.ratings;
+    const patches = ratings !== undefined && ratings.length > 0;
     const visit: CorpusVisitor = (o, snapshot) => {
-      foldStep1Game(f, o, snapshot, tunables, mechanisms ?? []);
-      opts.visit?.(league, o, snapshot, tunables);
+      // The rosters as played: `runOneGame` patches a probe's rosters before play (`applyRatingOverrides`),
+      // and the corpus hands the snapshot before the patch, so every fold reads the patched one.
+      const played = patches ? applyRatingOverrides(snapshot, ratings) : snapshot;
+      if (patches) opts.arm?.rosters?.(league, snapshot, played);
+      foldStep1Game(f, o, played, tunables, mechanisms ?? []);
+      opts.visit?.(league, o, played, tunables);
     };
-    const game = { tunables, callerVersion: STEP1_CALLER };
+    const game = {
+      tunables,
+      callerVersion: STEP1_CALLER,
+      ...(patches ? { ratings } : {}),
+      ...(opts.arm?.mirror === true ? { mirror: true } : {}),
+    };
     if (league === "flat") flatBaseline(seedSet, visit, { ...game, ...(corpus.flatFirst === null ? {} : { first: corpus.flatFirst }) });
     else genSeason(seedSet, visit, { ...game, ...(corpus.genThroughWeek === null ? {} : { throughWeek: corpus.genThroughWeek }) });
     folds[league] = f;
@@ -452,7 +488,7 @@ export function playArm(id: ArmId, seedSet: SeedSet, env: Step1Env, opts: PlayAr
   }
   const record = {
     format: STEP1_ARM_FORMAT,
-    stamp: stampOf(id, seedSet, env, corpus),
+    stamp: stampOf(id, seedSet, env, corpus, arm),
     report,
     measures: { flat: measuresOf(folds.flat, "flat"), gen: measuresOf(folds.gen, "gen") },
     s1: { flat: folds.flat.s1, gen: folds.gen.s1 },

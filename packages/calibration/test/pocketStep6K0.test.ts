@@ -69,7 +69,6 @@ import { preflightStep5, step5GateRefusal, step5GateState, STEP5A_AMENDMENTS_PIN
 import {
   STEP6_AMENDMENTS_PIN,
   STEP6_ANSWER_OPTIONS,
-  STEP6_HARNESS_REFUSAL,
   STEP6_PETITIONS,
   STEP6_UNSEEN_ANSWER,
   step6AnswersProblem,
@@ -78,6 +77,7 @@ import {
   step6GateState,
   step6GateWaits,
   step6PetitionsOut,
+  step6PinRefusal,
   step6ViewFacts,
   type Step6Answers,
   type Step6GateState,
@@ -362,8 +362,11 @@ describe("step 6's gate (plan §10.3), refusing before anything plays", () => {
     expect(existsSync(cache)).toBe(false);
     expect(existsSync(join(scratch, "d.json")) || existsSync(join(scratch, "f.json"))).toBe(false);
     expect(lines).toEqual([]);
-    await expect(step6Command({ step: 6 }, log, OPEN)).rejects.toThrow(STEP6_HARNESS_REFUSAL);
+    // A synthetic open gate reaches the harness's preflight, which refuses before anything plays: the
+    // step-6 view is not pinned in this build (STEP6_AMENDMENTS_PIN waits on AM-13).
+    await expect(step6Command({ step: 6, cache }, log, OPEN)).rejects.toThrow(step6PinRefusal(amendmentsDigest(amendmentsAtStep(whole(), "6")), null));
     expect(lines).toEqual(["ADR-089 step 6: the arms: the gate is open"]);
+    expect(existsSync(cache)).toBe(false);
   });
 });
 

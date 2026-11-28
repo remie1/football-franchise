@@ -71,7 +71,7 @@ import { positionsFromSnapshot } from "../knownTruth/pocketChannelShares.js";
 import { TWO_SECOND_BIN, type SimAccumulator } from "../metrics/collect.js";
 import { missSplitFigures, type MissSplitFigures } from "../metrics/pocketRows.js";
 import { AMENDMENTS_PATH, amendmentsDigest, entryOf, guardFor, openAmendmentsAtStep, STEP3_AMENDMENTS_DIGEST, type AmendmentsFile, type BaseMap } from "./amendments.js";
-import { armById, armRefusal, STEP2_ARM_IDS, STEP3_ARM_DEFS, STEP3_ARM_IDS, STEP3_RUN_IDS, type ArmId } from "./arms.js";
+import { armById, armRefusal, STEP2_ARM_IDS, STEP3_ARM_DEFS, STEP3_ARM_IDS, STEP3_RUN_IDS, type Arm, type ArmId } from "./arms.js";
 import { FILED_PATH, GUARD_CLASSES, type GuardClock, type IntMix } from "./bands.js";
 import type { ThrowClass } from "./constructs.js";
 import { flatBaseline, genSeason, goldenGames, type SeedSet } from "./corpus.js";
@@ -138,6 +138,7 @@ import {
   step1Env,
   writeAtomic,
   type ArmRecord,
+  type PlayedArm,
   type Step1Corpus,
   type Step1Env,
   type Step1Stamp,
@@ -415,8 +416,9 @@ export function preflightStep3(filedPath: string, amendmentsPath: string, pin: s
 /** Step 1's stamp with the amendments digest every step-3 record carries: the step-3 view's. */
 export type Step3Stamp = Omit<Step1Stamp, "amendments"> & { readonly amendments: string };
 
-export function step3StampOf(id: ArmId, seedSet: SeedSet, env: Step1Env, amendments: string, corpus: Step1Corpus = FULL_CORPUS): Step3Stamp {
-  return { ...stampOf(id, seedSet, env, corpus), amendments };
+/** `arm` is the built arm the record plays (`stampOf`'s; default `armById(id)`): step 6's harness passes a step-6 arm. */
+export function step3StampOf(id: ArmId, seedSet: SeedSet, env: Step1Env, amendments: string, corpus: Step1Corpus = FULL_CORPUS, arm?: Arm): Step3Stamp {
+  return { ...stampOf(id, seedSet, env, corpus, arm), amendments };
 }
 
 /** One guard class's aimed throws and interceptions on one key (`<first must-act tick>|<forcing source>`). */
@@ -684,6 +686,10 @@ export interface PlayStep3Options {
   readonly s3Folds?: boolean;
   readonly m2?: boolean;
   readonly m5?: boolean;
+  /** ADR-089 step 6's harness only (`playArm`'s seam): the built arm to play, its rosters' rating overrides and its mirror. */
+  readonly arm?: PlayedArm;
+  /** ADR-089 step 6's harness only: called after step 3's own read of each league's accumulator (`playArm`'s `finish`). */
+  readonly finish?: (league: League, accumulator: SimAccumulator) => void;
 }
 
 const stripFreeRun = (g: M5Game): M5Game => {
@@ -718,6 +724,7 @@ export function playStep3Arm(id: ArmId, seedSet: SeedSet, env: Step1Env, opts: P
     corpus,
     label: opts.label ?? "pocket step 3",
     ...(opts.log === undefined ? {} : { log: opts.log }),
+    ...(opts.arm === undefined ? {} : { arm: opts.arm }),
     visit: (league, o, snapshot, tunables) => {
       const L = state[league];
       const ctx = s2ContextOf(tunables, snapshot);
@@ -761,18 +768,20 @@ export function playStep3Arm(id: ArmId, seedSet: SeedSet, env: Step1Env, opts: P
     },
     finish: (league, accumulator) => {
       state[league].missSplit = missSplitRecordOf(accumulator);
+      opts.finish?.(league, accumulator);
     },
   });
   let m5Record: Record<League, Step3M5Record> | undefined;
   if (m5) {
-    const tunables = armById(id).tunables;
+    const tunables = (opts.arm?.arm ?? armById(id)).tunables;
+    const ratings = opts.arm?.ratings;
     m5Record = {} as Record<League, Step3M5Record>;
     for (const league of LEAGUES) {
       const mirrored: M5Game[] = [];
       const visit = (o: { readonly events: Parameters<typeof m5GameOf>[0] }): void => {
         mirrored.push(m5GameOf(o.events, tunables));
       };
-      const game = { tunables, callerVersion: STEP1_CALLER, mirror: true };
+      const game = { tunables, callerVersion: STEP1_CALLER, mirror: true, ...(ratings === undefined || ratings.length === 0 ? {} : { ratings }) };
       if (league === "flat") flatBaseline(seedSet, visit, { ...game, ...(corpus.flatFirst === null ? {} : { first: corpus.flatFirst }) });
       else genSeason(seedSet, visit, { ...game, ...(corpus.genThroughWeek === null ? {} : { throughWeek: corpus.genThroughWeek }) });
       const unmirrored = state[league].unmirrored;
@@ -799,7 +808,7 @@ export function playStep3Arm(id: ArmId, seedSet: SeedSet, env: Step1Env, opts: P
   void _stamp;
   return sanitize({
     format: STEP3_ARM_FORMAT,
-    stamp: step3StampOf(id, seedSet, env, opts.amendments, corpus),
+    stamp: step3StampOf(id, seedSet, env, opts.amendments, corpus, opts.arm?.arm),
     ...rest,
     s2: { flat: packS2Folds(state.flat.s2), gen: packS2Folds(state.gen.s2) },
     s3: { flat: leagueFolds("flat"), gen: leagueFolds("gen") },

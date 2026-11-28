@@ -257,6 +257,10 @@ export interface PlayStep4Options {
   readonly label?: string;
   readonly visit?: PlayStep3Options["visit"];
   readonly folds?: Pick<PlayStep3Options, "s3Folds" | "m2" | "m5">;
+  /** ADR-089 step 6's harness only (`playArm`'s seam): the built arm to play, its rosters' rating overrides and its mirror. */
+  readonly arm?: PlayStep3Options["arm"];
+  /** ADR-089 step 6's harness only: each league's accumulator once its games are played (`playStep3Arm`'s `finish`). */
+  readonly finish?: PlayStep3Options["finish"];
 }
 
 /** Step 3's folds and M2 STREAM as step 4 runs them on `id`: a base exactly as step 3 played it; a D arm with step 3's folds when it reads step-3 facts from a free-run block, never M2. */
@@ -278,10 +282,14 @@ export function playStep4Arm(id: ArmId, seedSet: SeedSet, env: Step1Env, opts: P
     label: opts.label ?? "pocket step 4",
     ...(opts.log === undefined ? {} : { log: opts.log }),
     ...(opts.folds ?? step4FoldsOf(id)),
+    ...(opts.arm === undefined ? {} : { arm: opts.arm }),
+    ...(opts.finish === undefined ? {} : { finish: opts.finish }),
     visit: (league, o, snapshot, tunables) => {
       const L = state[league];
       foldS4Game(L.s4, o.events, tunables);
-      foldM3Game(L.m3, o.events, positionsFromSnapshot(snapshot));
+      // The arm's own tunables (K14): the sacker mix reads a step-6 play's credit under the arm's tree
+      // and refuses one without it (cal-2's handoff); on every earlier stream it reads as before.
+      foldM3Game(L.m3, o.events, positionsFromSnapshot(snapshot), opts.arm === undefined ? undefined : tunables);
       foldM6Step4Game(L.m6, o.events);
       opts.visit?.(league, o, snapshot, tunables);
     },
