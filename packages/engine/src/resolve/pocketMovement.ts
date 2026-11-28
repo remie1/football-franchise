@@ -40,12 +40,14 @@ export type PocketMovementBandLabel = (Tunables["pocketMovement"]["bands"])[numb
 
 type AppealKey = keyof Tunables["pocketMovement"]["appeal"];
 
-interface AppealTerm {
+/** One rating term of an appeal: the rating's registry name and its divisor. */
+export interface AppealTerm {
   readonly attr: string;
   readonly divisor: number;
 }
 
-interface AppealSpec {
+/** An appeal as `tunables.pocketMovement.appeal` states each one. */
+export interface AppealSpec {
   readonly base: number;
   readonly terms: readonly AppealTerm[];
   readonly perUrgencyStep: number;
@@ -93,13 +95,17 @@ export interface PocketMovementArgs {
   readonly movementRng: Rng;
 }
 
-export interface PocketMovementOutcome {
-  readonly response: PocketResponse;
+/**
+ * One pick's outcome. `R` is what the ranking ranked: the pocket's responses everywhere but ADR-089
+ * step 6's deadline pick (`sim/outs.ts`'s `deadlineRanking`), whose RUN is no `PocketResponse`.
+ */
+export interface PocketMovementOutcome<R extends string = PocketResponse> {
+  readonly response: R;
   readonly band: PocketMovementBandLabel;
   readonly margin: number;
   readonly roll: RollDetail;
   /** Every response he could have taken, best-first. Index 0 is what he wanted. */
-  readonly ranked: readonly ResponseAppeal[];
+  readonly ranked: readonly { readonly response: R; readonly appeal: number }[];
   readonly urgency: number;
   readonly check: CheckEmission;
 }
@@ -117,7 +123,12 @@ function attrIdOf(name: string): AttrId {
   return id;
 }
 
-function appealFrom(
+/**
+ * An appeal's score for this quarterback at `urgency`: its base, each rating term rounded on its
+ * own against `appealBaseline`, and its urgency term. ADR-089 step 6 (plan §2.11): exported for the
+ * deadline pick's appeals (`sim/outs.ts`), which read today's terms. Unchanged in behavior.
+ */
+export function appealFrom(
   tunables: Tunables,
   qb: PlayerState,
   spec: AppealSpec,
@@ -214,15 +225,17 @@ export function resolvePocketMovement(args: PocketMovementArgs): PocketMovementO
  * band, the rank clamp and the `pocket_movement` CHECK, over a preference list already ranked.
  * `resolvePocketMovement` runs it on today's ranking; ADR-089 step 5a's clean pick
  * (`sim/cleanPocket.ts`'s `resolveCleanPick`) runs it on the clean pick's own options, so the two
- * CHECKs share one form (contracts-guardian C1). `ranked` must not be empty.
+ * CHECKs share one form (contracts-guardian C1). `ranked` must not be empty. ADR-089 step 6 (plan
+ * §2.11): the deadline pick runs it on its own two options, RUN and THROWAWAY, so the ranked type
+ * is a parameter (`PocketResponse` unless stated); the roll, the band and the clamp are the same.
  */
-export function rollRankedResponse(args: {
+export function rollRankedResponse<R extends string = PocketResponse>(args: {
   readonly tunables: Tunables;
   readonly qb: PlayerState;
-  readonly ranked: readonly ResponseAppeal[];
+  readonly ranked: readonly { readonly response: R; readonly appeal: number }[];
   readonly urgency: number;
   readonly movementRng: Rng;
-}): PocketMovementOutcome {
+}): PocketMovementOutcome<R> {
   const { tunables, ranked, urgency } = args;
   const t = tunables.pocketMovement;
   if (ranked.length === 0) throw new Error("@ff/engine: pocket movement with no available response");

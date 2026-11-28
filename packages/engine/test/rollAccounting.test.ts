@@ -1373,7 +1373,8 @@ describe("ADR-004 roll accounting", () => {
     };
     /**
      * A part, and where it first acts in a play: the index of the base's first roll at or past that
-     * point, or `undefined` when it never acts. `dice`: whether the part moves a die after its cut,
+     * point (read from the base, or from where the arm drew the part's own die), or `undefined` when
+     * it never acts. `dice`: whether the part moves a die after its cut,
      * `MOVES` (some play parts from the base), `NEVER` (no play does), or `MAY` (EVERY_RUN: a run
      * that starts behind the line draws the base's zone dice unless a broken tackle carries the base
      * past a zone the run must still play, or the goal line ends one run and not the other, which
@@ -1383,7 +1384,7 @@ describe("ADR-004 roll accounting", () => {
     type Part = {
       readonly name: string;
       readonly block: OutsTunables;
-      readonly cut: (base: Rolls) => number | undefined;
+      readonly cut: (base: Rolls, arm: Rolls) => number | undefined;
       readonly dice: "MOVES" | "NEVER" | "MAY";
       readonly minCut?: number;
       /** The one new family the part may add (plan §8.2 R-4: 2.9's `:drill:<id>`, 2.11's `:deadline`). */
@@ -1509,6 +1510,20 @@ describe("ADR-004 roll accounting", () => {
         dice: "MOVES",
         adds: /\/movement\/t#:drill:[^/:]+$/,
       },
+      {
+        // 2.11: the pick's die is drawn at the deadline, where s5a's run draws its first carrier die
+        // (or at the end of the play, for a run that draws none); a THROWAWAY ends the play there.
+        name: "the deadline pick",
+        block: outsParts({ deadlinePick: { runMargin: 1 } }),
+        cut: (base, arm) => {
+          const pick = arm.find((r) => r.label.endsWith(":deadline"));
+          if (pick === undefined) return undefined;
+          const k = base.findIndex((r) => (r.tick ?? 0) >= (pick.tick ?? 0) && r.label.includes("/carrier/scramble/"));
+          return k < 0 ? base.length : k;
+        },
+        dice: "MOVES",
+        adds: /\/movement\/t#:deadline$/,
+      },
       // 2.12 writes PLAY_START's marker and moves no die.
       { name: "the failed scramble scored as a sack", block: outsParts({ failedScrambleSack: true }), cut: () => undefined, dice: "NEVER" },
     ];
@@ -1530,7 +1545,7 @@ describe("ADR-004 roll accounting", () => {
               const arm: Rolls = lifted(playS6(state, calls, seed, withOuts(tunables, part.block)));
               for (const r of base) baseKinds.add(kind(family(r.label)));
               for (const r of arm) armFamilies.add(family(r.label));
-              const cut = part.cut(base);
+              const cut = part.cut(base, arm);
               if (cut !== undefined) cutPlays += 1;
               const n = cut ?? Math.max(base.length, arm.length);
               expect(arm.slice(0, n).map((r) => [r.label, r.raw]), `${part.name} ${name} ${seed}`).toEqual(base.slice(0, n).map((r) => [r.label, r.raw]));
@@ -1562,11 +1577,13 @@ describe("ADR-004 roll accounting", () => {
         caughtSeen: "SEEN",
         drill: true,
         drillBySide: true,
+        deadlinePick: { runMargin: 1 },
         failedScrambleSack: true,
       });
-      const LATER = /:deadline$|:contact(:|$)|:dodge(:|$)|:alarm(:|$)/;
+      const LATER = /:contact(:|$)|:dodge(:|$)|:alarm(:|$)/;
       let rolls = 0;
       let drills = 0;
+      let deadlines = 0;
       for (const { name, tunables, fixtures } of BASES) {
         for (const [fixture, build] of fixtures()) {
           for (let i = 0; i < SEEDS; i++) {
@@ -1574,6 +1591,7 @@ describe("ADR-004 roll accounting", () => {
             const labels = lifted(playS6(state, calls, `s6-once-${fixture}-${i}`, withOuts(tunables, together))).map((r) => r.label);
             rolls += labels.length;
             drills += labels.filter((l) => l.includes(":drill:")).length;
+            deadlines += labels.filter((l) => l.endsWith(":deadline")).length;
             expect(new Set(labels).size, `${name} ${fixture} ${i}`).toBe(labels.length);
             expect(labels.filter((l) => LATER.test(l)), `${name} ${fixture} ${i}`).toEqual([]);
           }
@@ -1581,6 +1599,7 @@ describe("ADR-004 roll accounting", () => {
       }
       expect(rolls).toBeGreaterThan(1000);
       expect(drills).toBeGreaterThan(20);
+      expect(deadlines).toBeGreaterThan(5);
     });
   });
 });

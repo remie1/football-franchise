@@ -89,12 +89,20 @@
  *   2.6's direction and 2.9's drill): at an escape toward a side, a route breaking to that side or to
  *   the middle keeps the drill's two burst steps, and one breaking to the far side gets one (+10, +5
  *   or 0; CHOSEN). A route with no `breakZone` is in the middle lane. No die.
+ * - **2.11 Run or throw it away at the deadline** (`deadlineRanking`; AM-13 `deadlinePick`, its run
+ *   margin K9's; P9, P10): at the pursuit deadline, with nobody at the normal bar and no desperation
+ *   throw taken (none after a clean break-out, D23 on the run), he picks between RUN and THROWAWAY
+ *   on one d100, today's `pocket_movement` CHECK on `movement/t<tick>:deadline`, over a ranking of
+ *   its own at urgency 0, THROWAWAY first on a tie. RUN is today's deadline run; THROWAWAY is an
+ *   OUT_OF_POCKET throwaway (P9, the stand-in until the lift) whose `rollRef` is that CHECK and whose
+ *   `outsideTackleBox` is true (P10).
  * - **2.12 The failed scramble scored as a sack** (AM-13 `rescoring`) has no function here: the
  *   call site writes `PLAY_START.scoring` under `failedScrambleSack`, and every reader keys the rule
  *   on that marker (`stats/statline.ts` in the engine).
  *
  * No die is drawn here: where a part rolls (2.8's contest, 2.9's drill), the call site draws the
- * faces on the play's labels and hands them in.
+ * faces on the play's labels and hands them in, and 2.11's pick is rolled at the call site over the
+ * ranking built here.
  */
 import { getAttr } from "@ff/contracts";
 import type { AttrId, HorizontalZone, PlayerId, PlayerState, RollDetail } from "@ff/contracts";
@@ -108,10 +116,11 @@ import { manCoverageModifiers } from "../resolve/manCoverage.js";
 import { nearestThreat, timeToArrival } from "../resolve/rushThreat.js";
 import type { ArrivalClock, RushThreat } from "../resolve/rushThreat.js";
 import type { ScrambleTerms } from "../resolve/scramble.js";
+import { appealFrom } from "../resolve/pocketMovement.js";
 import type { PocketMovementBandLabel } from "../resolve/pocketMovement.js";
 import { zoneCoverageModifiers, zoneCoverageTarget } from "../resolve/zoneCoverage.js";
 import { D100_MEAN, bandFor, sumModifiers, tierFor } from "../rolls.js";
-import type { CaughtSeen, ContactTunables, EscapeCapTunables, OutsTunables, ScrambleStart, SideCatchTunables, Tunables } from "../tunables.js";
+import type { CaughtSeen, ContactTunables, DeadlinePickTunables, EscapeCapTunables, OutsTunables, ScrambleStart, SideCatchTunables, Tunables } from "../tunables.js";
 import type { ContestPosition, RunSide, RushAlignment } from "../types.js";
 import { onFreeRunClockAtContact, shedDelaySecondsOf } from "./contactTick.js";
 import { loopPartnersAtSnap } from "./freeRunTiming.js";
@@ -788,4 +797,49 @@ const LANES_ON: Readonly<Record<RunSide, readonly HorizontalZone[]>> = { LEFT: [
 export function drillStepsOf(side: RunSide | undefined, lane: HorizontalZone): number {
   if (side === undefined || lane === "C" || LANES_ON[side].includes(lane)) return DRILL_BURST_STEPS;
   return DRILL_FAR_SIDE_STEPS;
+}
+
+// ---- 2.11 run or throw it away at the deadline -------------------------------------------------
+
+/** 2.11: the deadline pick's two options. RUN is today's tuck and run, so it is no `PocketResponse`. */
+export type DeadlineChoice = "THROWAWAY" | "RUN";
+
+/** 2.11: one option of the deadline pick, scored. */
+export interface DeadlineAppeal {
+  readonly response: DeadlineChoice;
+  readonly appeal: number;
+}
+
+/**
+ * 2.11: the urgency the deadline pick reads, 0: every threat was RESET at his escape, so nothing
+ * is arriving (and K9's margin is the filed inequality at this urgency alone).
+ */
+export const DEADLINE_URGENCY = 0;
+
+/**
+ * 2.11 (AM-13 `deadlinePick`, its run margin K9's; P9, P10): his own ranking of the deadline's two
+ * options, best first, at urgency 0, with no die. THROWAWAY is today's throwaway appeal (25 plus
+ * `(decisionMaking - 70) / 3` plus `(awareness - 70) / 4`); RUN is the throwaway's base plus the run
+ * margin plus today's escape terms (`(mobility - 70) / 1.5` plus `(improvisation - 70) / 1.5`), each
+ * term rounded on its own as every appeal is (`appealFrom`). THROWAWAY is first on a tie (it is
+ * listed first and the sort keeps ties in place: "strict: a tie is not RUN first"), so a baseline
+ * quarterback ranks RUN first, 26 against 25, by the margin's 1. The call site rolls today's
+ * `pocket_movement` CHECK over it (`rollRankedResponse`), whose band clamp gives the second option
+ * to any band below SOUND.
+ */
+export function deadlineRanking(tunables: Tunables, deadlinePick: DeadlinePickTunables, qb: PlayerState): readonly DeadlineAppeal[] {
+  const appeal = tunables.pocketMovement.appeal;
+  const options: DeadlineAppeal[] = [
+    { response: "THROWAWAY", appeal: appealFrom(tunables, qb, appeal.throwaway, DEADLINE_URGENCY) },
+    {
+      response: "RUN",
+      appeal: appealFrom(
+        tunables,
+        qb,
+        { base: appeal.throwaway.base + deadlinePick.runMargin, terms: appeal.escape.terms, perUrgencyStep: appeal.escape.perUrgencyStep },
+        DEADLINE_URGENCY,
+      ),
+    },
+  ];
+  return options.sort((a, b) => b.appeal - a.appeal);
 }

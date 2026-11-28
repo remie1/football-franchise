@@ -87,6 +87,8 @@ import {
   caughtFactsOf,
   caughtHitOf,
   caughtShedDelaySeconds,
+  DEADLINE_URGENCY,
+  deadlineRanking,
   drillDefenderOf,
   drillGainOf,
   drillOrder,
@@ -148,7 +150,7 @@ import {
   readCapacityDeltaFor,
   sacksWithoutTarget,
 } from "../resolve/pocket.js";
-import { resolvePocketMovement } from "../resolve/pocketMovement.js";
+import { resolvePocketMovement, rollRankedResponse } from "../resolve/pocketMovement.js";
 import type { PocketMovementOutcome } from "../resolve/pocketMovement.js";
 import { resolvePassRushRep, resolvePassRushTick } from "../resolve/passRush.js";
 import type { PassRushBandLabel, PassRushTickOutcome } from "../resolve/passRush.js";
@@ -2056,6 +2058,35 @@ export function simulatePassPlayWith(
       // ball carrier, so he goes through §14.4's machinery like any other one.
       // This replaced a flat five yards; it is not a tuned version of it.
       if (tick >= scramble.pursuitAtTick) {
+        // ADR-089 step 6 (plan §2.11; AM-13 `deadlinePick`; P9, P10): RUN OR THROW IT AWAY. Nobody is
+        // at the normal bar and no desperation throw was taken (none after a clean break-out, D23 on
+        // the run), so under the deadline pick he picks between today's run and a throwaway on one
+        // d100, today's `pocket_movement` CHECK on `movement/t<tick>:deadline`, over the ranking at
+        // urgency 0 (`deadlineRanking`: THROWAWAY first on a tie, and any band below SOUND takes the
+        // second). THROWAWAY is an OUT_OF_POCKET throwaway (P9's stand-in until the lift) naming that
+        // CHECK, outside the tackle box (P10), with today's throwaway runoff; RUN is today's run.
+        const deadlinePick = outs?.deadlinePick;
+        if (deadlinePick !== undefined) {
+          const pick = rollRankedResponse({
+            tunables,
+            qb,
+            ranked: deadlineRanking(tunables, deadlinePick, qb),
+            urgency: DEADLINE_URGENCY,
+            movementRng: movementRng.fork(`t${tick.toFixed(1)}:deadline`),
+          });
+          log.check(pick.check);
+          if (pick.response === "THROWAWAY") {
+            // No direction on this decision either (plan §2.6).
+            log.qbDecision("THROWAWAY");
+            log.throwaway("OUT_OF_POCKET", pick.roll.rngLabel, true);
+            outcome = {
+              yards: 0,
+              turnover: false,
+              clockRunoff: tick + tunables.result.clockRunoff.throwaway,
+            };
+            break;
+          }
+        }
         // ADR-089 step 6 (plan §2.6): this SCRAMBLE never carries a direction, under any part: he is
         // already running the way his escape's SCRAMBLE stated (the vocabulary test pins it).
         log.qbDecision("SCRAMBLE");

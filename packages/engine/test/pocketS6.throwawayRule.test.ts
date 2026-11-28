@@ -16,7 +16,9 @@
  * 5. P10 before the lift: under the rule, and under the deadline pick alone, every in-pocket
  *    throwaway records `outsideTackleBox` false at its THROWAWAY's seq, which the stream does not
  *    carry; under a block with neither, none is recorded. On every one the flag equals
- *    `cause === "OUT_OF_POCKET"` (S-15, contracts-guardian's condition on P10).
+ *    `cause === "OUT_OF_POCKET"` (S-15, contracts-guardian's condition on P10). Under the deadline
+ *    pick (2.11) a throwaway after an escape is a whole OUT_OF_POCKET record, its flag true in its
+ *    payload, never on the stream; under the rule alone there is no other record.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -221,12 +223,22 @@ describe("ADR-089 step 6, 2.1: THROWAWAY.outsideTackleBox before the lift (P10)"
           expect("outsideTackleBox" in t.payload, `${arm} ${seed}`).toBe(false);
           counted[arm] = (counted[arm] ?? 0) + 1;
         }
-        // No other record before the parts that write one land.
-        expect(records.filter((r) => r.kind !== "outsideTackleBox"), `${arm} ${seed}`).toEqual([]);
+        // No other record but 2.11's: under the deadline pick a throwaway after an escape is a whole
+        // OUT_OF_POCKET record (P9), its flag true in its payload (P10), and the stream carries none.
+        const others = records.filter((r) => r.kind !== "outsideTackleBox");
+        for (const r of others) {
+          if (r.kind !== "outOfPocketThrowaway") throw new Error(`${arm} ${seed}: a ${r.kind} record`);
+          expect(r.payload.cause, `${arm} ${seed}`).toBe("OUT_OF_POCKET");
+          expect(r.payload.outsideTackleBox, `${arm} ${seed}`).toBe(true);
+          counted[`${arm}, out of the pocket`] = (counted[`${arm}, out of the pocket`] ?? 0) + 1;
+        }
+        if (arm === "the rule") expect(others, `${arm} ${seed}`).toEqual([]);
+        expect(thrown.filter((t) => String(t.cause) === "OUT_OF_POCKET"), `${arm} ${seed}`).toEqual([]);
       });
     }
     expect(counted["the rule"]).toBeGreaterThan(30);
     expect(counted["the deadline pick alone"]).toBeGreaterThan(30);
+    expect(counted["the deadline pick alone, out of the pocket"]).toBeGreaterThan(0);
   });
 
   it("a block with neither part writes no flag", () => {
