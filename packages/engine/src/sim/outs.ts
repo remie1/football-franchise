@@ -54,6 +54,14 @@
  *   decision (its contact names the man, 2.8), and the deadline's SCRAMBLE carries none, because he
  *   is already running that way. Alone nothing reads the side, so the stream is step 5a's apart from
  *   the direction.
+ * - **2.7 The side-aware catch** (`sideCatchOf`, `sideCatcherOf`; AM-13 `sideCatch`, the 10 and 15
+ *   CHOSEN in the design; it needs 2.6's direction): the escape target's EDGE term gives way to 10
+ *   for each live threat on the side he breaks to and 15 for each unregistered man there, a card
+ *   rusher on that side still in his block whom he had not checked by the band of the pick that
+ *   offered the escape (SOUND none, RUSHED the EDGE men, PANICKED all); the blocked men there join the
+ *   roll's actors; and a caught escape's catcher is the first unregistered man there, else the
+ *   nearest live threat there, else today's man. Without the caught escape as contact (2.8) a blocked
+ *   man's catch is a sack that names nobody.
  * - **2.12 The failed scramble scored as a sack** (AM-13 `rescoring`) has no function here: the
  *   call site writes `PLAY_START.scoring` under `failedScrambleSack`, and every reader keys the rule
  *   on that marker (`stats/statline.ts` in the engine).
@@ -67,8 +75,9 @@ import { threatSideOf } from "../resolve/approach.js";
 import { nearestThreat, timeToArrival } from "../resolve/rushThreat.js";
 import type { ArrivalClock } from "../resolve/rushThreat.js";
 import type { ScrambleTerms } from "../resolve/scramble.js";
-import type { EscapeCapTunables, OutsTunables, ScrambleStart, Tunables } from "../tunables.js";
-import type { RunSide } from "../types.js";
+import type { PocketMovementBandLabel } from "../resolve/pocketMovement.js";
+import type { EscapeCapTunables, OutsTunables, ScrambleStart, SideCatchTunables, Tunables } from "../tunables.js";
+import type { RunSide, RushAlignment } from "../types.js";
 import { loopPartnersAtSnap } from "./freeRunTiming.js";
 import type { LineGamesReplayInput } from "./freeRunTiming.js";
 
@@ -324,4 +333,104 @@ export function horizonDeadline(tunables: Tunables, escapeTick: number): number 
  */
 export function runsPastLastTick(tunables: Tunables, tick: number, pursuitAtTick: number | undefined): boolean {
   return pursuitAtTick !== undefined && tick > tunables.clock.maxTick && tick <= pursuitAtTick;
+}
+
+// ---- 2.7 the side-aware catch -------------------------------------------------------------------
+
+/** One card rusher as the side-aware catch reads him at the escape roll. */
+export interface CatchMan {
+  readonly rusher: PlayerId;
+  /** His side at the snap (`cardSidesAtSnap`). */
+  readonly side: RunSide | undefined;
+  /** The card's alignment, for a man without an arc: INTERIOR is in front of him (FRONT), EDGE beside him (SIDE). */
+  readonly alignment: RushAlignment;
+  /**
+   * Still in his block at the roll: no threat, not named by the roll, and a blocker or a late block on
+   * him (the call site's reading). A live threat is never blocked.
+   */
+  readonly blocked: boolean;
+}
+
+/** What `sideCatchOf` reads at an escape roll, every value the tick's own. */
+export interface SideCatchFacts {
+  /** Every card rusher, in card order. */
+  readonly card: readonly CatchMan[];
+  /** The tick's live threats, the list the escape roll is handed. */
+  readonly threats: readonly ArrivalClock[];
+  /** Every card rusher's side (`cardSidesAtSnap`). */
+  readonly sides: ReadonlyMap<string, RunSide | undefined>;
+  /** The band of the movement roll that offered ESCAPE (the forced `:movement` pick or the `:clean` pick). */
+  readonly band: PocketMovementBandLabel;
+}
+
+/** The side-aware catch at one escape roll: the roll's side term and actors, and who can catch him unseen. */
+export interface SideCatchTerms {
+  /** `perLiveThreat` for each live threat on the side, plus `perUnregistered` for each unregistered man there. */
+  readonly term: number;
+  /** The card rushers on the side still in their blocks, in card order (the CHECK's actors after the threats). */
+  readonly blocked: readonly PlayerId[];
+  /** Of them, the men he had not checked, in card order (the catcher's first pick, `sideCatcherOf`). */
+  readonly unregistered: readonly PlayerId[];
+}
+
+/**
+ * 2.7 (ADR-089 §4.7, ADR:764-771; the 10 and 15 CHOSEN in the design): the side-aware catch at an
+ * escape to `side`. Every live threat is registered until step 7, so the unregistered men are the
+ * card rushers on the side still in their blocks whom he had not checked, by the band of the
+ * movement roll that offered the escape: SOUND checked them all, RUSHED only the men in front
+ * (INTERIOR, the card's rule for a man without an arc; INFERRED, AM-13), so the EDGE men are
+ * unregistered, and PANICKED none, so every one is. The term takes the place of the EDGE term on
+ * the target. A man whose card states no side is on neither side. No die.
+ */
+export function sideCatchOf(sideCatch: SideCatchTunables, side: RunSide, f: SideCatchFacts): SideCatchTerms {
+  const onSide = (rusher: PlayerId): boolean => f.sides.get(String(rusher)) === side;
+  const live = f.threats.filter((t) => onSide(t.rusher)).length;
+  const blocked = f.card.filter((m) => m.blocked && onSide(m.rusher));
+  const unregistered = blocked.filter((m) => unregisteredUnder(f.band, m.alignment));
+  return {
+    term: sideCatch.perLiveThreat * live + sideCatch.perUnregistered * unregistered.length,
+    blocked: blocked.map((m) => m.rusher),
+    unregistered: unregistered.map((m) => m.rusher),
+  };
+}
+
+/** Whether he had not checked a blocked man of this alignment, by the band of the pick that offered the escape. */
+function unregisteredUnder(band: PocketMovementBandLabel, alignment: RushAlignment): boolean {
+  switch (band) {
+    case "SOUND":
+      return false;
+    case "RUSHED":
+      return alignment === "EDGE";
+    case "PANICKED":
+      return true;
+    default:
+      throw new Error(`@ff/engine: the side-aware catch has no reading for the movement band ${String(band satisfies never)}`);
+  }
+}
+
+/** Who catches him at a CAUGHT_FROM_BEHIND roll under the side-aware catch. */
+export type SideCatcher<T extends ArrivalClock> =
+  | { readonly kind: "UNREGISTERED"; readonly rusher: PlayerId }
+  | { readonly kind: "LIVE"; readonly threat: T }
+  | { readonly kind: "NONE" };
+
+/**
+ * 2.7 (ADR-089 §4.7): the catcher of a caught escape to `side`, in order: the first unregistered man
+ * on the side (card order among the blocked men); else the nearest live threat on the side; else
+ * today's rule, the nearest live threat the roll named on either side (`nearestThreat`, its ties by
+ * `arrival.simultaneousArrivalPriority`); else nobody (a coverage sack). `live` is the call site's
+ * pool, the roll's named threats still live (a man the tick's battle RESET is not in it). No die.
+ */
+export function sideCatcherOf<T extends ArrivalClock>(
+  tunables: Tunables,
+  side: RunSide,
+  terms: SideCatchTerms,
+  live: readonly T[],
+  sides: ReadonlyMap<string, RunSide | undefined>,
+): SideCatcher<T> {
+  const first = terms.unregistered[0];
+  if (first !== undefined) return { kind: "UNREGISTERED", rusher: first };
+  const priority = tunables.arrival.simultaneousArrivalPriority;
+  const threat = nearestThreat(live.filter((t) => sides.get(String(t.rusher)) === side), priority) ?? nearestThreat(live, priority);
+  return threat === undefined ? { kind: "NONE" } : { kind: "LIVE", threat };
 }

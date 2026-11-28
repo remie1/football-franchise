@@ -1328,7 +1328,9 @@ describe("ADR-004 roll accounting", () => {
    *      whose total and target it moves;
    *      no late horizon sack draws them up to the escape roll of an escape won after 4.5 s, whose
    *      deadline is the first thing it moves; escape direction draws them all (it publishes a side
-   *      and moves no die); the failed scramble scored as a sack draws them all;
+   *      and moves no die); the side-aware catch draws them up to and with the play's first escape
+   *      roll, whose face it keeps and whose target it moves; the failed scramble scored as a sack
+   *      draws them all;
    *  28. after each cut no family is new over s5a's (the carrier's labels left out and the rush
    *      bucket's men read as one, as step 5a's pairing reads them): the parts built so far draw no
    *      new die, and the later parts' families (`:deadline`, `:drill:`, a contest at the escape)
@@ -1435,6 +1437,16 @@ describe("ADR-004 roll accounting", () => {
       },
       // 2.6 publishes the side (P11's stand-in, a recorder here) and moves no die.
       { name: "escape direction", block: outsParts({ direction: true }), cut: () => undefined, dice: "NEVER" },
+      {
+        // 2.7 (with the direction it needs): the first escape roll keeps its die and moves its target.
+        name: "the side-aware catch",
+        block: outsParts({ direction: true, sideCatch: { perLiveThreat: 10, perUnregistered: 15 } }),
+        cut: (base) => {
+          const k = base.findIndex((r) => r.label.endsWith(":scramble"));
+          return k < 0 ? undefined : k + 1;
+        },
+        dice: "MOVES",
+      },
       // 2.12 writes PLAY_START's marker and moves no die.
       { name: "the failed scramble scored as a sack", block: outsParts({ failedScrambleSack: true }), cut: () => undefined, dice: "NEVER" },
     ];
@@ -1482,6 +1494,7 @@ describe("ADR-004 roll accounting", () => {
         pursuit: { speedBaseline: 70, speedDivisor: 5, mobilityDivisor: 10, mobilityCentering: 7 },
         noLateHorizonSack: true,
         direction: true,
+        sideCatch: { perLiveThreat: 10, perUnregistered: 15 },
         failedScrambleSack: true,
       });
       const LATER = /:deadline$|:drill:|:contact(:|$)|:dodge(:|$)|:alarm(:|$)/;

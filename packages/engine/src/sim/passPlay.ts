@@ -89,6 +89,8 @@ import {
   runsPastLastTick,
   scrambleRunYards,
   scrambleStartYards,
+  sideCatchOf,
+  sideCatcherOf,
   spentBranch,
   throwawayLegalInPocket,
 } from "./outs.js";
@@ -2161,7 +2163,9 @@ export function simulatePassPlayWith(
           outs === undefined || sidesAtSnap === undefined
             ? undefined
             : breakSide(tunables, { tick, forced: cleanPick === undefined, threats, sides: sidesAtSnap, pickFace: movement.roll.raw });
-        const terms =
+        /** The men the roll names (`threats` is what it is handed: last tick's, as §7.2's inputs are). */
+        const named = new Set(threats.map((t) => String(t.rusher)));
+        const pursuitTerms =
           outs === undefined || sidesAtSnap === undefined || broke === undefined
             ? undefined
             : escapeTermsOf(
@@ -2169,6 +2173,25 @@ export function simulatePassPlayWith(
                 broke.side,
                 matchups.map((m) => ({ rusher: m.rusher, side: sidesAtSnap.get(String(m.rusher.bio.id)) })),
               );
+        // ADR-089 step 6 (plan §2.7): under the side-aware catch (which needs direction), the side
+        // term, the blocked men on his side and the unregistered among them, by the band of the pick
+        // that offered ESCAPE. A man is still in his block when the roll does not name him, he has no
+        // threat, and a blocker or a late block is on him. No die.
+        const sideCatch =
+          outs?.sideCatch === undefined || sidesAtSnap === undefined || broke === undefined
+            ? undefined
+            : sideCatchOf(outs.sideCatch, broke.side, {
+                card: matchups.map((m) => ({
+                  rusher: m.rusher.bio.id,
+                  side: sidesAtSnap.get(String(m.rusher.bio.id)),
+                  alignment: m.alignment,
+                  blocked: !named.has(String(m.rusher.bio.id)) && m.threat === undefined && (m.blocker !== undefined || m.late !== undefined),
+                })),
+                threats,
+                sides: sidesAtSnap,
+                band: movement.band,
+              });
+        const terms = sideCatch === undefined ? pursuitTerms : { ...pursuitTerms, sideCatch };
         const escape = resolveScramble({
           tunables,
           qb,
@@ -2180,7 +2203,8 @@ export function simulatePassPlayWith(
           // no urgency term (the clean pick's own rule, `resolveCleanPick`). A forced escape states
           // none and computes its own, as today.
           ...(cleanPick !== undefined ? { urgency: 0 } : {}),
-          // ADR-089 step 6 (plan §2.4): Mobility's lighter weight and the pursuer, only under pursuit.
+          // ADR-089 step 6 (plan §2.4, §2.7): Mobility's lighter weight and the pursuer, only under
+          // pursuit; the side term and the blocked men as actors, only under the side-aware catch.
           ...(terms === undefined ? {} : { terms }),
         });
         log.check(escape.check);
@@ -2216,11 +2240,22 @@ export function simulatePassPlayWith(
           // man it named already blocked out of the play is a coverage sack, and
           // a coverage sack has no sacker here for the same reason it has none in
           // the NFL.
-          const named = new Set(threats.map((t) => String(t.rusher)));
-          const caught = nearestThreat(
-            liveThreats(matchups).filter((t) => named.has(String(t.rusher))),
-            tunables.arrival.simultaneousArrivalPriority,
-          );
+          //
+          // ADR-089 step 6 (plan §2.7): under the side-aware catch the catcher is, in order, the first
+          // unregistered man on his side, the nearest live threat on his side, or the man above
+          // (`sideCatcherOf`). A blocked man has no threat to publish ARRIVED for, so without the
+          // caught escape as contact (2.8) his catch is a sack that names nobody, as above.
+          const live = liveThreats(matchups).filter((t) => named.has(String(t.rusher)));
+          const catcher =
+            sideCatch === undefined || broke === undefined || sidesAtSnap === undefined
+              ? undefined
+              : sideCatcherOf(tunables, broke.side, sideCatch, live, sidesAtSnap);
+          const caught =
+            catcher === undefined
+              ? nearestThreat(live, tunables.arrival.simultaneousArrivalPriority)
+              : catcher.kind === "LIVE"
+                ? catcher.threat
+                : undefined;
           if (caught !== undefined) {
             const arrival = arrivedAt(caught, tick);
             publishThreat(arrival, "ARRIVED");

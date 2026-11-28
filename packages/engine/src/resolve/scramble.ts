@@ -43,7 +43,8 @@ export interface ScrambleArgs {
   readonly urgency?: number;
   /**
    * ADR-089 step 6 (step-6 plan §2.4, §2.7; `pocket.outs` only): the roll's and the target's terms
-   * under the outs' parts, when the caller states them (`sim/outs.ts`'s `escapeTermsOf`). Left out,
+   * under the outs' parts, when the caller states them (`sim/outs.ts`'s `escapeTermsOf` and
+   * `sideCatchOf`). Left out,
    * as every rule set before step 6 and every step-6 play without pursuit or the side-aware catch
    * leaves it, the roll, its target, its actors and its `testsAttrs` are today's.
    */
@@ -69,6 +70,13 @@ export interface ScrambleTerms {
    * when it reads it. Absent when that side holds no card rusher (the term is 0 and nobody is read).
    */
   readonly pursuit?: { readonly pursuer: PlayerId; readonly term: number };
+  /**
+   * 2.7, the side-aware catch (`sim/outs.ts`'s `sideCatchOf`): `term` takes the place of the EDGE
+   * term (`edgeThreatPenalty` for each EDGE threat on either side), and `blocked`, the card rushers
+   * on the side he breaks to still in their blocks, in card order, join the CHECK's actors after the
+   * threats (and before the pursuer, who is usually one of them already).
+   */
+  readonly sideCatch?: { readonly term: number; readonly blocked: readonly PlayerId[] };
 }
 
 export interface ScrambleOutcome {
@@ -94,9 +102,11 @@ export function resolveScramble(args: ScrambleArgs): ScrambleOutcome {
   const t = tunables.scramble;
   const urgency = args.urgency ?? urgencySteps(tunables, minTimeToArrival(args.threats, args.tick));
   const edgeThreats = threatsWithAlignment(args.threats, "EDGE").length;
-  // ADR-089 step 6 (step-6 plan §2.4): Mobility's lighter weight and the pursuer, only when stated.
+  // ADR-089 step 6 (step-6 plan §2.4, §2.7): Mobility's lighter weight, the pursuer and the side
+  // term, each only when stated.
   const mobility = args.terms?.mobility;
   const pursuit = args.terms?.pursuit;
+  const sideCatch = args.terms?.sideCatch;
 
   const roll = rollD100(
     args.scrambleRng,
@@ -113,11 +123,12 @@ export function resolveScramble(args: ScrambleArgs): ScrambleOutcome {
           ],
     ),
   );
-  const target =
-    t.target + edgeThreats * t.edgeThreatPenalty + urgency * t.perUrgencyStepPenalty + (pursuit?.term ?? 0);
+  const sideTerm = sideCatch === undefined ? edgeThreats * t.edgeThreatPenalty : sideCatch.term;
+  const target = t.target + sideTerm + urgency * t.perUrgencyStepPenalty + (pursuit?.term ?? 0);
   const margin = roll.total - target;
   const band = bandFor(t.bands, margin);
   const actors: PlayerId[] = [args.qb.bio.id, ...args.threats.map((threat) => threat.rusher)];
+  for (const man of sideCatch?.blocked ?? []) if (!actors.includes(man)) actors.push(man);
   if (pursuit !== undefined && !actors.includes(pursuit.pursuer)) actors.push(pursuit.pursuer);
 
   return {
