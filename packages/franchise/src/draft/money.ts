@@ -30,6 +30,15 @@ export function signSquad(p: PlayerState, team: TeamId, season: number, at: Cale
 
 /** A reserve/future deal: one minimum year, signed when a practice-squad player rejoins the offseason roster. */
 export function signFuture(p: PlayerState, team: TeamId, season: number, at: CalendarStamp, cap: CapForSeason): { contract: PlayerContract; event: FranchiseEvent } {
+  return oneMinimumYear(p, team, season, at, cap);
+}
+
+/** ADR-085 step 15: a veteran signed off the street on cut-down day, for one minimum year. */
+export function signStreetVeteran(p: PlayerState, team: TeamId, season: number, at: CalendarStamp, cap: CapForSeason): { contract: PlayerContract; event: FranchiseEvent } {
+  return oneMinimumYear(p, team, season, at, cap);
+}
+
+function oneMinimumYear(p: PlayerState, team: TeamId, season: number, at: CalendarStamp, cap: CapForSeason): { contract: PlayerContract; event: FranchiseEvent } {
   const contract = minimumContract({ player: p.bio.id, team, season, signedAt: at, creditedSeasons: creditedSeasons(p), years: 1, capForSeason: cap });
   return { contract, event: signedEvent(contract) };
 }

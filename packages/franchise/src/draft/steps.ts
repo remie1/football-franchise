@@ -60,6 +60,10 @@ export interface DraftStepsConfig {
    * league year's (`LeagueYearConfig.priceList`), so the year prices a man alike from re-signing to cut-down.
    */
   priceList?: PriceList;
+  /** ADR-085 step 15: cut-down day's street market for veterans (`CutdownInput.streetMarket`; default off). */
+  streetMarket?: boolean;
+  /** ADR-085 step 15: veterans on practice squads (`CutdownInput.squadVeterans`; default off). */
+  squadVeterans?: boolean;
 }
 
 export function headCoachEvaluation(team: TeamId, people: LeaguePeople): number {
@@ -136,6 +140,7 @@ export function draftSteps(config: DraftStepsConfig): DayStep[] {
         return runCutdown(people, {
           season: ctx.season, rules: ctx.rules, rate: config.rate, rateFor: (t) => ahead.forTeam(t), at: ctx.day, cap: capOf(ctx.rules),
           ...(config.lean ? { lean: config.lean } : {}), ...(config.priceList ? { priceList: config.priceList } : {}),
+          ...(config.streetMarket ? { streetMarket: true } : {}), ...(config.squadVeterans ? { squadVeterans: true } : {}),
         });
       },
     },

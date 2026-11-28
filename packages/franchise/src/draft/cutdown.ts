@@ -10,6 +10,14 @@
  *   weakest player there go. Veterans become free agents at once.
  * - Practice squad: up to 16 newer players, the team's own cuts first, then the best unclaimed.
  * Everyone else let go becomes a free agent.
+ *
+ * ADR-085 step 15 (the owner's pick, 2026-11-28: build it, switched off), two real rules of the days
+ * after the cuts:
+ * - The street market (`streetMarket`): right after the waivers, a veteran on the street signs a
+ *   one-year minimum with a team whose 53 he makes better by its own cut-down judgment, his pay
+ *   counted; the weakest man it kept at his position is let go.
+ * - Veterans on practice squads (`squadVeterans`): up to six of a squad's places for men of any
+ *   experience.
  * Money (ADR-085): a cut ends the player's deal and leaves its bonus and guarantees as dead money; a
  * claiming team takes on the rest of his salaries; a practice-squad player signs a squad deal.
  */
@@ -18,10 +26,11 @@ import {
 } from "@ff/contracts";
 import type { LeaguePeople } from "../season/people.js";
 import { WANTED, type Rate } from "./board.js";
-import { claimedDeal, flatCap, liveContract, release, signSquad, type CapForSeason } from "./money.js";
+import { claimedDeal, creditedSeasons, flatCap, liveContract, release, signSquad, signStreetVeteran, type CapForSeason } from "./money.js";
 import { capNumber, releasePlayer, transactionYear } from "../cap/money.js";
 import { TAG_GROUP } from "../cap/rules.js";
 import { marketCurves, pointPrice, type PriceList } from "../cap/value.js";
+import { minimumSalary } from "../cap/signings.js";
 
 export type CoachLean = "INCUMBENT" | "VETERAN" | "FORM";
 /** Rating points a coach's lean is worth in a close call. */
@@ -37,6 +46,13 @@ export const CLAIM_MARGIN = 8;
  * this many points (CHOSEN: close calls only).
  */
 export const SAVING_MOST = 3;
+/**
+ * Step 15, the street market: how much better than the weakest man a team kept at his position, by its
+ * own cut-down score, a veteran off the street must be. CHOSEN: 0, the same judgment the team cut by.
+ */
+export const STREET_MARGIN = 0;
+/** Step 15: practice-squad places open to men of any experience. REPORTED: six since 2022 (the CBA's). */
+export const SQUAD_VETERANS = 6;
 
 export interface CutdownInput {
   season: number;
@@ -55,6 +71,17 @@ export interface CutdownInput {
   cap?: CapForSeason;
   /** ADR-085 step 14: how the market prices a man, for a cut's saving in rating points (default "rank"). */
   priceList?: PriceList;
+  /**
+   * ADR-085 step 15, the street market (switched off by default). Right after the waivers, teams in
+   * waiver order each sign at most one veteran a pass (four or more seasons in the league, fit to play,
+   * on the street before today or cut today and not claimed) whose cut-down score (his judged rating,
+   * less his minimum in rating points, plus the coach's lean) beats the weakest man the team kept at his
+   * position by more than `STREET_MARGIN`; that man is let go (never one it signed off the street today).
+   * Passes go on until one signs nobody.
+   */
+  streetMarket?: boolean;
+  /** ADR-085 step 15: up to `SQUAD_VETERANS` practice-squad places for men of any experience (switched off by default). */
+  squadVeterans?: boolean;
 }
 
 /** Seasons in the league: credited seasons (ADR-085 K5) when kept, else read from the draft line. */
@@ -95,14 +122,16 @@ export function runCutdown(people: LeaguePeople, input: CutdownInput): { people:
     return Math.min(SAVING_MOST, Math.max(0, saved) / price);
   };
 
+  // A close call leans the way the head coach leans (ADR-087 F3).
+  const leanPoints = (p: PlayerState, lean: CoachLean | undefined) =>
+    (lean === "VETERAN" && p.bio.age >= 27 ? LEAN_POINTS : 0) + (lean === "INCUMBENT" && seasonsIn(p, season) > 0 ? LEAN_POINTS : 0);
+
   for (const team of people.teams) {
     const roster = team.roster.map((id) => byId.get(String(id))!);
     const lean = input.lean?.(team.id);
     const judged = judge(team.id);
     const money = new Map(roster.length > limit ? roster.map((p) => [p, savingPoints(p, team.id)]) : []);
-    const score = (p: PlayerState) => judged(p) - (money.get(p) ?? 0)
-      + (lean === "VETERAN" && p.bio.age >= 27 ? LEAN_POINTS : 0)
-      + (lean === "INCUMBENT" && seasonsIn(p, season) > 0 ? LEAN_POINTS : 0);
+    const score = (p: PlayerState) => judged(p) - (money.get(p) ?? 0) + leanPoints(p, lean);
     if (roster.length <= limit) { kept.set(team.id, roster); continue; }
     const keep: PlayerState[] = [];
     const rest: PlayerState[] = [];
@@ -149,22 +178,120 @@ export function runCutdown(people: LeaguePeople, input: CutdownInput): { people:
     }
   }
 
+  // Step 15: a man fit to play today (no injury, or one he plays through).
+  const fitNow = (p: PlayerState) => p.condition.injury === undefined || p.condition.injury.playable;
+
+  // Step 15, the street market: real teams sign released veterans in the days after the cuts.
+  if (input.streetMarket) {
+    const street = new Map<string, PlayerState>();
+    const onStreet = (p: PlayerState | undefined) => {
+      if (p && !isNewer(p, season) && fitNow(p) && p.bio.draft !== "PROSPECT") street.set(String(p.bio.id), p);
+    };
+    for (const id of people.freeAgents) onStreet(byId.get(String(id)));
+    for (const id of cutFrom.keys()) if (!claimed.has(id)) onStreet(byId.get(id));
+    // Each team's cut-down score: a kept man's as the cut read it (judged, less what cutting him saves,
+    // plus the lean), a street veteran's with his minimum's cost in its place. Fixed for the day.
+    const scores = new Map<TeamId, { kept: (p: PlayerState) => number; street: (p: PlayerState) => number }>();
+    const scoresOf = (team: TeamId) => {
+      let s = scores.get(team);
+      if (!s) {
+        const judged = judge(team);
+        const lean = input.lean?.(team);
+        const memo = (f: (p: PlayerState) => number) => {
+          const cache = new Map<string, number>();
+          return (p: PlayerState) => {
+            let v = cache.get(String(p.bio.id));
+            if (v === undefined) { v = f(p); cache.set(String(p.bio.id), v); }
+            return v;
+          };
+        };
+        s = {
+          kept: memo((p) => judged(p) - savingPoints(p, team) + leanPoints(p, lean)),
+          street: memo((p) => {
+            const price = prices.get(TAG_GROUP[p.bio.position]) ?? 0;
+            const cost = price > 0 ? Math.min(SAVING_MOST, minimumSalary(season, creditedSeasons(p), cap) / price) : 0;
+            return judged(p) - cost + leanPoints(p, lean);
+          }),
+        };
+        scores.set(team, s);
+      }
+      return s;
+    };
+    // A man a team signs off the street today is its pick of the day: it does not let him go the same day.
+    const signedToday = new Set<string>();
+    for (let signed = true; signed && street.size > 0;) {
+      signed = false;
+      for (const team of order) {
+        if (street.size === 0) break;
+        const roster = kept.get(team);
+        if (!roster) continue;
+        const s = scoresOf(team);
+        const weakest = new Map<Position, PlayerState>();
+        for (const q of roster) {
+          if (signedToday.has(String(q.bio.id))) continue;
+          const w = weakest.get(q.bio.position);
+          if (!w || s.kept(q) < s.kept(w) || (s.kept(q) === s.kept(w) && String(q.bio.id) > String(w.bio.id))) weakest.set(q.bio.position, q);
+        }
+        let best: { vet: PlayerState; out: PlayerState; gain: number } | undefined;
+        for (const vet of street.values()) {
+          const out = weakest.get(vet.bio.position);
+          if (!out) continue;
+          const gain = s.street(vet) - s.kept(out);
+          if (gain > STREET_MARGIN && (!best || gain > best.gain || (gain === best.gain && String(vet.bio.id) < String(best.vet.bio.id)))) {
+            best = { vet, out, gain };
+          }
+        }
+        if (!best) continue;
+        const { vet, out } = best;
+        kept.set(team, [...roster.filter((q) => q !== out), vet]);
+        street.delete(String(vet.bio.id));
+        signedToday.add(String(vet.bio.id));
+        claimed.add(String(vet.bio.id));
+        const { contract, event } = signStreetVeteran(vet, team, season, at, cap);
+        contracts.push(contract);
+        events.push(event);
+        claimed.delete(String(out.bio.id));
+        cutFrom.set(String(out.bio.id), team);
+        cut(out.bio.id, team);
+        onStreet(out);
+        signed = true;
+      }
+    }
+  }
+
   // Practice squads: men already on one stay (on their deals); the room left goes to the team's own
-  // cuts first, then the best unclaimed newer players, in waiver order.
+  // cuts first, then the best unclaimed newer players, in waiver order. With `squadVeterans` (step 15),
+  // up to SQUAD_VETERANS of a squad's men may have any number of seasons: veterans cut today, and fit
+  // veterans already on the street.
   const onRoster = new Set([...kept.values()].flat().map((p) => String(p.bio.id)));
   const already = new Map(people.teams.map((t) => [t.id, (t.practiceSquad ?? [])
     .map((id) => byId.get(String(id))!).filter((p) => p.teamId === t.id && !onRoster.has(String(p.bio.id)))]));
   const unsigned = [...cutFrom.keys()].filter((id) => !claimed.has(id)).map((id) => byId.get(id)!);
   const squads = new Map<TeamId, PlayerState[]>();
   const taken = new Set<string>();
+  const veterans = input.squadVeterans === true;
+  const vetsOn = new Map(people.teams.map((t) => [t.id, (already.get(t.id) ?? []).filter((p) => !isNewer(p, season)).length]));
+  const squadable = (p: PlayerState, team: TeamId) => isNewer(p, season) || (veterans && (vetsOn.get(team) ?? 0) < SQUAD_VETERANS);
+  const join = (p: PlayerState, team: TeamId, squad: PlayerState[]) => {
+    taken.add(String(p.bio.id));
+    squad.push(p);
+    if (!isNewer(p, season)) vetsOn.set(team, (vetsOn.get(team) ?? 0) + 1);
+  };
   const byRate = (r: Rate) => (a: PlayerState, b: PlayerState) => r(b) - r(a) || String(a.bio.id).localeCompare(String(b.bio.id));
   for (const team of order) {
     const room = Math.max(0, psLimit - (already.get(team)?.length ?? 0));
-    const own = unsigned.filter((p) => cutFrom.get(String(p.bio.id)) === team && isNewer(p, season)).sort(byRate(judge(team))).slice(0, room);
-    own.forEach((p) => taken.add(String(p.bio.id)));
+    const own: PlayerState[] = [];
+    for (const p of unsigned.filter((q) => cutFrom.get(String(q.bio.id)) === team && (veterans || isNewer(q, season))).sort(byRate(judge(team)))) {
+      if (own.length >= room) break;
+      if (squadable(p, team)) join(p, team, own);
+    }
     squads.set(team, own);
   }
-  const pool = unsigned.filter((p) => !taken.has(String(p.bio.id)) && isNewer(p, season));
+  const streetVeterans = veterans
+    ? people.freeAgents.map((id) => byId.get(String(id))).filter((p): p is PlayerState =>
+      p !== undefined && !claimed.has(String(p.bio.id)) && !isNewer(p, season) && p.bio.draft !== "PROSPECT" && fitNow(p))
+    : [];
+  const pool = [...unsigned.filter((p) => !taken.has(String(p.bio.id)) && (veterans || isNewer(p, season))), ...streetVeterans];
   // Each team takes the best left by its own judgment: the pool in its order, made when it first picks.
   const orders = new Map<TeamId, PlayerState[]>();
   const orderFor = (team: TeamId): PlayerState[] => {
@@ -182,10 +309,9 @@ export function runCutdown(people: LeaguePeople, input: CutdownInput): { people:
     for (const team of order) {
       const squad = squads.get(team)!;
       if (squad.length + (already.get(team)?.length ?? 0) >= psLimit) continue;
-      const next = orderFor(team).find((p) => !taken.has(String(p.bio.id)));
-      if (!next) break;
-      taken.add(String(next.bio.id));
-      squad.push(next);
+      const next = orderFor(team).find((p) => !taken.has(String(p.bio.id)) && squadable(p, team));
+      if (!next) continue;
+      join(next, team, squad);
       more = true;
     }
   }
@@ -210,7 +336,7 @@ export function runCutdown(people: LeaguePeople, input: CutdownInput): { people:
     return p;
   });
   // Free agents in the players' order, as a loaded save lists them (`peopleFromSave`).
-  const free = new Set([...people.freeAgents.map(String), ...[...cutFrom.keys()].filter((id) => !teamOf.has(id))]);
+  const free = new Set([...people.freeAgents.map(String), ...cutFrom.keys()].filter((id) => !teamOf.has(id)));
   const freeAgents = players.filter((p) => free.has(String(p.bio.id))).map((p) => p.bio.id);
   const teams: Team[] = people.teams.map((t) => {
     const list = kept.get(t.id)!;

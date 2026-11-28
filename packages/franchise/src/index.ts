@@ -102,11 +102,11 @@ export {
   type Rate, type Board, type ChooseInput,
 } from "./draft/board.js";
 export { runDraftDay, UDFA, type DraftDayInput, type DraftDayResult } from "./draft/draftDay.js";
-export { runCutdown, seasonsIn, LEAN_POINTS, NEWER_PLAYER_SEASONS, CLAIM_MARGIN, SAVING_MOST, type CoachLean, type CutdownInput } from "./draft/cutdown.js";
+export { runCutdown, seasonsIn, LEAN_POINTS, NEWER_PLAYER_SEASONS, CLAIM_MARGIN, SAVING_MOST, STREET_MARGIN, SQUAD_VETERANS, type CoachLean, type CutdownInput } from "./draft/cutdown.js";
 export {
   draftSteps, turnYear, creditSeason, peopleFromSave, waiverOrderFrom, movesFromPeople, averagePerYear, headCoachEvaluation, DRAFT_DAYS, type DraftStepsConfig, type TurnYearOptions,
 } from "./draft/steps.js";
-export { signRookie, signSquad, signFuture, release, claimedDeal, liveContract, flatCap, type CapForSeason } from "./draft/money.js";
+export { signRookie, signSquad, signFuture, signStreetVeteran, release, claimedDeal, liveContract, flatCap, type CapForSeason } from "./draft/money.js";
 export {
   apyOf, newPayOf, marketCurves, percentileOf, pointPrice, quantile, ageFactor, ageFactorAt, legacyRuleAge, termFor, termAt, REAL_STRUCTURE, realStructure, valuePlayer, veteranContract, guaranteedShare, firstYearShareFor, REAL_FIRST_YEAR,
   type MarketCurve, type MarketCurves, type PriceList, type Valuation, type ValueAhead, type VeteranDeal,

@@ -1,5 +1,5 @@
 /**
- * `pnpm --filter @ff/calibration cap-check -- --league <file> [--seed <seed>] [--seasons 5] [--out <file>] [--development] [--injuries] [--market-prices offers] [--tape]`
+ * `pnpm --filter @ff/calibration cap-check -- --league <file> [--seed <seed>] [--seasons 5] [--out <file>] [--development] [--injuries] [--market-prices offers] [--tape] [--street-market] [--squad-veterans]`
  *
  * Plays the stand-in league for several seasons with the league year and the draft in the walk
  * (ADR-085 §7) and prints each year's money: how full teams are against the cap, dead money, each
@@ -8,7 +8,8 @@
  * on the players' growth and aging and their injuries (ADR-087; both off by default, as before).
  * `--market-prices offers` plays free agency under ADR-085 step 14's prices from the offers (the
  * default, `calendar`, is today's market). `--tape` has teams scout veterans by their tape (step 14,
- * `LeagueYearConfig.veteranTape`; off by default).
+ * `LeagueYearConfig.veteranTape`; off by default). `--street-market` and `--squad-veterans` play step 15's
+ * cut-down day: a street market for veterans after the waivers, and veterans on practice squads (off by default).
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -24,6 +25,8 @@ function parse(argv: readonly string[]) {
   let injuries = false;
   let marketPrices: "calendar" | "offers" | undefined;
   let veteranTape = false;
+  let streetMarket = false;
+  let squadVeterans = false;
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]!;
     const next = (): string => {
@@ -39,6 +42,8 @@ function parse(argv: readonly string[]) {
     else if (arg === "--development") development = true;
     else if (arg === "--injuries") injuries = true;
     else if (arg === "--tape") veteranTape = true;
+    else if (arg === "--street-market") streetMarket = true;
+    else if (arg === "--squad-veterans") squadVeterans = true;
     else if (arg === "--market-prices") {
       const v = next();
       if (v !== "calendar" && v !== "offers") throw new SyntaxError("--market-prices is calendar or offers");
@@ -49,7 +54,7 @@ function parse(argv: readonly string[]) {
   if (league === undefined) throw new SyntaxError("--league <file> is required (the stand-in league)");
   if (!Number.isInteger(seasons) || seasons < 1) throw new SyntaxError("--seasons must be a whole number, 1 or more");
   const players = development || injuries ? { development, injuries } : undefined;
-  return { seed, seasons, league, out, players, marketPrices, veteranTape };
+  return { seed, seasons, league, out, players, marketPrices, veteranTape, streetMarket, squadVeterans };
 }
 
 const fromCaller = (path: string) => resolve(process.env.INIT_CWD ?? process.cwd(), path);
@@ -82,7 +87,10 @@ function print(y: CapYear): void {
 
 const args = parse(process.argv.slice(2));
 const file = readStandInFile(readFileSync(fromCaller(args.league), "utf8"));
-const market = { ...(args.marketPrices !== undefined ? { marketPrices: args.marketPrices } : {}), ...(args.veteranTape ? { veteranTape: true } : {}) };
+const market = {
+  ...(args.marketPrices !== undefined ? { marketPrices: args.marketPrices } : {}), ...(args.veteranTape ? { veteranTape: true } : {}),
+  ...(args.streetMarket ? { streetMarket: true } : {}), ...(args.squadVeterans ? { squadVeterans: true } : {}),
+};
 const years = runCapCheck({ seed: args.seed, file, seasons: args.seasons, onYear: print, weekOneSplit: true, ...(args.players ? { players: args.players } : {}), ...market });
 if (args.out) {
   const players = args.players ? { players: args.players } : {};

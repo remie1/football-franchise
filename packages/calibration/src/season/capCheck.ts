@@ -121,6 +121,10 @@ export interface CapCheckInput {
   readonly marketPrices?: "calendar" | "offers";
   /** ADR-085 step 14: teams scout veterans by their tape (`LeagueYearConfig.veteranTape`). Absent or false, as before. */
   readonly veteranTape?: boolean;
+  /** ADR-085 step 15: cut-down day's street market for veterans (`DraftStepsConfig.streetMarket`). Absent or false, as before. */
+  readonly streetMarket?: boolean;
+  /** ADR-085 step 15: veterans on practice squads (`DraftStepsConfig.squadVeterans`). Absent or false, as before. */
+  readonly squadVeterans?: boolean;
 }
 
 /** One position group's share of the money. OverTheCap's groups. */
@@ -542,7 +546,10 @@ export function runCapCheck(input: CapCheckInput): CapYear[] {
         ...(input.marketPrices === "offers" ? { priceList: "typical" as const } : {}),
         ...(input.veteranTape === true ? { veteranTape: true } : {}),
       },
-      draft: { rate, makeClass, cap },
+      draft: {
+        rate, makeClass, cap,
+        ...(input.streetMarket === true ? { streetMarket: true } : {}), ...(input.squadVeterans === true ? { squadVeterans: true } : {}),
+      },
       ...players,
       ...coachingSteps,
       ...watchers(season),
