@@ -338,8 +338,10 @@ describe("the new paths read no listed position (the owner's rule, R1)", () => {
     expect(abilityPath).toMatch(/abilityRatingDeltas\(/);
     check("developOne (the ability path)", abilityPath);
     check("aging.ts", read("aging.ts"));
+    // ADR-087 §12.13: the growth curve's own rules, read whole.
+    check("growthCurve.ts", read("growthCurve.ts"));
     // A read planted on the ability path of developOne, on a line that does not name wear, is caught.
-    const planted = abilityPath.replace("const growth = growthOf(dev.growth);", "const growth = growthOf(dev.growth) * (player.bio.position === \"RB\" ? 1 : 1);");
+    const planted = abilityPath.replace(": growthOf(dev.growth);", ": growthOf(dev.growth) * (player.bio.position === \"RB\" ? 1 : 1);");
     expect(planted).not.toBe(abilityPath);
     expect(() => check("planted in developOne", planted)).toThrow();
     const unsigned = read("unsigned.ts");

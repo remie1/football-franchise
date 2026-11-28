@@ -28,6 +28,12 @@ export interface PlayerWeek {
   readonly snaps: number;
   /** His one-on-one checks this week, by the rating he used (from the who-played report, P4). */
   readonly contests: readonly { readonly attr: AttrId; readonly won: number; readonly lost: number }[];
+  /**
+   * ADR-087 §12.13 (G2): every rating his rolls named this week, counted once a roll, from the who-played
+   * reports that carry the count (the season runner fills it only for the growth curve). Absent when no
+   * report of his carries it: the growth curve's snap points then go to every rating by his share.
+   */
+  readonly uses?: readonly { readonly attr: AttrId; readonly n: number }[];
   /** The `development` skill (0..100) of the coordinator on his side (OC, DC; STC for K, P, LS). Absent = no staff: read as 50. */
   readonly coachDevelopment?: number;
   /** The defensive coordinator's `teaching` (0..100), for `disguise` (ADR-075 T7). Absent = 50. */
@@ -121,11 +127,13 @@ export interface PlayerMemory {
    * options are written only where they act and are not the default: `healingByAge` only as `false`,
    * on the spot path (AB9-T6); `perContact` only above 0, on the spot path with `aging: "ability"`
    * (AB9-T5). `retirement` (AB8) is written only as `"choice"` (it acts with either switch on).
+   * `growth` (§12.13) is written only as `"curve"`, with development on and `aging: "ability"`.
    */
   switches?: {
     development: boolean;
     injuries: boolean;
     aging?: "position" | "ability";
+    growth?: "standard" | "curve";
     abilityCurves?: "D" | "B";
     techniqueKnee?: boolean;
     smartsSnaps?: number;
