@@ -5,7 +5,8 @@
  *
  *  1. Step 6's arm ids are named and inert: `STEP6_ARM_IDS` (35 ids) are arms of this build
  *     (`isAnyArmId`, so AM-12's base map validates), `runIdsOf(6)` is D1, F5, E9 and then them, no
- *     earlier step's run list takes one, and `armById` refuses each by name; nothing defines them.
+ *     earlier step's run list takes one, and `armById` refuses each by name. Since K1 (plan §3.2)
+ *     each is defined and refused while its petitions are out (`pocketStep6Arms.test.ts`).
  *  2. The name `pocket-1.s6` is refused: `rulesTunables` refuses it by name, it is not an engine
  *     rules name, and `POCKET_1_S6_DIGEST` is unset. K0 left it unstamped; since K1 (plan §3.2) it is
  *     a stamped name, for the step-6 harness's arms, whose trees `checkStamp` refuses while their
@@ -142,10 +143,10 @@ describe("step 6's arm ids, named and inert (plan §3.1 item 2, §5)", () => {
     }
   });
 
-  it("defines none: armById refuses each by name, nothing else refuses it, and everyArm is as it was", () => {
+  it("refuses each while its petitions are out (defined since K1): armById refuses it by name, nothing else refuses it, and everyArm is as it was", () => {
     for (const id of STEP6_ARM_IDS) {
       const why = step6ArmRefusal(id);
-      expect(why, id).toBe(`${id} is one of step 6's arms, named in this build but not yet defined (ADR-089 step 6, plan §5): defined with step 6's bundle (plan §3.2, K1)`);
+      expect(why, id).toMatch(new RegExp(`^${id} is one of step 6's arms, defined in this build \\(ADR-089 step 6, plan §5\\), and waits on petitions P9, P10, P11(, | and )P12`));
       expect(() => armById(id), id).toThrow(`arms: ${why!}: nothing plays it`);
       expect(armRefusal(id), id).toBeUndefined();
       expect(step5ArmRefusal(id), id).toBeUndefined();

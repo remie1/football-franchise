@@ -2,7 +2,8 @@
  * THE ARMS OF STEPS 1 TO 4, AND STEP 5'S ARM IDS (ADR-089 step 1: plan §7.2 item 2, §9.3,
  * readings O23 to O28, O32, O33; step 2: plan §4.1, §4.2, readings O35 to O47, AM-1's base map;
  * step 3: plan §5.1, §4.2, AM-2's references, AM-3's base map named; step 4: plan §4, the ids, the
- * run list and the base column; step 5: plan §5.1, §5.2, the ids and the run lists only).
+ * run list and the base column; step 5: plan §5.1, §5.2, the ids and the run lists only; step 6:
+ * plan §5, the ids, the run list and the arms, defined and refused until step 6's gate opens).
  *
  * Step 1 builds both block clocks behind the switch and prices them on the flat league's 496 games
  * and the generated league's 272, at caller v7 (`ADR:941`, §6.1). Step 2 adds must act per rusher,
@@ -49,15 +50,21 @@
  *    defines or plays them yet: `armById` refuses one by name (`step5ArmRefusal` says when it is
  *    defined), `everyArm()` and the table hold steps 1 to 4's arms only, and the command line
  *    refuses `--step 5a` and `--step 5b`. Steps 1 to 4's lists, arms and digests are as they were.
- *  - **Step 6's arm ids, named and inert** (ADR-089 step 6, plan §3.1 item 2, §5; AM-12, `filing.md`
- *    §3.1). `STEP6_ARM_IDS` is H0 to H15, H2L and H0M (the league), HB0, HB2 to HB5, HB7, HB9 to
- *    HB12, HBN and HB2L (the clean bench) and HF1 to HF5 (the funnel); `STEP6_RUN_IDS` is what
+ *  - **Step 6's arms, defined and refused** (ADR-089 step 6, plan §3.1 item 2, §3.2 K1, §5; AM-12,
+ *    `filing.md` §3.1). `STEP6_ARM_IDS` is H0 to H15, H2L and H0M (the league), HB0, HB2 to HB5, HB7,
+ *    HB9 to HB12, HBN and HB2L (the clean bench) and HF1 to HF5 (the funnel); `STEP6_RUN_IDS` is what
  *    `--step 6` will play: D1 replayed, F5 played fresh, E9 replayed, then the step-6 arms. They are
  *    in `ArmId`, `ALL_ARM_IDS` and `ARM_STEPS` so that AM-12's base map (H0 on F5, F5 on D1) names
- *    arms of this build before any step-6 arm runs. Nothing defines or plays them yet: `armById`
- *    refuses one by name (`step6ArmRefusal`), `everyArm()` and the table hold steps 1 to 4's arms
- *    only, and step 6's gate (`step6.ts`) refuses `--step 6` before anything plays. Steps 1 to 5's
- *    lists, arms and digests are as they were.
+ *    arms of this build. Since K1, `STEP6_ARM_DEFS` defines each (plan §5.1 to §5.3): its parts of
+ *    the outs block, its base, its clauses, the probes' rating overrides, H0M's mirror, and the other
+ *    scramble start on H2L and HB2L; `buildStep6Arm` builds one on F5's tree (`step6Bundle`) or E9's
+ *    (`cleanBenchTunablesS6`) under the owner's three answers (the recommended options by default),
+ *    stamped `pocket-1.s6`. None is built in this build: each waits on petitions P9 to P12 (and P20
+ *    with the caught escape as contact, P21 for its unseen answer), so `checkStamp` refuses its tree
+ *    before any game, `armById` refuses it by name (`step6ArmRefusal`), `everyArm()` and the table
+ *    hold steps 1 to 4's arms only, and step 6's gate (`step6.ts`) refuses `--step 6` before anything
+ *    plays. Only the step-6 harness (K2) will build them, under AM-13's answers, never `armById`.
+ *    Steps 1 to 5's lists, arms and digests are as they were.
  *  - **Step 2's arms** are stamped `pocket-1.s2` with their own overlay digests (O28), whatever their
  *    forcing rule; the re-played bases keep their step-1 stamps and digests. B3 is the design bundle
  *    itself, `rulesTunables("pocket-1.s2")`. Each B arm's base is AM-1's step-2 map (B1, B2, B3, B4,
@@ -93,10 +100,12 @@
 import { applyTunablePatch, DEFAULT_TUNABLES, type Tunables } from "@ff/engine";
 import { stableDigest } from "../harness/digest.js";
 import type { SeedSet } from "./corpus.js";
-import { cleanBenchTunablesS5, CLEAN_BENCH_PARTS, type CleanBenchPart, type CleanBenchParts } from "./oneThreatBench.js";
+import { cleanBenchTunablesS5, cleanBenchTunablesS6, CLEAN_BENCH_PARTS, type CleanBenchPart, type CleanBenchParts } from "./oneThreatBench.js";
+import { ratingOverridesDigest, type RatingOverride } from "./ratingOverride.js";
 import {
   EngineRulesError,
   LEGACY_RULES,
+  OUTS_PARTS,
   P17_IN_CONTRACTS,
   POCKET_1_S1_OVERLAY,
   POCKET_1_S1_RULES,
@@ -114,13 +123,20 @@ import {
   POCKET_1_S5A_RULES,
   POCKET_1_S5B_OVERLAY,
   POCKET_1_S5B_RULES,
+  POCKET_1_S6_RULES,
   READ_SYSTEMS,
+  RECOMMENDED_OUTS_OPTIONS,
+  STEP6_PETITION_NAMES,
   checkStamp,
   isStep5Rules,
   isStep6Rules,
+  otherScrambleStart,
+  outsBlockOf,
   readSystemDeltaLeaves,
   step5Bundle,
   step5OverlayAt,
+  step6Bundle,
+  step6PetitionsUnder,
   overlayDigestOf,
   step4PetitionsIn,
   rulesTunables,
@@ -130,6 +146,8 @@ import {
   type FreeRunOrigin,
   type FreeRunPicture,
   type FreeRunReading,
+  type OutsOptions,
+  type OutsPart,
   type OverlayRules,
   type PocketClimbLane,
   type PocketFreeRun,
@@ -138,9 +156,13 @@ import {
   type PocketMotion,
   type PocketOverlay,
   type ReadSystemOffsets,
+  type StampPetitions,
   type StampedRules,
   type Step4Petitions,
   type Step5Rules,
+  type Step6Petition,
+  type Step6Petitions,
+  type Step6Rules,
 } from "./rules.js";
 
 /** Freeze a plain-data tree in place, every depth, and return the same reference. */
@@ -370,8 +392,8 @@ export type Step5bArmId = (typeof STEP5B_ARM_IDS)[number];
  * information only) and H0M (H0 mirrored); on the clean bench (base E9) HB0 (step 6's parts), HB2 to
  * HB5, HB7 and HB9 to HB12 (each part alone that can act there), HBN (the parts that cannot act on the
  * bench, a proof) and HB2L (HB0 with the other start); then HF1 to HF5, the funnel's rungs on the bench
- * (plan §5.3). Named, not yet defined (inert): their definitions land with step 6's bundle (plan
- * §3.2, K1), and nothing in this build plays them.
+ * (plan §5.3). Defined since K1 (`STEP6_ARM_DEFS`, plan §3.2) and refused until step 6's gate opens:
+ * nothing in this build plays them.
  */
 export const STEP6_ARM_IDS = [
   "H0", "H1", "H2", "H3", "H4", "H5", "H6", "H7", "H8", "H9", "H10", "H11", "H12", "H13", "H14", "H15", "H2L", "H0M",
@@ -380,7 +402,7 @@ export const STEP6_ARM_IDS = [
 ] as const;
 export type Step6ArmId = (typeof STEP6_ARM_IDS)[number];
 
-/** Every arm id of this build: step 1's, step 2's, step 3's and step 4's, then step 5's, then step 6's (named only). */
+/** Every arm id of this build: step 1's, step 2's, step 3's and step 4's, then step 5's, then step 6's (defined, refused until step 6's gate opens). */
 export type ArmId = Step1ArmId | Step2ArmId | Step3ArmId | Step4ArmId | Step5aArmId | Step5bArmId | Step6ArmId;
 
 /**
@@ -445,7 +467,7 @@ export type Step5bRunId = (typeof STEP5B_RUN_IDS)[number];
 export const STEP6_RUN_IDS = ["D1", "F5", "E9", ...STEP6_ARM_IDS] as const satisfies readonly ArmId[];
 export type Step6RunId = (typeof STEP6_RUN_IDS)[number];
 
-/** Every arm id of this build, step 1's then step 2's then step 3's then step 4's, then step 5a's and 5b's, then step 6's (named, not yet defined). */
+/** Every arm id of this build, step 1's then step 2's then step 3's then step 4's, then step 5a's and 5b's, then step 6's (defined, never built by this table). */
 export const ALL_ARM_IDS: readonly ArmId[] = Object.freeze([...ARM_IDS, ...STEP2_ARM_IDS, ...STEP3_ARM_IDS, ...STEP4_ARM_IDS, ...STEP5A_ARM_IDS, ...STEP5B_ARM_IDS, ...STEP6_ARM_IDS]);
 
 /**
@@ -484,20 +506,9 @@ export function isStep5bArmId(id: string): id is Step5bArmId {
   return (STEP5B_ARM_IDS as readonly string[]).includes(id);
 }
 
-/** A step-6 arm id, one of `STEP6_ARM_IDS` (named; not yet defined). */
+/** A step-6 arm id, one of `STEP6_ARM_IDS` (defined in `STEP6_ARM_DEFS`; refused until step 6's gate opens). */
 export function isStep6ArmId(id: string): id is Step6ArmId {
   return (STEP6_ARM_IDS as readonly string[]).includes(id);
-}
-
-/**
- * Why a step-6 arm id names no arm in this build, or `undefined` for any other id (ADR-089 step 6,
- * plan §3.1 item 2): every step-6 arm is named and none is defined yet. Their definitions land with
- * step 6's bundle (plan §3.2, K1), and even then nothing plays one before step 6's gate opens
- * (`step6.ts`, plan §10.3).
- */
-export function step6ArmRefusal(id: string): string | undefined {
-  if (!isStep6ArmId(id)) return undefined;
-  return `${id} is one of step 6's arms, named in this build but not yet defined (ADR-089 step 6, plan §5): defined with step 6's bundle (plan §3.2, K1)`;
 }
 
 /** The step-5 arms whose definitions wait on a record: E1, E9 and E10 on the 5a fit; F0, G1 and G2 on the 5b selection (plan §4, arms.ts row). */
@@ -531,7 +542,7 @@ export function step5ArmRefusal(id: string, records: Step5Records = recordedStep
 /**
  * Any arm of this build, step 1's to step 4's, step 5's or step 6's (for example AM-1's, AM-3's,
  * AM-6's, AM-8's and AM-12's base maps, whose arms must all be arms of this build). C14 is an arm of
- * this build whether or not P17 is in contracts; a step-6 id is one though nothing defines it yet.
+ * this build whether or not P17 is in contracts; a step-6 id is one though nothing in this build plays it.
  */
 export function isAnyArmId(id: string): id is ArmId {
   return (ALL_ARM_IDS as readonly string[]).includes(id);
@@ -1123,8 +1134,8 @@ function build(def: Omit<ArmDef, "id"> & { readonly id: ArmId | ProofOverlayId }
     // their bench and league bundles (`cleanBenchTunablesS5`, `step5Bundle`); this table builds none.
     throw new EngineRulesError(`arm ${def.id}: no arm of this table is stamped ${def.rules}; step 5's arms are built by the step-5 harness`);
   } else if (def.rules !== undefined && isStep6Rules(def.rules)) {
-    // ADR-089 step 6 (plan §3.2, K1): step 6's arms are defined apart, on their bench and league
-    // bundles (`cleanBenchTunablesS6`, `step6Bundle`), and refused until step 6's gate opens; this
+    // ADR-089 step 6 (plan §3.2, K1): step 6's arms are defined apart (`STEP6_ARM_DEFS`), built on
+    // their bench and league bundles by `buildStep6Arm`, and refused until step 6's gate opens; this
     // table builds none.
     throw new EngineRulesError(`arm ${def.id}: no arm of this table is stamped ${def.rules}; step 6's arms are built by the step-6 harness`);
   } else if (def.step3 !== undefined) {
@@ -1240,13 +1251,19 @@ export function everyArm(): readonly Arm[] {
 
 /**
  * The arm of `id`. Refused: an id of no arm, an arm whose petition is not in contracts
- * (`armRefusal`), a step-5 id this build names but does not define (`step5ArmRefusal`), and a step-6
- * id, none of which this build defines (`step6ArmRefusal`).
+ * (`armRefusal`), a step-5 id this build names but does not define (`step5ArmRefusal`), and every
+ * step-6 id: while a petition its tree waits on is out, by `step6ArmRefusal`'s words, and after, by
+ * `step6HarnessOnly`'s (only the step-6 harness builds a step-6 arm, under the owner's answers,
+ * `buildStep6Arm`).
  */
 export function armById(id: ArmId): Arm {
+  if (isStep6ArmId(id)) {
+    const refusal = step6ArmRefusal(id);
+    throw new EngineRulesError(`arms: ${refusal ?? step6HarnessOnly(id)}: nothing plays it`);
+  }
   const arm = armTable().arms.get(id) ?? ((isStep5aArmId(id) || isStep5bArmId(id)) && step5ArmRefusal(id) === undefined ? step5Table().arms.get(id) : undefined);
   if (arm === undefined) {
-    const inert = step5ArmRefusal(id) ?? step6ArmRefusal(id);
+    const inert = step5ArmRefusal(id);
     if (inert !== undefined) throw new Error(`arms: ${inert}: nothing plays it`);
     const refusal = armRefusal(id);
     if (refusal !== undefined) throw new EngineRulesError(`arms: ${refusal}: nothing plays it`);
@@ -1567,4 +1584,299 @@ export function restampOf(id: ArmId): ArmId | undefined {
 /** The step-5 arms this build defines, in `STEP5_ARM_DEFS`' order. */
 export function step5Arms(): readonly Arm[] {
   return [...step5Table().arms.values()];
+}
+
+// --- step 6's arms (plan §5; AM-12; K1, plan §3.2) ---------------------------------------------------
+
+/**
+ * How a step-6 arm's tunables are built (plan §5):
+ *  - `league`: `step6Bundle` with the outs block of `parts`: F5's tree (`pocket-1.s5a` on the league,
+ *    S theta 11 with the push window, the 5a fit's deltas) plus those parts, stamped `pocket-1.s6`;
+ *  - `bench`: `cleanBenchTunablesS6` with `parts`: E9's tree (step 5a's build on the clean bench) plus
+ *    those parts, stamped `pocket-1.s6`.
+ * `otherStart` plays the scramble start other than the graded one (H2L and HB2L, information only);
+ * `ratings` patches the league rosters before play, both leagues (H13 to H15, the probes); `mirror`
+ * plays the game with LEFT and RIGHT swapped on every call both callers make (H0M,
+ * `RunGameInput.mirror`).
+ */
+export interface Step6Recipe {
+  readonly kind: "league" | "bench";
+  /** The parts of the outs block the arm turns on (`OUTS_PARTS`), in that list's order. */
+  readonly parts: readonly OutsPart[];
+  readonly otherStart?: true;
+  readonly ratings?: readonly RatingOverride[];
+  readonly mirror?: true;
+}
+
+export interface Step6ArmDef extends Omit<ArmDef, "id" | "rules" | "waitsOn"> {
+  readonly id: Step6ArmId;
+  readonly rules: Step6Rules;
+  readonly base: ArmId;
+  readonly step6: Step6Recipe;
+}
+
+/** A built step-6 arm: an `Arm` with its recipe, the options its outs block was built under, its ratings' digest and its mirror. */
+export interface Step6Arm extends Arm {
+  readonly id: Step6ArmId;
+  readonly rules: Step6Rules;
+  readonly step6: Step6Recipe;
+  /** The options of the owner's three questions the outs block was built under, as played: the given ones, with the other scramble start on H2L and HB2L. */
+  readonly outsOptions: OutsOptions;
+  /** `ratingOverridesDigest(step6.ratings)`: "none" but on the probes, whose records carry it (plan §5.1, §8.2 R-1). */
+  readonly ratingOverridesDigest: string;
+  /** Whether the arm is played mirrored (H0M). */
+  readonly mirror: boolean;
+}
+
+/** H0's graded and structural clauses, in the filing's order (plan §6.1's "arm read" column), then the guard (AM-12: H0 against F5). */
+const S6_H0_GRADED = [
+  "s6.pressuredThrowaway", "s6.falsifier.pressuredThrowaway", "s6.throwaways", "s6.failedScrambles", "s6.horizonSacks", "s6.oneEscape", "s6.behindLine",
+  "s6.cleanOutOfPocket", "s6.contactsInOut", "s6.readersAgree", "s6.oneEscapeClean", "s6.falsifiers",
+] as const;
+/** H0's reported clauses, in the filing's order. */
+const S6_H0_REPORTED = [
+  "s6.drillShare", "s6.onTheRun.cleanCompletion", "s6.onTheRun.cleanInt", "s6.onTheRun.pressuredCompletion", "s6.onTheRun.pressuredInt",
+  "s6.mobilityThirds", "s6.sackerShift.offBall", "s6.sackerShift.interior",
+] as const;
+
+/**
+ * The probes' rating overrides (plan §5.1; AM-13's `probes` as drafted in `filing.md`): H13 and H14
+ * set every quarterback's Mobility to 40 and to 90 (the filed probe's values, `s6.mobilityProbe`,
+ * ADR:1075), and H15 raises every defender's Speed by 10 (CHOSEN, plan §5.1), capped at 99, the
+ * rating scale's top, by the registry's clamp. "Every quarterback" is each side's quarterback in the
+ * personnel, the man who drops back (role QB, both sides; CHOSEN), and "every defender" every man in
+ * the defense's personnel, coverage included (role DEFENSE; CHOSEN, plan §5.1).
+ */
+export const STEP6_PROBE_RATINGS: Readonly<Record<"H13" | "H14" | "H15", readonly RatingOverride[]>> = deepFreeze({
+  H13: [{ attr: "mobility", target: { kind: "ROLE", role: "QB", side: "BOTH" }, change: { op: "SET", value: 40 } }],
+  H14: [{ attr: "mobility", target: { kind: "ROLE", role: "QB", side: "BOTH" }, change: { op: "SET", value: 90 } }],
+  H15: [{ attr: "speed", target: { kind: "ROLE", role: "DEFENSE", side: "BOTH" }, change: { op: "ADD", delta: 10 } }],
+} satisfies Record<"H13" | "H14" | "H15", readonly RatingOverride[]>);
+
+/**
+ * The funnel (plan §5.3; AM-13 files the order before any arm), rung by rung on the clean bench: E9,
+ * then HB3 (the cap), HF1 (+ the deadline pick), HF2 (+ no late horizon sack), HF3 (+ direction, the
+ * side-aware catch and the caught escape as contact), HF4 (+ the drill and the side-aware drill), HF5
+ * (+ pursuit), then HB0 (+ the throwaway rule, the start and the scoring marker), each rung's parts the
+ * one before's and the parts it `adds`. HB0's are every part, so the funnel ends at step 6's bench
+ * build; both scramble counts are read on every rung, so the scoring's share is read at each.
+ */
+export const STEP6_FUNNEL: readonly { readonly id: "E9" | Step6ArmId; readonly adds: readonly OutsPart[] }[] = deepFreeze([
+  { id: "E9", adds: [] },
+  { id: "HB3", adds: ["escapeCap"] },
+  { id: "HF1", adds: ["deadlinePick"] },
+  { id: "HF2", adds: ["noLateHorizonSack"] },
+  { id: "HF3", adds: ["direction", "sideCatch", "caughtAsContact"] },
+  { id: "HF4", adds: ["drill", "drillBySide"] },
+  { id: "HF5", adds: ["pursuit"] },
+  { id: "HB0", adds: ["throwawayRule", "scrambleStart", "failedScrambleSack"] },
+] satisfies readonly { readonly id: "E9" | Step6ArmId; readonly adds: readonly OutsPart[] }[]);
+
+/** Parts in `OUTS_PARTS`' order (plan §1.2), each once. */
+const inPartOrder = (parts: readonly OutsPart[]): readonly OutsPart[] => OUTS_PARTS.filter((p) => parts.includes(p));
+
+/** A funnel rung's parts: every part the rungs up to it add (`STEP6_FUNNEL`). */
+function funnelPartsOf(id: Step6ArmId): readonly OutsPart[] {
+  const at = STEP6_FUNNEL.findIndex((r) => r.id === id);
+  if (at < 0) throw new RangeError(`arms: ${id} is not a rung of step 6's funnel`);
+  return inPartOrder(STEP6_FUNNEL.slice(0, at + 1).flatMap((r) => r.adds));
+}
+
+/** Every step-6 arm's shared settings: step 5's (step 4's design on the clock S with the window, `S5_COMMON`), stamped `pocket-1.s6`. */
+const S6_COMMON = { ...S5_COMMON, rules: POCKET_1_S6_RULES as Step6Rules };
+
+/** One step-6 arm's row: its id, what it plays, its role, its parts, its base, its clauses and what else its recipe carries. */
+type Step6Row = [
+  id: Step6ArmId, what: string, role: string, parts: readonly OutsPart[], base: ArmId,
+  graded?: readonly string[], reported?: readonly string[], extra?: Pick<Step6Recipe, "otherStart" | "ratings" | "mirror">,
+];
+const s6Arm = (kind: Step6Recipe["kind"], ...[id, what, role, parts, base, graded = [], reported = [], extra = {}]: Step6Row): Step6ArmDef => ({
+  ...S6_COMMON, id, what, role, base, graded: [...graded], reported: [...reported], step6: { kind, parts: inPartOrder(parts), ...extra },
+});
+const league = (...row: Step6Row): Step6ArmDef => s6Arm("league", ...row);
+const onBench = (...row: Step6Row): Step6ArmDef => s6Arm("bench", ...row);
+
+const EVERY_PART = OUTS_PARTS;
+const ONE_ESCAPE = ["s6.oneEscape", "s6.oneEscapeClean"] as const;
+const AGREE = ["s6.readersAgree"] as const;
+
+/**
+ * Step 6's arms (plan §5.1, §5.2, §5.3), row by row, in `STEP6_ARM_IDS`' order. On the league (base
+ * F5 unless the plan marks another): H0 (`pocket-1.s6`, every part; AM-12's guard pair with F5), H1 to
+ * H12 (each part alone, with what it needs: the side-aware catch and the side-aware drill with
+ * direction, the side-aware drill with the drill), the probes H13 to H15 (H0 on patched rosters:
+ * H14 is read against H13, H15 against H0), H2L (H0 with the other scramble start) and H0M (H0
+ * mirrored). On the clean bench (base E9): HB0 (every part), HB2 to HB5, HB7 and HB9 to HB12 (as H2 to
+ * H12), HBN (the parts that cannot act on the bench, a proof: hence no HB1, HB6 or HB8), HB2L (HB0 with
+ * the other start) and the funnel's rungs HF1 to HF5 (`STEP6_FUNNEL`), each on the rung before. Each
+ * arm's clauses are plan §6.1's "arm read" column: a graded or structural clause read on the arm is
+ * in `graded` (a structural one is a test of the stream, as `s4.sackCredit` on D1), a reported one,
+ * and `s6.drillArms` (printed, nothing predicted, as `s5a.reset` on E10), in `reported`; only H0
+ * carries the guard. Built by `buildStep6Arm` under the owner's three answers (the recommended options
+ * by default), never by `build` or `armById`; refused while a petition its tree needs is out
+ * (`step6ArmRefusal`).
+ */
+export const STEP6_ARM_DEFS: readonly Step6ArmDef[] = deepFreeze([
+  league("H0", "pocket-1.s6 on the league: F5 with every part of the outs block (plan §2.1 to §2.12)", "graded arm; guard pair H0 against F5 (AM-12)", EVERY_PART, "F5", [...S6_H0_GRADED, ...GUARD], S6_H0_REPORTED),
+  league("H1", "F5 with the real throwaway rule alone (plan §2.1)", "alone", ["throwawayRule"], "F5"),
+  league("H2", "F5 with the scramble start alone, the graded one (plan §2.2)", "alone; carries no marker", ["scrambleStart"], "F5", ["s6.behindLine", ...AGREE]),
+  league("H3", "F5 with the escape cap and the spent checklist alone (plan §2.3)", "alone", ["escapeCap"], "F5", ONE_ESCAPE),
+  league("H4", "F5 with pursuer speed and mobility's weight alone (plan §2.4)", "alone", ["pursuit"], "F5"),
+  league("H5", "F5 with no late horizon sack alone (plan §2.5)", "alone", ["noLateHorizonSack"], "F5", ["s6.horizonSacks"]),
+  league("H6", "F5 with the escape direction alone (plan §2.6)", "alone; streams equal F5's but for PLAY_START and direction", ["direction"], "F5"),
+  league("H7", "F5 with the side-aware catch, with direction (plan §2.6, §2.7)", "alone; s6.sideAwareCatch", ["direction", "sideCatch"], "F5", [], ["s6.sideAwareCatch"]),
+  league("H8", "F5 with the caught escape as contact alone: today's catcher, no cap (plan §2.8)", "alone; s6.caughtAsContact", ["caughtAsContact"], "F5", [], ["s6.caughtAsContact"]),
+  league("H9", "F5 with the drill's fresh rep alone (plan §2.9)", "alone; s6.drillArms", ["drill"], "F5", [], ["s6.drillArms"]),
+  league("H10", "F5 with the side-aware drill, with direction and the drill (plan §2.6, §2.9, §2.10)", "alone; s6.drillArms", ["direction", "drill", "drillBySide"], "F5", [], ["s6.drillArms"]),
+  league("H11", "F5 with the deadline pick alone: run or throw it away at the deadline (plan §2.11)", "alone; s6.drillArms", ["deadlinePick"], "F5", [], ["s6.drillArms"]),
+  league("H12", "F5 with the rescoring alone: the scoring marker only (plan §2.12)", "s6.rescoring; streams equal F5's but for PLAY_START", ["failedScrambleSack"], "F5", ["s6.rescoring", "s6.falsifier.rescoring", ...AGREE]),
+  league("H13", "H0 with every quarterback's Mobility 40", "probe; the base of the Mobility probe", EVERY_PART, "H0", AGREE, [], { ratings: STEP6_PROBE_RATINGS.H13 }),
+  league("H14", "H0 with every quarterback's Mobility 90", "probe; s6.mobilityProbe.* read H14 against H13", EVERY_PART, "H13", ["s6.mobilityProbe.p2s", "s6.mobilityProbe.scrambles", ...AGREE], [], { ratings: STEP6_PROBE_RATINGS.H14 }),
+  league("H15", "H0 with every defender's Speed +10 (capped at 99)", "probe; s6.pursuerProbe reads H15 against H0", EVERY_PART, "H0", ["s6.pursuerProbe", ...AGREE], [], { ratings: STEP6_PROBE_RATINGS.H15 }),
+  league("H2L", "H0 with the other scramble start", "information only", EVERY_PART, "H0", AGREE, [], { otherStart: true }),
+  league("H0M", "H0 played mirrored (mirror: true, C1's seam)", "s6.mirror reads H0M against H0", EVERY_PART, "H0", [...AGREE, "s6.mirror"], [], { mirror: true }),
+  onBench("HB0", "pocket-1.s6's parts on the clean bench: E9 with every part", "the bench's step-6 build; the funnel's last rung (plan §5.3)", funnelPartsOf("HB0"), "E9", ["s6.horizonSacks", "s6.oneEscape", "s6.behindLine", ...AGREE, "s6.oneEscapeClean"]),
+  onBench("HB2", "E9 with the scramble start alone, the graded one (as H2)", "alone; carries no marker", ["scrambleStart"], "E9", ["s6.behindLine", ...AGREE]),
+  onBench("HB3", "E9 with the escape cap and the spent checklist alone (as H3)", "alone; the funnel's first rung (plan §5.3)", funnelPartsOf("HB3"), "E9", ONE_ESCAPE),
+  onBench("HB4", "E9 with pursuer speed and mobility's weight alone (as H4)", "alone", ["pursuit"], "E9"),
+  onBench("HB5", "E9 with no late horizon sack alone (as H5)", "alone", ["noLateHorizonSack"], "E9", ["s6.horizonSacks"]),
+  onBench("HB7", "E9 with the side-aware catch, with direction (as H7)", "alone", ["direction", "sideCatch"], "E9"),
+  onBench("HB9", "E9 with the drill's fresh rep alone (as H9)", "alone", ["drill"], "E9"),
+  onBench("HB10", "E9 with the side-aware drill, with direction and the drill (as H10)", "alone", ["direction", "drill", "drillBySide"], "E9"),
+  onBench("HB11", "E9 with the deadline pick alone (as H11)", "alone", ["deadlinePick"], "E9"),
+  onBench("HB12", "E9 with the rescoring alone: the scoring marker only (as H12)", "alone", ["failedScrambleSack"], "E9", AGREE),
+  onBench(
+    "HBN", "E9 with the parts that cannot act on the bench: the real throwaway rule, direction and the caught escape as contact with today's catcher (plan §2.1, §2.6, §2.8)",
+    "a proof: replays E9's dice exactly, streams equal E9's but for PLAY_START and direction", ["throwawayRule", "direction", "caughtAsContact"], "E9",
+  ),
+  onBench("HB2L", "HB0 with the other scramble start", "information only", EVERY_PART, "HB0", AGREE, [], { otherStart: true }),
+  onBench("HF1", "HB3 with the deadline pick (the funnel's second rung)", "the funnel (plan §5.3)", funnelPartsOf("HF1"), "HB3", ONE_ESCAPE),
+  onBench("HF2", "HF1 with no late horizon sack (the funnel's third rung)", "the funnel (plan §5.3)", funnelPartsOf("HF2"), "HF1", ["s6.horizonSacks", ...ONE_ESCAPE]),
+  onBench("HF3", "HF2 with direction, the side-aware catch and the caught escape as contact (the funnel's fourth rung)", "the funnel (plan §5.3)", funnelPartsOf("HF3"), "HF2", ["s6.horizonSacks", ...ONE_ESCAPE]),
+  onBench("HF4", "HF3 with the drill and the side-aware drill (the funnel's fifth rung)", "the funnel (plan §5.3)", funnelPartsOf("HF4"), "HF3", ["s6.horizonSacks", ...ONE_ESCAPE]),
+  onBench("HF5", "HF4 with pursuit (the funnel's sixth rung; HB0 adds the throwaway rule, the start and the scoring marker)", "the funnel (plan §5.3)", funnelPartsOf("HF5"), "HF4", ["s6.horizonSacks", ...ONE_ESCAPE]),
+] satisfies readonly Step6ArmDef[]);
+
+/** Step 6's definition of an arm, or `undefined` for any other id. */
+export function step6ArmDef(id: string): Step6ArmDef | undefined {
+  return STEP6_ARM_DEFS.find((d) => d.id === id);
+}
+
+/**
+ * What each petition step 6's arms wait on puts in contracts (`petitions.md`; `guardian-2.md`): P9 to
+ * P12 for every tree carrying the outs block, P20 for the caught escape as contact, P21 for its unseen
+ * answer.
+ */
+const STEP6_PETITION_SUBJECTS: Readonly<Record<Step6Petition, string>> = Object.freeze({
+  P9: "the OUT_OF_POCKET throwaway cause",
+  P10: "THROWAWAY.outsideTackleBox",
+  P11: "QB_DECISION.direction",
+  P12: "the scramble_drill CHECK",
+  P20: "QB_HIT.contactSeconds on a caught escape",
+  P21: "QB_HIT.seen unseen on a catch from a block",
+});
+
+/** "A", "A and B", "A, B and C". */
+const andList = (items: readonly string[]): string => (items.length <= 1 ? items.join("") : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]!}`);
+
+/**
+ * The petitions a step-6 arm's tree waits on under `options`, in `STEP6_PETITION_NAMES`' order (plan
+ * §1.2; `checkStamp`'s `step6Refusal`): P9, P10, P11 and P12 for every arm (each carries the outs
+ * block); P20 when the arm turns on the caught escape as contact; P21 when it does and the `seen`
+ * option is the unseen one. `undefined` for an id that is not a step-6 arm.
+ */
+export function step6ArmPetitions(id: string, options: OutsOptions = RECOMMENDED_OUTS_OPTIONS): readonly Step6Petition[] | undefined {
+  const def = step6ArmDef(id);
+  if (def === undefined) return undefined;
+  const caught = def.step6.parts.includes("caughtAsContact");
+  return STEP6_PETITION_NAMES.filter((p) => (p === "P20" ? caught : p === "P21" ? caught && options.seen === "UNSEEN_IF_UNREGISTERED" : true));
+}
+
+/**
+ * Why a step-6 arm cannot be built, or `undefined` when it can (and for any other id): a petition its
+ * tree waits on (`step6ArmPetitions`) is not in contracts, so `checkStamp` refuses its outs block
+ * before any game (ADR-089 step 6, plan §1.2). Every step-6 arm is defined in this build (plan §5),
+ * and every one waits: each petition waits on the owner's typed yes and its contracts commit, then
+ * the lift. Even once they are in, nothing plays a step-6 arm before step 6's gate opens
+ * (`step6.ts`, plan §10.3), and only the step-6 harness builds one (`buildStep6Arm`), never `armById`.
+ * `petitions` is a test's own set and `options` the owner-question options (default: the flags, the
+ * recommended options).
+ */
+export function step6ArmRefusal(id: string, petitions: Step6Petitions = {}, options: OutsOptions = RECOMMENDED_OUTS_OPTIONS): string | undefined {
+  const needed = step6ArmPetitions(id, options);
+  if (needed === undefined) return undefined;
+  const under = step6PetitionsUnder(petitions);
+  const missing = needed.filter((p) => !under[p]);
+  if (missing.length === 0) return undefined;
+  return (
+    `${id} is one of step 6's arms, defined in this build (ADR-089 step 6, plan §5), and waits on petitions ${andList(needed)} (${andList(needed.map((p) => STEP6_PETITION_SUBJECTS[p]))}): ` +
+    `its outs block is refused before any game until the owner's typed yes to each and contracts-guardian's review land their text in contracts (not yet: ${missing.join(", ")}); ` +
+    "nothing plays it before step 6's gate opens (step6.ts, plan §10.3)"
+  );
+}
+
+/** What `armById` says of a step-6 arm whose petitions are in: only the step-6 harness builds one. */
+export function step6HarnessOnly(id: Step6ArmId): string {
+  return `${id} is one of step 6's arms, built only by the step-6 harness under the owner's three answers as AM-13 files them (buildStep6Arm), never by armById`;
+}
+
+/**
+ * Builds one step-6 arm from its definition (plan §5): a league arm by `step6Bundle` with the outs
+ * block of its parts (F5's tree plus them), a bench arm by `cleanBenchTunablesS6` (E9's tree plus
+ * them), each under `options` (the owner's three answers; the recommended options by default), the
+ * scramble start swapped for the other on H2L and HB2L; checked by `checkStamp` under `pocket-1.s6`
+ * with `petitions`, so with this build's flags every step-6 arm is refused before any game (the
+ * refusal names the petitions, `step6ArmRefusal`). Exported as the harness's and the tests' seam: a
+ * test builds an arm with its own petitions set true (`STEP6_PETITIONS_GRANTED`), as step 4's tests
+ * did before step 4's lift.
+ */
+export function buildStep6Arm(def: Step6ArmDef, options: OutsOptions = RECOMMENDED_OUTS_OPTIONS, petitions: StampPetitions = {}): Step6Arm {
+  const refusal = step6ArmRefusal(def.id, petitions, options);
+  if (refusal !== undefined) throw new EngineRulesError(`arms: ${refusal}: nothing plays it`);
+  const r = def.step6;
+  const played: OutsOptions = r.otherStart === true ? Object.freeze({ ...options, scrambleStart: otherScrambleStart(options.scrambleStart) }) : options;
+  const tunables = r.kind === "league" ? step6Bundle(outsBlockOf(r.parts, played)) : cleanBenchTunablesS6(r.parts, played);
+  checkStamp(tunables, def.rules, `arm ${def.id}`, petitions);
+  const digest = overlayDigestOf(tunables);
+  const stamped = tunables.engineRules?.overlayDigest;
+  return Object.freeze({
+    ...def,
+    tunables,
+    digest,
+    ...(stamped === undefined ? {} : { overlayDigest: stamped }),
+    tunablesDigest: stableDigest(tunables),
+    patches: Object.freeze([...(POCKET_1_S5A_LEAVES ?? [])]),
+    outsOptions: Object.freeze({ ...played }),
+    ratingOverridesDigest: ratingOverridesDigest(r.ratings),
+    mirror: r.mirror === true,
+  });
+}
+
+/** An arm's identity at step 6: its rules name, its dials, its rating overrides and its mirror (an arm of steps 1 to 5 has none of the last two). */
+function step6KeyOf(a: Arm): string {
+  const s6 = a as Arm & Partial<Pick<Step6Arm, "ratingOverridesDigest" | "mirror">>;
+  return `${a.rules} ${a.digest} ${s6.ratingOverridesDigest ?? "none"} ${s6.mirror === true ? "mirrored" : "as called"}`;
+}
+
+/**
+ * Every step-6 arm under `options` and `petitions`, in `STEP6_ARM_DEFS`' order, checked distinct by
+ * (rules name, dials, rating overrides, mirror) among themselves and against `others` (O28 as amended
+ * at step 5, keyed also by the probes' overrides and H0M's mirror: H13 to H15 and H0M play H0's dials,
+ * on patched rosters or mirrored, plan §5.1 and §8.2 R-1). With this build's flags it refuses (every
+ * arm waits on P9 to P12); the step-6 harness and the tests build it with the petitions in.
+ */
+export function step6ArmsWith(options: OutsOptions = RECOMMENDED_OUTS_OPTIONS, petitions: StampPetitions = {}, others: readonly Arm[] = []): ReadonlyMap<Step6ArmId, Step6Arm> {
+  const arms = new Map<Step6ArmId, Step6Arm>();
+  for (const def of STEP6_ARM_DEFS) arms.set(def.id, buildStep6Arm(def, options, petitions));
+  const all = [...others, ...arms.values()];
+  for (const arm of arms.values()) {
+    const seen = all.find((a) => a !== arm && step6KeyOf(a) === step6KeyOf(arm));
+    if (seen !== undefined) {
+      throw new Error(
+        `arms: ${arm.id} and ${seen.id} have the same rules ${arm.rules}, the same dials ${arm.digest}, the same ratings ${arm.ratingOverridesDigest} and the same mirror; ` +
+          "every step-6 arm is distinct by (rules name, dials, ratings, mirror) (O28 as amended at step 5, with the probes and the mirror)",
+      );
+    }
+  }
+  return arms;
 }
