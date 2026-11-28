@@ -20,9 +20,17 @@
  *
  * Who a role names is read off the snapshot's personnel (`TeamSnapshot.offense`, `.defense`), the
  * way the engine is told who plays where (ADR-006): QB is the quarterback; EDGE the two ends;
- * INTERIOR the two interior linemen; RUSHER the ends then the interior; ALL every player the team
- * brings (`TeamSnapshot.players`, in key order). `slot` picks one of the role's men by position in
- * that list (EDGE slot 0 is the first end).
+ * INTERIOR the two interior linemen; RUSHER the ends then the interior; DEFENSE every man in the
+ * defense's personnel, coverage included (the ends, the interior, the linebackers, the corners, then
+ * the safeties); ALL every player the team brings (`TeamSnapshot.players`, in key order, offense
+ * included). `slot` picks one of the role's men by position in that list (EDGE slot 0 is the first
+ * end).
+ *
+ * DEFENSE is ADR-089 step 6's (step-6 plan §5.1, arm H15: "every defender's Speed +10", capped at 99
+ * by `setAttr`'s clamp). CHOSEN as the whole defense, coverage included, because the escape's pursuer
+ * term reads any card rusher, blitzers included, so a role of the rushers alone would miss a blitzing
+ * linebacker or corner; H15's raised Speed also speeds the free-run clock and coverage, which its
+ * report prints beside (plan §5.1).
  */
 import { getAttr, setAttr } from "@ff/contracts";
 import type { PlayerState } from "@ff/contracts";
@@ -31,7 +39,7 @@ import { canonicalise } from "../harness/digest.js";
 import { registryAttr } from "./freeRun.js";
 import { fnv1a } from "./golden.js";
 
-export const OVERRIDE_ROLES = ["ALL", "QB", "EDGE", "INTERIOR", "RUSHER"] as const;
+export const OVERRIDE_ROLES = ["ALL", "QB", "EDGE", "INTERIOR", "RUSHER", "DEFENSE"] as const;
 export type OverrideRole = (typeof OVERRIDE_ROLES)[number];
 export const OVERRIDE_SIDES = ["HOME", "AWAY", "BOTH"] as const;
 export type OverrideSide = (typeof OVERRIDE_SIDES)[number];
@@ -81,6 +89,10 @@ function roleOf(team: TeamSnapshot, role: OverrideRole): readonly string[] {
       return team.defense.interior.map(String);
     case "RUSHER":
       return [...team.defense.edges, ...team.defense.interior].map(String);
+    case "DEFENSE": {
+      const d = team.defense;
+      return [...d.edges, ...d.interior, ...d.linebackers, ...d.corners, ...d.safeties].map(String);
+    }
   }
 }
 

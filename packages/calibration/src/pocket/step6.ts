@@ -32,7 +32,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { AMENDMENTS_PATH, amendmentsAtStep, amendmentsDigest, guardFor, loadAmendments, type AmendmentsFile } from "./amendments.js";
 import { FILED_PATH } from "./bands.js";
-import { POCKET_1_S6_DIGEST } from "./rules.js";
+import { CAUGHT_SEEN, POCKET_1_S6_DIGEST, SCRAMBLE_STARTS, SPENT_CHECKLISTS, step6PetitionsUnder, type OutsOptions, type Step6Petition, type Step6Petitions } from "./rules.js";
 import { AFTER_OWNER_FORM, openFiling, type Step6Args } from "./step0.js";
 import { s5aRecordProblemOf, STEP5A_RECORDS, STEP5A_RECORDS_FINAL } from "./step5.js";
 
@@ -53,17 +53,26 @@ export const STEP6_READINGS_ENTRY = "AM-13";
  * The owner's three answers AM-13 files in `ownersWord.answers` (`filing.md` §4.3 and §4.4; plan
  * §4.3), each with every option the engine builds behind a leaf: the spent checklist
  * (`pocket.outs.escapeCap.whenSpent`), the scramble start (`pocket.outs.scrambleStart`) and `seen` on
- * a catch by a man still in his block. The gate takes any one option of each, so no answer is
- * privileged, and refuses a value outside these lists.
+ * a catch by a man still in his block (`pocket.outs.caughtSeen`). The gate takes any one option of
+ * each, so no answer is privileged, and refuses a value outside these lists. Since K1 the lists are
+ * `rules.ts`'s closed sets of the block's leaves (`SPENT_CHECKLISTS`, `SCRAMBLE_STARTS`,
+ * `CAUGHT_SEEN`), so the gate's options and the bundles' options are one list each; the check below
+ * stops compiling if the answers and the bundles' `OutsOptions` ever differ.
  */
 export const STEP6_ANSWER_OPTIONS = Object.freeze({
-  spentChecklist: Object.freeze(["HOLD", "TODAYS_PATH", "SECOND_ESCAPE", "BELOW_30", "CONTAINED_DOES_NOT_SPEND"] as const),
-  scrambleStart: Object.freeze(["ZERO_GAIN_ONLY", "EVERY_RUN"] as const),
-  seen: Object.freeze(["SEEN", "UNSEEN_IF_UNREGISTERED"] as const),
+  spentChecklist: SPENT_CHECKLISTS,
+  scrambleStart: SCRAMBLE_STARTS,
+  seen: CAUGHT_SEEN,
 });
 
 export type Step6Question = keyof typeof STEP6_ANSWER_OPTIONS;
 export type Step6Answers = { readonly [Q in Step6Question]: (typeof STEP6_ANSWER_OPTIONS)[Q][number] };
+
+/** The owner's answers are the bundles' options, key for key and value for value (compile-time). */
+const _answersAreOutsOptions: Step6Answers = {} as OutsOptions;
+const _outsOptionsAreAnswers: OutsOptions = {} as Step6Answers;
+void _answersAreOutsOptions;
+void _outsOptionsAreAnswers;
 
 const STEP6_QUESTIONS = Object.keys(STEP6_ANSWER_OPTIONS) as readonly Step6Question[];
 
@@ -94,18 +103,21 @@ export function step6AnswersProblem(answers: unknown): string | undefined {
  * on a caught escape). P21 (`QB_HIT.seen` on a catch from a block) is needed only when the owner
  * answers "unseen".
  */
-export const STEP6_PETITIONS = Object.freeze(["P9", "P10", "P11", "P12", "P20"] as const);
-export const STEP6_UNSEEN_PETITION = "P21";
+export const STEP6_PETITIONS = Object.freeze(["P9", "P10", "P11", "P12", "P20"] as const satisfies readonly Step6Petition[]);
+export const STEP6_UNSEEN_PETITION = "P21" as const satisfies Step6Petition;
 
 /**
- * The step-6 petitions not yet in contracts, given the owner's `seen` answer when there is one. None is
- * in contracts in this build: each waits on the owner's typed yes and its contracts commit, then the
- * lift (plan §10.1 items 3 to 6). The flags that say so come with step 6's engine block (plan §10.2
- * commits 3 and 4: `P9_IN_CONTRACTS` to `P12_IN_CONTRACTS`, `P20_IN_CONTRACTS` and `P21_IN_CONTRACTS`,
- * false until the lift, restated in calibration with a test tying them), and this reads them then.
+ * The step-6 petitions not yet in contracts, given the owner's `seen` answer when there is one, in
+ * `STEP6_PETITIONS`' order with P21 last. It reads calibration's restated flags (`rules.ts`:
+ * `P9_IN_CONTRACTS` to `P12_IN_CONTRACTS`, `P20_IN_CONTRACTS` and `P21_IN_CONTRACTS`, tied to the
+ * engine's by a test), through `step6PetitionsUnder`. None is in contracts in this build: each waits
+ * on the owner's typed yes and its contracts commit, then the lift, which sets the engine's flags and
+ * these together (plan §10.1 items 3 to 6). `petitions` is a test's own set (default: the flags).
  */
-export function step6PetitionsOut(seen?: unknown): readonly string[] {
-  return [...STEP6_PETITIONS, ...(seen === STEP6_UNSEEN_ANSWER ? [STEP6_UNSEEN_PETITION] : [])];
+export function step6PetitionsOut(seen?: unknown, petitions: Step6Petitions = {}): readonly Step6Petition[] {
+  const under = step6PetitionsUnder(petitions);
+  const needed: readonly Step6Petition[] = [...STEP6_PETITIONS, ...(seen === STEP6_UNSEEN_ANSWER ? [STEP6_UNSEEN_PETITION] : [])];
+  return needed.filter((name) => !under[name]);
 }
 
 /** What step 6's gate reads (plan §10.3), from the package. */

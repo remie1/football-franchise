@@ -72,7 +72,8 @@ export function runOneGame(input: RunGameInput): RunGameOutput {
   const tunables = input.tunables ?? DEFAULT_TUNABLES;
   // ADR-089 S1 at the one function every calibration game is played through (review NPC-1): the
   // stamp names rules this build stamps (step 5's two names included, for the step-5 harness's arms;
-  // ADR-089 step 5, plan §1.1), and the dials it was handed digest to it, or no play is made.
+  // ADR-089 step 5, plan §1.1; and step 6's, whose trees checkStamp refuses while their petitions
+  // are out; ADR-089 step 6, plan §3.2), and the dials it was handed digest to it, or no play is made.
   // Legacy tunables (no stamp, no block) return after three property reads, so legacy play is today's.
   checkStamp(tunables, tunables.engineRules === undefined ? LEGACY_RULES : stampedRulesNamed(tunables.engineRules.name, "runOneGame"), "runOneGame");
   const { seed } = input;

@@ -6,8 +6,10 @@
  *  1. Step 6's arm ids are named and inert: `STEP6_ARM_IDS` (35 ids) are arms of this build
  *     (`isAnyArmId`, so AM-12's base map validates), `runIdsOf(6)` is D1, F5, E9 and then them, no
  *     earlier step's run list takes one, and `armById` refuses each by name; nothing defines them.
- *  2. The name `pocket-1.s6` is refused: `rulesTunables` refuses it by name, it is neither an engine
- *     rules name nor a stamped one, and `POCKET_1_S6_DIGEST` is unset.
+ *  2. The name `pocket-1.s6` is refused: `rulesTunables` refuses it by name, it is not an engine
+ *     rules name, and `POCKET_1_S6_DIGEST` is unset. K0 left it unstamped; since K1 (plan §3.2) it is
+ *     a stamped name, for the step-6 harness's arms, whose trees `checkStamp` refuses while their
+ *     petitions are out (`engineRulesS6.test.ts`).
  *  3. `--step 6` is parsed (`parseStep6Args`: the run flags, `--fresh-base`, `--digests`; no
  *     `--after-owner`), and step 6's gate (`step6.ts`) refuses before anything plays, naming every
  *     condition it waits for; on synthetic states it opens only when all five hold, for every option of
@@ -174,18 +176,20 @@ describe("step 6's arm ids, named and inert (plan §3.1 item 2, §5)", () => {
   });
 });
 
-describe("the name pocket-1.s6, refused (plan §1.1, §3.1 item 3)", () => {
-  it("rulesTunables refuses it by name; it is neither an engine rules name nor a stamped one, and its digest is unset", () => {
+describe("the name pocket-1.s6, refused by name until recorded (plan §1.1, §3.1 item 3; stamped since K1, §3.2)", () => {
+  it("rulesTunables refuses it by name; it is not an engine rules name, it is a stamped one since K1, and its digest is unset", () => {
     expect(POCKET_1_S6_RULES).toBe("pocket-1.s6");
-    expect(() => rulesTunables(POCKET_1_S6_RULES as unknown as StampedRules)).toThrow(EngineRulesError);
-    expect(() => rulesTunables(POCKET_1_S6_RULES as unknown as StampedRules)).toThrow(POCKET_1_S6_REFUSAL);
+    expect(() => rulesTunables(POCKET_1_S6_RULES)).toThrow(EngineRulesError);
+    expect(() => rulesTunables(POCKET_1_S6_RULES)).toThrow(POCKET_1_S6_REFUSAL);
     expect(POCKET_1_S6_REFUSAL).toMatch(/^pocket-1\.s6 is named but not recorded: it is recorded after step 6's bundle commit/);
     expect(POCKET_1_S6_DIGEST).toBeUndefined();
     expect(isEngineRules(POCKET_1_S6_RULES)).toBe(false);
-    expect(isStampedRules(POCKET_1_S6_RULES)).toBe(false);
+    // K1 stamps the name (the step-6 harness's arms); a run still cannot name it, and checkStamp
+    // refuses every tree carrying its block while the petitions are out (engineRulesS6.test.ts).
+    expect(isStampedRules(POCKET_1_S6_RULES)).toBe(true);
     expect([...ENGINE_RULES]).toEqual(["legacy", "pocket-1.s1", "pocket-1.s2", "pocket-1.s3", "pocket-1.s4", "pocket-1.s5a"]);
     expect(() => engineRulesNamed(POCKET_1_S6_RULES, "--engine-rules")).toThrow(/^--engine-rules: engine rules "pocket-1\.s6" are not in this build/);
-    expect(() => stampedRulesNamed(POCKET_1_S6_RULES, "stamp")).toThrow(/^stamp: engine rules "pocket-1\.s6" are not in this build/);
+    expect(stampedRulesNamed(POCKET_1_S6_RULES, "stamp")).toBe(POCKET_1_S6_RULES);
     // Another unknown name keeps today's words.
     expect(() => rulesTunables("pocket-1.s7" as unknown as StampedRules)).toThrow(/^no bundle for engine rules pocket-1\.s7$/);
   });

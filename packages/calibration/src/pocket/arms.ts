@@ -117,6 +117,7 @@ import {
   READ_SYSTEMS,
   checkStamp,
   isStep5Rules,
+  isStep6Rules,
   readSystemDeltaLeaves,
   step5Bundle,
   step5OverlayAt,
@@ -1121,6 +1122,11 @@ function build(def: Omit<ArmDef, "id"> & { readonly id: ArmId | ProofOverlayId }
     // ADR-089 step 5 (plan §1.1, §5): step 5's arms are defined with their harness, which builds
     // their bench and league bundles (`cleanBenchTunablesS5`, `step5Bundle`); this table builds none.
     throw new EngineRulesError(`arm ${def.id}: no arm of this table is stamped ${def.rules}; step 5's arms are built by the step-5 harness`);
+  } else if (def.rules !== undefined && isStep6Rules(def.rules)) {
+    // ADR-089 step 6 (plan §3.2, K1): step 6's arms are defined apart, on their bench and league
+    // bundles (`cleanBenchTunablesS6`, `step6Bundle`), and refused until step 6's gate opens; this
+    // table builds none.
+    throw new EngineRulesError(`arm ${def.id}: no arm of this table is stamped ${def.rules}; step 6's arms are built by the step-6 harness`);
   } else if (def.step3 !== undefined) {
     throw new EngineRulesError(`arm ${def.id}: only a ${POCKET_1_S3_RULES} arm carries step 3's blocks`);
   } else if (def.rules === undefined || def.rules === POCKET_1_S1_RULES) {

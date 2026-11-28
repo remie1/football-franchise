@@ -24,6 +24,13 @@
  * `pocket-1.s4` (arm E1, the fitted deltas alone), and with no parts and no offsets it is the s4
  * bench itself.
  *
+ * **Step 6's clean bench** (ADR-089 step 6, plan §3.2 K1, §5.2) is `cleanBenchTunablesS6(parts,
+ * options)`: E9's tree (step 5's clean bench with every clean-pocket part and the fitted deltas,
+ * `POCKET_1_S5A_LEAVES`) with the outs block those parts give (`outsBlockOf`, the recommended
+ * options unless given), stamped `pocket-1.s6`. With no parts it is E9's tree with the block and
+ * every part off. Built through `withOverlay`, never patched after; nothing plays it before step 6's
+ * gate opens, because `checkStamp` refuses every tree carrying the block while P9 to P12 are out.
+ *
  * **The one-threat bench** replays captured clean-bench dropbacks with `simulatePlay` (ADR-012
  * items 1 and 2: the entry point, and the types to build its input), each call rebuilt so that
  * EXACTLY ONE rusher is unblocked, at a fixed X seconds:
@@ -88,10 +95,16 @@ import {
   POCKET_1_S4_OVERLAY,
   POCKET_1_S4_RULES,
   POCKET_1_S5A_DROP_FLOOR,
+  POCKET_1_S5A_LEAVES,
   POCKET_1_S5A_RESET_SECONDS,
   POCKET_1_S5A_RULES,
+  POCKET_1_S6_RULES,
+  RECOMMENDED_OUTS_OPTIONS,
+  outsBlockOf,
   readSystemDeltaLeaves,
   withOverlay,
+  type OutsOptions,
+  type OutsPart,
   type PocketCleanPocket,
   type PocketOverlay,
   type ReadSystemOffsets,
@@ -217,6 +230,26 @@ export function cleanBenchTunablesS5(parts: CleanBenchParts | undefined, offsets
   if (parts === undefined) return withOverlay(base, POCKET_1_S4_RULES, overlay, POCKET_1_S2_FORCING);
   const pocket = { ...overlay.pocket, cleanPocket: cleanPocketBlockOf(parts) };
   return withOverlay(base, POCKET_1_S5A_RULES, { ...overlay, pocket }, POCKET_1_S2_FORCING);
+}
+
+/**
+ * Step 6's clean bench (ADR-089 step 6, plan §3.2 K1, §5.2; arms HB0 to HB2L and the funnel): E9's
+ * tree, built as `cleanBenchTunablesS5` builds it (Half and Follows, the fitted deltas
+ * `POCKET_1_S5A_LEAVES` as recorded, the clean bench's four leaves, step 4's overlay with the clean
+ * bench's free-run and late-block clocks, every clean-pocket part, must act per rusher), with the outs
+ * block `parts` and `options` give (`outsBlockOf`), stamped `pocket-1.s6` at a digest of its own.
+ * Every part off is E9's tree with an all-off block. Built through `withOverlay`, never patched
+ * after. Refused while the 5a fit is not recorded (E9's deltas are the fit's). Nothing plays it while
+ * a step-6 petition is out: `checkStamp` refuses every tree carrying the block (`step6Refusal`).
+ */
+export function cleanBenchTunablesS6(parts: readonly OutsPart[], options: OutsOptions = RECOMMENDED_OUTS_OPTIONS): Tunables {
+  const fitted = POCKET_1_S5A_LEAVES;
+  if (fitted === undefined) throw new Error("cleanBenchTunablesS6: step 6's clean bench is E9's tree, whose deltas are the 5a fit's, and the fit is not recorded (POCKET_1_S5A_LEAVES)");
+  const horizons = POCKET_1_S2_LEAVES.reduce(applyTunablePatch, DEFAULT_TUNABLES);
+  const base = cleanBenchTunables(fitted.reduce(applyTunablePatch, horizons));
+  const overlay = withCleanBenchClocks(POCKET_1_S4_OVERLAY);
+  const pocket = { ...overlay.pocket, cleanPocket: cleanPocketBlockOf({ on: CLEAN_BENCH_PARTS }), outs: outsBlockOf(parts, options) };
+  return withOverlay(base, POCKET_1_S6_RULES, { ...overlay, pocket }, POCKET_1_S2_FORCING);
 }
 
 export const ONE_THREAT_SECONDS = Object.freeze([1.5, 2.5, 3.5] as const);

@@ -55,6 +55,36 @@ describe("the rating override is pure and reaches exactly the men it names", () 
     expect(ratingOverrideTargets(snap, { attr: "tackling", target: { kind: "PLAYER", player: "p:nobody" }, change: { op: "ADD", delta: 1 } })).toEqual([]);
   });
 
+  it("DEFENSE names every man in the defense's personnel, coverage included, and no man of the offense (ADR-089 step 6, plan §5.1, H15)", () => {
+    const SPEED = registryAttr("speed");
+    const defense = (team: typeof snap.home): string[] =>
+      [...team.defense.edges, ...team.defense.interior, ...team.defense.linebackers, ...team.defense.corners, ...team.defense.safeties].map(String);
+    const o: RatingOverride = { attr: "speed", target: { kind: "ROLE", role: "DEFENSE", side: "BOTH" }, change: { op: "ADD", delta: 10 } };
+    expect(() => checkRatingOverride(o)).not.toThrow();
+    // Eleven a side, in the personnel's order: the ends, the interior, the linebackers, the corners, the safeties.
+    for (const team of [snap.home, snap.away]) expect(new Set(defense(team)).size).toBe(11);
+    expect(ratingOverrideTargets(snap, o)).toEqual([...defense(snap.home), ...defense(snap.away)]);
+    expect(ratingOverrideTargets(snap, { ...o, target: { kind: "ROLE", role: "DEFENSE", side: "AWAY" } })).toEqual(defense(snap.away));
+    // A slot picks one man of that list: slot 6 is the first corner.
+    expect(ratingOverrideTargets(snap, { ...o, target: { kind: "ROLE", role: "DEFENSE", side: "HOME", slot: 6 } })).toEqual([String(snap.home.defense.corners[0])]);
+    // The rushers are a part of it; the quarterback and every other man of the offense are not.
+    const reached = new Set(ratingOverrideTargets(snap, o));
+    for (const id of ratingOverrideTargets(snap, { ...o, target: { kind: "ROLE", role: "RUSHER", side: "BOTH" } })) expect(reached.has(id), id).toBe(true);
+    for (const team of [snap.home, snap.away]) {
+      const off = team.offense;
+      for (const id of [off.quarterback, off.runningBack, ...off.receivers, off.tightEnd, off.leftTackle, off.leftGuard, off.center, off.rightGuard, off.rightTackle]) {
+        expect(reached.has(String(id)), String(id)).toBe(false);
+      }
+    }
+    // Speed +10 on every defender, capped at 99 by the registry's clamp; nobody else's state changes.
+    const raised = applyRatingOverrides(snap, [o]);
+    for (const id of reached) expect(valueOf(raised, id, SPEED), id).toBe(Math.min(99, valueOf(snap, id, SPEED) + 10));
+    for (const side of ["home", "away"] as const) {
+      for (const id of Object.keys(snap[side].players).filter((p) => !reached.has(p))) expect(raised[side].players[id], id).toBe(snap[side].players[id]);
+    }
+    expect(() => checkRatingOverride({ ...o, target: { kind: "ROLE", role: "OFFENSE" as never, side: "BOTH" } })).toThrow("no role OFFENSE (ALL, QB, EDGE, INTERIOR, RUSHER, DEFENSE)");
+  });
+
   it("ADD reads through getAttr and setAttr clamps to the scale; later overrides see earlier ones", () => {
     const qb = String(snap.home.offense.quarterback);
     const t = { kind: "PLAYER", player: qb } as const;

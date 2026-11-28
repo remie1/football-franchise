@@ -150,7 +150,8 @@ describe("step 5's names (plan §1.1)", () => {
     expect(POCKET_1_S5B_RULES).toBe("pocket-1.s5b");
     expect([...STEP5_RULES]).toEqual(["pocket-1.s5a", "pocket-1.s5b"]);
     expect([...ENGINE_RULES]).toEqual(["legacy", "pocket-1.s1", "pocket-1.s2", "pocket-1.s3", "pocket-1.s4", "pocket-1.s5a"]);
-    expect([...STAMPED_RULES]).toEqual([...ENGINE_RULES, "pocket-1.s5b"]);
+    // Step 6's name is stamped since step 6's calibration commit (step-6 plan §3.2, K1), after 5b's.
+    expect([...STAMPED_RULES]).toEqual([...ENGINE_RULES, "pocket-1.s5b", "pocket-1.s6"]);
     expect(isEngineRules("pocket-1.s5a")).toBe(true);
     expect(isEngineRules("pocket-1.s5b")).toBe(false);
     for (const name of STEP5_RULES) {
@@ -160,9 +161,9 @@ describe("step 5's names (plan §1.1)", () => {
       expect(readsStep3Facts(name) && readsStep4Facts(name), name).toBe(true);
     }
     for (const name of ENGINE_RULES) expect(isStep5Rules(name), name).toBe(name === "pocket-1.s5a");
-    for (const bad of ["pocket-1.s5", "pocket-1.s5c", "pocket-1.s6", "s5a"]) expect(isStampedRules(bad), bad).toBe(false);
+    for (const bad of ["pocket-1.s5", "pocket-1.s5c", "pocket-1.s7", "s5a"]) expect(isStampedRules(bad), bad).toBe(false);
     // The union a bundle is stamped with takes both (a compile-time check, made at run time too).
-    const overlayNames: readonly OverlayRules[] = ["pocket-1.s1", "pocket-1.s2", "pocket-1.s3", "pocket-1.s4", "pocket-1.s5a", "pocket-1.s5b"];
+    const overlayNames: readonly OverlayRules[] = ["pocket-1.s1", "pocket-1.s2", "pocket-1.s3", "pocket-1.s4", "pocket-1.s5a", "pocket-1.s5b", "pocket-1.s6"];
     expect(overlayNames.every((n) => isStampedRules(n))).toBe(true);
   });
 
@@ -170,7 +171,7 @@ describe("step 5's names (plan §1.1)", () => {
     for (const name of STAMPED_RULES) expect(stampedRulesNamed(name, "w")).toBe(name);
     expect(stampedRulesNamed(undefined, "w")).toBe("legacy");
     expect(() => stampedRulesNamed("pocket-1.s9", "w")).toThrow(
-      'w: engine rules "pocket-1.s9" are not in this build, which has legacy, pocket-1.s1, pocket-1.s2, pocket-1.s3, pocket-1.s4, pocket-1.s5a (ADR-089 §9), and stamps pocket-1.s5b for the step-5 harness',
+      'w: engine rules "pocket-1.s9" are not in this build, which has legacy, pocket-1.s1, pocket-1.s2, pocket-1.s3, pocket-1.s4, pocket-1.s5a (ADR-089 §9), and stamps pocket-1.s5b for the step-5 harness and pocket-1.s6 for the step-6 harness',
     );
     expect(engineRulesNamed("pocket-1.s5a", "season --engine-rules")).toBe("pocket-1.s5a");
     expect(() => engineRulesNamed("pocket-1.s5b", "season --engine-rules")).toThrow(
@@ -202,7 +203,8 @@ describe("pocket-1.s5a's block and overlay (plan §1.1, §1.2)", () => {
     for (const [path, node] of nodes(POCKET_1_S5A_OVERLAY)) expect(Object.isFrozen(node), path).toBe(true);
     expect("cleanPocket" in POCKET_1_S4_OVERLAY.pocket!).toBe(false);
     expect([...STEP5_BLOCKS]).toEqual(["pocket.cleanPocket"]);
-    expect([...POCKET_BLOCKS].slice(-1)).toEqual([...STEP5_BLOCKS]);
+    // Step 6's one block (step-6 plan §1.2) follows step 5's.
+    expect([...POCKET_BLOCKS].slice(-2, -1)).toEqual([...STEP5_BLOCKS]);
     expect([...POCKET_BLOCKS].filter((b) => (STEP4_BLOCKS as readonly string[]).includes(b))).toEqual([...STEP4_BLOCKS]);
   });
 });

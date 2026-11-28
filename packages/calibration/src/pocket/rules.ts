@@ -74,6 +74,23 @@
  *    the fit record's digest are literals below) and `pocket-1.s5b` at the selection commit. Until
  *    then `rulesTunables` refuses the name by name (`step5RulesRefusal`), so no save, export or
  *    season is ever stamped with a digest that is later re-recorded.
+ *  - **`pocket-1.s6` (step 6, §4.6 e and f, §4.7; step-6 plan §1.1, §1.2)** is built as
+ *    `pocket-1.s5a` is (Half and Follows and the 5a fit's three deltas on the base, then the overlay
+ *    and must act per rusher), with one more block in its overlay, `pocket.outs` (the outs: the real
+ *    throwaway rule, the scramble start, the escape cap and its spent case, pursuit, no late horizon
+ *    sack, direction, the side-aware catch, the caught escape as contact, the drill and the drill by
+ *    side, the deadline pick and the failed-scramble sack), every part on and each of the owner's
+ *    three questions at its recommended option (HOLD, ZERO_GAIN_ONLY, SEEN) until the owner answers;
+ *    every other option is a leaf a bundle may carry (`outsBlockOf`). The block rides only on a
+ *    stamped bundle with a block clock and only under `pocket-1.s6`; under that name any subset of
+ *    the step-3 to step-6 blocks is a bundle (an arm carries one part alone, or the block with every
+ *    part off). Until petitions P9, P10, P11 and P12 are in contracts (and P20 for the caught escape as
+ *    contact, P21 for its unseen answer), all false here as the engine's are, `checkStamp` refuses
+ *    every tree carrying the block, at every calibration entry and in `runOneGame`, before any game
+ *    (`step6Refusal`); the engine refuses the same trees before its first die. `withOverlay` and
+ *    `step6Bundle` still build them. The name is stamped (`STAMPED_RULES`, for the step-6 harness's
+ *    arms), refused by name in `rulesTunables` until its digest is recorded, and not in
+ *    `ENGINE_RULES` until then.
  *  - **When it is written (O11).** The export file and `season --out` always write `engineRules`, so
  *    they say what played. The identity, the batch provenance and the save write it only when it is
  *    not `legacy`, so a legacy identity and a legacy save stay byte for byte today's. The overlay
@@ -135,10 +152,12 @@ export const POCKET_1_S5B_RULES = "pocket-1.s5b";
 /**
  * ADR-089 step 6's design bundle (step-6 plan §1.1): `pocket-1.s5a` plus the engine block `pocket.outs`
  * with every part on, on the interim clock (shape S, theta 11, F5's dials; "interim clock S theta 11
- * (F5), not selected"). Named only in this build (plan §3.1 item 3): its bundle comes with step 6's
- * calibration commit (plan §3.2, K1), and `ENGINE_RULES` takes it only once its digest is recorded (the
- * bundle-record commit). Until then `rulesTunables` refuses it by name, so no run, export or save is
- * stamped with a digest that later moves; it is not a stamped name (`STAMPED_RULES`) either.
+ * (F5), not selected"). A stamped name since step 6's calibration commit (plan §3.2, K1:
+ * `STAMPED_RULES`, the `OverlayRules` union), so `withOverlay` builds its bundle (`step6Bundle`) and its
+ * arms; `ENGINE_RULES` takes it only once its digest is recorded (the bundle-record commit, plan
+ * §10.1 item 9). Until then `rulesTunables` refuses it by name, so no run, export or save is stamped
+ * with a digest that later moves, and while its petitions are out `checkStamp` refuses every tree
+ * carrying its block (`step6Refusal`), so nothing plays it.
  */
 export const POCKET_1_S6_RULES = "pocket-1.s6";
 
@@ -157,16 +176,23 @@ export const STEP5_RULES = Object.freeze([POCKET_1_S5A_RULES, POCKET_1_S5B_RULES
 
 export type Step5Rules = (typeof STEP5_RULES)[number];
 
-/**
- * Every rules name this build stamps a bundle with: `ENGINE_RULES` and step 5's two names (plan
- * §1.1). `withOverlay`, `checkStamp` and `runOneGame` take any of them, so the step-5 harness's arms
- * are stamped and played; a run, an export or a save names only `ENGINE_RULES` (`engineRulesNamed`,
- * `rulesOfSave`), and `rulesTunables` refuses a step-5 name until its bundle is recorded.
- */
-export type StampedRules = EngineRules | Step5Rules;
+/** Step 6's rules name (step-6 plan §1.1). */
+export const STEP6_RULES = Object.freeze([POCKET_1_S6_RULES] as const);
 
-/** `ENGINE_RULES` then step 5's names, each once (a step-5 name joins `ENGINE_RULES` when recorded). */
-export const STAMPED_RULES: readonly StampedRules[] = Object.freeze([...new Set<StampedRules>([...ENGINE_RULES, ...STEP5_RULES])]);
+export type Step6Rules = (typeof STEP6_RULES)[number];
+
+/**
+ * Every rules name this build stamps a bundle with: `ENGINE_RULES`, step 5's two names (plan §1.1)
+ * and step 6's (step-6 plan §1.1). `withOverlay`, `checkStamp` and `runOneGame` take any of them, so
+ * the step-5 harness's arms are stamped and played, and step 6's are stamped (and refused by
+ * `checkStamp` while their petitions are out); a run, an export or a save names only `ENGINE_RULES`
+ * (`engineRulesNamed`, `rulesOfSave`), and `rulesTunables` refuses a step-5 or step-6 name until its
+ * bundle is recorded.
+ */
+export type StampedRules = EngineRules | Step5Rules | Step6Rules;
+
+/** `ENGINE_RULES` then step 5's names, then step 6's, each once (a name joins `ENGINE_RULES` when recorded). */
+export const STAMPED_RULES: readonly StampedRules[] = Object.freeze([...new Set<StampedRules>([...ENGINE_RULES, ...STEP5_RULES, ...STEP6_RULES])]);
 
 /** A rules name that carries an overlay (every stamped name but `legacy`). */
 export type OverlayRules = Exclude<StampedRules, typeof LEGACY_RULES>;
@@ -192,6 +218,11 @@ export function isStep5Rules(name: string): name is Step5Rules {
   return (STEP5_RULES as readonly string[]).includes(name);
 }
 
+/** Whether a name is step 6's (step-6 plan §1.1). */
+export function isStep6Rules(name: string): name is Step6Rules {
+  return (STEP6_RULES as readonly string[]).includes(name);
+}
+
 /**
  * The rules a run names, checked: absent is `DEFAULT_ENGINE_RULES`; a name this build does not have
  * is refused, so nothing is ever stamped with a word ("default", a typo, a later step's bundle) in
@@ -210,14 +241,21 @@ export function engineRulesNamed(name: string | undefined, where: string): Engin
 /**
  * The rules a stamp names, checked (ADR-089 step 5, plan §1.1): absent is `DEFAULT_ENGINE_RULES`, as
  * `engineRulesNamed`; any name this build stamps is taken (`STAMPED_RULES`, step 5's two included,
- * so the step-5 harness's arms play through `runOneGame`); any other name is refused with
- * `engineRulesNamed`'s words. A run names its rules through `engineRulesNamed`, never this.
+ * so the step-5 harness's arms play through `runOneGame`, and step 6's, whose trees `checkStamp`
+ * refuses while their petitions are out); any other name is refused with `engineRulesNamed`'s
+ * words, naming the harness names this build stamps beside them. A run names its rules through
+ * `engineRulesNamed`, never this.
  */
 export function stampedRulesNamed(name: string | undefined, where: string): StampedRules {
   if (name === undefined) return DEFAULT_ENGINE_RULES;
   if (!isStampedRules(name)) {
+    const harness = [
+      [STEP5_RULES.filter((n) => !isEngineRules(n)), "the step-5 harness"],
+      [STEP6_RULES.filter((n) => !isEngineRules(n)), "the step-6 harness"],
+    ] as const;
+    const stamps = harness.filter(([names]) => names.length > 0).map(([names, who]) => `${names.join(" and ")} for ${who}`);
     throw new EngineRulesError(
-      `${where}: engine rules ${JSON.stringify(name)} are not in this build, which has ${ENGINE_RULES.join(", ")} (ADR-089 §9), and stamps ${STEP5_RULES.filter((n) => !isEngineRules(n)).join(" and ")} for the step-5 harness`,
+      `${where}: engine rules ${JSON.stringify(name)} are not in this build, which has ${ENGINE_RULES.join(", ")} (ADR-089 §9)${stamps.length === 0 ? "" : `, and stamps ${stamps.join(" and ")}`}`,
     );
   }
   return name;
@@ -252,8 +290,8 @@ export interface PocketStep4Overlay {
  * T, the card alone with the contact block); from step 3, `blitzPickup.freeRun`,
  * `blitzPickup.lateBlock` and `pocket.climbLane` (`PocketStep3Overlay`); and from step 4,
  * `pocket.contact` and `throwExec.motion` (`PocketStep4Overlay`); and from step 5,
- * `pocket.cleanPocket` (`PocketStep5Overlay`). Step 2's forcing block is `withOverlay`'s fourth
- * argument, as it was.
+ * `pocket.cleanPocket` (`PocketStep5Overlay`); and from step 6, `pocket.outs`
+ * (`PocketStep6Overlay`). Step 2's forcing block is `withOverlay`'s fourth argument, as it was.
  */
 /**
  * ADR-089 step 5's block (plan §1.2), typed from the engine's own `Tunables` as the others are (no new
@@ -263,7 +301,16 @@ export interface PocketStep5Overlay {
   readonly pocket?: Pick<Tunables["pocket"], "cleanPocket">;
 }
 
-export type PocketOverlay = Pick<Tunables["passRush"], "beatClock" | "repClock" | "approach"> & PocketStep3Overlay & PocketStep4Overlay & PocketStep5Overlay;
+/**
+ * ADR-089 step 6's block (step-6 plan §1.2), typed from the engine's own `Tunables` as the others are
+ * (no new engine name, so the engine's stand-in types are read through `Tunables` and never imported
+ * by name): `pocket.outs` (the outs, each part on or off, every owner option behind a leaf).
+ */
+export interface PocketStep6Overlay {
+  readonly pocket?: Pick<Tunables["pocket"], "outs">;
+}
+
+export type PocketOverlay = Pick<Tunables["passRush"], "beatClock" | "repClock" | "approach"> & PocketStep3Overlay & PocketStep4Overlay & PocketStep5Overlay & PocketStep6Overlay;
 
 /** The keys an overlay may carry, in `withOverlay`'s order (the check below keeps it whole). */
 const OVERLAY_KEYS = Object.freeze(["beatClock", "repClock", "approach", "blitzPickup", "pocket", "throwExec"] as const satisfies readonly (keyof PocketOverlay)[]);
@@ -273,7 +320,7 @@ void _everyOverlayKeyListed;
 const OVERLAY_PICKUP_KEYS = Object.freeze(["freeRun", "lateBlock"] as const satisfies readonly (keyof NonNullable<PocketStep3Overlay["blitzPickup"]>)[]);
 const _everyPickupKeyListed: readonly (typeof OVERLAY_PICKUP_KEYS)[number][] = [] as readonly (keyof NonNullable<PocketStep3Overlay["blitzPickup"]>)[];
 void _everyPickupKeyListed;
-const OVERLAY_POCKET_KEYS = Object.freeze(["climbLane", "contact", "cleanPocket"] as const satisfies readonly (keyof NonNullable<PocketOverlay["pocket"]>)[]);
+const OVERLAY_POCKET_KEYS = Object.freeze(["climbLane", "contact", "cleanPocket", "outs"] as const satisfies readonly (keyof NonNullable<PocketOverlay["pocket"]>)[]);
 const _everyPocketKeyListed: readonly (typeof OVERLAY_POCKET_KEYS)[number][] = [] as readonly (keyof NonNullable<PocketOverlay["pocket"]>)[];
 void _everyPocketKeyListed;
 /** The step-4 key under the overlay's `throwExec`. */
@@ -384,6 +431,85 @@ const RATING_MIN = ATTR_SCALE.min;
 const RATING_MAX = ATTR_SCALE.max;
 
 /**
+ * ADR-089 step 6's outs block (step-6 plan §1.2), typed from the engine's own `Tunables` (no new engine
+ * name: the engine's stand-in types, `OutsTunables` and its parts, are reached through `Tunables` and
+ * never imported by name, so calibration's engine surface does not grow).
+ */
+export type PocketOuts = NonNullable<Tunables["pocket"]["outs"]>;
+/** The scramble start (plan §2.2; the owner's question 2). */
+export type OutsScrambleStart = NonNullable<PocketOuts["scrambleStart"]>;
+/** The escape cap (plan §2.3): one escape roll a play and the spent case. */
+export type OutsEscapeCap = NonNullable<PocketOuts["escapeCap"]>;
+/** The spent case (plan §2.3; the owner's question 1). */
+export type OutsSpentChecklist = OutsEscapeCap["whenSpent"];
+/** `QB_HIT.seen` on a caught escape (plan §2.8; the owner's question 3). */
+export type OutsCaughtSeen = NonNullable<PocketOuts["caughtSeen"]>;
+/** Pursuer speed and Mobility's weight (plan §2.4, CHOSEN). */
+export type OutsPursuit = NonNullable<PocketOuts["pursuit"]>;
+/** The side-aware catch's terms (plan §2.7, CHOSEN in the design). */
+export type OutsSideCatch = NonNullable<PocketOuts["sideCatch"]>;
+/** The deadline pick (plan §2.11): K9's re-derived run margin. */
+export type OutsDeadlinePick = NonNullable<PocketOuts["deadlinePick"]>;
+
+/**
+ * ADR-089 step 6's closed sets, restated from the engine (`sim/pocketRules.ts`, off the barrel, Iron
+ * Rule 1), each in the engine's order, the recommended option first (plan §4.3): the spent case, the
+ * scramble start and a caught escape's `seen`. Each check below stops compiling if the engine's set
+ * grows past its list.
+ */
+export const SPENT_CHECKLISTS = Object.freeze(["HOLD", "TODAYS_PATH", "SECOND_ESCAPE", "BELOW_30", "CONTAINED_DOES_NOT_SPEND"] as const satisfies readonly OutsSpentChecklist[]);
+const _everySpentChecklistListed: readonly (typeof SPENT_CHECKLISTS)[number][] = [] as readonly OutsSpentChecklist[];
+void _everySpentChecklistListed;
+export const SCRAMBLE_STARTS = Object.freeze(["ZERO_GAIN_ONLY", "EVERY_RUN"] as const satisfies readonly OutsScrambleStart[]);
+const _everyScrambleStartListed: readonly (typeof SCRAMBLE_STARTS)[number][] = [] as readonly OutsScrambleStart[];
+void _everyScrambleStartListed;
+export const CAUGHT_SEEN = Object.freeze(["SEEN", "UNSEEN_IF_UNREGISTERED"] as const satisfies readonly OutsCaughtSeen[]);
+const _everyCaughtSeenListed: readonly (typeof CAUGHT_SEEN)[number][] = [] as readonly OutsCaughtSeen[];
+void _everyCaughtSeenListed;
+
+/** The outs block's switches, in step-6 plan §1.2's order (the engine checks the same seven). */
+export const OUTS_SWITCHES = Object.freeze(["throwawayRule", "noLateHorizonSack", "direction", "caughtAsContact", "drill", "drillBySide", "failedScrambleSack"] as const satisfies readonly (keyof PocketOuts)[]);
+/** The block's true-or-false keys: the check below stops compiling if one is not in `OUTS_SWITCHES`. */
+type OutsSwitchKey = { readonly [K in keyof PocketOuts]-?: PocketOuts[K] extends boolean ? K : never }[keyof PocketOuts];
+const _everySwitchListed: readonly (typeof OUTS_SWITCHES)[number][] = [] as readonly OutsSwitchKey[];
+void _everySwitchListed;
+
+/** Every key the outs block may carry, in step-6 plan §1.2's order (`caughtSeen` beside the contact), as the engine's. */
+export const OUTS_KEYS = Object.freeze([
+  "throwawayRule",
+  "scrambleStart",
+  "escapeCap",
+  "pursuit",
+  "noLateHorizonSack",
+  "direction",
+  "sideCatch",
+  "caughtAsContact",
+  "caughtSeen",
+  "drill",
+  "drillBySide",
+  "deadlinePick",
+  "failedScrambleSack",
+] as const satisfies readonly (keyof PocketOuts)[]);
+const _everyOutsKeyListed: readonly (typeof OUTS_KEYS)[number][] = [] as readonly (keyof PocketOuts)[];
+void _everyOutsKeyListed;
+
+/** The one value the escape cap's `maxPerPlay` takes (one escape roll a play, ADR-089 §4.7; AM-13 `escapeCap`). */
+export const OUTS_ESCAPE_CAP_MAX_PER_PLAY = 1 satisfies OutsEscapeCap["maxPerPlay"];
+/** Pursuit's values (plan §2.4, CHOSEN), the only ones the engine accepts; the literal types make this a compile-time check too. */
+export const OUTS_PURSUIT = Object.freeze({ speedBaseline: 70, speedDivisor: 5, mobilityDivisor: 10, mobilityCentering: 7 } as const satisfies OutsPursuit);
+/** The side-aware catch's terms (plan §2.7; ADR-089:767, CHOSEN in the design), the only ones the engine accepts. */
+export const OUTS_SIDE_CATCH = Object.freeze({ perLiveThreat: 10, perUnregistered: 15 } as const satisfies OutsSideCatch);
+/**
+ * The deadline pick (plan §2.11): K9's re-derived run margin, 1 (AM-13 `runMargin`). The filed
+ * inequality (`FILED_RUN_MARGIN`, `contest.ts`) read at urgency 0 alone gives 1, and at 0 to 3 gives
+ * the step-0 filing's Δ 10; a test ties this leaf to the derivation, so it cannot drift from it.
+ */
+export const OUTS_DEADLINE_PICK = Object.freeze({ runMargin: 1 } as const satisfies OutsDeadlinePick);
+
+/** What the outs block is called in a refusal, in the engine's words. */
+const OUTS_BLOCK = "the outs block (pocket.outs)";
+
+/**
  * Petition P17 (ADR-089 step-3 plan §3.4): the doc text for the late block's rolled tick on shape L.
  * The owner's typed yes (2026-10-31 14:38:53Z) landed it in contracts (c340520), and E4b flipped this
  * constant and the engine's (`P17_IN_CONTRACTS`, `sim/pocketRules.ts`) in one commit, so a late block
@@ -442,6 +568,69 @@ export const STEP4_PETITIONS_GRANTED: Required<Step4Petitions> = Object.freeze({
 /** Whether every step-4 petition is in contracts under `petitions` (the constants when none is given). */
 export function step4PetitionsIn(petitions: Step4Petitions = {}): boolean {
   return (petitions.P6 ?? P6_IN_CONTRACTS) && (petitions.P7 ?? P7_IN_CONTRACTS) && (petitions.P8 ?? P8_IN_CONTRACTS);
+}
+
+/**
+ * ADR-089 step 6 (step-6 plan §1.2, §10.1; `petitions.md`): the contract petitions the outs block waits
+ * on, restated from the engine (`P9_IN_CONTRACTS` to `P12_IN_CONTRACTS`, `P20_IN_CONTRACTS` and
+ * `P21_IN_CONTRACTS` in `sim/pocketRules.ts`, off the barrel; `engineRulesS6.test.ts` reads the
+ * engine's from its source and fails while they differ). All six are false: none has the owner's
+ * typed yes yet, so none is in `packages/contracts`, exactly as step 4's three were before theirs
+ * (`bb68474`). The outs write:
+ *  - P9: an OUT_OF_POCKET throwaway (`ThrowawayCause`), with `THROWAWAY.rollRef` naming the deadline
+ *    pick's CHECK;
+ *  - P10: `THROWAWAY.payload.outsideTackleBox`;
+ *  - P11: `QB_DECISION.payload.direction`, the side of an escape;
+ *  - P12: the `scramble_drill` CHECK kind, the drill's fresh rep.
+ * The gate on the block is joint: while any of P9 to P12 is false, `checkStamp` refuses every tree
+ * carrying `pocket.outs` (`step6Refusal`), every part off included, and the engine the same trees
+ * before its first die. Beside them, a named addition to plan §1.2 (contracts-guardian's second
+ * reading, `guardian-2.md`), two doc-only petitions gate one leaf each, the same way: P20
+ * (`QB_HIT.contactSeconds` on a caught escape, ruled needed) gates the caught escape as contact
+ * (`pocket.outs.caughtAsContact`), and P21 (`QB_HIT.seen` false on a catch from a block, asked only
+ * if the owner answers "unseen") gates `pocket.outs.caughtSeen` `UNSEEN_IF_UNREGISTERED`. A test
+ * grants them through its own `Step6Petitions`; nothing outside a test passes one. None turns true
+ * before the owner's typed yes and its contracts commit; the lift turns them true with the engine's.
+ */
+export const P9_IN_CONTRACTS = false;
+export const P10_IN_CONTRACTS = false;
+export const P11_IN_CONTRACTS = false;
+export const P12_IN_CONTRACTS = false;
+export const P20_IN_CONTRACTS = false;
+export const P21_IN_CONTRACTS = false;
+
+/** Step 6's petitions, in order: the four the block waits on, then P20 and P21 (one leaf each). */
+export const STEP6_PETITION_NAMES = Object.freeze(["P9", "P10", "P11", "P12", "P20", "P21"] as const);
+export type Step6Petition = (typeof STEP6_PETITION_NAMES)[number];
+
+/**
+ * A test's own set of the step-6 petitions (one left out reads as its constant), as `step6Refusal`,
+ * `checkStamp` and the engine's `pocketRulesUnder` take one. No caller outside a test passes one.
+ */
+export type Step6Petitions = { readonly [P in Step6Petition]?: boolean };
+
+/** Every step-6 petition granted: the tests' set for building a step-6 arm before the lift. */
+export const STEP6_PETITIONS_GRANTED: Required<Step6Petitions> = Object.freeze({ P9: true, P10: true, P11: true, P12: true, P20: true, P21: true });
+
+/** The petitions `checkStamp` reads: step 4's and step 6's (one left out reads as its constant). */
+export type StampPetitions = Step4Petitions & Step6Petitions;
+
+/** Each step-6 petition's state under `petitions` (the constants when none is given), in `STEP6_PETITION_NAMES`' order. */
+export function step6PetitionsUnder(petitions: Step6Petitions = {}): Readonly<Record<Step6Petition, boolean>> {
+  return Object.freeze({
+    P9: petitions.P9 ?? P9_IN_CONTRACTS,
+    P10: petitions.P10 ?? P10_IN_CONTRACTS,
+    P11: petitions.P11 ?? P11_IN_CONTRACTS,
+    P12: petitions.P12 ?? P12_IN_CONTRACTS,
+    P20: petitions.P20 ?? P20_IN_CONTRACTS,
+    P21: petitions.P21 ?? P21_IN_CONTRACTS,
+  });
+}
+
+/** Whether the four petitions the outs block waits on (P9 to P12) are in contracts under `petitions`. */
+export function step6PetitionsIn(petitions: Step6Petitions = {}): boolean {
+  const p = step6PetitionsUnder(petitions);
+  return p.P9 && p.P10 && p.P11 && p.P12;
 }
 
 /**
@@ -797,6 +986,123 @@ export const POCKET_1_S6_REFUSAL =
   `${POCKET_1_S6_RULES} is named but not recorded: it is recorded after step 6's bundle commit (its overlay digest POCKET_1_S6_DIGEST, with ENGINE_RULES taking the name), ` +
   "so no run, export or save names it before then (ADR-089 step 6, plan §1.1)";
 
+/**
+ * One option of each of the owner's three questions (step-6 plan §4.3; `filing.md` §4.4): the spent
+ * case (`pocket.outs.escapeCap.whenSpent`), the scramble start (`pocket.outs.scrambleStart`) and a
+ * caught escape's `seen` (`pocket.outs.caughtSeen`). The engine builds every option behind a leaf, so
+ * a bundle or an arm is built under any one of them; the owner's answers (AM-13's `ownersWord`) pick
+ * the graded one.
+ */
+export interface OutsOptions {
+  readonly spentChecklist: OutsSpentChecklist;
+  readonly scrambleStart: OutsScrambleStart;
+  readonly seen: OutsCaughtSeen;
+}
+
+/**
+ * The recommended option of each question (plan §4.3): HOLD, ZERO_GAIN_ONLY and SEEN. Every bundle's
+ * and every arm's default leaf while the owner has not answered. A default, never an answer: no
+ * record names it as the owner's.
+ */
+export const RECOMMENDED_OUTS_OPTIONS: OutsOptions = Object.freeze({ spentChecklist: "HOLD", scrambleStart: "ZERO_GAIN_ONLY", seen: "SEEN" });
+
+/** Every combination of the three questions' options (5 x 2 x 2 = 20), each list in its order, so the recommended one comes first. */
+export function everyOutsOptions(): readonly OutsOptions[] {
+  const out: OutsOptions[] = [];
+  for (const spentChecklist of SPENT_CHECKLISTS) for (const scrambleStart of SCRAMBLE_STARTS) for (const seen of CAUGHT_SEEN) out.push(Object.freeze({ spentChecklist, scrambleStart, seen }));
+  return Object.freeze(out);
+}
+
+/** The scramble start other than `start`: the one H2L and HB2L play, information only (plan §2.2; `filing.md` §4.4 question 2). */
+export function otherScrambleStart(start: OutsScrambleStart): OutsScrambleStart {
+  const other = SCRAMBLE_STARTS.find((s) => s !== start);
+  if (other === undefined || !(SCRAMBLE_STARTS as readonly string[]).includes(start)) {
+    throw new EngineRulesError(`otherScrambleStart: ${String(start)} is not one of ${SCRAMBLE_STARTS.join(", ")}`);
+  }
+  return other;
+}
+
+/**
+ * A part of the outs block an arm turns on (step-6 plan §2.1 to §2.12, one a section), in plan §1.2's
+ * order: every key of the block but `caughtSeen`, which rides with the caught escape as contact
+ * (`caughtAsContact`) at the option for `seen`.
+ */
+export const OUTS_PARTS = Object.freeze([
+  "throwawayRule",
+  "scrambleStart",
+  "escapeCap",
+  "pursuit",
+  "noLateHorizonSack",
+  "direction",
+  "sideCatch",
+  "caughtAsContact",
+  "drill",
+  "drillBySide",
+  "deadlinePick",
+  "failedScrambleSack",
+] as const satisfies readonly Exclude<keyof PocketOuts, "caughtSeen">[]);
+export type OutsPart = (typeof OUTS_PARTS)[number];
+const _everyPartListed: readonly OutsPart[] = [] as readonly Exclude<keyof PocketOuts, "caughtSeen">[];
+void _everyPartListed;
+
+/**
+ * The outs block `parts` give under `options` (step-6 plan §1.2, §5): each switch on when its part is
+ * named and off otherwise; each optional object present only when its part is named, at its one
+ * value (the cap's one roll a play with the spent case `options.spentChecklist`, pursuit, the
+ * side-aware catch, the deadline pick's run margin) or its option (`options.scrambleStart`); and
+ * `caughtSeen` at `options.seen` exactly when the caught escape as contact is named. No part is the
+ * block with every part off (it plays step 5a's outs). Each part once, from `OUTS_PARTS`; a part that
+ * needs another (the side-aware catch and the side-aware drill need direction, the side-aware drill
+ * the drill) is refused by `withOverlay` with the engine's words, not here. Frozen.
+ */
+export function outsBlockOf(parts: readonly OutsPart[], options: OutsOptions = RECOMMENDED_OUTS_OPTIONS): PocketOuts {
+  const on = new Set<OutsPart>();
+  for (const part of parts) {
+    if (!(OUTS_PARTS as readonly string[]).includes(part)) throw new RangeError(`outsBlockOf: no outs part ${String(part)} (${OUTS_PARTS.join(", ")})`);
+    if (on.has(part)) throw new RangeError(`outsBlockOf: the part ${part} is named twice`);
+    on.add(part);
+  }
+  const block: PocketOuts = {
+    throwawayRule: on.has("throwawayRule"),
+    ...(on.has("scrambleStart") ? { scrambleStart: options.scrambleStart } : {}),
+    ...(on.has("escapeCap") ? { escapeCap: { maxPerPlay: OUTS_ESCAPE_CAP_MAX_PER_PLAY, whenSpent: options.spentChecklist } } : {}),
+    ...(on.has("pursuit") ? { pursuit: { ...OUTS_PURSUIT } } : {}),
+    noLateHorizonSack: on.has("noLateHorizonSack"),
+    direction: on.has("direction"),
+    ...(on.has("sideCatch") ? { sideCatch: { ...OUTS_SIDE_CATCH } } : {}),
+    caughtAsContact: on.has("caughtAsContact"),
+    ...(on.has("caughtAsContact") ? { caughtSeen: options.seen } : {}),
+    drill: on.has("drill"),
+    drillBySide: on.has("drillBySide"),
+    ...(on.has("deadlinePick") ? { deadlinePick: { ...OUTS_DEADLINE_PICK } } : {}),
+    failedScrambleSack: on.has("failedScrambleSack"),
+  };
+  return deepFreeze(block);
+}
+
+/**
+ * `pocket-1.s6`'s outs block (step-6 plan §1.2): every part on, each owner question at its recommended
+ * option (HOLD, ZERO_GAIN_ONLY, SEEN). A default, never the owner's answer: AM-13 files the answers,
+ * and the bundle-record commit records the bundle on them.
+ */
+export const POCKET_1_S6_OUTS: PocketOuts = outsBlockOf(OUTS_PARTS);
+
+/**
+ * `pocket-1.s5a`'s overlay with the outs block `outs` in its `pocket` (step-6 plan §1.1): step 1's clock
+ * S at theta 11 with the push window and the card, step 3's three blocks, step 4's two, step 5's
+ * clean-pocket block, and the outs. Frozen; `withOverlay` checks the closed set and the dials.
+ */
+export function step6OverlayWith(outs: PocketOuts): PocketOverlay {
+  return deepFreeze({ ...POCKET_1_S5A_OVERLAY, pocket: { ...POCKET_1_S5A_OVERLAY.pocket, outs: copyData(outs) } });
+}
+
+/**
+ * `pocket-1.s6`'s overlay (step-6 plan §1.1): `pocket-1.s5a`'s with `POCKET_1_S6_OUTS`. The forcing
+ * block, must act per rusher, is `POCKET_1_S2_FORCING`, given apart; the 5a fit's three deltas are leaf
+ * patches on the base (`POCKET_1_S5A_LEAVES`), never in the overlay.
+ */
+export const POCKET_1_S6_OVERLAY: PocketOverlay = step6OverlayWith(POCKET_1_S6_OUTS);
+
 /** A block clock for a step-5 overlay: shape S's `beatClock` or shape L's `repClock`, one of them. */
 export type Step5Clock = Pick<PocketOverlay, "beatClock"> | Pick<PocketOverlay, "repClock">;
 
@@ -824,7 +1130,7 @@ export function overlayDigestOf(tunables: Tunables): string {
 
 /**
  * Every `pocket-1` block, by path, in a fixed order: the `passRush` blocks (step 1), `pocket.forcing`
- * (step 2), step 3's three, step 4's two and step 5's one.
+ * (step 2), step 3's three, step 4's two, step 5's one and step 6's one.
  */
 export const POCKET_BLOCKS = Object.freeze([
   "passRush.beatClock",
@@ -837,6 +1143,7 @@ export const POCKET_BLOCKS = Object.freeze([
   "pocket.contact",
   "throwExec.motion",
   "pocket.cleanPocket",
+  "pocket.outs",
 ] as const);
 export type PocketBlock = (typeof POCKET_BLOCKS)[number];
 
@@ -851,6 +1158,10 @@ export type Step4Block = (typeof STEP4_BLOCKS)[number];
 /** Step 5's block (plan §1.2), in `POCKET_BLOCKS`' order. */
 export const STEP5_BLOCKS = Object.freeze(["pocket.cleanPocket"] as const satisfies readonly PocketBlock[]);
 export type Step5Block = (typeof STEP5_BLOCKS)[number];
+
+/** Step 6's block (step-6 plan §1.2), in `POCKET_BLOCKS`' order. */
+export const STEP6_BLOCKS = Object.freeze(["pocket.outs"] as const satisfies readonly PocketBlock[]);
+export type Step6Block = (typeof STEP6_BLOCKS)[number];
 
 /** A block's value in a tunables tree (undefined when absent). */
 function blockValue(tunables: Tunables, block: PocketBlock): unknown {
@@ -875,6 +1186,8 @@ function blockValue(tunables: Tunables, block: PocketBlock): unknown {
       return tunables.throwExec.motion;
     case "pocket.cleanPocket":
       return tunables.pocket.cleanPocket;
+    case "pocket.outs":
+      return tunables.pocket.outs;
     default: {
       const unhandled: never = block;
       throw new EngineRulesError(`no pocket-1 block ${String(unhandled)}`);
@@ -885,7 +1198,7 @@ function blockValue(tunables: Tunables, block: PocketBlock): unknown {
 /**
  * The `pocket-1` blocks a tunables tree carries, by path, in `POCKET_BLOCKS`' order: the `passRush`
  * blocks (step 1), `pocket.forcing` (step 2; plan §1.8, C2-F2), step 3's three (plan §2.1), step
- * 4's two (plan §1.1) and step 5's one (plan §1.2), so
+ * 4's two (plan §1.1), step 5's one (plan §1.2) and step 6's one (step-6 plan §1.2), so
  * `withOverlay`, `checkStamp`'s legacy case and the closed sets see every block.
  */
 function blocksOf(tunables: Tunables): string[] {
@@ -895,8 +1208,8 @@ function blocksOf(tunables: Tunables): string[] {
 /**
  * Whether a tree is kind T, today's line plus contact (ADR-089 step 4, plan §1.2; arms D3 and D4):
  * stamped `pocket-1.s4`, with the approach card and the contact block, no block clock, no forcing
- * block, no step-3 block, no motion and no clean-pocket block. The harness's only: no command line
- * names it.
+ * block, no step-3 block, no motion, no clean-pocket block and no outs block (step-6 plan §1.2, as the
+ * engine's `isTodaysLinePlusContactTree` gains it). The harness's only: no command line names it.
  */
 export function isTodaysLinePlusContact(tunables: Tunables): boolean {
   const { passRush } = tunables;
@@ -909,7 +1222,8 @@ export function isTodaysLinePlusContact(tunables: Tunables): boolean {
     tunables.pocket.forcing === undefined &&
     STEP3_BLOCKS.every((block) => blockValue(tunables, block) === undefined) &&
     tunables.throwExec.motion === undefined &&
-    tunables.pocket.cleanPocket === undefined
+    tunables.pocket.cleanPocket === undefined &&
+    tunables.pocket.outs === undefined
   );
 }
 
@@ -929,6 +1243,15 @@ function assertKindT(tunables: Tunables, rules: OverlayRules, where: string): vo
       contact
         ? "the clean-pocket block (pocket.cleanPocket) on today's line plus contact (kind T), which has no block clock; it is read on shapes S and L only"
         : "the clean-pocket block (pocket.cleanPocket) without a block clock (passRush.beatClock or passRush.repClock); it is a pocket-1 rule, read on shapes S and L only",
+    );
+  }
+  if (tunables.pocket.outs !== undefined) {
+    // ADR-089 step 6 (step-6 plan §1.2), with the engine's words: the block is read on shapes S and L
+    // only, as the clean-pocket block is.
+    fail(
+      contact
+        ? `${OUTS_BLOCK} on today's line plus contact (kind T), which has no block clock; it is read on shapes S and L only`
+        : `${OUTS_BLOCK} without a block clock (passRush.beatClock or passRush.repClock); it is a pocket-1 rule, read on shapes S and L only`,
     );
   }
   if (rules !== POCKET_1_S4_RULES || !contact) {
@@ -1042,6 +1365,84 @@ function assertDials(tunables: Tunables, where: string): void {
   assertStep3Dials(tunables, where);
   assertStep4Dials(tunables, where);
   assertStep5Dials(tunables, where);
+  assertStep6Dials(tunables, where);
+}
+
+/**
+ * Step 6's dials (step-6 plan §1.2), checked here as the engine checks them once a play (`checkOuts`
+ * in `sim/pocketRules.ts`, off the barrel, so restated, Iron Rule 1), in the engine's order and with
+ * its own words: the block an object; a key it does not have refused by name (so a misspelled optional
+ * key cannot leave its part silently off); each part's switch true or false; the scramble start from
+ * its closed set; the escape cap an object `{ maxPerPlay, whenSpent }` with no other key, one roll a
+ * play, its spent case from its closed set; pursuit, the side-aware catch and the deadline pick each
+ * exactly its CHOSEN or filed values, with no other key; `caughtSeen` present exactly when the caught
+ * escape as contact is on, from its closed set; and the parts that need another, each refused by name
+ * (the side-aware catch and the side-aware drill without direction, the side-aware drill without the
+ * drill). A block with every part off is a bundle (it plays step 5a's outs).
+ */
+function assertStep6Dials(tunables: Tunables, where: string): void {
+  const block: unknown = tunables.pocket.outs;
+  if (block === undefined) return;
+  const fail = (message: string): never => {
+    throw new EngineRulesError(`${where}: ${message}`);
+  };
+  const oneOf = (v: unknown, set: readonly string[], what: string): void => {
+    if (!set.includes(v as string)) fail(`${what} is ${String(v)}, which is not one of ${set.join(", ")}`);
+  };
+  const exactObject = (node: unknown, values: Readonly<Record<string, number>>, label: string, source: string): void => {
+    const names = Object.keys(values);
+    if (!isObject(node)) fail(`${label} must be an object { ${names.join(", ")} }, got ${String(node)}`);
+    const n = node as Readonly<Record<string, unknown>>;
+    for (const name of Object.keys(n)) {
+      if (!names.includes(name)) fail(`${label}.${name} is not a key of ${label} (${names.join(", ")})`);
+    }
+    for (const name of names) {
+      if (n[name] !== values[name]) fail(`${label}.${name} must be ${String(values[name])} (${source}), got ${String(n[name])}`);
+    }
+  };
+  if (!isObject(block)) fail(`${OUTS_BLOCK} must be an object, got ${String(block)}`);
+  const b = block as Readonly<Record<string, unknown>>;
+  const leaf = (name: string): string => `pocket.outs.${name}`;
+  for (const name of Object.keys(b)) {
+    if (!(OUTS_KEYS as readonly string[]).includes(name)) fail(`${leaf(name)} is not a key of the outs block (${OUTS_KEYS.join(", ")})`);
+  }
+  for (const name of OUTS_SWITCHES) {
+    if (typeof b[name] !== "boolean") fail(`${leaf(name)} must be true or false, got ${String(b[name])}`);
+  }
+  if (b["scrambleStart"] !== undefined) oneOf(b["scrambleStart"], SCRAMBLE_STARTS, `the scramble start (${leaf("scrambleStart")})`);
+  const cap = b["escapeCap"];
+  if (cap !== undefined) {
+    if (!isObject(cap)) fail(`${leaf("escapeCap")} must be an object { maxPerPlay, whenSpent }, got ${String(cap)}`);
+    const c = cap as Readonly<Record<string, unknown>>;
+    for (const name of Object.keys(c)) {
+      if (name !== "maxPerPlay" && name !== "whenSpent") fail(`${leaf(`escapeCap.${name}`)} is not a key of ${leaf("escapeCap")} (maxPerPlay, whenSpent)`);
+    }
+    if (c["maxPerPlay"] !== OUTS_ESCAPE_CAP_MAX_PER_PLAY) {
+      fail(`${leaf("escapeCap.maxPerPlay")} must be ${String(OUTS_ESCAPE_CAP_MAX_PER_PLAY)} (one escape roll a play, ADR-089 §4.7), got ${String(c["maxPerPlay"])}`);
+    }
+    oneOf(c["whenSpent"], SPENT_CHECKLISTS, `the spent case (${leaf("escapeCap.whenSpent")})`);
+  }
+  if (b["pursuit"] !== undefined) exactObject(b["pursuit"], OUTS_PURSUIT, leaf("pursuit"), "CHOSEN, step-6 plan §2.4");
+  if (b["sideCatch"] !== undefined) exactObject(b["sideCatch"], OUTS_SIDE_CATCH, leaf("sideCatch"), "CHOSEN in the design, ADR-089 §4.7");
+  if (b["deadlinePick"] !== undefined) exactObject(b["deadlinePick"], OUTS_DEADLINE_PICK, leaf("deadlinePick"), "K9's re-derived margin: the deadline pick reads urgency 0 only");
+  if (b["caughtAsContact"] === true && b["caughtSeen"] === undefined) {
+    fail(
+      `${leaf("caughtSeen")} must be one of ${CAUGHT_SEEN.join(", ")} when the caught escape as contact (${leaf("caughtAsContact")}) is on: it is the owner's answer for that contact's QB_HIT.seen, got undefined`,
+    );
+  }
+  if (b["caughtSeen"] !== undefined) {
+    if (b["caughtAsContact"] !== true) fail(`${leaf("caughtSeen")} without the caught escape as contact (${leaf("caughtAsContact")}): it is read only by that contact's QB_HIT`);
+    oneOf(b["caughtSeen"], CAUGHT_SEEN, `the caught escape's seen (${leaf("caughtSeen")})`);
+  }
+  if (b["sideCatch"] !== undefined && b["direction"] !== true) {
+    fail(`the side-aware catch (${leaf("sideCatch")}) without escape direction (${leaf("direction")}): it reads the side he breaks to`);
+  }
+  if (b["drillBySide"] === true && b["direction"] !== true) {
+    fail(`the side-aware drill (${leaf("drillBySide")}) without escape direction (${leaf("direction")}): it reads the side he breaks to`);
+  }
+  if (b["drillBySide"] === true && b["drill"] !== true) {
+    fail(`the side-aware drill (${leaf("drillBySide")}) without the drill (${leaf("drill")}): it sizes the drill's burst steps`);
+  }
 }
 
 /**
@@ -1336,12 +1737,16 @@ function assertForcing(tunables: Tunables, where: string): void {
  * closed set). No name before step 5's carries the clean-pocket block (his count's checklist and the
  * drop floor are step 5's, plan §1.2); under `pocket-1.s5a` and `pocket-1.s5b` any subset of the
  * step-3, step-4 and step-5 blocks is a bundle (an arm carries one part alone, or the block with
- * every part off). (The engine is name-agnostic: it accepts any `pocket-1` name.)
+ * every part off). No name before step 6's carries the outs block (step-6 plan §1.2; `pocket-1.s5b`
+ * included, which under the played order plays after step 6 but carries no step-6 part); under
+ * `pocket-1.s6` any subset of the step-3 to step-6 blocks is a bundle (an arm carries one part alone,
+ * or the block with every part off). (The engine is name-agnostic: it accepts any `pocket-1` name.)
  */
 function assertBlocksUnderName(tunables: Tunables, rules: OverlayRules, where: string): void {
   const step3 = STEP3_BLOCKS.filter((block) => blockValue(tunables, block) !== undefined);
   const step4 = STEP4_BLOCKS.filter((block) => blockValue(tunables, block) !== undefined);
   const step5 = STEP5_BLOCKS.filter((block) => blockValue(tunables, block) !== undefined);
+  const step6 = STEP6_BLOCKS.filter((block) => blockValue(tunables, block) !== undefined);
   const noStep3 = (): void => {
     if (step3.length > 0) {
       throw new EngineRulesError(
@@ -1363,6 +1768,13 @@ function assertBlocksUnderName(tunables: Tunables, rules: OverlayRules, where: s
       );
     }
   };
+  const noStep6 = (): void => {
+    if (step6.length > 0) {
+      throw new EngineRulesError(
+        `${where}: ${rules} carries no step-6 block (${step6.join(", ")}); the outs (ADR-089 §4.6 e and f, §4.7) are ${POCKET_1_S6_RULES}'s (ADR-089 step 6)`,
+      );
+    }
+  };
   switch (rules) {
     case POCKET_1_S1_RULES:
       if (tunables.pocket.forcing !== undefined) {
@@ -1371,21 +1783,28 @@ function assertBlocksUnderName(tunables: Tunables, rules: OverlayRules, where: s
       noStep3();
       noStep4();
       noStep5();
+      noStep6();
       return;
     case POCKET_1_S2_RULES:
       noStep3();
       noStep4();
       noStep5();
+      noStep6();
       return;
     case POCKET_1_S3_RULES:
       noStep4();
       noStep5();
+      noStep6();
       return;
     case POCKET_1_S4_RULES:
       noStep5();
+      noStep6();
       return;
     case POCKET_1_S5A_RULES:
     case POCKET_1_S5B_RULES:
+      noStep6();
+      return;
+    case POCKET_1_S6_RULES:
       return;
     default: {
       const unhandled: never = rules;
@@ -1414,14 +1833,16 @@ function assertOverlayKeys(node: unknown, allowed: readonly string[], level: str
  * (ADR-089 step 2), the forcing block into `pocket` as `pocket.forcing`; and step 3's blocks into
  * `blitzPickup` and `pocket` as `blitzPickup.freeRun`, `blitzPickup.lateBlock` and `pocket.climbLane`
  * (plan §2.1); and step 4's into `pocket` and `throwExec` as `pocket.contact` and
- * `throwExec.motion` (plan §1.1); and step 5's into `pocket` as `pocket.cleanPocket` (plan §1.2). It
- * takes any name this build stamps (`STAMPED_RULES`, step 5's two included). Each key is added only
- * when given, never as `undefined`. Stamps the result with `name`
+ * `throwExec.motion` (plan §1.1); and step 5's into `pocket` as `pocket.cleanPocket` (plan §1.2); and
+ * step 6's into `pocket` as `pocket.outs` (step-6 plan §1.2). It takes any name this build stamps
+ * (`STAMPED_RULES`, step 5's two and step 6's included). Each key is added only when given, never as
+ * `undefined`. Stamps the result with `name`
  * and its overlay digest (O28), and returns it deep-frozen (N7). The blocks are copied, never frozen
  * in the caller's hands. A forcing block under `pocket-1.s1`, a step-3 block under `pocket-1.s1`
- * or `pocket-1.s2`, a step-4 block under any name before `pocket-1.s4`, and the step-5 block under
- * any name before `pocket-1.s5a`, are refused. A step-4 bundle is built while its petitions are out
- * (`checkStamp` refuses to play it).
+ * or `pocket-1.s2`, a step-4 block under any name before `pocket-1.s4`, the step-5 block under
+ * any name before `pocket-1.s5a`, and the step-6 block under any name but `pocket-1.s6`, are refused.
+ * A step-6 bundle is built while its petitions are out, as a step-4 bundle was (`checkStamp` refuses
+ * to play it).
  */
 export function withOverlay(base: Tunables, name: OverlayRules, blocks: PocketOverlay, forcing?: PocketForcing): Tunables {
   const where = `withOverlay(${name})`;
@@ -1470,16 +1891,18 @@ export function withOverlay(base: Tunables, name: OverlayRules, blocks: PocketOv
  *    that `overlayDigestOf` recomputes from the tunables actually passed, so a leaf patched after
  *    stamping is refused (in a step-3 block too); no forcing block under `pocket-1.s1`, no
  *    step-3 block under `pocket-1.s1` or `pocket-1.s2`, no step-4 block under any name before
- *    `pocket-1.s4`, and no step-5 block under any name before `pocket-1.s5a`. A step-5 name is
- *    taken here (the step-5 harness's arms are stamped with it); a run names it only once it is in
- *    `ENGINE_RULES`.
+ *    `pocket-1.s4`, no step-5 block under any name before `pocket-1.s5a`, and no step-6 block under
+ *    any name but `pocket-1.s6`. A step-5 or step-6 name is taken here (the harnesses' arms are
+ *    stamped with it); a run names it only once it is in `ENGINE_RULES`.
  *  - and, last, any tree carrying a step-4 block while P6, P7 or P8 is not in contracts
- *    (`step4Refusal`): refused here, so no calibration game starts under one. `petitions` is a
- *    test's own set (`Step4Petitions`; `arms.ts`'s `buildArm` seam builds a D arm with it); no
- *    caller outside a test passes one.
+ *    (`step4Refusal`), and any tree carrying the outs block while P9, P10, P11 or P12 is not, or
+ *    the caught escape as contact while P20 is not, or its unseen answer while P21 is not
+ *    (`step6Refusal`): refused here, so no calibration game starts under one. `petitions` is a
+ *    test's own set (`StampPetitions`: step 4's and step 6's; `arms.ts`'s `buildArm` and
+ *    `buildStep6Arm` seams build an arm with it); no caller outside a test passes one.
  * Returns the tunables, for chaining.
  */
-export function checkStamp(tunables: Tunables, rules: StampedRules, where = "checkStamp", petitions: Step4Petitions = {}): Tunables {
+export function checkStamp(tunables: Tunables, rules: StampedRules, where = "checkStamp", petitions: StampPetitions = {}): Tunables {
   const stamp = tunables.engineRules;
   const blocks = blocksOf(tunables);
   if (rules === LEGACY_RULES) {
@@ -1504,9 +1927,43 @@ export function checkStamp(tunables: Tunables, rules: StampedRules, where = "che
   }
   assertBlocksUnderName(tunables, rules, where);
   assertDials(tunables, where);
-  const refusal = step4Refusal(tunables, petitions);
+  const refusal = step4Refusal(tunables, petitions) ?? step6Refusal(tunables, petitions);
   if (refusal !== undefined) throw new EngineRulesError(`${where}: ${refusal}`);
   return tunables;
+}
+
+/**
+ * Why a tree carrying the outs block is not played in this build, or `undefined` when it is (ADR-089
+ * step 6, step-6 plan §1.2), in the engine's words (its `step6Gate`) and order: while any of P9, P10,
+ * P11 and P12 is not in contracts, every tree carrying `pocket.outs`, every part off included, since
+ * the gate is on the block; then, with those four in, the caught escape as contact while P20 is out,
+ * and its unseen answer (`caughtSeen` `UNSEEN_IF_UNREGISTERED`) while P21 is out. `petitions` is a
+ * test's own set (one left out reads as its constant), as the engine's `pocketRulesUnder` takes one.
+ */
+export function step6Refusal(tunables: Tunables, petitions: Step6Petitions = {}): string | undefined {
+  const outs = tunables.pocket.outs;
+  if (outs === undefined) return undefined;
+  const p = step6PetitionsUnder(petitions);
+  const missing = (["P9", "P10", "P11", "P12"] as const).filter((name) => !p[name]);
+  if (missing.length > 0) {
+    return (
+      `${OUTS_BLOCK} is refused before any game until petitions P9, P10, P11 and P12 are in contracts (not yet: ${missing.join(", ")}): ` +
+      "the outs write an OUT_OF_POCKET throwaway, THROWAWAY.outsideTackleBox, QB_DECISION.direction and a scramble_drill CHECK (ADR-089 step 6)"
+    );
+  }
+  if (outs.caughtAsContact && !p.P20) {
+    return (
+      "the caught escape as contact (pocket.outs.caughtAsContact) is refused before any game until petition P20 is in contracts: " +
+      "its QB_HIT's contactSeconds is the time the escape caught him, a reading QB_HIT.contactSeconds' doc does not list yet (ADR-089 step 6)"
+    );
+  }
+  if (outs.caughtSeen === "UNSEEN_IF_UNREGISTERED" && !p.P21) {
+    return (
+      "pocket.outs.caughtSeen UNSEEN_IF_UNREGISTERED is refused before any game until petition P21 is in contracts: " +
+      "QB_HIT.seen is true on every contact before ADR-089 step 7 until its doc allows a catch from a block to be unseen"
+    );
+  }
+  return undefined;
 }
 
 /**
@@ -1534,9 +1991,10 @@ export function step4Refusal(tunables: Tunables, petitions: Step4Petitions = {})
   );
 }
 
-/** Why a rules name is not played in this build (`step4Refusal` of its bundle), or `undefined`. */
+/** Why a rules name is not played in this build (`step4Refusal`, then `step6Refusal`, of its bundle), or `undefined`. */
 export function rulesRefusal(rules: EngineRules): string | undefined {
-  return step4Refusal(rulesTunables(rules));
+  const tunables = rulesTunables(rules);
+  return step4Refusal(tunables) ?? step6Refusal(tunables);
 }
 
 let designBundle: Tunables | undefined;
@@ -1545,6 +2003,7 @@ let stepThreeBundle: Tunables | undefined;
 let stepFourBundle: Tunables | undefined;
 let stepFiveABundle: Tunables | undefined;
 let stepFiveBBundle: Tunables | undefined;
+let stepSixBundle: Tunables | undefined;
 
 /** `pocket-1.s1` on `DEFAULT_TUNABLES`, built once, its digest checked against the recorded literal. */
 function pocket1s1(): Tunables {
@@ -1693,16 +2152,62 @@ function pocket1s5b(): Tunables {
 }
 
 /**
+ * A step-6 bundle on `DEFAULT_TUNABLES` (step-6 plan §1.1), built exactly as `pocket-1.s5a` is: Half and
+ * Follows and the 5a fit's three deltas (`POCKET_1_S5A_LEAVES`) applied to the base by
+ * `applyTunablePatch`, then `pocket-1.s5a`'s overlay with the outs block `outs` (`step6OverlayWith`)
+ * and must act per rusher through `withOverlay`, stamped `pocket-1.s6`. With `POCKET_1_S6_OUTS` (the
+ * default) it is `pocket-1.s6` itself; with another block it is a step-6 league arm's, F5 plus its parts
+ * (F5's tree is `pocket-1.s5a`'s on the interim clock, S theta 11). The recipe only: no digest is
+ * checked here, so the tests and the harness build it (and read its digest) before its literal is
+ * recorded, and it is built while its petitions are out (`checkStamp` refuses to play it).
+ */
+export function step6Bundle(outs: PocketOuts = POCKET_1_S6_OUTS): Tunables {
+  if (POCKET_1_S5A_LEAVES === undefined) {
+    throw new EngineRulesError(`${POCKET_1_S6_RULES} is ${POCKET_1_S5A_RULES}'s bundle with the outs, and ${POCKET_1_S5A_RULES}'s fitted deltas (POCKET_1_S5A_LEAVES) are not recorded`);
+  }
+  return withOverlay([...POCKET_1_S2_LEAVES, ...POCKET_1_S5A_LEAVES].reduce(applyTunablePatch, DEFAULT_TUNABLES), POCKET_1_S6_RULES, step6OverlayWith(outs), POCKET_1_S2_FORCING);
+}
+
+/**
+ * Why step 6's name plays nothing yet, or `undefined` when its bundle is recorded (step-6 plan §1.1):
+ * until the bundle-record commit records `POCKET_1_S6_DIGEST` (after the owner's yeses, the lift and
+ * AM-13), `pocket-1.s6` is refused by name (`POCKET_1_S6_REFUSAL`). Every other name gives `undefined`.
+ */
+export function step6RulesRefusal(rules: StampedRules): string | undefined {
+  return rules === POCKET_1_S6_RULES && POCKET_1_S6_DIGEST === undefined ? POCKET_1_S6_REFUSAL : undefined;
+}
+
+/**
+ * `pocket-1.s6` on `DEFAULT_TUNABLES` (step-6 plan §1.1): `step6Bundle` with `POCKET_1_S6_OUTS`, built
+ * once, its digest checked against the recorded literal (K24); refused by name until recorded.
+ */
+function pocket1s6(): Tunables {
+  if (stepSixBundle !== undefined) return stepSixBundle;
+  const refusal = step6RulesRefusal(POCKET_1_S6_RULES);
+  if (refusal !== undefined) throw new EngineRulesError(refusal);
+  const bundle = step6Bundle();
+  const digest = bundle.engineRules?.overlayDigest;
+  if (digest !== POCKET_1_S6_DIGEST) {
+    throw new EngineRulesError(
+      `${POCKET_1_S6_RULES} digests to ${String(digest)} on this build, not the recorded ${String(POCKET_1_S6_DIGEST)}: re-record POCKET_1_S6_DIGEST before step 6 merges, or name the changed rules anew (K24)`,
+    );
+  }
+  stepSixBundle = bundle;
+  return bundle;
+}
+
+/**
  * What a rules name plays: `legacy` is `DEFAULT_TUNABLES` itself (the same reference, so a legacy
  * run's tunables, digests and stream are today's by construction); `pocket-1.s1`, `pocket-1.s2`,
  * `pocket-1.s3` and `pocket-1.s4` are their design bundles, deep-frozen and stamped (`pocket-1.s4`
  * built, and refused by `checkStamp` until its petitions are in contracts). `pocket-1.s5a` is its
  * recorded bundle (the fit commit); `pocket-1.s5b` is refused by name (`step5RulesRefusal`) until
- * its bundle is recorded. `pocket-1.s6` is not a stamped name in this build; were it passed, it is
- * refused by name (`POCKET_1_S6_REFUSAL`) before any bundle is built (step-6 plan §1.1).
+ * its bundle is recorded. `pocket-1.s6`, a stamped name whose bundle `step6Bundle` builds, is refused
+ * by name (`POCKET_1_S6_REFUSAL`, `step6RulesRefusal`) before any bundle is built until its digest is
+ * recorded (step-6 plan §1.1).
  */
 export function rulesTunables(rules: StampedRules): Tunables {
-  if ((rules as string) === POCKET_1_S6_RULES) throw new EngineRulesError(POCKET_1_S6_REFUSAL);
+  if (rules === POCKET_1_S6_RULES) return pocket1s6();
   if (rules === LEGACY_RULES) return DEFAULT_TUNABLES;
   if (rules === POCKET_1_S1_RULES) return pocket1s1();
   if (rules === POCKET_1_S2_RULES) return pocket1s2();
