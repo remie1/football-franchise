@@ -1,20 +1,21 @@
 /**
  * ADR-089 step 6, PART 2.11 (step-6 plan §2.11; ADR-089 §4.6 f, ADR:727; AM-13 `deadlinePick`, its
  * run margin K9's; P9, P10): RUN OR THROW IT AWAY AT THE DEADLINE, behind `pocket.outs.deadlinePick`.
- * Its OUT_OF_POCKET throwaway is P9's, on the stand-in until the lift: the test recorder takes it at
- * the seq the next event takes, with its `outsideTackleBox` (P10).
+ * Its OUT_OF_POCKET throwaway is P9's, on the stream right after its decision, with its
+ * `outsideTackleBox` (P10).
  *
  * 1. Where: one `:deadline` CHECK at every pursuit deadline he reaches with nobody thrown to, on
  *    `movement/t<tick>:deadline` at the deadline tick, at the seq where today's deadline run starts,
  *    and none elsewhere. The stream before it is step 5a's, and a play with no deadline reached is
- *    step 5a's byte for byte.
+ *    step 5a's byte for byte once the flag the pick writes on its in-pocket throwaway (P10) is taken
+ *    off (`withoutStep6`).
  * 2. The pick: today's `pocket_movement` CHECK (his d100 plus Poise and Awareness, each a fifth,
  *    against 50; SOUND, RUSHED, PANICKED) over a two-option ranking of its own at urgency 0. SOUND
  *    takes his first choice, any band below it the second.
  * 3. RUN is today's deadline run, with no direction, and the rest of the play is step 5a's a seq
  *    later. THROWAWAY is the decision THROWAWAY, with no direction, and an OUT_OF_POCKET throwaway
- *    naming the `:deadline` CHECK, outside the tackle box, then the play's result at 0 yards with
- *    today's throwaway runoff.
+ *    naming the `:deadline` CHECK, outside the tackle box, right after it on the stream, then the
+ *    play's result at 0 yards with today's throwaway runoff.
  * 4. Every throwaway on a play under the pick carries `outsideTackleBox`: false in the pocket, true
  *    out of it, so the flag is the cause (S-15).
  * 5. No desperation throw after a clean break-out (D23 on the run, S-1's second half, kept).
@@ -48,7 +49,7 @@ import type { Scenario } from "./fixtures.js";
 import { PASS_FIXTURES, buildBullRushScenario } from "./pocketTunables.js";
 import { withPicture } from "./snapFixtures.js";
 import { S5L_TUNABLES, S5S_TUNABLES, S5_TUNABLES, checkOf, onCleanBench, tickOfEvent } from "./step5Fixtures.js";
-import { OUTS_FILED, outsParts, playS6, withOuts } from "./step6Fixtures.js";
+import { OUTS_FILED, outsParts, playS6, withOuts, withoutStep6 } from "./step6Fixtures.js";
 import type { Step6Play, Step6Record } from "./step6Fixtures.js";
 
 const PICK = outsParts({ deadlinePick: { runMargin: 1 } });
@@ -158,7 +159,7 @@ describe("ADR-089 step 6, 2.11: run or throw it away at the deadline (pocket.out
       const today = deadlineOf(play.s5a);
       if (today === undefined) {
         expect(picks, play.name).toEqual([]);
-        expect(JSON.stringify(play.arm.events), play.name).toBe(JSON.stringify(play.s5a));
+        expect(JSON.stringify(withoutStep6(play.arm.events)), play.name).toBe(JSON.stringify(play.s5a));
         untouched += 1;
         continue;
       }
@@ -232,11 +233,13 @@ describe("ADR-089 step 6, 2.11: run or throw it away at the deadline (pocket.out
         continue;
       }
       expect(decision.event.payload.choice, play.name).toBe("THROWAWAY");
-      expect(after.map((e) => e.event.type), play.name).toEqual(["QB_DECISION", "PLAY_RESULT"]);
-      const result = after[1];
+      expect(after.map((e) => e.event.type), play.name).toEqual(["QB_DECISION", "THROWAWAY", "PLAY_RESULT"]);
+      const result = after[2];
       if (result?.event.type !== "PLAY_RESULT") throw new Error("no result");
       const tick = tickOfEvent(pick) ?? Number.NaN;
       expect(result.event.payload, play.name).toEqual({ yards: 0, turnover: false, clockRunoff: tick + play.base.result.clockRunoff.throwaway });
+      expect(after[1]?.event.payload, play.name).toEqual({ cause: "OUT_OF_POCKET", rollRef: label, outsideTackleBox: true });
+      expect(Object.keys(after[1]?.event.payload ?? {}), play.name).toEqual(["cause", "rollRef", "outsideTackleBox"]);
       expect(play.arm.records, play.name).toEqual([
         { kind: "outOfPocketThrowaway", payload: { cause: "OUT_OF_POCKET", rollRef: label, outsideTackleBox: true }, at: { seq: decision.seq + 1, tick } },
       ]);
@@ -252,8 +255,9 @@ describe("ADR-089 step 6, 2.11: run or throw it away at the deadline (pocket.out
       const k = play.arm.events.findIndex(isDeadlinePick);
       if (k < 0) continue;
       const decision = play.arm.events[k + 1];
-      expect(decision?.event.type, play.name).toBe("QB_DECISION");
-      expect(records(play.arm.records, "direction").filter((r) => r.at.seq === decision?.seq), play.name).toEqual([]);
+      if (decision?.event.type !== "QB_DECISION") throw new Error(`${play.name}: no decision after the pick`);
+      expect("direction" in decision.event.payload, play.name).toBe(false);
+      expect(records(play.arm.records, "direction").filter((r) => r.at.seq === decision.seq), play.name).toEqual([]);
       checked += 1;
     }
     expect(checked).toBeGreaterThan(30);
@@ -263,18 +267,19 @@ describe("ADR-089 step 6, 2.11: run or throw it away at the deadline (pocket.out
     let inPocket = 0;
     let outOfPocket = 0;
     for (const play of theCorpus()) {
-      const onStream = play.arm.events.filter((e) => e.event.type === "THROWAWAY");
-      const flags = records(play.arm.records, "outsideTackleBox");
-      expect(flags.map((r) => r.at.seq), play.name).toEqual(onStream.map((e) => e.seq));
-      for (const r of flags) if (r.kind === "outsideTackleBox") expect(r.value, play.name).toBe(false);
-      for (const e of onStream) if (e.event.type === "THROWAWAY") expect(e.event.payload.cause, play.name).not.toBe("OUT_OF_POCKET");
-      inPocket += onStream.length;
-      for (const r of records(play.arm.records, "outOfPocketThrowaway")) {
-        if (r.kind !== "outOfPocketThrowaway") continue;
-        expect(r.payload.outsideTackleBox, play.name).toBe(r.payload.cause === "OUT_OF_POCKET");
-        outOfPocket += 1;
+      const onStream = play.arm.events.flatMap((e) => (e.event.type === "THROWAWAY" ? [{ seq: e.seq, payload: e.event.payload }] : []));
+      for (const t of onStream) {
+        expect(t.payload.outsideTackleBox, play.name).toBe(t.payload.cause === "OUT_OF_POCKET");
+        if (t.payload.cause === "OUT_OF_POCKET") outOfPocket += 1;
+        else inPocket += 1;
       }
-      // Nothing else is recorded under the pick alone.
+      // Read off the stream: the in-pocket throwaways' flags and the throwaways after an escape, whole.
+      const flags = records(play.arm.records, "outsideTackleBox");
+      expect(flags.map((r) => r.at.seq), play.name).toEqual(onStream.filter((t) => t.payload.cause !== "OUT_OF_POCKET").map((t) => t.seq));
+      for (const r of flags) if (r.kind === "outsideTackleBox") expect(r.value, play.name).toBe(false);
+      const out = records(play.arm.records, "outOfPocketThrowaway");
+      expect(out.map((r) => r.at.seq), play.name).toEqual(onStream.filter((t) => t.payload.cause === "OUT_OF_POCKET").map((t) => t.seq));
+      // Nothing else is written under the pick alone.
       for (const r of play.arm.records) expect(["outsideTackleBox", "outOfPocketThrowaway"], play.name).toContain(r.kind);
     }
     expect(inPocket).toBeGreaterThan(20);

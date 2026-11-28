@@ -3,15 +3,15 @@
  *
  * Each reader step 6 teaches is held here on plays built in the engine's step-6 shape
  * (`s6Fixtures.ts`), read with H0's own tunables (every outs part, the recommended answers; built by
- * `buildStep6Arm` with its own petitions true, as step 4's tests did before step 4's lift, and never
- * played): the shared step-6 reading (`s6Stream.ts`); the OUT_OF_POCKET throwaway named in the forced-act
- * fold and left out as an act after pursuit; the `:deadline` pick taught wherever `:clean` was; the escape
- * roll's outcome by the CHECK band, a catch split into sacked at the roll and shed; the cap and the real
- * throwaway rule in the cross-check and the must-act witness; the failed-scramble marker in the dropback
- * reader, the metrics fold and the sacker mix; the contact at the escape site; `QB_HIT.approach` BLOCKED;
- * M5's step-6 rows; the rows' OUT_OF_POCKET; and step 6's rows. The same readers on played step-6 games
- * are `pocketStep6Lifted.test.ts`, skipped until the lift. Q-2g (`pocketRefoldS6*.test.ts`) holds every
- * reader's fold on every s1 to s5a stream to the old readers'.
+ * `buildStep6Arm` with the build's flags, which build it since the lift, and never played): the shared
+ * step-6 reading (`s6Stream.ts`); the OUT_OF_POCKET throwaway named in the forced-act fold and left out
+ * as an act after pursuit; the `:deadline` pick taught wherever `:clean` was; the escape roll's outcome
+ * by the CHECK band, a catch split into sacked at the roll and shed; the cap and the real throwaway rule
+ * in the cross-check and the must-act witness; the failed-scramble marker in the dropback reader, the
+ * metrics fold and the sacker mix; the contact at the escape site; `QB_HIT.approach` BLOCKED; M5's
+ * step-6 rows; the rows' OUT_OF_POCKET; and step 6's rows. The same readers on played step-6 games are
+ * `pocketStep6Lifted.test.ts`, which plays since the lift. Q-2g (`pocketRefoldS6*.test.ts`) holds
+ * every reader's fold on every s1 to s5a stream to the old readers'.
  */
 import type { MatchEventEnvelope } from "@ff/contracts";
 import { DEFAULT_TUNABLES, type GameSnapshot, type Tunables } from "@ff/engine";
@@ -27,7 +27,6 @@ import { emptyM3Fold, foldM3Dropback, foldM3Game, s6SackCreditOf, SCRAMBLE_TACKL
 import { emptyM5Game, m5Compare, m5GameOf, type M5Game } from "../src/pocket/m5Mirror.js";
 import { crossCheckMovement, emptyM6Fold, emptyM6Step4Fold, foldM6Step4Dropback, foldM6Step4Game, playersOfSnapshot, rankedResponsesOf } from "../src/pocket/m6Contact.js";
 import { emptyCleanPocketRowsFold, emptyRowsFold, foldCleanPocketRowsGame, foldRowsGame, isThrowawayInPocket, rowPocketOf } from "../src/pocket/rows.js";
-import { STEP6_PETITIONS_GRANTED } from "../src/pocket/rules.js";
 import { emptyAffectedFold, emptyS1Folds, foldAffectedGame, foldS1Game } from "../src/pocket/s1Stream.js";
 import { emptyS2Folds, forcedActsOf, readS2Play, s2Checks, s2ContextOf, s2PlaysOf, s2Problems } from "../src/pocket/s2Stream.js";
 import { emptyS3Folds, foldS3Game } from "../src/pocket/s3Stream.js";
@@ -69,11 +68,11 @@ import {
 } from "./s6Fixtures.js";
 
 /** H0's tree: every outs part on F5's, the recommended answers (HOLD, ZERO_GAIN_ONLY, SEEN). Built, never played. */
-const H0 = buildStep6Arm(step6ArmDef("H0")!, undefined, STEP6_PETITIONS_GRANTED).tunables;
+const H0 = buildStep6Arm(step6ArmDef("H0")!).tunables;
 /** H7: the side-aware catch alone (no caught escape as contact). */
-const H7 = buildStep6Arm(step6ArmDef("H7")!, undefined, STEP6_PETITIONS_GRANTED).tunables;
+const H7 = buildStep6Arm(step6ArmDef("H7")!).tunables;
 /** H1: the real throwaway rule alone (no cap). */
-const H1 = buildStep6Arm(step6ArmDef("H1")!, undefined, STEP6_PETITIONS_GRANTED).tunables;
+const H1 = buildStep6Arm(step6ArmDef("H1")!).tunables;
 
 const s6Of = (spec: PlaySpec, tunables: Tunables = H0) => readS6Play(onePlay(spec), tunables);
 const dropbackOf = (spec: PlaySpec): Dropback => {

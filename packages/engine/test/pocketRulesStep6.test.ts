@@ -3,29 +3,30 @@
  *
  * 1. Absent from DEFAULT_TUNABLES, not even as an `undefined` key, and from every bundle of steps
  *    1 to 5a, each of which reads `outs` undefined.
- * 2. The petitions: P9, P10, P11, P12, P20 and P21 are false, each declared once as a literal. While
- *    any of P9 to P12 is out, every tree carrying the block is refused before the first die, the
- *    all-off block included, naming the missing ones; with them granted (a test's own set) shapes S
- *    and L read the block, the tunables' own object. P20 gates the caught escape as contact, P21 the
- *    unseen answer, each alone. A withheld petition is still refused by name. The caught escape as
- *    contact on a tree with no contact block (`pocket.contact`) is refused by name before either
- *    gate (step-6 plan §2.8: it is step 4's contest at the escape).
+ * 2. The petitions: P9, P10, P11, P12 and P20 are true and P21 false, each declared once as a
+ *    literal. Shapes S and L read the block, the tunables' own object, under the build's petitions,
+ *    the all-off block included, and a play under it plays. A test that withholds any of P9 to P12
+ *    still sees every tree carrying the block refused before the first die, naming the missing ones.
+ *    P20 gates the caught escape as contact, P21 the unseen answer, each alone; P21 is out in the
+ *    build, so the unseen answer is still refused by name, a play under it before any event. The
+ *    caught escape as contact on a tree with no contact block (`pocket.contact`) is refused by name
+ *    before either gate (step-6 plan §2.8: it is step 4's contest at the escape).
  * 3. The refusals, each named: under legacy (`playsLegacyRules` false for a tree carrying it), on kind
  *    T (`playsTodaysLine` false too), and without its stamp.
  * 4. The dials: seven switches, the three owner questions' closed sets (every option accepted), the
  *    fixed objects, a key the block does not have, and the parts that need another.
- * 5. The log refuses each fact P9 to P12 add unless a test's recorder takes it, and puts it where the
- *    stream will carry it; the stand-in types are the petitions' text (type-level, `tsc` runs here).
+ * 5. The log writes each fact P9 to P12 add on the stream, in the petitions' key order, where the
+ *    recorder put it before the lift; the types are the contracts' (type-level, `tsc` runs here).
  * 6. The scoring marker is typed on `PassPlayStartPayload` (plan §1.3).
  */
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { attrId } from "@ff/contracts";
-import type { PlayerId, RunSide, ThrowawayCause } from "@ff/contracts";
+import type { CheckKind, MatchEvent, PlayerId, RunSide, ThrowawayCause } from "@ff/contracts";
 import { simulatePassPlay } from "../src/index.js";
-import { PetitionNotInContractsError, PlayEventLog, SCRAMBLE_DRILL_KIND, scrambleDrillPayload } from "../src/events.js";
-import type { ScrambleDrillEmission, ThrowawayCauseS6, ThrowawayRecordS6 } from "../src/events.js";
+import { PlayEventLog, SCRAMBLE_DRILL_KIND, scrambleDrillPayload } from "../src/events.js";
+import type { ScrambleDrillEmission } from "../src/events.js";
 import { simulatePassPlayWith } from "../src/sim/passPlay.js";
 import {
   P10_IN_CONTRACTS,
@@ -48,7 +49,7 @@ import { buildScenario } from "./fixtures.js";
 import { APPROACH_CARD, BEAT_CLOCK, L5_TUNABLES, RULE_SETS, SW_TUNABLES, S_TUNABLES, stamp, withBlocks } from "./pocketTunables.js";
 import { GRANTED, S4C_TUNABLES, S4L_TUNABLES, S4M_TUNABLES, S4S_TUNABLES, S4_TUNABLES, T_TUNABLES } from "./step4Fixtures.js";
 import { CLEAN_POCKET_FILED, S5L_TUNABLES, S5S_TUNABLES, S5_TUNABLES, withCleanPocket } from "./step5Fixtures.js";
-import { GRANTED_S6, OUTS_FILED, OUTS_OFF, S6L_TUNABLES, S6S_TUNABLES, eventAt, outsParts, recorder, withOuts } from "./step6Fixtures.js";
+import { GRANTED_S6, OUTS_FILED, OUTS_OFF, S6L_TUNABLES, S6S_TUNABLES, eventAt, outsParts, step6RecordsOf, withOuts, withoutStep6 } from "./step6Fixtures.js";
 
 const OLDER_SETS: readonly { readonly name: string; readonly tunables: Tunables }[] = [
   ...RULE_SETS,
@@ -116,35 +117,46 @@ describe("ADR-089 step 6: the outs block is absent by default", () => {
   });
 });
 
-describe("ADR-089 step 6: the petitions are not in contracts, and the gate is joint", () => {
-  it("P9, P10, P11, P12, P20 and P21 are false, each declared once as a literal (the form calibration's tie test reads)", () => {
-    expect([P9_IN_CONTRACTS, P10_IN_CONTRACTS, P11_IN_CONTRACTS, P12_IN_CONTRACTS, P20_IN_CONTRACTS, P21_IN_CONTRACTS]).toEqual([false, false, false, false, false, false]);
+describe("ADR-089 step 6: the petitions are in contracts (P21 aside), and the gate is joint", () => {
+  it("P9, P10, P11, P12 and P20 are true and P21 false, each declared once as a literal (the form calibration's tie test reads)", () => {
+    expect([P9_IN_CONTRACTS, P10_IN_CONTRACTS, P11_IN_CONTRACTS, P12_IN_CONTRACTS, P20_IN_CONTRACTS, P21_IN_CONTRACTS]).toEqual([true, true, true, true, true, false]);
     const source = readFileSync(fileURLToPath(new URL("../src/sim/pocketRules.ts", import.meta.url)), "utf8");
-    for (const name of ["P9", "P10", "P11", "P12", "P20", "P21"]) {
+    for (const [name, value] of [["P9", "true"], ["P10", "true"], ["P11", "true"], ["P12", "true"], ["P20", "true"], ["P21", "false"]] as const) {
       const declared = [...source.matchAll(new RegExp(`^export const ${name}_IN_CONTRACTS = (true|false);$`, "gm"))].map((x) => x[1]);
-      expect(declared, name).toEqual(["false"]);
+      expect(declared, name).toEqual([value]);
     }
   });
 
-  it("pocketRulesOf refuses every tree carrying the block on S and L, every part off included, naming the four; so does a play, before any event", () => {
+  it("pocketRulesOf reads every tree carrying the block on S and L, every part off included; with the four withheld it is refused, naming the four; a play under the block plays", () => {
+    const withheld: ContractPetitions = { ...GRANTED, P9: false, P10: false, P11: false, P12: false };
     for (const block of [OUTS_FILED, OUTS_OFF, outsParts({ throwawayRule: true }), outsParts({ failedScrambleSack: true })]) {
       for (const base of [S5S_TUNABLES, S5L_TUNABLES, S4S_TUNABLES, SW_TUNABLES, L5_TUNABLES]) {
         const t = withOuts(base, block);
         // The caught escape as contact on a tree with no contact block is a bad tree, named before either gate (below).
-        const refused = block.caughtAsContact && base.pocket.contact === undefined ? NO_CONTACT : GATE("P9, P10, P11, P12");
-        expect(refusalUnder(t)).toBe(refused);
-        // Step 4's granted set leaves step 6's out, and they read as their constants.
-        expect(refusalUnder(t, GRANTED)).toBe(refused);
+        if (block.caughtAsContact && base.pocket.contact === undefined) {
+          for (const petitions of [undefined, GRANTED, withheld]) expect(refusalUnder(t, petitions)).toBe(NO_CONTACT);
+          continue;
+        }
+        const r = pocketRulesOf(t);
+        if (r.kind !== "S" && r.kind !== "L") throw new Error(`not S or L: ${r.kind}`);
+        expect(r.outs).toBe(block);
+        // Step 4's granted set leaves step 6's out, and they read as their constants, now true.
+        expect(pocketRulesUnder(t, GRANTED)).toEqual(r);
+        expect(refusalUnder(t, withheld)).toBe(GATE("P9, P10, P11, P12"));
       }
     }
     const { state, calls } = buildScenario();
-    expect(() => simulatePassPlay(state, calls, "s6-gate", S6S_TUNABLES)).toThrow(PocketRulesError);
-    expect(() => simulatePassPlay(state, calls, "s6-gate", withOuts(S5S_TUNABLES, OUTS_OFF))).toThrow(GATE("P9, P10, P11, P12").slice("@ff/engine: ".length));
+    for (const t of [S6S_TUNABLES, withOuts(S5S_TUNABLES, OUTS_OFF), S6L_TUNABLES]) {
+      expect(simulatePassPlay(state, calls, "s6-gate", t).events.length, t.engineRules?.overlayDigest).toBeGreaterThan(0);
+    }
+    expect(() => simulatePassPlayWith(state, calls, "s6-gate", S6S_TUNABLES, { petitions: withheld })).toThrow(GATE("P9, P10, P11, P12").slice("@ff/engine: ".length));
   });
 
-  it("with P9 to P12 (and P20) granted, S and L read the block, the tunables' own object, in frozen rules", () => {
+  it("with P9 to P12 (and P20) granted, S and L read the block, the tunables' own object, in frozen rules, as the build's own petitions read it", () => {
     const s = pocketRulesUnder(S6S_TUNABLES, GRANTED_S6);
     if (s.kind !== "S") throw new Error("not S");
+    expect(pocketRulesOf(S6S_TUNABLES)).toEqual(s);
+    expect(pocketRulesOf(S6L_TUNABLES)).toEqual(pocketRulesUnder(S6L_TUNABLES, GRANTED_S6));
     expect(s.outs).toBe(OUTS_FILED);
     expect(s.cleanPocket).toBe(CLEAN_POCKET_FILED);
     expect(Object.isFrozen(s)).toBe(true);
@@ -178,9 +190,9 @@ describe("ADR-089 step 6: the petitions are not in contracts, and the gate is jo
     const noContact = { ...OUTS_FILED, caughtAsContact: false } as Record<string, unknown>;
     delete noContact["caughtSeen"];
     expect(outsOf(withOuts(S5S_TUNABLES, noContact), withheld)).toBe(noContact);
-    // Left out, P20 reads as its constant (false).
+    // Left out, P20 reads as its constant (true).
     const { P20: _p20, ...withoutP20 } = GRANTED_S6;
-    expect(refusalUnder(S6S_TUNABLES, withoutP20)).toBe(P20_GATE);
+    expect(outsOf(S6S_TUNABLES, withoutP20)?.caughtAsContact).toBe(true);
   });
 
   it("P21 gates the unseen answer, and only it; the recommended SEEN needs no P21", () => {
@@ -190,6 +202,25 @@ describe("ADR-089 step 6: the petitions are not in contracts, and the gate is jo
     expect(outsOf(S6S_TUNABLES, { ...GRANTED_S6, P21: false })?.caughtSeen).toBe("SEEN");
     // P20 is read first: an unseen contact without P20 names P20.
     expect(refusalUnder(unseen, { ...GRANTED_S6, P20: false, P21: false })).toBe(P20_GATE);
+  });
+
+  it("P21 is withheld in the build: the unseen answer is refused by name under the build's own petitions, and a play under it throws before any event", () => {
+    // The owner answered "Seen for now", so P21 was never asked; the leaf stays refused by name.
+    expect(P21_IN_CONTRACTS).toBe(false);
+    for (const base of [S5S_TUNABLES, S5L_TUNABLES]) {
+      const unseen = withOuts(base, { ...OUTS_FILED, caughtSeen: "UNSEEN_IF_UNREGISTERED" });
+      expect(refusalUnder(unseen), base.engineRules?.name).toBe(P21_GATE);
+      // Step 4's granted set and step 6's with P21 left out read P21 as its constant (false).
+      expect(refusalUnder(unseen, GRANTED)).toBe(P21_GATE);
+      const { P21: _p21, ...withoutP21 } = GRANTED_S6;
+      expect(refusalUnder(unseen, withoutP21)).toBe(P21_GATE);
+      // The same tree with the answer SEEN is read.
+      expect(pocketRulesOf(withOuts(base, OUTS_FILED)).kind).not.toBe("LEGACY");
+    }
+    const { state, calls } = buildScenario();
+    const unseen = withOuts(S5S_TUNABLES, { ...OUTS_FILED, caughtSeen: "UNSEEN_IF_UNREGISTERED" });
+    expect(() => simulatePassPlay(state, calls, "s6-unseen", unseen)).toThrow(P21_GATE.slice("@ff/engine: ".length));
+    expect(() => simulatePassPlay(state, calls, "s6-unseen", unseen)).toThrow(PocketRulesError);
   });
 
   it("the caught escape as contact needs the contact block: refused by name before either gate, with every petition or none", () => {
@@ -396,11 +427,10 @@ describe("ADR-089 step 6: the block's dials", () => {
   });
 });
 
-describe("ADR-089 step 6: the log refuses what P9 to P12 add, unless a test's recorder takes it", () => {
-  const log = (withRecorder: boolean) => {
-    const r = recorder();
-    return { r, log: new PlayEventLog("g" as never, "p" as never, { season: 1, week: 1 } as never, 0, withRecorder ? r : undefined) };
-  };
+/** A bare log, numbered from 0. */
+const log = (): PlayEventLog => new PlayEventLog("g" as never, "p" as never, { season: 1, week: 1 } as never, 0);
+
+describe("ADR-089 step 6: the log writes what P9 to P12 add on the stream", () => {
   const p = "p1" as PlayerId;
   const cb = "cb1" as PlayerId;
   const roll = { die: "d100" as const, raw: 52, modifiers: [], total: 70, rngLabel: "g/movement/t3.0:drill:p1" };
@@ -416,51 +446,66 @@ describe("ADR-089 step 6: the log refuses what P9 to P12 add, unless a test's re
     rollRef: "g/movement/t3.0:scramble",
   };
 
-  it("without a recorder each is refused by name, and nothing is pushed", () => {
-    const { log: l } = log(false);
-    const refused = (f: () => void, petition: string, what: string): void => {
-      expect(f).toThrow(PetitionNotInContractsError);
-      expect(f).toThrow(`@ff/engine: ${what} cannot be written: petition ${petition} is not in contracts (ADR-089 step 6)`);
-    };
-    refused(() => l.throwaway("OUT_OF_POCKET", "g/movement/t4.5:deadline", true), "P9", "an OUT_OF_POCKET THROWAWAY");
-    refused(() => l.throwaway("POCKET_DURESS", "g/movement/t2.5:movement", false), "P10", "THROWAWAY.outsideTackleBox");
-    refused(() => l.throwaway("CLOCK_EXPIRED", undefined, false), "P10", "THROWAWAY.outsideTackleBox");
-    refused(() => l.qbDecision("SCRAMBLE", { direction: "LEFT" }), "P11", "QB_DECISION.direction");
-    refused(() => l.scrambleDrill(drill), "P12", "a scramble_drill CHECK");
-    expect(l.drain()).toEqual([]);
+  it("each is a push in the petitions' key order, a field after the keys it follows; today's writes keep their bytes", () => {
+    const l = log();
+    l.throwaway("OUT_OF_POCKET", "g/movement/t4.5:deadline", true);
+    l.throwaway("POCKET_DURESS", "g/movement/t2.5:movement", false);
+    l.throwaway("CLOCK_EXPIRED", undefined, false);
+    l.qbDecision("SCRAMBLE", { direction: "LEFT" });
+    l.qbDecision("THROW", { target: p, tier: "SUCCESS", direction: "RIGHT" });
+    l.scrambleDrill(drill);
     // Today's writes stand, key for key.
     l.throwaway("POCKET_DURESS", "g/movement/t2.5:movement");
     l.throwaway("CLOCK_EXPIRED");
     l.qbDecision("SCRAMBLE");
-    const out = l.drain().map((e) => e.event.payload as object);
-    expect(out.map((x) => Object.keys(x))).toEqual([["cause", "rollRef"], ["cause"], ["choice"]]);
+    const out = l.drain();
+    expect(out.map((e) => [e.event.type, Object.keys(e.event.payload as object)])).toEqual([
+      ["THROWAWAY", ["cause", "rollRef", "outsideTackleBox"]],
+      ["THROWAWAY", ["cause", "rollRef", "outsideTackleBox"]],
+      ["THROWAWAY", ["cause", "outsideTackleBox"]],
+      ["QB_DECISION", ["choice", "direction"]],
+      ["QB_DECISION", ["choice", "target", "tier", "direction"]],
+      ["CHECK", ["checkKind", "actors", "roll", "tier", "margin", "testsAttrs", "target", "band", "rollRef"]],
+      ["THROWAWAY", ["cause", "rollRef"]],
+      ["THROWAWAY", ["cause"]],
+      ["QB_DECISION", ["choice"]],
+    ]);
+    expect(out[0]?.event.payload).toEqual({ cause: "OUT_OF_POCKET", rollRef: "g/movement/t4.5:deadline", outsideTackleBox: true });
+    expect(out[3]?.event.payload).toEqual({ choice: "SCRAMBLE", direction: "LEFT" });
+    expect(out[5]?.event.payload).toEqual(scrambleDrillPayload(drill));
   });
 
-  it("with a recorder each goes where the stream will carry it: a field by its event's seq, a whole record before the next event", () => {
-    const { r, log: l } = log(true);
+  it("each stands where the recorder put it before the lift: a field on the event it named, a whole record at its own seq, just before the event the recorder named", () => {
+    const l = log();
     l.setTick(2.5);
     l.throwaway("POCKET_DURESS", "g/movement/t2.5:movement", false); // seq 0
     l.setTick(3.0);
     l.qbDecision("SCRAMBLE", { direction: "RIGHT" }); // seq 1
-    l.scrambleDrill(drill); // before seq 2
-    l.qbDecision("HOLD", { direction: "LEFT" }); // seq 2
+    l.scrambleDrill(drill); // seq 2 (before the lift, a record before the decision below)
+    l.qbDecision("HOLD", { direction: "LEFT" }); // seq 3
     l.setTick(4.5);
-    l.throwaway("OUT_OF_POCKET", "g/movement/t4.5:deadline", true); // before seq 3, nothing pushed
-    l.throwaway("CLOCK_EXPIRED", undefined, false); // seq 3
+    l.throwaway("OUT_OF_POCKET", "g/movement/t4.5:deadline", true); // seq 4 (before the lift, a record before the throwaway below)
+    l.throwaway("CLOCK_EXPIRED", undefined, false); // seq 5
     const events = l.drain();
-    expect(events.map((e) => e.event.type)).toEqual(["THROWAWAY", "QB_DECISION", "QB_DECISION", "THROWAWAY"]);
-    expect(events.map((e) => Object.keys(e.event.payload as object))).toEqual([["cause", "rollRef"], ["choice"], ["choice"], ["cause"]]);
-    expect(r.records).toEqual([
+    expect(events.map((e) => e.event.type)).toEqual(["THROWAWAY", "QB_DECISION", "CHECK", "QB_DECISION", "THROWAWAY", "THROWAWAY"]);
+    expect(step6RecordsOf(events)).toEqual([
       { kind: "outsideTackleBox", value: false, at: { seq: 0, tick: 2.5 } },
       { kind: "direction", side: "RIGHT", at: { seq: 1, tick: 3.0 } },
       { kind: "scrambleDrill", payload: scrambleDrillPayload(drill), at: { seq: 2, tick: 3.0 } },
-      { kind: "direction", side: "LEFT", at: { seq: 2, tick: 3.0 } },
-      { kind: "outOfPocketThrowaway", payload: { cause: "OUT_OF_POCKET", rollRef: "g/movement/t4.5:deadline", outsideTackleBox: true }, at: { seq: 3, tick: 4.5 } },
-      { kind: "outsideTackleBox", value: false, at: { seq: 3, tick: 4.5 } },
+      { kind: "direction", side: "LEFT", at: { seq: 3, tick: 3.0 } },
+      { kind: "outOfPocketThrowaway", payload: { cause: "OUT_OF_POCKET", rollRef: "g/movement/t4.5:deadline", outsideTackleBox: true }, at: { seq: 4, tick: 4.5 } },
+      { kind: "outsideTackleBox", value: false, at: { seq: 5, tick: 4.5 } },
     ]);
-    // A field record names the event that carries it.
+    // A record names the event that carries it.
     expect(eventAt(events, { seq: 0, tick: 2.5 })?.event.type).toBe("THROWAWAY");
-    expect(eventAt(events, { seq: 1, tick: 3.0 })?.event.type).toBe("QB_DECISION");
+    expect(eventAt(events, { seq: 2, tick: 3.0 })?.event.type).toBe("CHECK");
+    // Taken out again, the stream is the one the log wrote before the lift, key for key.
+    expect(withoutStep6(events).map((e) => [e.seq, e.event.type, Object.keys(e.event.payload as object)])).toEqual([
+      [0, "THROWAWAY", ["cause", "rollRef"]],
+      [1, "QB_DECISION", ["choice"]],
+      [2, "QB_DECISION", ["choice"]],
+      [3, "THROWAWAY", ["cause"]],
+    ]);
   });
 
   it("the drill CHECK is in checkPayload's key order for a CHECK with a roll, with no opposedRoll", () => {
@@ -471,49 +516,56 @@ describe("ADR-089 step 6: the log refuses what P9 to P12 add, unless a test's re
     expect(payload.rollRef).toBe("g/movement/t3.0:scramble");
   });
 
-  it("a play under the seam with every petition granted and no recorder reads the block (the parts write nothing yet)", () => {
-    // The parts are built in later commits; until then a granted tree reads the block and plays.
+  it("a play under the seam with every petition granted is the play under the build's own petitions", () => {
     const { state, calls } = buildScenario();
-    for (const t of [withOuts(S5S_TUNABLES, OUTS_OFF), withOuts(S5L_TUNABLES, OUTS_OFF)]) {
-      expect(() => simulatePassPlayWith(state, calls, "s6-seam", t, { petitions: GRANTED_S6 })).not.toThrow();
-      expect(() => simulatePassPlayWith(state, calls, "s6-seam", t, { petitions: GRANTED_S6, step6Recorder: recorder() })).not.toThrow();
+    for (const t of [withOuts(S5S_TUNABLES, OUTS_OFF), withOuts(S5L_TUNABLES, OUTS_OFF), S6S_TUNABLES, S6L_TUNABLES]) {
+      const seam = simulatePassPlayWith(state, calls, "s6-seam", t, { petitions: GRANTED_S6 });
+      expect(JSON.stringify(simulatePassPlay(state, calls, "s6-seam", t)), t.engineRules?.overlayDigest).toBe(JSON.stringify(seam));
     }
   });
 });
 
-describe("ADR-089 step 6: the stand-in types are the petitions' text, so the lift is a type swap (type-level)", () => {
+describe("ADR-089 step 6: the types are the contracts', the petitions' text (type-level)", () => {
+  type ThrowawayPayload = Extract<MatchEvent, { type: "THROWAWAY" }>["payload"];
+  type DecisionPayload = Extract<MatchEvent, { type: "QB_DECISION" }>["payload"];
+
   it("P9: the cause is today's two and OUT_OF_POCKET, closed at three; P10: the flag is a boolean, written only when given", () => {
-    const causes: ThrowawayCauseS6[] = ["POCKET_DURESS", "CLOCK_EXPIRED", "OUT_OF_POCKET"];
-    const today: ThrowawayCause = "CLOCK_EXPIRED";
-    const widened: ThrowawayCauseS6 = today;
+    const causes: ThrowawayCause[] = ["POCKET_DURESS", "CLOCK_EXPIRED", "OUT_OF_POCKET"];
     // @ts-expect-error GROUNDED is not a throwaway cause: a fourth path is a widening petition
-    const fourth: ThrowawayCauseS6 = "GROUNDED";
-    const out: ThrowawayRecordS6 = { cause: "OUT_OF_POCKET", rollRef: "g/movement/t4.5:deadline", outsideTackleBox: true };
-    const plain: ThrowawayRecordS6 = { cause: "CLOCK_EXPIRED" };
+    const fourth: ThrowawayCause = "GROUNDED";
+    const out: ThrowawayPayload = { cause: "OUT_OF_POCKET", rollRef: "g/movement/t4.5:deadline", outsideTackleBox: true };
+    const plain: ThrowawayPayload = { cause: "CLOCK_EXPIRED" };
     // @ts-expect-error exactOptionalPropertyTypes: outsideTackleBox: undefined is refused
-    const undef: ThrowawayRecordS6 = { cause: "CLOCK_EXPIRED", outsideTackleBox: undefined };
+    const undef: ThrowawayPayload = { cause: "CLOCK_EXPIRED", outsideTackleBox: undefined };
     // @ts-expect-error a flag, not a distance
-    const yards: ThrowawayRecordS6 = { cause: "CLOCK_EXPIRED", outsideTackleBox: 3 };
+    const yards: ThrowawayPayload = { cause: "CLOCK_EXPIRED", outsideTackleBox: 3 };
     expect(causes).toHaveLength(3);
-    expect([widened, fourth, out.cause, plain.cause, undef.cause, yards.cause]).toHaveLength(6);
+    expect([fourth, out.cause, plain.cause, undef.cause, yards.cause]).toHaveLength(5);
     expect(Object.keys(plain)).toEqual(["cause"]);
+    // The log takes the contracts cause, every one of the three.
+    const l = log();
+    for (const cause of causes) l.throwaway(cause);
+    expect(l.drain().map((e) => (e.event.payload as ThrowawayPayload).cause)).toEqual(causes);
   });
 
   it("P11: the side is RunSide, LEFT or RIGHT, as on the play cards", () => {
-    const { log: l } = { log: new PlayEventLog("g" as never, "p" as never, { season: 1, week: 1 } as never, 0, recorder()) };
+    const l = log();
     const side: RunSide = "LEFT";
+    const onPayload: DecisionPayload["direction"] = side;
     l.qbDecision("SCRAMBLE", { direction: side });
     // @ts-expect-error a side is LEFT or RIGHT
     l.qbDecision("SCRAMBLE", { direction: "MIDDLE" });
     expect(l.drain()).toHaveLength(2);
+    expect(onPayload).toBe("LEFT");
   });
 
-  it("P12: the kind is the petition's word; the band is a coverage position", () => {
+  it("P12: the kind is the petition's word and a CheckKind; the band is a coverage position", () => {
     expect(SCRAMBLE_DRILL_KIND).toBe("scramble_drill");
+    const kind: CheckKind = SCRAMBLE_DRILL_KIND;
     const band: ScrambleDrillEmission["band"] = "IN_FRONT";
     // @ts-expect-error the drill's band is TRAILING, EVEN or IN_FRONT
     const wrong: ScrambleDrillEmission["band"] = "OPEN";
-    expect([band, wrong]).toHaveLength(2);
+    expect([kind, band, wrong]).toHaveLength(3);
   });
 
   it("plan §1.3: PLAY_START's scoring marker is typed on PassPlayStartPayload, one value", () => {

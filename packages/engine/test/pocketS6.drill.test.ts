@@ -1,7 +1,7 @@
 /**
  * ADR-089 step 6, PART 2.9 (step-6 plan §2.9; ADR-089 §4.6 e, ADR:726; AM-13 `drill`; P12): THE
- * DRILL'S FRESH REP, behind `pocket.outs.drill`. Its CHECK is P12's `scramble_drill`, on the stand-in
- * until the lift: the test recorder takes it at the seq of the SCRAMBLE decision it comes before.
+ * DRILL'S FRESH REP, behind `pocket.outs.drill`. Its CHECK is P12's `scramble_drill`, on the stream
+ * just before the SCRAMBLE decision of the escape it follows, the escape's drill CHECKs together.
  *
  * 1. Who draws (S-16 at the engine): at every escape he wins, clean or forced, one die for each
  *    eligible covered receiver, one record each: an eligible receiver's rep has resolved, so a covered
@@ -19,7 +19,7 @@
  *    +10 or 0, two burst steps, up to the cap of 85), and every contested catch after an escape reads
  *    the coverage rep's position, never the drill's.
  * 5. Alone it acts only at an escape he won: a play with none is step 5a's stream byte for byte, and
- *    the recorder holds drill CHECKs only. Same seed, same records.
+ *    its only step-6 records are drill CHECKs. Same seed, same records.
  */
 import { describe, expect, it } from "vitest";
 import { getAttr, setAttr } from "@ff/contracts";
@@ -37,7 +37,7 @@ import type { Scenario } from "./fixtures.js";
 import { PASS_FIXTURES } from "./pocketTunables.js";
 import { withPicture } from "./snapFixtures.js";
 import { S5L_TUNABLES, S5S_TUNABLES, S5_TUNABLES, checkOf, onCleanBench, tickOfEvent } from "./step5Fixtures.js";
-import { outsParts, playS6, withOuts } from "./step6Fixtures.js";
+import { beforeLiftSeq, outsParts, playS6, withOuts, withoutStep6 } from "./step6Fixtures.js";
 import type { Step6Record } from "./step6Fixtures.js";
 
 const DRILL = outsParts({ drill: true });
@@ -183,9 +183,11 @@ describe("ADR-089 step 6, 2.9: the drill's fresh rep (pocket.outs.drill)", () =>
           expect(d.payload.roll.rngLabel, play.name).toBe(c.roll.rngLabel.replace(/:scramble$/, `:drill:${String(d.payload.actors[0])}`));
           expect(d.payload.roll.rngLabel, play.name).toMatch(new RegExp(`/movement/t${tick.toFixed(1)}:drill:`));
           expect(d.at.tick, play.name).toBe(tick);
-          // It stands just before the SCRAMBLE decision of this escape, after its pursuit clock.
-          const next = play.events.find((x) => x.seq === d.at.seq);
+          // It stands just before the SCRAMBLE decision of this escape, with only the escape's other
+          // drill CHECKs between, after its pursuit clock.
+          const next = play.events.find((x) => x.seq > d.at.seq && checkOf(x)?.checkKind !== "scramble_drill");
           expect(next?.event.type === "QB_DECISION" && next.event.payload.choice, play.name).toBe("SCRAMBLE");
+          expect(tickOfEvent(next as MatchEventEnvelope), play.name).toBe(tick);
           const pursuit = play.events.slice(k).find((x) => x.event.type === "QB_PURSUIT");
           expect((pursuit?.seq ?? Infinity) < d.at.seq, play.name).toBe(true);
           named.add(d.payload.roll.rngLabel);
@@ -334,14 +336,17 @@ describe("ADR-089 step 6, 2.9: the drill's fresh rep (pocket.outs.drill)", () =>
       const ds = drills(play.records);
       if (ds.length === 0) continue;
       const base = simulatePassPlay(play.state, play.calls, play.seed, play.base).events;
+      // The play without its drill CHECKs lines up with step 5a's, seq for seq, up to the escape.
+      const without = withoutStep6(play.events);
       const firstStatusAfter = (events: readonly MatchEventEnvelope[], seq: number, receiver: PlayerId) =>
         events.find((e) => e.seq > seq && e.event.type === "ROUTE_STATUS" && e.event.payload.receiver === receiver);
       const firstEscapeWon = ds[0]?.payload.rollRef;
       for (const d of ds) {
         if (d.payload.rollRef !== firstEscapeWon) continue;
         const [receiver] = pairOf(d.payload.actors);
-        const a = firstStatusAfter(play.events, d.at.seq, receiver);
-        const b = firstStatusAfter(base, d.at.seq, receiver);
+        const at = beforeLiftSeq(play.events, d.at.seq);
+        const a = firstStatusAfter(without, at, receiver);
+        const b = firstStatusAfter(base, at, receiver);
         if (a?.event.type !== "ROUTE_STATUS" || b?.event.type !== "ROUTE_STATUS") continue;
         expect(a.event.payload.phase, play.name).toBe("SCRAMBLE_DRILL");
         expect(b.event.payload.phase, play.name).toBe("SCRAMBLE_DRILL");

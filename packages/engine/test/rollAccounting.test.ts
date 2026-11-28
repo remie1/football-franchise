@@ -1344,8 +1344,8 @@ describe("ADR-004 roll accounting", () => {
    *      escape is on step 4's labels, `:contest` and `:contest2`, a family s5a draws;
    *  29. the whole step, every part on with the recommended answers (`OUTS_FILED`): no RollDetail
    *      twice in a play, nor in a game-shaped run of plays (one seed and one game, the plays
-   *      numbered 1 to N as a game numbers them, every fixture in turn; `simulateGame` has no seam
-   *      for the petitions, so the game is played play by play through `simulatePassPlayWith`); over
+   *      numbered 1 to N as a game numbers them, every fixture in turn, played play by play through
+   *      `simulatePassPlayWith`, as before the lift, when only that seam granted the petitions); over
    *      s5a's families only the drill's and the pick's are new, and the contest at a caught escape
    *      is on step 4's family; no step-7 label (`:contact`, `:dodge`, `:alarm`).
    */
@@ -1360,15 +1360,10 @@ describe("ADR-004 roll accounting", () => {
     };
     type Rolls = ReturnType<typeof ticked>;
     /**
-     * A step-6 play's rolls as the stream will carry them at the lift: the stream's, with each drill
-     * CHECK the recorder took (P12's stand-in) put just before the event it stands before.
+     * A step-6 play's rolls: the stream's, its drill CHECKs among them (P12 is in contracts; before the
+     * lift the recorder's drill CHECKs were put back here, just before the event each stood before).
      */
-    const lifted = (play: Step6Play): Rolls => {
-      const drills = play.records.flatMap((r) =>
-        r.kind === "scrambleDrill" ? [{ label: r.payload.roll.rngLabel, raw: r.payload.roll.raw, seq: r.at.seq - 0.5, tick: r.at.tick, band: r.payload.band as string | undefined }] : [],
-      );
-      return [...ticked(play.events), ...drills].sort((a, b) => a.seq - b.seq);
-    };
+    const lifted = (play: Step6Play): Rolls => ticked(play.events);
     const BASES: readonly { readonly name: string; readonly tunables: Tunables; readonly fixtures: () => readonly (readonly [string, () => { state: Parameters<typeof simulatePassPlay>[0]; calls: Parameters<typeof simulatePassPlay>[1] }])[] }[] = [
       { name: "s5a", tunables: S5_TUNABLES, fixtures: () => step3Fixtures() },
       { name: "s5a shape S, clean bench", tunables: onCleanBench(S5S_TUNABLES), fixtures: () => PASS_FIXTURES },
@@ -1461,7 +1456,7 @@ describe("ADR-004 roll accounting", () => {
         dice: "MOVES",
         minCut: 3,
       },
-      // 2.6 publishes the side (P11's stand-in, a recorder here) and moves no die.
+      // 2.6 publishes the side (P11, on its decision) and moves no die.
       { name: "escape direction", block: outsParts({ direction: true }), cut: () => undefined, dice: "NEVER" },
       {
         // 2.7 (with the direction it needs): the first escape roll keeps its die and moves its target.

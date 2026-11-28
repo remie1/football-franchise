@@ -13,12 +13,11 @@
  *    the rule, and moves some under s5a.
  * 4. The old gate stands without the rule: under legacy and s5a no throwaway comes before 2.0 s, and
  *    s5a with the all-off block plays the s5a stream.
- * 5. P10 before the lift: under the rule, and under the deadline pick alone, every in-pocket
- *    throwaway records `outsideTackleBox` false at its THROWAWAY's seq, which the stream does not
- *    carry; under a block with neither, none is recorded. On every one the flag equals
- *    `cause === "OUT_OF_POCKET"` (S-15, contracts-guardian's condition on P10). Under the deadline
- *    pick (2.11) a throwaway after an escape is a whole OUT_OF_POCKET record, its flag true in its
- *    payload, never on the stream; under the rule alone there is no other record.
+ * 5. P10 on the stream: under the rule, and under the deadline pick alone, every throwaway carries
+ *    `outsideTackleBox`, and on every one the flag equals `cause === "OUT_OF_POCKET"` (S-15,
+ *    contracts-guardian's condition on P10): false on an in-pocket throwaway, true on the deadline
+ *    pick's throwaway after an escape (2.11, P9); under the rule alone there is no OUT_OF_POCKET
+ *    throwaway, and under a block with neither part no throwaway carries the flag.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -204,36 +203,32 @@ describe("ADR-089 step 6, 2.1: the old gate stands without the rule", () => {
   });
 });
 
-describe("ADR-089 step 6, 2.1: THROWAWAY.outsideTackleBox before the lift (P10)", () => {
-  it("false at every in-pocket throwaway's seq under the rule and under the deadline pick alone; the stream carries no flag", () => {
+describe("ADR-089 step 6, 2.1: THROWAWAY.outsideTackleBox on the stream (P10)", () => {
+  it("on every throwaway under the rule and under the deadline pick alone, equal to cause === OUT_OF_POCKET: false in the pocket, true after an escape", () => {
     const counted: Record<string, number> = {};
     for (const [arm, block] of [["the rule", RULE], ["the deadline pick alone", outsParts({ deadlinePick: { runMargin: 1 } })]] as const) {
       each((name, base, picture, fixture, i, { state, calls }) => {
         const seed = `s6-p10-${fixture}-${i}`;
         const { events, records } = playS6(state, picture ? withPicture(state, calls) : calls, seed, withOuts(base, block));
-        const flags = records.flatMap((r) => (r.kind === "outsideTackleBox" ? [r] : []));
         const thrown = throwawaysOf(events);
-        expect(flags.map((f) => f.at.seq), `${arm} ${name} ${seed}`).toEqual(thrown.map((t) => t.seq));
-        for (const [k, f] of flags.entries()) {
-          const t = thrown[k];
-          if (t === undefined) throw new Error("a flag with no throwaway");
+        for (const t of thrown) {
           // S-15: the flag equals cause === OUT_OF_POCKET on every throwaway of the play.
-          expect(f.value, `${arm} ${seed}`).toBe(String(t.cause) === "OUT_OF_POCKET");
-          expect(f.at.tick).toBe(t.tick);
-          expect("outsideTackleBox" in t.payload, `${arm} ${seed}`).toBe(false);
-          counted[arm] = (counted[arm] ?? 0) + 1;
+          expect(t.payload.outsideTackleBox, `${arm} ${name} ${seed}`).toBe(t.cause === "OUT_OF_POCKET");
+          const key = t.cause === "OUT_OF_POCKET" ? `${arm}, out of the pocket` : arm;
+          counted[key] = (counted[key] ?? 0) + 1;
         }
-        // No other record but 2.11's: under the deadline pick a throwaway after an escape is a whole
-        // OUT_OF_POCKET record (P9), its flag true in its payload (P10), and the stream carries none.
+        // The records read off the stream: the flag of each in-pocket throwaway at its seq and tick,
+        // and each throwaway after an escape whole (P9), its flag true in its payload (P10); no other.
+        const flags = records.flatMap((r) => (r.kind === "outsideTackleBox" ? [r] : []));
+        const inPocket = thrown.filter((t) => t.cause !== "OUT_OF_POCKET");
+        expect(flags.map((f) => [f.at.seq, f.at.tick ?? -1, f.value]), `${arm} ${name} ${seed}`).toEqual(inPocket.map((t) => [t.seq, t.tick, false]));
         const others = records.filter((r) => r.kind !== "outsideTackleBox");
         for (const r of others) {
           if (r.kind !== "outOfPocketThrowaway") throw new Error(`${arm} ${seed}: a ${r.kind} record`);
-          expect(r.payload.cause, `${arm} ${seed}`).toBe("OUT_OF_POCKET");
           expect(r.payload.outsideTackleBox, `${arm} ${seed}`).toBe(true);
-          counted[`${arm}, out of the pocket`] = (counted[`${arm}, out of the pocket`] ?? 0) + 1;
         }
+        expect(others.map((r) => r.at.seq), `${arm} ${seed}`).toEqual(thrown.filter((t) => t.cause === "OUT_OF_POCKET").map((t) => t.seq));
         if (arm === "the rule") expect(others, `${arm} ${seed}`).toEqual([]);
-        expect(thrown.filter((t) => String(t.cause) === "OUT_OF_POCKET"), `${arm} ${seed}`).toEqual([]);
       });
     }
     expect(counted["the rule"]).toBeGreaterThan(30);
@@ -245,8 +240,9 @@ describe("ADR-089 step 6, 2.1: THROWAWAY.outsideTackleBox before the lift (P10)"
     for (const block of [OUTS_OFF, outsParts({ noLateHorizonSack: true, failedScrambleSack: true })]) {
       each((name, base, picture, fixture, i, { state, calls }) => {
         if (i >= 10) return;
-        const { records } = playS6(state, picture ? withPicture(state, calls) : calls, `s6-noflag-${fixture}-${i}`, withOuts(base, block));
+        const { events, records } = playS6(state, picture ? withPicture(state, calls) : calls, `s6-noflag-${fixture}-${i}`, withOuts(base, block));
         expect(records.filter((r) => r.kind === "outsideTackleBox"), name).toEqual([]);
+        for (const t of throwawaysOf(events)) expect("outsideTackleBox" in t.payload, name).toBe(false);
       });
     }
   });

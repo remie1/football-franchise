@@ -6,17 +6,19 @@
  *  1. Step 6's arm ids are named and inert: `STEP6_ARM_IDS` (35 ids) are arms of this build
  *     (`isAnyArmId`, so AM-12's base map validates), `runIdsOf(6)` is D1, F5, E9 and then them, no
  *     earlier step's run list takes one, and `armById` refuses each by name. Since K1 (plan §3.2)
- *     each is defined and refused while its petitions are out (`pocketStep6Arms.test.ts`).
+ *     each is defined, and since the lift its petitions are in (P21 aside), so `armById` refuses each
+ *     as the step-6 harness's alone (`pocketStep6Arms.test.ts`).
  *  2. The name `pocket-1.s6` is refused: `rulesTunables` refuses it by name, it is not an engine
  *     rules name, and `POCKET_1_S6_DIGEST` is unset. K0 left it unstamped; since K1 (plan §3.2) it is
- *     a stamped name, for the step-6 harness's arms, whose trees `checkStamp` refuses while their
- *     petitions are out (`engineRulesS6.test.ts`).
+ *     a stamped name, for the step-6 harness's arms, whose trees `checkStamp` passes since the lift
+ *     and refuses while a test withholds a petition (`engineRulesS6.test.ts`).
  *  3. `--step 6` is parsed (`parseStep6Args`: the run flags, `--fresh-base`, `--digests`; no
  *     `--after-owner`), and step 6's gate (`step6.ts`) refuses before anything plays, naming every
  *     condition it waits for; on synthetic states it opens only when all five hold, for every option of
  *     each of the owner's three questions, so no answer is privileged. With AM-11 and AM-12 filed it
  *     reads the owner's words on the 5a miss and AM-12's guard from the file, and still waits for
- *     STEP6_AMENDMENTS_PIN and AM-13, the petitions and the recorded bundle.
+ *     STEP6_AMENDMENTS_PIN and AM-13 and the recorded bundle; since the lift it waits on no petition
+ *     (P21 only under an "unseen" answer).
  *  4. Step 5b's pin is its view under the played order, the whole file in this build, so
  *     `--step 5b --digests` keeps its preflight; 5b is still held by the owner's Wait.
  */
@@ -39,7 +41,9 @@ import {
   isStep6ArmId,
   runIdsOf,
   step5ArmRefusal,
+  step6ArmPetitions,
   step6ArmRefusal,
+  step6HarnessOnly,
   STEP2_ARM_IDS,
   STEP3_ARM_IDS,
   STEP4_ARM_IDS,
@@ -60,6 +64,7 @@ import {
   POCKET_1_S6_DIGEST,
   POCKET_1_S6_REFUSAL,
   POCKET_1_S6_RULES,
+  RECOMMENDED_OUTS_OPTIONS,
   rulesTunables,
   stampedRulesNamed,
   type StampedRules,
@@ -143,11 +148,18 @@ describe("step 6's arm ids, named and inert (plan §3.1 item 2, §5)", () => {
     }
   });
 
-  it("refuses each while its petitions are out (defined since K1): armById refuses it by name, nothing else refuses it, and everyArm is as it was", () => {
+  it("armById refuses each by name (defined since K1, its petitions in since the lift, P21 aside), nothing else refuses it, and everyArm is as it was", () => {
+    const unseen = { ...RECOMMENDED_OUTS_OPTIONS, seen: "UNSEEN_IF_UNREGISTERED" } as const;
     for (const id of STEP6_ARM_IDS) {
-      const why = step6ArmRefusal(id);
-      expect(why, id).toMatch(new RegExp(`^${id} is one of step 6's arms, defined in this build \\(ADR-089 step 6, plan §5\\), and waits on petitions P9, P10, P11(, | and )P12`));
-      expect(() => armById(id), id).toThrow(`arms: ${why!}: nothing plays it`);
+      // The build's flags: nothing waits under the seen answer, and armById names the step-6 harness.
+      expect(step6ArmRefusal(id), id).toBeUndefined();
+      expect(() => armById(id), id).toThrow(`arms: ${step6HarnessOnly(id)}: nothing plays it`);
+      // Under the unseen answer an arm with the caught escape as contact waits on P21, by name.
+      const caught = step6ArmPetitions(id)!.includes("P20");
+      if (caught) expect(step6ArmRefusal(id, {}, unseen), id).toMatch(new RegExp(`^${id} is one of step 6's arms, defined in this build \\(ADR-089 step 6, plan §5\\), and waits on petitions P9, P10, P11, P12, P20 and P21 .*\\(not yet: P21\\)`));
+      else expect(step6ArmRefusal(id, {}, unseen), id).toBeUndefined();
+      // Withheld, every arm names the four its block waits on.
+      expect(step6ArmRefusal(id, { P9: false, P10: false, P11: false, P12: false }), id).toMatch(new RegExp(`^${id} is one of step 6's arms, defined in this build \\(ADR-089 step 6, plan §5\\), and waits on petitions P9, P10, P11(, | and )P12.*\\(not yet: P9, P10, P11, P12\\)`));
       expect(armRefusal(id), id).toBeUndefined();
       expect(step5ArmRefusal(id), id).toBeUndefined();
       expect(everyArm().some((a) => a.id === id), id).toBe(false);
@@ -186,7 +198,7 @@ describe("the name pocket-1.s6, refused by name until recorded (plan §1.1, §3.
     expect(POCKET_1_S6_DIGEST).toBeUndefined();
     expect(isEngineRules(POCKET_1_S6_RULES)).toBe(false);
     // K1 stamps the name (the step-6 harness's arms); a run still cannot name it, and checkStamp
-    // refuses every tree carrying its block while the petitions are out (engineRulesS6.test.ts).
+    // passes its trees since the lift, the unseen answer's leaf aside (engineRulesS6.test.ts).
     expect(isStampedRules(POCKET_1_S6_RULES)).toBe(true);
     expect([...ENGINE_RULES]).toEqual(["legacy", "pocket-1.s1", "pocket-1.s2", "pocket-1.s3", "pocket-1.s4", "pocket-1.s5a"]);
     expect(() => engineRulesNamed(POCKET_1_S6_RULES, "--engine-rules")).toThrow(/^--engine-rules: engine rules "pocket-1\.s6" are not in this build/);
@@ -247,7 +259,7 @@ describe("step 6's gate (plan §10.3), refusing before anything plays", () => {
     expect(st.ownersAnswer).toEqual({ s5aMiss: "s5a.cleanScramble", answeredAt: "2026-11-27T14:28:48Z" });
     expect(st.guard).toBe("AM-12");
     expect(st.readings).toBeUndefined();
-    expect(st.petitionsOut).toEqual(["P9", "P10", "P11", "P12", "P20"]);
+    expect(st.petitionsOut).toEqual([]);
     expect(st.s6Digest).toBeUndefined();
   });
 
@@ -256,7 +268,6 @@ describe("step 6's gate (plan §10.3), refusing before anything plays", () => {
     expect(step6GateWaits(st)).toEqual([
       `(3) the step-6 view of the amendments file (${AMENDMENTS_DIGEST}) pinned: STEP6_AMENDMENTS_PIN is set when AM-13, step 6's readings, is filed`,
       "(3) AM-13, step 6's readings, filed with the owner's three answers (spentChecklist, scrambleStart, seen) in its ownersWord",
-      "(4) P9, P10, P11, P12, P20 in contracts (each after the owner's typed yes and contracts-guardian's review, then the lift)",
       "(5) pocket-1.s6 recorded (POCKET_1_S6_DIGEST is unset)",
     ]);
     const refusal = step6GateRefusal(st);
@@ -272,10 +283,12 @@ describe("step 6's gate (plan §10.3), refusing before anything plays", () => {
           const answers = { spentChecklist, scrambleStart, seen };
           expect(step6AnswersProblem(answers), JSON.stringify(answers)).toBeUndefined();
           expect(step6GateRefusal({ ...OPEN, readings: { answers } }), JSON.stringify(answers)).toBeUndefined();
-          // With the petitions this build has (none in contracts), every answer still waits on them, and "unseen" on P21 too.
+          // With the petitions this build has (P9 to P12 and P20 in contracts since the lift), only "unseen" waits on one: P21.
           const out = step6PetitionsOut(seen);
-          expect(out, seen).toEqual(seen === STEP6_UNSEEN_ANSWER ? [...STEP6_PETITIONS, "P21"] : [...STEP6_PETITIONS]);
-          expect(step6GateWaits({ ...OPEN, readings: { answers }, petitionsOut: out })).toEqual([`(4) ${out.join(", ")} in contracts (each after the owner's typed yes and contracts-guardian's review, then the lift)`]);
+          expect(out, seen).toEqual(seen === STEP6_UNSEEN_ANSWER ? ["P21"] : []);
+          expect(step6GateWaits({ ...OPEN, readings: { answers }, petitionsOut: out })).toEqual(
+            out.length === 0 ? [] : [`(4) ${out.join(", ")} in contracts (each after the owner's typed yes and contracts-guardian's review, then the lift)`],
+          );
           combos += 1;
         }
       }
@@ -286,7 +299,9 @@ describe("step 6's gate (plan §10.3), refusing before anything plays", () => {
       scrambleStart: ["ZERO_GAIN_ONLY", "EVERY_RUN"],
       seen: ["SEEN", "UNSEEN_IF_UNREGISTERED"],
     });
-    expect(step6PetitionsOut()).toEqual([...STEP6_PETITIONS]);
+    expect(step6PetitionsOut()).toEqual([]);
+    // Withheld by a test, every petition the gate waits on is out again, in its order.
+    expect(step6PetitionsOut(undefined, Object.fromEntries(STEP6_PETITIONS.map((p) => [p, false])))).toEqual([...STEP6_PETITIONS]);
     expect(step6GateRefusal(OPEN)).toBeUndefined();
   });
 

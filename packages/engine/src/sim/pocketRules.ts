@@ -80,12 +80,13 @@
  * ignored. A part that needs another is refused without it, by name: the side-aware catch
  * (`sideCatch`) and the side-aware drill (`drillBySide`) without escape direction, and the side-aware
  * drill without the drill. The answer to the third owner question (`caughtSeen`) is present exactly
- * when the caught escape as contact is on. Until petitions P9, P10, P11 and P12 are in contracts (the
- * four constants below, all false), every tree carrying the block is refused before the first die,
- * as step 4's were before P6, P7 and P8; P20 gates the caught escape as contact and P21 the unseen
- * answer the same way. `sim/passPlay.ts` reads `rules.outs` and calls `sim/outs.ts` only when it is
- * there. `PLAY_START.rules` keeps its two keys: the block is named by the overlay digest (the
- * failed-scramble marker is its own top-level key, `PLAY_START.scoring`).
+ * when the caught escape as contact is on. Petitions P9, P10, P11 and P12 are in contracts (the four
+ * constants below, true since the step-6 lift); were any false, every tree carrying the block would be
+ * refused before the first die, as step 4's were before P6, P7 and P8. P20 (true) gates the caught
+ * escape as contact and P21 (still false) the unseen answer the same way. `sim/passPlay.ts` reads
+ * `rules.outs` and calls `sim/outs.ts` only when it is there. `PLAY_START.rules` keeps its two keys:
+ * the block is named by the overlay digest (the failed-scramble marker is its own top-level key,
+ * `PLAY_START.scoring`).
  */
 import { ATTR_SCALE } from "@ff/contracts";
 import type {
@@ -289,30 +290,33 @@ export const P7_IN_CONTRACTS = true;
 export const P8_IN_CONTRACTS = true;
 
 /**
- * ADR-089 step 6: the contract petitions the outs wait on (step-6 plan §1.2, §10.1; `petitions.md`),
- * as code constants, all false while the parts are built behind them, as step 4's three were before
- * their yes (`bb68474`, then the contracts commit `3e385e4` and the lift `09a269f`):
+ * ADR-089 step 6: the contract petitions the outs waited on (step-6 plan §1.2, §10.1;
+ * `petitions.md`), as code constants, built false behind them as step 4's three were before their
+ * yes (`bb68474`, then the contracts commit `3e385e4` and the lift `09a269f`):
  *  - P9: `ThrowawayCause` gains `"OUT_OF_POCKET"`, the throwaway the deadline pick makes, and
  *    `THROWAWAY.rollRef`'s doc names the deadline pick's CHECK;
  *  - P10: `THROWAWAY.payload.outsideTackleBox`;
  *  - P11: `QB_DECISION.payload.direction` (`RunSide`), the side of an escape;
  *  - P12: `CheckKind` gains `"scramble_drill"`, the drill's fresh rep.
- * The gate is joint: while any of the four is false, `pocketRulesOf` refuses every tree carrying
- * `pocket.outs` before the first die, since the outs write all four. Beside them, a named addition to
- * plan §1.2 (contracts-guardian's second reading, `guardian-2.md`), two doc-only petitions gate one
- * leaf each, the same way: P20 (`QB_HIT.contactSeconds` on a caught escape, ruled needed) gates the
- * caught escape as contact (`pocket.outs.caughtAsContact`), and P21 (`QB_HIT.seen` false on a catch
- * from a block, asked only if the owner answers "unseen") gates `pocket.outs.caughtSeen`
- * `UNSEEN_IF_UNREGISTERED`. A test grants them through `pocketRulesUnder` with its own petitions, and
- * the log refuses each fact P9 to P12 add unless a test's recorder takes it (`Step6Recorder`,
- * `events.ts`). None turns true before the owner's typed yes and its contracts commit; the lift turns
- * them true with calibration's own (restated there, a test tying the two).
+ * All four are true: the owner's typed yes ("Yes, make contracts edits P9, P10, P11, P12, P18 and
+ * P20.", 2026-11-28) and contracts-guardian's review landed their text in `packages/contracts`
+ * (`d9596ce`), and the log writes each on the stream. The gate is joint: were any false,
+ * `pocketRulesOf` would refuse every tree carrying `pocket.outs` before the first die, since the outs
+ * write all four. Beside them, a named addition to plan §1.2 (contracts-guardian's second reading,
+ * `guardian-2.md`), two doc-only petitions gate one leaf each, the same way: P20
+ * (`QB_HIT.contactSeconds` on a caught escape, the time of the escape's `scramble` CHECK in seconds
+ * from the snap) gates the caught escape as contact (`pocket.outs.caughtAsContact`) and is true, by
+ * the same yes (`ce6abaf`); P21 (`QB_HIT.seen` false on a catch from a block, asked only if the owner
+ * answers "unseen") gates `pocket.outs.caughtSeen` `UNSEEN_IF_UNREGISTERED` and stays false: the owner
+ * answered "Seen for now", so P21 was never asked, and that leaf is still refused by name. A test
+ * withholds or grants any of them through `pocketRulesUnder` with its own petitions. They flipped in
+ * the same commit as calibration's own (restated there, `engineRulesS6.test.ts` ties the two).
  */
-export const P9_IN_CONTRACTS = false;
-export const P10_IN_CONTRACTS = false;
-export const P11_IN_CONTRACTS = false;
-export const P12_IN_CONTRACTS = false;
-export const P20_IN_CONTRACTS = false;
+export const P9_IN_CONTRACTS = true;
+export const P10_IN_CONTRACTS = true;
+export const P11_IN_CONTRACTS = true;
+export const P12_IN_CONTRACTS = true;
+export const P20_IN_CONTRACTS = true;
 export const P21_IN_CONTRACTS = false;
 
 /**
@@ -1134,13 +1138,14 @@ function step4Gate(blocks: readonly { readonly name: string }[], petitions: Cont
 }
 
 /**
- * ADR-089 step 6's gate (step-6 plan §1.2, §10.1): while any of P9, P10, P11 and P12 is not in
- * contracts, a tree carrying the outs block is refused, before the first die, naming the petitions
- * that are missing; every part off is refused too, since the gate is on the block. Beside it, the
- * caught escape as contact is refused while P20 is out (its `QB_HIT.contactSeconds` is the time the
- * escape caught him, a reading the field's doc does not list yet), and the unseen answer while P21
- * is out (`QB_HIT.seen` is true on every contact before step 7 until its doc allows a catch from a
- * block to be unseen). A petition a test leaves out reads as its constant.
+ * ADR-089 step 6's gate (step-6 plan §1.2, §10.1): were any of P9, P10, P11 and P12 not in contracts
+ * (a test withholding one), a tree carrying the outs block would be refused, before the first die,
+ * naming the petitions that are missing; every part off too, since the gate is on the block. Beside
+ * it, the caught escape as contact is refused while P20 is out (its `QB_HIT.contactSeconds` is the
+ * time the escape caught him, a reading the field's doc lists only with P20), and the unseen answer
+ * while P21 is out (`QB_HIT.seen` is true on every contact before step 7 until its doc allows a catch
+ * from a block to be unseen); P21 is out in the build. A petition a test leaves out reads as its
+ * constant.
  */
 function step6Gate(outs: OutsTunables, petitions: ContractPetitions): void {
   const missing = (

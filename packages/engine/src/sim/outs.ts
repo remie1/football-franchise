@@ -49,11 +49,10 @@
  * - **2.6 Escape direction** (`breakSide`, `cardSidesAtSnap`; D15, D16; P11): the side he breaks
  *   to, by the first of D15's four rules that decides it, each man's side his matchup's card side
  *   and a looper's his partner's (D16, read once at the snap). No die. Published as
- *   `QB_DECISION.direction` (P11, the engine's stand-in until the lift) on the SCRAMBLE of an escape
- *   he won and on the HOLD of one he was contained on, nowhere else: a caught escape publishes no
- *   decision (its contact names the man, 2.8), and the deadline's SCRAMBLE carries none, because he
- *   is already running that way. Alone nothing reads the side, so the stream is step 5a's apart from
- *   the direction.
+ *   `QB_DECISION.direction` (P11) on the SCRAMBLE of an escape he won and on the HOLD of one he
+ *   was contained on, nowhere else: a caught escape publishes no decision (its contact names the
+ *   man, 2.8), and the deadline's SCRAMBLE carries none, because he is already running that way.
+ *   Alone nothing reads the side, so the stream is step 5a's apart from the direction.
  * - **2.7 The side-aware catch** (`sideCatchOf`, `sideCatcherOf`; AM-13 `sideCatch`, the 10 and 15
  *   CHOSEN in the design; it needs 2.6's direction): the escape target's EDGE term gives way to 10
  *   for each live threat on the side he breaks to and 15 for each unregistered man there, a card
@@ -81,10 +80,10 @@
  *   d100's mean plus the defender's Man Coverage, Agility and Shutdown, in zone his Route Running and
  *   Route Technician against the zone rep's own target, with no release carry-over either way. The
  *   margin maps through that coverage's band table to TRAILING, EVEN or IN_FRONT, and the rep is a
- *   `scramble_drill` CHECK (P12, the stand-in until the lift) whose band is that word. A man in a
- *   hole is TRAILING with no die. The position moves openness only: two burst steps of the route's
- *   gain by position (+20, +10 or 0) go onto the base the scramble drill climbs from. Nothing here
- *   writes a contest position, so every contested catch reads his coverage rep's (D25).
+ *   `scramble_drill` CHECK (P12) whose band is that word. A man in a hole is TRAILING with no die.
+ *   The position moves openness only: two burst steps of the route's gain by position (+20, +10 or
+ *   0) go onto the base the scramble drill climbs from. Nothing here writes a contest position, so
+ *   every contested catch reads his coverage rep's (D25).
  * - **2.10 The side-aware drill, by break lane** (`drillStepsOf`; AM-13 `drillBySide`, D24; it needs
  *   2.6's direction and 2.9's drill): at an escape toward a side, a route breaking to that side or to
  *   the middle keeps the drill's two burst steps, and one breaking to the far side gets one (+10, +5
@@ -94,8 +93,8 @@
  *   throw taken (none after a clean break-out, D23 on the run), he picks between RUN and THROWAWAY
  *   on one d100, today's `pocket_movement` CHECK on `movement/t<tick>:deadline`, over a ranking of
  *   its own at urgency 0, THROWAWAY first on a tie. RUN is today's deadline run; THROWAWAY is an
- *   OUT_OF_POCKET throwaway (P9, the stand-in until the lift) whose `rollRef` is that CHECK and whose
- *   `outsideTackleBox` is true (P10).
+ *   OUT_OF_POCKET throwaway (P9) whose `rollRef` is that CHECK and whose `outsideTackleBox` is
+ *   true (P10).
  * - **2.12 The failed scramble scored as a sack** (AM-13 `rescoring`) has no function here: the
  *   call site writes `PLAY_START.scoring` under `failedScrambleSack`, and every reader keys the rule
  *   on that marker (`stats/statline.ts` in the engine).
@@ -715,11 +714,11 @@ const DRILL_ZONE_ATTRS: readonly AttrId[] = [ATTR.routeRunning, ATTR.zoneCoverag
  *   (`zoneCoverage.uncoveredContestPosition`), and no CHECK.
  *
  * The band's contest position is where the defender stands after the drill: TRAILING, EVEN or
- * IN_FRONT, and the CHECK's `band` is that word. The CHECK (`scramble_drill`, P12's stand-in until the
- * lift): actors the receiver then the defender; `roll` his d100 with its modifiers; no
- * `opposedRoll`; `target` the defender's side; `margin` and its `tier`; `testsAttrs` the ratings
- * read on both sides, as the coverage rep's own CHECK lists them; `rollRef` the escape's `scramble`
- * CHECK. No die is drawn here, and nothing here writes the receiver's track.
+ * IN_FRONT, and the CHECK's `band` is that word. The CHECK (`scramble_drill`, P12): actors the
+ * receiver then the defender; `roll` his d100 with its modifiers; no `opposedRoll`; `target` the
+ * defender's side; `margin` and its `tier`; `testsAttrs` the ratings read on both sides, as the
+ * coverage rep's own CHECK lists them; `rollRef` the escape's `scramble` CHECK. No die is drawn
+ * here, and nothing here writes the receiver's track.
  */
 export function drillRepOf(a: {
   readonly tunables: Tunables;

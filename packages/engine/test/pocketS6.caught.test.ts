@@ -42,6 +42,7 @@ vi.mock("../src/sim/outs.js", async (importOriginal) => {
 import { playerId } from "@ff/contracts";
 import type { MatchEventEnvelope, PlayerId, PlayerState, RushApproach } from "@ff/contracts";
 import type { CheckPayload, ThreatApproach } from "../src/events.js";
+import { simulatePassPlay } from "../src/index.js";
 import { fromOf } from "../src/resolve/approach.js";
 import { arrivalContest, tiltClassOf, tiltOf } from "../src/resolve/contact.js";
 import type { RushThreat } from "../src/resolve/rushThreat.js";
@@ -626,7 +627,12 @@ describe("ADR-089 step 6, 2.8: the leaves behind their petitions", () => {
     expect(play(H8, { ...GRANTED_S6, P20: false })).toThrow(PocketRulesError);
     expect(play(H7H8_UNSEEN, { ...GRANTED_S6, P21: false })).toThrow(PocketRulesError);
     expect(play(H7H8_UNSEEN, { ...GRANTED_S6, P20: false })).toThrow(PocketRulesError);
-    // SEEN with P21 withheld plays (no direction is published, so no recorder is needed).
+    // SEEN with P21 withheld plays.
     expect(play(H8, { ...GRANTED_S6, P21: false })().events.length).toBeGreaterThan(0);
+    // The build's own petitions: P20 is in, so SEEN plays; P21 is out, so the unseen leaf is refused by name.
+    expect(simulatePassPlay(f.scenario.state, f.calls, "s6-caught-gate", withOuts(S5S_TUNABLES, H8)).events.length).toBeGreaterThan(0);
+    expect(() => simulatePassPlay(f.scenario.state, f.calls, "s6-caught-gate", withOuts(S5S_TUNABLES, H7H8_UNSEEN))).toThrow(
+      "pocket.outs.caughtSeen UNSEEN_IF_UNREGISTERED is refused until petition P21 is in contracts",
+    );
   });
 });

@@ -28,8 +28,10 @@
  * options)`: E9's tree (step 5's clean bench with every clean-pocket part and the fitted deltas,
  * `POCKET_1_S5A_LEAVES`) with the outs block those parts give (`outsBlockOf`, the recommended
  * options unless given), stamped `pocket-1.s6`. With no parts it is E9's tree with the block and
- * every part off. Built through `withOverlay`, never patched after; nothing plays it before step 6's
- * gate opens, because `checkStamp` refuses every tree carrying the block while P9 to P12 are out.
+ * every part off. Built through `withOverlay`, never patched after; the step-6 harness plays it only
+ * once step 6's gate opens (`step6.ts`), and `checkStamp` refuses a tree whose parts need a petition
+ * that is out (P9 to P12 and P20 are in contracts since the step-6 lift; P21, which the unseen answer
+ * needs, is not).
  *
  * **The one-threat bench** replays captured clean-bench dropbacks with `simulatePlay` (ADR-012
  * items 1 and 2: the entry point, and the types to build its input), each call rebuilt so that
@@ -240,7 +242,7 @@ export function cleanBenchTunablesS5(parts: CleanBenchParts | undefined, offsets
  * block `parts` and `options` give (`outsBlockOf`), stamped `pocket-1.s6` at a digest of its own.
  * Every part off is E9's tree with an all-off block. Built through `withOverlay`, never patched
  * after. Refused while the 5a fit is not recorded (E9's deltas are the fit's). Nothing plays it while
- * a step-6 petition is out: `checkStamp` refuses every tree carrying the block (`step6Refusal`).
+ * a step-6 petition its parts need is out: `checkStamp` refuses that tree (`step6Refusal`).
  */
 export function cleanBenchTunablesS6(parts: readonly OutsPart[], options: OutsOptions = RECOMMENDED_OUTS_OPTIONS): Tunables {
   const fitted = POCKET_1_S5A_LEAVES;

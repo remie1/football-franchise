@@ -56,8 +56,7 @@
  *
  * Nothing else step 6 adds feeds a line: the drill's `scramble_drill` CHECKs (P12),
  * the deadline pick's `pocket_movement` CHECK and `QB_DECISION.direction` (P11)
- * are matched by no branch here (`test/pocketS6.statline.test.ts`, on the stream as
- * it will stand at the lift).
+ * are matched by no branch here (`test/pocketS6.statline.test.ts`, on the stream).
  */
 import type { PlayerId, TeamId } from "@ff/contracts";
 import { isGameScoped } from "../game/events.js";

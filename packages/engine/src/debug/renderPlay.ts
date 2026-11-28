@@ -25,11 +25,11 @@
  * `pocket-1.s1` to `pocket-1.s5a`). The deadline pick is a `pocket_movement` CHECK told apart by its
  * label (`movement/t<tick>:deadline`), as the clean pick is; the scramble drill's `scramble_drill`
  * CHECK (P12), the OUT_OF_POCKET throwaway (P9), its `outsideTackleBox` (P10) and the decision's
- * `direction` (P11) are read structurally until those petitions are in contracts, as step 4's
- * contact was; a caught escape's contact is the `arrival_contest` right after a CAUGHT_FROM_BEHIND
- * escape roll on its tick; a scramble that ends behind the line, which only step 6's scramble start
- * makes, is worded from its yards; and a failed scramble scored as a sack is read off
- * `PLAY_START.scoring`, the marker `pocket.outs.failedScrambleSack` writes, never off the yards alone.
+ * `direction` (P11) are in contracts and read as their types; a caught escape's contact is the
+ * `arrival_contest` right after a CAUGHT_FROM_BEHIND escape roll on its tick; a scramble that ends
+ * behind the line, which only step 6's scramble start makes, is worded from its yards; and a failed
+ * scramble scored as a sack is read off `PLAY_START.scoring`, the marker
+ * `pocket.outs.failedScrambleSack` writes, never off the yards alone.
  */
 import type {
   MatchEvent,
@@ -597,16 +597,15 @@ function renderPocketMovement(events: readonly MatchEventEnvelope[], name: NameL
  * ADR-089 step 6 (plan §2.9, §2.10; P12): THE SCRAMBLE DRILL, each covered receiver's fresh rep after
  * a won escape, one row per `scramble_drill` CHECK in stream order: the receiver against his man (or
  * the defender whose zone he is in), the receiver's roll against the defender's side, stated as the
- * target with no die, and the band, where the defender stands after the drill. Read structurally
- * until P12 makes the kind a `CheckKind`; a stream without the CHECK prints no section at all.
+ * target with no die, and the band, where the defender stands after the drill. A stream without the
+ * CHECK (every stream but `pocket-1` from `pocket-1.s6`) prints no section at all.
  */
 function renderScrambleDrill(events: readonly MatchEventEnvelope[], name: NameLookup): string[] {
   const out: string[] = [];
   for (const { event } of events) {
     if (event.type !== "CHECK") continue;
     const p = event.payload;
-    const kind: string = p.checkKind;
-    if (kind !== "scramble_drill") continue;
+    if (p.checkKind !== "scramble_drill") continue;
     const receiver = p.actors[0];
     const defender = p.actors[1];
     out.push(
@@ -831,19 +830,16 @@ function renderQbDecisionMaking(events: readonly MatchEventEnvelope[], name: Nam
       // "there was nothing to decide", not "he decided badly".
       const tier = p.tier === undefined ? "" : ` [${p.tier}]`;
       // ADR-089 step 6 (plan §2.6; P11): the side of an escape, on the decision that carries it.
-      const direction: unknown = (p as { readonly direction?: unknown }).direction;
-      const side = typeof direction === "string" ? ` (direction ${direction})` : "";
+      const side = p.direction === undefined ? "" : ` (direction ${p.direction})`;
       out.push(`  ├─ Tick ${tickLabel(event.tick)}: ${p.choice}${target}${tier}${side}`);
     } else if (event.type === "THROWAWAY") {
       // ADR-089 step 6 (plan §2.11; P9, P10): the throwaway after an escape, which the deadline
       // pick chose (its CHECK is the pocket-movement row on `:deadline`). The pocket's two causes
       // print nothing here, as before: the decision line above says it.
-      const cause: string = event.payload.cause;
-      if (cause === "OUT_OF_POCKET") {
-        const outside: unknown = (event.payload as { readonly outsideTackleBox?: unknown }).outsideTackleBox;
+      if (event.payload.cause === "OUT_OF_POCKET") {
         out.push(
           `  ├─ Tick ${tickLabel(event.tick)}: throws it away out of the pocket (OUT_OF_POCKET` +
-            `${outside === true ? ", outside the tackle box" : ""}; the deadline pick)`,
+            `${event.payload.outsideTackleBox === true ? ", outside the tackle box" : ""}; the deadline pick)`,
         );
       }
     }

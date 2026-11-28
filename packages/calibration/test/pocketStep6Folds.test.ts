@@ -1,7 +1,8 @@
 /**
  * ADR-089 step 6: THE STEP-6 FOLDS ON ONE LEAGUE (step-6 plan §3.2 K2, commit (9); `s6Checks.ts`), on
  * constructed step-6 games read with H0's tunables and a golden game's rosters (one legacy game, played
- * for its snapshot only: no step-6 arm plays before the lift).
+ * for its snapshot only), so each case a fold reads is held exactly; the folds on played step-6 games
+ * are `pocketStep6Smoke.test.ts`'s.
  *
  *  - `foldStep6Game`: the rows, the counts, the throws on the run, S-14 (the dropback reader, the
  *    step-6 reading, the sacker mix and the statline count the same sacks and credit the same man)
@@ -24,7 +25,6 @@ import { registryAttr } from "../src/pocket/freeRun.js";
 import { playersOfSnapshot, ratingReader } from "../src/pocket/m6Contact.js";
 import { m5GameOf } from "../src/pocket/m5Mirror.js";
 import { applyRatingOverrides } from "../src/pocket/ratingOverride.js";
-import { STEP6_PETITIONS_GRANTED } from "../src/pocket/rules.js";
 import { s2ContextOf } from "../src/pocket/s2Stream.js";
 import { s5DropbacksOf } from "../src/pocket/s5Stream.js";
 import { ALL_THIRD, emptyS6RowsFold, foldS6RowsGame, s6Rows, type ThirdOf } from "../src/pocket/s6Rows.js";
@@ -50,7 +50,8 @@ import { buildGeneratedLeague } from "../src/season/generatedLeague.js";
 import { deadlinePlay, editDecisions, mapBody, onTheRunThrow, scramblePlay } from "./s6EngineShaped.js";
 import { BLOCKED_CATCH_SACK, constructedGame, DEADLINE_THROWAWAY, SHED_THEN_SACK, throwaway, type PlaySpec } from "./s6Fixtures.js";
 
-const tree = (id: string) => buildStep6Arm(step6ArmDef(id)!, undefined, STEP6_PETITIONS_GRANTED).tunables;
+/** A step-6 arm's tree under the recommended answers, built with the build's flags (since the lift). */
+const tree = (id: string) => buildStep6Arm(step6ArmDef(id)!).tunables;
 const H0 = tree("H0");
 const H2 = tree("H2");
 

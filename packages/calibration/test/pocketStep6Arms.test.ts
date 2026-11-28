@@ -1,6 +1,6 @@
 /**
- * ADR-089 STEP 6: THE ARMS, DEFINED AND REFUSED UNTIL THE GATE OPENS (`src/pocket/arms.ts`; step-6
- * plan §3.2 K1, §5.1 to §5.3, §6.1's "arm read" column).
+ * ADR-089 STEP 6: THE ARMS, DEFINED, BUILT SINCE THE LIFT, PLAYED ONLY ONCE THE GATE OPENS
+ * (`src/pocket/arms.ts`; step-6 plan §3.2 K1, §5.1 to §5.3, §6.1's "arm read" column).
  *
  *  1. The table: `STEP6_ARM_DEFS` is the 35 arms in `STEP6_ARM_IDS`' order, each stamped
  *     `pocket-1.s6`, on the league (H0 to H15, H2L, H0M) or the clean bench (the rest), each on plan
@@ -12,10 +12,14 @@
  *  3. The clauses: each arm names exactly the clauses plan §6.1 reads on it, each as filed, a graded
  *     or structural one in `graded`, a reported one and `s6.drillArms` in `reported`, in the filing's
  *     order; only H0 carries the guard (AM-12); `s6.readersAgree` is on every marker arm and H2, HB2.
- *  4. The refusal: with this build's flags every arm waits on P9 to P12 (and P20 with the caught
- *     escape as contact, P21 for its unseen answer); `step6ArmRefusal` names them, `armById` and
- *     `buildStep6Arm` refuse by that name, and the list is exactly what `checkStamp` refuses.
- *  5. Built with a test's petitions (`STEP6_PETITIONS_GRANTED`): each league arm is F5's tree plus its
+ *  4. The petitions: every arm waits on P9 to P12 (and P20 with the caught escape as contact, P21 for
+ *     its unseen answer). P9 to P12 and P20 are in contracts since the lift, so with this build's flags
+ *     every arm builds under the seen answer and an arm with the caught escape as contact is refused
+ *     under the unseen one, P21 named; `step6ArmRefusal` names what is missing (any of them, when a
+ *     test withholds it), `buildStep6Arm` refuses by that name, `armById` refuses every arm as the
+ *     step-6 harness's alone, and the list is exactly what `checkStamp` refuses.
+ *  5. Built with every petition granted (`STEP6_PETITIONS_GRANTED`; the build's flags build the same
+ *     arms under the seen answer): each league arm is F5's tree plus its
  *     parts and each bench arm E9's, H0 is `step6Bundle()` itself; the probes and H0M play H0's dials
  *     and are told apart by their ratings and mirror (O28 at step 6); under every option of the
  *     owner's three questions every arm builds, each option reaching only its leaf, and H2L and HB2L
@@ -165,6 +169,8 @@ const ARM_READ: Readonly<Record<string, readonly string[]>> = {
 const def = (id: Step6ArmId): Step6ArmDef => step6ArmDef(id)!;
 const GRANTED: Step6Petitions = STEP6_PETITIONS_GRANTED;
 const UNSEEN: OutsOptions = { ...RECOMMENDED_OUTS_OPTIONS, seen: "UNSEEN_IF_UNREGISTERED" };
+/** Every step-6 petition withheld: a test's own set, to see each refusal by name. */
+const WITHHELD: Step6Petitions = { P9: false, P10: false, P11: false, P12: false, P20: false, P21: false };
 /** The arms whose tree turns on the caught escape as contact (P20; P21 under the unseen answer). */
 const CAUGHT = STEP6_ARM_IDS.filter((id) => PARTS[id].includes("caughtAsContact"));
 
@@ -345,21 +351,24 @@ describe("the clauses each arm reads (plan §6.1's arm-read column)", () => {
   });
 });
 
-describe("refused while the petitions are out (plan §1.2; this build's flags)", () => {
+describe("the petitions (plan §1.2): in since the lift, P21 aside (this build's flags)", () => {
   it("step6ArmRefusal names each arm's petitions: P9 to P12 for every arm, P20 with the caught escape as contact, P21 for its unseen answer", () => {
     for (const id of STEP6_ARM_IDS) {
       const caught = CAUGHT.includes(id);
       const needed: Step6Petition[] = ["P9", "P10", "P11", "P12", ...(caught ? (["P20"] as const) : [])];
       expect(step6ArmPetitions(id), id).toEqual(needed);
-      expect(step6ArmRefusal(id), id).toBe(refusalWords(id, needed, needed));
       const unseen: Step6Petition[] = [...needed, ...(caught ? (["P21"] as const) : [])];
       expect(step6ArmPetitions(id, UNSEEN), id).toEqual(unseen);
-      expect(step6ArmRefusal(id, {}, UNSEEN), id).toBe(refusalWords(id, unseen, unseen));
-      // With a test's petitions, nothing is missing; with one withheld, that one is named.
+      // The build's flags: nothing is missing under the seen answer, P21 under the unseen one.
+      expect(step6ArmRefusal(id), id).toBeUndefined();
+      expect(step6ArmRefusal(id, {}, UNSEEN), id).toBe(caught ? refusalWords(id, unseen, ["P21"]) : undefined);
+      // Withheld by a test, every needed one is named; with every petition, nothing is missing.
+      expect(step6ArmRefusal(id, WITHHELD), id).toBe(refusalWords(id, needed, needed));
+      expect(step6ArmRefusal(id, WITHHELD, UNSEEN), id).toBe(refusalWords(id, unseen, unseen));
       expect(step6ArmRefusal(id, GRANTED), id).toBeUndefined();
       expect(step6ArmRefusal(id, GRANTED, UNSEEN), id).toBeUndefined();
-      expect(step6ArmRefusal(id, { ...GRANTED, P11: false }), id).toBe(refusalWords(id, needed, ["P11"]));
-      expect(step6ArmRefusal(id, { ...GRANTED, P20: false }), id).toBe(caught ? refusalWords(id, needed, ["P20"]) : undefined);
+      expect(step6ArmRefusal(id, { P11: false }), id).toBe(refusalWords(id, needed, ["P11"]));
+      expect(step6ArmRefusal(id, { P20: false }), id).toBe(caught ? refusalWords(id, needed, ["P20"]) : undefined);
       expect(step6ArmRefusal(id, { ...GRANTED, P21: false }, UNSEEN), id).toBe(caught ? refusalWords(id, unseen, ["P21"]) : undefined);
     }
     expect(CAUGHT).toEqual(["H0", "H8", "H13", "H14", "H15", "H2L", "H0M", "HB0", "HBN", "HB2L", "HF3", "HF4", "HF5"]);
@@ -369,17 +378,19 @@ describe("refused while the petitions are out (plan §1.2; this build's flags)",
     }
   });
 
-  it("armById and buildStep6Arm refuse each by that name, step6ArmsWith refuses, and nothing else refuses a step-6 arm or builds one", () => {
+  it("armById refuses each as the step-6 harness's; buildStep6Arm and step6ArmsWith build them under the seen answer and refuse a caught arm under the unseen one by name; nothing else builds one", () => {
     for (const d of STEP6_ARM_DEFS) {
-      const why = step6ArmRefusal(d.id)!;
       expect(() => armById(d.id), d.id).toThrow(EngineRulesError);
-      expect(() => armById(d.id), d.id).toThrow(`arms: ${why}: nothing plays it`);
-      expect(() => buildStep6Arm(d), d.id).toThrow(`arms: ${why}: nothing plays it`);
-      expect(() => buildStep6Arm(d, UNSEEN), d.id).toThrow(`arms: ${step6ArmRefusal(d.id, {}, UNSEEN)!}: nothing plays it`);
+      expect(() => armById(d.id), d.id).toThrow(`arms: ${step6HarnessOnly(d.id)}: nothing plays it`);
+      expect(buildStep6Arm(d).id, d.id).toBe(d.id);
+      if (CAUGHT.includes(d.id)) expect(() => buildStep6Arm(d, UNSEEN), d.id).toThrow(`arms: ${step6ArmRefusal(d.id, {}, UNSEEN)!}: nothing plays it`);
+      else expect(buildStep6Arm(d, UNSEEN).id, d.id).toBe(d.id);
+      expect(() => buildStep6Arm(d, RECOMMENDED_OUTS_OPTIONS, WITHHELD), d.id).toThrow(`arms: ${step6ArmRefusal(d.id, WITHHELD)!}: nothing plays it`);
       expect(armRefusal(d.id), d.id).toBeUndefined();
       expect(step5ArmRefusal(d.id), d.id).toBeUndefined();
     }
-    expect(() => step6ArmsWith()).toThrow(`arms: ${step6ArmRefusal("H0")!}: nothing plays it`);
+    expect([...step6ArmsWith().keys()]).toEqual([...STEP6_ARM_IDS]);
+    expect(() => step6ArmsWith(UNSEEN)).toThrow(`arms: ${step6ArmRefusal("H0", {}, UNSEEN)!}: nothing plays it`);
     const built = [...everyArm(), ...step5Arms()].map((a) => a.id);
     expect(built.filter((id) => (STEP6_ARM_IDS as readonly string[]).includes(id))).toEqual([]);
     expect(ALL_ARM_IDS.slice(-35)).toEqual([...STEP6_ARM_IDS]);
@@ -391,7 +402,9 @@ describe("refused while the petitions are out (plan §1.2; this build's flags)",
       for (const d of STEP6_ARM_DEFS) {
         const tree = treeOf(d, options);
         const needed = step6ArmPetitions(d.id, options)!;
-        expect(() => checkStamp(tree, POCKET_1_S6_RULES, d.id), d.id).toThrow(EngineRulesError);
+        // The build's flags refuse a tree only on P21, which only a caught arm's unseen answer needs.
+        if (needed.includes("P21")) expect(() => checkStamp(tree, POCKET_1_S6_RULES, d.id), d.id).toThrow(/\bP21\b/);
+        else expect(() => checkStamp(tree, POCKET_1_S6_RULES, d.id), d.id).not.toThrow();
         expect(() => checkStamp(tree, POCKET_1_S6_RULES, d.id, GRANTED), d.id).not.toThrow();
         for (const p of STEP6_PETITION_NAMES) {
           const run = (): unknown => checkStamp(tree, POCKET_1_S6_RULES, d.id, { ...GRANTED, [p]: false });

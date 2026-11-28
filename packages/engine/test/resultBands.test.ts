@@ -21,9 +21,10 @@ import { gameId, playId, playerId } from "@ff/contracts";
 import type { MatchEvent, MatchEventEnvelope, RollDetail } from "@ff/contracts";
 import { renderPlay, simulatePassPlay, simulateRunPlay } from "../src/index.js";
 import type { Tunables } from "../src/tunables.js";
-import { P6_IN_CONTRACTS, P7_IN_CONTRACTS, P8_IN_CONTRACTS } from "../src/sim/pocketRules.js";
+import { P10_IN_CONTRACTS, P11_IN_CONTRACTS, P12_IN_CONTRACTS, P6_IN_CONTRACTS, P7_IN_CONTRACTS, P8_IN_CONTRACTS, P9_IN_CONTRACTS } from "../src/sim/pocketRules.js";
 import { PASS_FIXTURES, SW_TUNABLES } from "./pocketTunables.js";
 import { S4S_TUNABLES, T_TUNABLES } from "./step4Fixtures.js";
+import { S6L_TUNABLES, S6S_TUNABLES } from "./step6Fixtures.js";
 import {
   RUN_SCHEMES,
   STAMP,
@@ -106,8 +107,8 @@ const STEP4_BANDED: readonly string[] = [
 
 /**
  * ADR-089 P12: BANDED (TRAILING, EVEN or IN_FRONT), but drawn only under `pocket-1` from
- * `pocket-1.s6`, so the legacy, shape-S and step-4 sweeps never see it; the step-6 sweep, which
- * lands with the step-6 gate, must.
+ * `pocket-1.s6`, so the legacy, shape-S and step-4 sweeps never see it; the step-6 sweep below, which
+ * landed with the step-6 gate, must.
  */
 const STEP6_BANDED: readonly string[] = [
   "scramble_drill",       // ADR-089 §4.6 e TRAILING / EVEN / IN_FRONT
@@ -115,6 +116,8 @@ const STEP6_BANDED: readonly string[] = [
 
 /** The step-4 bundles play only once P6, P7 and P8 are all in contracts (the engine's gate is joint). */
 const STEP4_PLAYS = P6_IN_CONTRACTS && P7_IN_CONTRACTS && P8_IN_CONTRACTS;
+/** The step-6 bundles play only once P9 to P12 are all in contracts (the engine's gate is joint). */
+const STEP6_PLAYS = P9_IN_CONTRACTS && P10_IN_CONTRACTS && P11_IN_CONTRACTS && P12_IN_CONTRACTS;
 
 /**
  * The renderer writes plain English for the two UNBANDED checks whose outcome is
@@ -269,6 +272,29 @@ describe("ADR-011 — the band invariant", () => {
         }
       }
       expect(contests, "the step-4 sweep reached no arrival_contest").toBeGreaterThan(0);
+    });
+  }
+
+  for (const { name, tunables } of [
+    { name: "pocket-1.s6 shape S, every part on", tunables: S6S_TUNABLES },
+    { name: "pocket-1.s6 shape L, every part on", tunables: S6L_TUNABLES },
+  ] as const) {
+    it.runIf(STEP6_PLAYS)(`every scramble_drill CHECK carries its band, TRAILING, EVEN or IN_FRONT, and every banded kind still does (${name})`, () => {
+      let drills = 0;
+      for (const [, build] of PASS_FIXTURES) {
+        for (let i = 0; i < 40; i++) {
+          const { state, calls } = build();
+          for (const { event } of simulatePassPlay(state, calls, `band-step6-${i}`, tunables).events) {
+            if (event.type !== "CHECK") continue;
+            const p = event.payload;
+            if (BANDED.includes(p.checkKind) || STEP4_BANDED.includes(p.checkKind)) expect(p.band, `${p.checkKind} has a band table and must publish its label`).toBeTruthy();
+            if (!STEP6_BANDED.includes(p.checkKind)) continue;
+            drills += 1;
+            expect(["TRAILING", "EVEN", "IN_FRONT"]).toContain(p.band);
+          }
+        }
+      }
+      expect(drills, "the step-6 sweep reached no scramble_drill").toBeGreaterThan(0);
     });
   }
 

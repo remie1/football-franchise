@@ -1,7 +1,7 @@
 /**
  * ADR-089 step 6, PART 2.6 (step-6 plan §2.6; D15, D16; P11): ESCAPE DIRECTION, behind
- * `pocket.outs.direction`, published as `QB_DECISION.direction` (P11's stand-in: until the lift the
- * test recorder takes it, at the decision's seq).
+ * `pocket.outs.direction`, published as `QB_DECISION.direction` (P11), on the decision that carries
+ * it.
  *
  * 1. Where it is written (S-17 at the engine): on the SCRAMBLE after every escape he won and on the
  *    HOLD after every escape he was contained on, the decision right after the roll, and nowhere
@@ -13,10 +13,10 @@
  *    threats (a won rep's threat states no side: his side is his card's); the parity rule's side is
  *    the pick face's parity.
  * 3. A looper who later beats his late block keeps his partner's side at the escape.
- * 4. Mirrored cards (M5): with every card side swapped the stream is the same, and every direction
- *    mirrors but a parity one, which is the face's.
- * 5. Alone it moves nothing (H6 against s5a): the stream is s5a's, byte for byte, and the recorder
- *    holds directions only.
+ * 4. Mirrored cards (M5): with every card side swapped the stream is the same but for the sides on
+ *    its decisions, and every direction mirrors but a parity one, which is the face's.
+ * 5. Alone it moves nothing (H6 against s5a): with the side taken off its decisions (`withoutStep6`)
+ *    the stream is s5a's, byte for byte, and its only step-6 records are the directions.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -38,7 +38,7 @@ import { PASS_FIXTURES } from "./pocketTunables.js";
 import { frontWithPicture, withPicture } from "./snapFixtures.js";
 import type { Step3FrontOptions } from "./snapFixtures.js";
 import { S5L_TUNABLES, S5S_TUNABLES, S5_TUNABLES, checkOf, onCleanBench, tickOfEvent } from "./step5Fixtures.js";
-import { outsParts, playS6, withOuts } from "./step6Fixtures.js";
+import { outsParts, playS6, withOuts, withoutStep6 } from "./step6Fixtures.js";
 import type { Step6Record } from "./step6Fixtures.js";
 
 const sideSpy = vi.mocked(breakSide);
@@ -261,7 +261,7 @@ describe("ADR-089 step 6, 2.6: what the direction is", () => {
 describe("ADR-089 step 6, 2.6: mirrored cards and the stream", () => {
   const NO_PICTURE = SHAPES.filter((s) => !s.picture);
 
-  it("mirrored cards (M5): the same stream, every direction mirrored but a parity one", () => {
+  it("mirrored cards (M5): the same stream but for its sides, every direction mirrored but a parity one", () => {
     let mirroredDirs = 0;
     let parity = 0;
     const builds: readonly (readonly [string, () => { readonly state: MatchGameState; readonly calls: PlayCalls }])[] = [
@@ -282,7 +282,8 @@ describe("ADR-089 step 6, 2.6: mirrored cards and the stream", () => {
           const one = playS6(a.state, a.calls, seed, withOuts(base, DIRECTION));
           const rulesOne = sideSpy.mock.results.map((r) => (r.value as Escape["answer"]).rule);
           const two = playS6(b.state, mirrored(b.calls), seed, withOuts(base, DIRECTION));
-          expect(JSON.stringify(two.events.slice(1)), `${name} ${fixture} ${i}`).toBe(JSON.stringify(one.events.slice(1)));
+          // The same stream but for the sides on its decisions, compared below.
+          expect(JSON.stringify(withoutStep6(two.events).slice(1)), `${name} ${fixture} ${i}`).toBe(JSON.stringify(withoutStep6(one.events).slice(1)));
           const d1 = directionsOf(one.records);
           const d2 = directionsOf(two.records);
           expect(d2.map((d) => d.seq)).toEqual(d1.map((d) => d.seq));
@@ -306,7 +307,7 @@ describe("ADR-089 step 6, 2.6: mirrored cards and the stream", () => {
     expect(parity).toBeGreaterThan(30);
   });
 
-  it("alone it moves nothing: the stream is s5a's byte for byte, and the recorder holds directions only", () => {
+  it("alone it moves nothing: the stream without its sides is s5a's byte for byte, and its only step-6 records are directions", () => {
     let directions = 0;
     for (const { name, base, picture } of SHAPES) {
       for (const [fixture, build] of PASS_FIXTURES) {
@@ -316,7 +317,7 @@ describe("ADR-089 step 6, 2.6: mirrored cards and the stream", () => {
           const seed = `s6-dir-alone-${fixture}-${i}`;
           const today = simulatePassPlay(a.state, picture ? withPicture(a.state, a.calls) : a.calls, seed, base).events;
           const { events, records } = playS6(b.state, picture ? withPicture(b.state, b.calls) : b.calls, seed, withOuts(base, DIRECTION));
-          expect(JSON.stringify(events), `${name} ${fixture} ${i}`).toBe(JSON.stringify(today));
+          expect(JSON.stringify(withoutStep6(events)), `${name} ${fixture} ${i}`).toBe(JSON.stringify(today));
           expect(records.every((r) => r.kind === "direction")).toBe(true);
           directions += records.length;
         }

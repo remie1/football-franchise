@@ -345,13 +345,13 @@ export function readDropback(play: PlaySlice): Dropback | undefined {
         break;
       case "QB_DECISION":
         {
-          // ADR-089 step 6 (P11): the side on a decision that carries one (calibration's stand-in read).
-          const direction = obj(event.payload)?.["direction"];
+          // ADR-089 step 6 (P11): the side on a decision that carries one.
+          const direction = event.payload.direction;
           decisions.push({
             tick,
             choice: event.payload.choice,
             ...(event.payload.target === undefined ? {} : { target: String(event.payload.target) }),
-            ...(typeof direction === "string" ? { direction } : {}),
+            ...(direction === undefined ? {} : { direction }),
           });
         }
         break;
@@ -366,8 +366,8 @@ export function readDropback(play: PlaySlice): Dropback | undefined {
         throwawayTick = tick;
         throwawayCause = event.payload.cause;
         // ADR-089 step 6 (P10): read where the stream carries it, absent otherwise.
-        const flag = obj(event.payload)?.["outsideTackleBox"];
-        if (typeof flag === "boolean") throwawayOutsideTackleBox = flag;
+        const flag = event.payload.outsideTackleBox;
+        if (flag !== undefined) throwawayOutsideTackleBox = flag;
         break;
       }
       case "QB_PURSUIT":

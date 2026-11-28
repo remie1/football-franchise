@@ -84,13 +84,13 @@
  *    every other option is a leaf a bundle may carry (`outsBlockOf`). The block rides only on a
  *    stamped bundle with a block clock and only under `pocket-1.s6`; under that name any subset of
  *    the step-3 to step-6 blocks is a bundle (an arm carries one part alone, or the block with every
- *    part off). Until petitions P9, P10, P11 and P12 are in contracts (and P20 for the caught escape as
- *    contact, P21 for its unseen answer), all false here as the engine's are, `checkStamp` refuses
- *    every tree carrying the block, at every calibration entry and in `runOneGame`, before any game
- *    (`step6Refusal`); the engine refuses the same trees before its first die. `withOverlay` and
- *    `step6Bundle` still build them. The name is stamped (`STAMPED_RULES`, for the step-6 harness's
- *    arms), refused by name in `rulesTunables` until its digest is recorded, and not in
- *    `ENGINE_RULES` until then.
+ *    part off). Petitions P9, P10, P11 and P12 are in contracts since the step-6 lift (and P20, which
+ *    the caught escape as contact needs), true here as the engine's are; P21, which its unseen answer
+ *    needs, is not, so `checkStamp` refuses a tree carrying `caughtSeen` `UNSEEN_IF_UNREGISTERED`, at
+ *    every calibration entry and in `runOneGame`, before any game (`step6Refusal`), and the engine
+ *    refuses the same trees before its first die. `withOverlay` and `step6Bundle` build every tree.
+ *    The name is stamped (`STAMPED_RULES`, for the step-6 harness's arms), refused by name in
+ *    `rulesTunables` until its digest is recorded, and not in `ENGINE_RULES` until then.
  *  - **When it is written (O11).** The export file and `season --out` always write `engineRules`, so
  *    they say what played. The identity, the batch provenance and the save write it only when it is
  *    not `legacy`, so a legacy identity and a legacy save stay byte for byte today's. The overlay
@@ -156,8 +156,9 @@ export const POCKET_1_S5B_RULES = "pocket-1.s5b";
  * `STAMPED_RULES`, the `OverlayRules` union), so `withOverlay` builds its bundle (`step6Bundle`) and its
  * arms; `ENGINE_RULES` takes it only once its digest is recorded (the bundle-record commit, plan
  * §10.1 item 9). Until then `rulesTunables` refuses it by name, so no run, export or save is stamped
- * with a digest that later moves, and while its petitions are out `checkStamp` refuses every tree
- * carrying its block (`step6Refusal`), so nothing plays it.
+ * with a digest that later moves. Its petitions P9 to P12 and P20 are in contracts since the step-6
+ * lift; while P21 is out `checkStamp` refuses a tree carrying the unseen answer's leaf
+ * (`step6Refusal`).
  */
 export const POCKET_1_S6_RULES = "pocket-1.s6";
 
@@ -574,29 +575,31 @@ export function step4PetitionsIn(petitions: Step4Petitions = {}): boolean {
  * ADR-089 step 6 (step-6 plan §1.2, §10.1; `petitions.md`): the contract petitions the outs block waits
  * on, restated from the engine (`P9_IN_CONTRACTS` to `P12_IN_CONTRACTS`, `P20_IN_CONTRACTS` and
  * `P21_IN_CONTRACTS` in `sim/pocketRules.ts`, off the barrel; `engineRulesS6.test.ts` reads the
- * engine's from its source and fails while they differ). All six are false: none has the owner's
- * typed yes yet, so none is in `packages/contracts`, exactly as step 4's three were before theirs
- * (`bb68474`). The outs write:
+ * engine's from its source and fails while they differ). The outs write:
  *  - P9: an OUT_OF_POCKET throwaway (`ThrowawayCause`), with `THROWAWAY.rollRef` naming the deadline
  *    pick's CHECK;
  *  - P10: `THROWAWAY.payload.outsideTackleBox`;
  *  - P11: `QB_DECISION.payload.direction`, the side of an escape;
  *  - P12: the `scramble_drill` CHECK kind, the drill's fresh rep.
- * The gate on the block is joint: while any of P9 to P12 is false, `checkStamp` refuses every tree
+ * All four are true: the owner's typed yes ("Yes, make contracts edits P9, P10, P11, P12, P18 and
+ * P20.", 2026-11-28) and contracts-guardian's review landed their text in `packages/contracts`. The
+ * gate on the block is joint: were any of P9 to P12 false, `checkStamp` would refuse every tree
  * carrying `pocket.outs` (`step6Refusal`), every part off included, and the engine the same trees
  * before its first die. Beside them, a named addition to plan §1.2 (contracts-guardian's second
  * reading, `guardian-2.md`), two doc-only petitions gate one leaf each, the same way: P20
  * (`QB_HIT.contactSeconds` on a caught escape, ruled needed) gates the caught escape as contact
- * (`pocket.outs.caughtAsContact`), and P21 (`QB_HIT.seen` false on a catch from a block, asked only
- * if the owner answers "unseen") gates `pocket.outs.caughtSeen` `UNSEEN_IF_UNREGISTERED`. A test
- * grants them through its own `Step6Petitions`; nothing outside a test passes one. None turns true
- * before the owner's typed yes and its contracts commit; the lift turns them true with the engine's.
+ * (`pocket.outs.caughtAsContact`) and is true, by the same yes; P21 (`QB_HIT.seen` false on a catch
+ * from a block, asked only if the owner answers "unseen") gates `pocket.outs.caughtSeen`
+ * `UNSEEN_IF_UNREGISTERED` and stays false: the owner answered "Seen for now", so P21 was never
+ * asked, and that leaf is still refused by name. A test withholds or grants any of them through its
+ * own `Step6Petitions`; nothing outside a test passes one. They flipped in the same commit as the
+ * engine's.
  */
-export const P9_IN_CONTRACTS = false;
-export const P10_IN_CONTRACTS = false;
-export const P11_IN_CONTRACTS = false;
-export const P12_IN_CONTRACTS = false;
-export const P20_IN_CONTRACTS = false;
+export const P9_IN_CONTRACTS = true;
+export const P10_IN_CONTRACTS = true;
+export const P11_IN_CONTRACTS = true;
+export const P12_IN_CONTRACTS = true;
+export const P20_IN_CONTRACTS = true;
 export const P21_IN_CONTRACTS = false;
 
 /** Step 6's petitions, in order: the four the block waits on, then P20 and P21 (one leaf each). */
@@ -609,7 +612,7 @@ export type Step6Petition = (typeof STEP6_PETITION_NAMES)[number];
  */
 export type Step6Petitions = { readonly [P in Step6Petition]?: boolean };
 
-/** Every step-6 petition granted: the tests' set for building a step-6 arm before the lift. */
+/** Every step-6 petition granted, P21 among them: the tests' set for building a step-6 arm under the unseen answer. */
 export const STEP6_PETITIONS_GRANTED: Required<Step6Petitions> = Object.freeze({ P9: true, P10: true, P11: true, P12: true, P20: true, P21: true });
 
 /** The petitions `checkStamp` reads: step 4's and step 6's (one left out reads as its constant). */
@@ -1841,8 +1844,9 @@ function assertOverlayKeys(node: unknown, allowed: readonly string[], level: str
  * in the caller's hands. A forcing block under `pocket-1.s1`, a step-3 block under `pocket-1.s1`
  * or `pocket-1.s2`, a step-4 block under any name before `pocket-1.s4`, the step-5 block under
  * any name before `pocket-1.s5a`, and the step-6 block under any name but `pocket-1.s6`, are refused.
- * A step-6 bundle is built while its petitions are out, as a step-4 bundle was (`checkStamp` refuses
- * to play it).
+ * A step-6 bundle is built here whatever its petitions, as a step-4 bundle was; `checkStamp` refuses
+ * to play one while a petition it needs is out (since the step-6 lift, only P21, which the unseen
+ * answer's leaf needs).
  */
 export function withOverlay(base: Tunables, name: OverlayRules, blocks: PocketOverlay, forcing?: PocketForcing): Tunables {
   const where = `withOverlay(${name})`;
@@ -2159,7 +2163,9 @@ function pocket1s5b(): Tunables {
  * default) it is `pocket-1.s6` itself; with another block it is a step-6 league arm's, F5 plus its parts
  * (F5's tree is `pocket-1.s5a`'s on the interim clock, S theta 11). The recipe only: no digest is
  * checked here, so the tests and the harness build it (and read its digest) before its literal is
- * recorded, and it is built while its petitions are out (`checkStamp` refuses to play it).
+ * recorded. Its petitions P9 to P12 and P20 are in contracts since the step-6 lift, so `checkStamp`
+ * passes it; a block carrying the unseen answer's leaf is built too, and refused there while P21 is
+ * out.
  */
 export function step6Bundle(outs: PocketOuts = POCKET_1_S6_OUTS): Tunables {
   if (POCKET_1_S5A_LEAVES === undefined) {

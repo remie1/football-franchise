@@ -11,11 +11,13 @@
  * come with them. Nothing is written: no cache (`runStep6` takes no corpus, and refuses one) and no
  * record; the record stays in memory.
  *
- * It holds that no fold threw, that every proof read on both leagues has no fault and that the grade's
+ * It holds that no fold threw, that every proof read on both leagues has no fault, that the grade's
  * proofs and fold checks over H0 alone fail nothing (the grade of a partial run, every clause H0 does
- * not play alone NOT PLAYED); it prints what it read: the games, the pass plays, the dropbacks, the
- * plays the step-6 reading read, the escape rolls and the escapes won, the deadline picks, the
- * throwaways by cause, the sacks and the plays each proof read.
+ * not play alone NOT PLAYED), and that every structural counter of steps 1 to 5 the record carries
+ * counts 0 but step 2's arrival and witness folds (check-fix.md CF-2; `UNASSERTED` says why); it prints
+ * what it read: the games, the pass plays, the dropbacks, the plays the step-6 reading read, the escape
+ * rolls and the escapes won, the deadline picks, the throwaways by cause, the sacks, the plays each
+ * proof read and the two unasserted counters.
  *
  * Seed set 1 only (CHOSEN by fix-1's rule, set 2 too only if the whole test stays under about a
  * minute): set 1 alone played in about 33 to 34 s and the whole test took about 39 to 40 s in the
@@ -23,11 +25,11 @@
  *
  * The answers: the committed AM-13's once AM-13 is filed (the committed amendments file, read at its
  * pin), and until then the stand-in AM-13 (`s6StandIn.ts`) with the recommended answers, on a scratch
- * copy; it prints which it used. Like `pocketStep6Lifted.test.ts` it is skipped until the petitions its
- * arm waits on are in contracts (`step6PetitionsOut`: P9 to P12 and P20, and P21 on an UNSEEN answer).
- * Before the lift it was run in a scratch copy of the tree with the petition flags set true (fix-1's
- * stage note: its first runs found three harness faults, each fixed with its own test, and then it
- * passed); no flag is set true here.
+ * copy; it prints which it used. Like `pocketStep6Lifted.test.ts` it is skipped while a petition its
+ * arm waits on is out of contracts (`step6PetitionsOut`: P9 to P12 and P20, in since the lift, and P21
+ * on an UNSEEN answer). Before the lift it was run in a scratch copy of the tree with the petition
+ * flags set true (fix-1's stage note: its first runs found three harness faults, each fixed with its
+ * own test, and then it passed); since the lift it plays on the build's own flags.
  */
 import { existsSync, mkdtempSync, readdirSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -58,6 +60,47 @@ function written(): string {
   const records = STEP6_RECORDS.map((r) => join(PKG, r)).map((p) => (existsSync(p) ? `${p} ${String(statSync(p).size)} ${String(statSync(p).mtimeMs)}` : `${p} none`));
   return JSON.stringify({ cache: existsSync(cache) ? readdirSync(cache, { recursive: true }).map(String).sort() : null, records });
 }
+
+/** The counters a structural fold keeps: its problems, a monotone fold's, and the offered picks' faults. */
+const COUNTER_KEYS: ReadonlySet<string> = new Set(["problemCount", "monotoneProblemCount", "offerFaults"]);
+
+/** Every structural counter of steps 1 to 5 in a record (everything but its `s6`), by path. */
+function inheritedCounters(r: Step6Record): Readonly<Record<string, number>> {
+  const out: Record<string, number> = {};
+  const walk = (x: unknown, path: string): void => {
+    if (x === null || typeof x !== "object" || Array.isArray(x)) return;
+    for (const [k, v] of Object.entries(x as Record<string, unknown>)) {
+      if (COUNTER_KEYS.has(k) && typeof v === "number") out[`${path}.${k}`] = v;
+      else walk(v, `${path}.${k}`);
+    }
+  };
+  const { s6: _s6, ...rest } = r;
+  void _s6;
+  walk(rest, "record");
+  return out;
+}
+
+/** The structural counters of steps 1 to 5 a step-6 record carries, on each league (check-fix.md CF-2: 30). */
+const INHERITED_COUNTERS: readonly string[] = LEAGUES.flatMap((l) => [
+  ...["windowTicks", "lToday", "margins", "beats", "approach"].map((f) => `record.s1.${l}.${f}.problemCount`),
+  ...["liveSet", "mustAct", "mustAct.witness", "arrival", "warning"].map((f) => `record.s2.${l}.${f}.problemCount`),
+  `record.s3.${l}.lateBlock.problemCount`,
+  `record.s3.${l}.part1.problemCount`,
+  `record.s3.${l}.part1.monotoneProblemCount`,
+  `record.s4.${l}.s4.problemCount`,
+  `record.s5.${l}.s5.picks.offerFaults`,
+]);
+
+/**
+ * The inherited counters the smoke leaves unasserted (check-fix.md CF-2; the Orchestrator's ruling):
+ * step 2's arrival and witness folds. They count on the trees before step 6 too, on this corpus
+ * (MEASURED, check-fix.md CF-2: arrival flat 27 and gen 27 on F5, flat 26 and gen 28 on D1; witness gen
+ * 1 on D1, 0 on F5), and they are stale from step 4 on (INFERRED, check-fix.md CF-2: their first
+ * problems are plays that go on after an arrival, through a pocket_movement CHECK or a POCKET_DURESS
+ * throwaway, which step 4's and 5's rules allow). Every other inherited counter counts 0 on the base
+ * (MEASURED, check-fix.md CF-2) and is held to 0: a reader fault such as N9's would show there.
+ */
+const UNASSERTED = /^record\.s2\.(flat|gen)\.(arrival|mustAct\.witness)\.problemCount$/;
 
 /** The counts the smoke prints for one league (MEASURED by its folds). */
 function countsOf(r: Step6Record, l: League): Readonly<Record<string, unknown>> {
@@ -116,9 +159,17 @@ describe.skipIf(waiting.length > 0)(`ADR-089 step 6: the smoke, H0 on the genera
         const g = gradeStep6({ records: new Map([["H0", { 1: record }]]), file, guard, oneSet: 1, s5aDigest: POCKET_1_S5A_DIGEST, s6Digest: POCKET_1_S6_DIGEST });
         const failing = g.sections.proofs.filter((p) => p.verdict === "FAIL").map((p) => `${p.id}: ${p.detail}`);
         expect(failing, failing.join(" | ")).toEqual([]);
+        // CF-2: every structural counter of steps 1 to 5 the record carries is 0, but the two UNASSERTED.
+        const inherited = inheritedCounters(record);
+        expect(Object.keys(inherited).sort()).toEqual([...INHERITED_COUNTERS].sort());
+        const held = Object.entries(inherited).filter(([path]) => !UNASSERTED.test(path));
+        expect(held).toHaveLength(INHERITED_COUNTERS.length - 4);
+        expect(held.filter(([, n]) => n !== 0), "an inherited structural counter that counts 0 on the base is not 0").toEqual([]);
         expect(written(), "the smoke wrote a cache or a record").toBe(before);
         const proofs = Object.fromEntries(g.sections.proofs.map((p) => [p.id, `${p.verdict} (${p.detail})`]));
+        const unasserted = Object.fromEntries(Object.entries(inherited).filter(([path]) => UNASSERTED.test(path)));
         process.stdout.write(`pocketStep6Smoke H0 set 1 (${used}; answers ${JSON.stringify(guard.answers)}; ${String(ms)} ms): ${JSON.stringify({ flat: countsOf(record, "flat"), gen: countsOf(record, "gen"), proofs })}\n`);
+        process.stdout.write(`pocketStep6Smoke H0 set 1, the unasserted inherited counters (CF-2): ${JSON.stringify(unasserted)}\n`);
       } finally {
         rmSync(scratch, { recursive: true, force: true });
       }

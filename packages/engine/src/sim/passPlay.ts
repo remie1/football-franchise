@@ -49,7 +49,7 @@ import type { PlayerId, PlayerState, Rng, RollModifier, RushThreatState } from "
 import { ATTR } from "../attrs.js";
 import { chemistryLevel } from "../chemistry.js";
 import { ARRIVAL_CONTEST_KIND, PlayEventLog } from "../events.js";
-import type { ArrivalContestEmission, QbHitRecord, Step6Recorder, ThreatApproach } from "../events.js";
+import type { ArrivalContestEmission, QbHitRecord, ThreatApproach } from "../events.js";
 import { clamp, flatModifier, tierFor } from "../rolls.js";
 import { TUNABLES } from "../tunables.js";
 import type { LateBlockTunables, Tunables } from "../tunables.js";
@@ -493,13 +493,11 @@ export function simulatePassPlay(
 
 /**
  * A test's own set of petitions (`pocketRulesUnder`), so a test can withhold one and see the gate
- * refuse. Before the lift of P6, P7 and P8 it also carried a recorder for the step-4 records; those
- * are on the stream now. ADR-089 step 6: until P9 to P12 are in contracts it carries a recorder for
- * the step-6 records (`Step6Recorder`, `events.ts`), which the play's log hands them to.
+ * refuse. Before the lifts of P6, P7 and P8 (step 4) and of P9 to P12 (step 6) it also carried a
+ * recorder for those steps' records; they are on the stream now.
  */
 export interface PassPlayUnder {
   readonly petitions: ContractPetitions;
-  readonly step6Recorder?: Step6Recorder;
 }
 
 /**
@@ -552,7 +550,7 @@ export function simulatePassPlayWith(
   }
 
   const playId = makePlayId(`${String(state.gameId)}:play:${state.playNumber}`);
-  const log = new PlayEventLog(state.gameId, playId, state.at, state.nextEventSeq, under?.step6Recorder);
+  const log = new PlayEventLog(state.gameId, playId, state.at, state.nextEventSeq);
   const qb = requirePlayer(state, state.quarterback);
 
   const playRng = createRng(seed, `game:${String(state.gameId)}`).fork(`play:${state.playNumber}`);
@@ -2063,8 +2061,8 @@ export function simulatePassPlayWith(
         // the run), so under the deadline pick he picks between today's run and a throwaway on one
         // d100, today's `pocket_movement` CHECK on `movement/t<tick>:deadline`, over the ranking at
         // urgency 0 (`deadlineRanking`: THROWAWAY first on a tie, and any band below SOUND takes the
-        // second). THROWAWAY is an OUT_OF_POCKET throwaway (P9's stand-in until the lift) naming that
-        // CHECK, outside the tackle box (P10), with today's throwaway runoff; RUN is today's run.
+        // second). THROWAWAY is an OUT_OF_POCKET throwaway (P9) naming that CHECK, outside the tackle
+        // box (P10), with today's throwaway runoff; RUN is today's run.
         const deadlinePick = outs?.deadlinePick;
         if (deadlinePick !== undefined) {
           const pick = rollRankedResponse({
@@ -2440,11 +2438,10 @@ export function simulatePassPlayWith(
           // clock and the resets and before the SCRAMBLE decision. Each eligible receiver (on a route,
           // his rep resolved), in his read order and then card order, gets one rep against the
           // defender already on him: a covered man one d100 on `movement/t<tick>:drill:<receiverId>`,
-          // recorded on a `scramble_drill` CHECK that names this escape's `scramble` CHECK (P12's
-          // stand-in until the lift); a man in a hole is TRAILING with no die. His scramble base gains
-          // burst steps for where the rep leaves his defender, before the clamp. Openness only: the
-          // track's `contestPosition`, which the passing-lane and catch rules read, is never written
-          // (D25).
+          // recorded on a `scramble_drill` CHECK (P12) that names this escape's `scramble` CHECK; a man
+          // in a hole is TRAILING with no die. His scramble base gains burst steps for where the rep
+          // leaves his defender, before the clamp. Openness only: the track's `contestPosition`, which
+          // the passing-lane and catch rules read, is never written (D25).
           if (outs?.drill === true) {
             for (const track of drillOrder(tracks, readOrder)) {
               const dice =

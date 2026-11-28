@@ -10,15 +10,15 @@
  * rating overrides' digest and its mirror beside its overlay digest (plan §8.2 R-1: two arms with one
  * overlay digest differ there). Like the s3 to s5a pins they strip nothing (`POCKET_1_S6_PIN_STRIP`).
  *
- * Nothing in this build plays a step-6 arm: each waits on the owner's typed yes for P9 to P12 and
- * P20 (P21 on the unseen answer), contracts-guardian's review and the lift, which sets the petition
- * flags, records `POCKET_1_S6_DIGEST` and adds `pocket-1.s6` to `ENGINE_RULES` (plan §10.1 items 3
- * to 7). So `POCKET_1_S6_PINS` is `null` and nothing is MEASURED: the pins are filled only after the
- * lift, by R-1 (`pnpm --filter @ff/calibration pocket -- --step 6 --digests --out <file>`, in two
- * processes whose outputs are byte-identical; `step6.ts`'s `runStep6Digests` writes the 50-game folds
- * and the first-10 folds the suite reads, with each arm's stamp), in one named commit that sets
- * `POCKET_1_S6_PINS_MEASURED_AT` too. A test ties the scaffold to the flags: the pins stay `null`
- * while `POCKET_1_S6_DIGEST` is unset and no step-6 petition is in.
+ * Nothing in this build plays a step-6 arm for a pin: P9 to P12 and P20 are in contracts since the
+ * step-6 lift (P21, the unseen answer's, is not), but R-1 runs only once step 6's gate opens, after
+ * AM-13 and the bundle-record commit, which records `POCKET_1_S6_DIGEST` and adds `pocket-1.s6` to
+ * `ENGINE_RULES` (plan §10.1 item 9). So `POCKET_1_S6_PINS` is `null` and nothing is MEASURED: the
+ * pins are filled only then, by R-1 (`pnpm --filter @ff/calibration pocket -- --step 6 --digests --out
+ * <file>`, in two processes whose outputs are byte-identical; `step6.ts`'s `runStep6Digests` writes
+ * the 50-game folds and the first-10 folds the suite reads, with each arm's stamp), in one named
+ * commit that sets `POCKET_1_S6_PINS_MEASURED_AT` too. A test ties the scaffold to the record: the
+ * pins stay `null` while `POCKET_1_S6_DIGEST` is unset.
  *
  * THE RULE (as `s1Pins.ts` to `s5Pins.ts`). Once filled and merged, these pins and
  * `POCKET_1_S6_DIGEST` are never re-recorded under `pocket-1.s6`: a change that moves any of them
@@ -29,7 +29,7 @@ import type { CallerVersion } from "../caller/anticipate.js";
 import type { StripEntry } from "./golden.js";
 import type { S1PinArm, S1PinStamp } from "./s1Pins.js";
 
-/** The tree the pins were measured at: none in this build (they are filled after the lift). */
+/** The tree the pins were measured at: none in this build (they are filled once `pocket-1.s6` is recorded). */
 export const POCKET_1_S6_PINS_MEASURED_AT: string | null = null;
 
 /** What the s6 pins strip before digesting: nothing (the snap picture held, as in the s3 to s5a pins). */
@@ -62,5 +62,5 @@ export interface S6Pins {
   readonly arms: Readonly<Record<S6PinArmId, S6PinArm>>;
 }
 
-/** R-2's pins: `null` until the lift (see the header); filled in one named commit, MEASURED by R-1. */
+/** R-2's pins: `null` until `pocket-1.s6` is recorded (see the header); filled in one named commit, MEASURED by R-1. */
 export const POCKET_1_S6_PINS: S6Pins | null = null;

@@ -1,15 +1,14 @@
 /**
  * ADR-089 step 6: CONSTRUCTED STEP-6 STREAMS for the readers' tests (step-6 plan §3.2 K2).
  *
- * No step-6 game can be played before the lift (the engine refuses every tree carrying `pocket.outs`
- * while P9 to P12 are out of contracts), so the readers' unit tests read plays built here, each in the
- * shape the engine writes at step 6 (`engine/src/sim/passPlay.ts`, `sim/outs.ts`; `match-engine.md`
- * §8.7, §8.8): the escape roll's `scramble` CHECK, then on a catch the catcher's ARRIVED, the caught
+ * The readers' unit tests read plays built here, so each case a reader reads is held exactly (a played
+ * game need not carry it), each in the shape the engine writes at step 6 (`engine/src/sim/passPlay.ts`,
+ * `sim/outs.ts`; `match-engine.md` §8.7, §8.8): the escape roll's `scramble` CHECK, then on a catch the catcher's ARRIVED, the caught
  * escape's `arrival_contest` and its `QB_HIT` (2.8); on an escape `QB_PURSUIT`, the drill's
  * `scramble_drill` CHECKs and the SCRAMBLE decision with its direction (2.6, 2.9); at the pursuit
  * deadline the `:deadline` pick and its OUT_OF_POCKET throwaway with `outsideTackleBox` (2.11); the
  * marker on `PLAY_START.scoring` (2.12). The same readers are run on played step-6 games in
- * `pocketStep6Lifted.test.ts`, skipped until the lift.
+ * `pocketStep6Lifted.test.ts` and `pocketStep6Smoke.test.ts`, which play since the lift.
  */
 import type { MatchEventEnvelope } from "@ff/contracts";
 

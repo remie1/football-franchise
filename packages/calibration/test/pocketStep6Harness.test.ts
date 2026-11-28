@@ -1,28 +1,32 @@
 /**
- * ADR-089 STEP 6: THE HARNESS (step-6 plan §3.2, K2; §7, §8.2, §10.3), with nothing played: every
- * step-6 arm waits on the owner's typed yes, so the arms are built only with a test's own petitions
- * (`STEP6_PETITIONS_GRANTED`) and every play is a fake returning `s6Synthetic.ts`'s records. The
- * committed amendments file is only read: AM-13 is a stand-in on a copy (`s6StandIn.ts`), carrying the
- * answers a test gives, never a recorded answer.
+ * ADR-089 STEP 6: THE HARNESS (step-6 plan §3.2, K2; §7, §8.2, §10.3), with nothing played: step 6's
+ * gate waits on AM-13 and on `pocket-1.s6`'s record, so every play is a fake returning
+ * `s6Synthetic.ts`'s records. P9 to P12 and P20 are in contracts since the lift, so the arms build
+ * with the build's flags under the seen answer; P21 is not, so under the unseen one they build only
+ * with a test's own petitions (`STEP6_PETITIONS_GRANTED`). The committed amendments file is only read:
+ * AM-13 is a stand-in on a copy (`s6StandIn.ts`), carrying the answers a test gives, never a recorded
+ * answer.
  *
  *  1. The gate at this head refuses the run, F5's second fresh play and R-1 before anything plays,
- *     and makes no cache; then the preflight, the arms' build and a dirty tree refuse in that order;
+ *     on AM-13 and the bundle's record alone, and makes no cache; then the preflight, the arms' build
+ *     (P21 out, under the unseen answer) and a dirty tree refuse in that order;
  *     a shortened corpus never reaches the cache or the records (the run takes none, and the cache
  *     refuses a record played on one).
  *  2. The preflight refuses each condition alone, by name: the filing, the amendments file (missing,
  *     unloadable), its step-3, step-4 and step-5a views, the step-6 view's pin, AM-12 (absent, its
  *     class view, its base map), AM-13 (absent, its answers), a choice not yet made; and passes for
  *     every option of the owner's three questions, reading AM-12's guard and AM-13's answers.
- *  3. The arms, the plan, the cache, the records: the arms refused without petitions and distinct with
- *     them; the plan's targets and shards; the cache refused on a dirty tree; F5's fresh file and its
+ *  3. The arms, the plan, the cache, the records: the arms built with the build's flags under the
+ *     seen answer, refused under the unseen one without P21, and distinct with every petition; the
+ *     plan's targets and shards; the cache refused on a dirty tree; F5's fresh file and its
  *     command; the writes over committed records; a cached record's problems; the folds and recipe a
  *     step-6 arm plays with; `playStep6Arm`'s refusals and its wiring into step 5's play; step 5's
  *     margin rebuild (S-4) on a step-6 stamp, whose dials no table names (N9): the bundle's own, by
- *     their digest (one F5 golden game restamped, since the engine plays no step-6 stamp yet).
+ *     their digest (one F5 golden game restamped, so the rebuild reads the stamp alone).
  *  4. The run with fakes: shards, the cache read back, the grade once every target and F5's second
  *     fresh plays are there (or the commands it waits on), the report and the measures, one seed set,
  *     and each refusal of a cached record, of a fresh play and of a committed report from a dirty tree.
- *  5. R-1's stamp, the empty pin scaffold tied to the flags, and the replays' references.
+ *  5. R-1's stamp, the empty pin scaffold tied to the bundle's record, and the replays' references.
  */
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -172,9 +176,12 @@ function runOptions(dir: string, calls: PlayCall[], thirdCalls: SeedSet[], lines
 const NOT_YOURS = "nothing plays";
 
 describe("refused before anything plays, in order: the gate, the preflight, the arms, a dirty tree", () => {
-  it("the gate at this head refuses the run, F5's second fresh play and R-1, and makes no cache", () => {
+  it("the gate at this head refuses the run, F5's second fresh play and R-1 on AM-13 and the bundle's record alone, and makes no cache", () => {
     const refusal = step6GateRefusal(step6GateState())!;
-    expect(refusal).toMatch(/\(4\) P9, P10, P11, P12, P20 in contracts .*; \(5\) pocket-1\.s6 recorded \(POCKET_1_S6_DIGEST is unset\)\. Nothing has played and no cache was made$/);
+    expect(refusal).toMatch(/: it waits for \(3\) .*AM-13.*; \(5\) pocket-1\.s6 recorded \(POCKET_1_S6_DIGEST is unset\)\. Nothing has played and no cache was made$/);
+    // Since the lift no petition is waited on: the seen answer needs none of P21.
+    expect(step6GateState().petitionsOut).toEqual([]);
+    expect(refusal).not.toMatch(/\((1|2|4)\) /);
     const dir = freshDir("gate");
     const calls: PlayCall[] = [];
     const { gate: _g, ...noGate } = runOptions(dir, calls, [], []);
@@ -186,18 +193,21 @@ describe("refused before anything plays, in order: the gate, the preflight, the 
     expect(existsSync(join(dir, "cache"))).toBe(false);
   });
 
-  it("with the gate open: the preflight (the view not pinned), then the arms' build (no petition in contracts), then a dirty tree", () => {
+  it("with the gate open: the preflight (the view not pinned), then the arms' build (P21 out, under the unseen answer), then a dirty tree", () => {
     const dir = freshDir("order");
     const calls: PlayCall[] = [];
     const o = runOptions(dir, calls, [], []);
     expect(() => runStep6({ ...o, preflight: {} })).toThrow(step6PinRefusal(SI.pin, null));
+    // The build's own flags under AM-13's unseen answer: the arms with the caught escape as contact wait on P21.
+    const unseen = standInFile(scratch, { answers: { ...RECOMMENDED_OUTS_OPTIONS, seen: "UNSEEN_IF_UNREGISTERED" } });
     const { petitions: _p, ...noPetitions } = o;
     void _p;
-    expect(() => runStep6(noPetitions)).toThrow(NOT_YOURS);
-    expect(() => runStep6(noPetitions)).toThrow(/P9/);
+    const unseenRun = { ...noPetitions, amendmentsPath: unseen.path, preflight: { pin: unseen.pin } };
+    expect(() => runStep6(unseenRun)).toThrow(NOT_YOURS);
+    expect(() => runStep6(unseenRun)).toThrow(/waits on petitions .*\(not yet: P21\)/);
     expect(() => runStep6({ ...o, env: { ...ENV, dirty: true } })).toThrow(STEP6_DIRTY_REFUSAL);
     expect(() => playStep6Fresh({ seedSet: 1, filedPath: FILED, amendmentsPath: SI.path, env: ENV, gate: OPEN, play: fakePlayer(calls) })).toThrow(step6PinRefusal(SI.pin, null));
-    expect(() => runStep6Digests({ filedPath: FILED, amendmentsPath: SI.path, node: "v22", gate: OPEN, preflight: { pin: SI.pin } })).toThrow(NOT_YOURS);
+    expect(() => runStep6Digests({ filedPath: FILED, amendmentsPath: unseen.path, node: "v22", gate: OPEN, preflight: { pin: unseen.pin } })).toThrow(/\(not yet: P21\)/);
     expect(calls).toEqual([]);
     expect(existsSync(join(dir, "cache"))).toBe(false);
   });
@@ -306,12 +316,17 @@ describe("the preflight (plan §10.3, once the gate is open): each refusal alone
 });
 
 describe("the arms, the plan, the cache and the records", () => {
-  it("builds every step-6 arm under the answers with a test's petitions, distinct among themselves and from D1, F5 and E9; refuses them without", () => {
-    expect(() => buildStep6Arms(RECOMMENDED_OUTS_OPTIONS)).toThrow(NOT_YOURS);
+  it("builds every step-6 arm under the answers, distinct among themselves and from D1, F5 and E9: with the build's flags under the seen answer, and under the unseen one only with P21 granted", () => {
     expect([...BUILT.keys()]).toEqual([...STEP6_ARM_IDS]);
+    // The build's flags build the same arms as every petition granted, under the seen answer.
+    const withFlags = buildStep6Arms(RECOMMENDED_OUTS_OPTIONS);
+    expect([...withFlags.keys()]).toEqual([...STEP6_ARM_IDS]);
+    for (const a of withFlags.values()) expect([a.digest, a.tunablesDigest], a.id).toEqual([armOf(a.id).digest, armOf(a.id).tunablesDigest]);
     // H2L and HB2L play the other scramble start (information only), every other arm the answers.
     for (const a of BUILT.values()) expect(a.outsOptions, a.id).toEqual(["H2L", "HB2L"].includes(a.id) ? { ...RECOMMENDED_OUTS_OPTIONS, scrambleStart: "EVERY_RUN" } : RECOMMENDED_OUTS_OPTIONS);
     const other: OutsOptions = { spentChecklist: "BELOW_30", scrambleStart: "EVERY_RUN", seen: "UNSEEN_IF_UNREGISTERED" };
+    expect(() => buildStep6Arms(other)).toThrow(NOT_YOURS);
+    expect(() => buildStep6Arms(other)).toThrow(/\(not yet: P21\)/);
     const b = buildStep6Arms(other, STEP6_PETITIONS_GRANTED);
     expect(b.get("H0")!.outsOptions).toEqual(other);
     expect(b.get("H0")!.tunablesDigest).not.toBe(armOf("H0").tunablesDigest);
@@ -440,8 +455,8 @@ describe("the arms, the plan, the cache and the records", () => {
 
 describe("step 5's margin rebuild on a step-6 stamp (S-4, N9): the harness's own fold, which the smoke found refusing", () => {
   it("reads a step-6 stamp's dials from the bundle itself, since no table names a step-6 arm, and refuses a bundle whose dials are not the ones its stamp names", () => {
-    // One golden game under F5 (step 5a's dials), restamped pocket-1.s6 with the same dials: the engine
-    // plays no step-6 stamp before the lift, and F5's margins are the ones these dials rebuild.
+    // One golden game under F5 (step 5a's dials), restamped pocket-1.s6 with the same dials: the rebuild
+    // reads the stamp alone (no outs in play), and F5's margins are the ones these dials rebuild.
     const f5 = armById("F5").tunables;
     let events: MatchEventEnvelope[] = [];
     goldenGames("flat", (o) => (events = structuredClone(o.events) as MatchEventEnvelope[]), { tunables: f5, callerVersion: STEP1_CALLER, first: 1 });
@@ -609,16 +624,18 @@ describe("R-1's stamp, the empty pin scaffold, the references", () => {
     expect(() => runStep6Digests({ filedPath: FILED, amendmentsPath: SI.path, node: "v22", gate: OPEN, preflight: { pin: SI.pin }, petitions: STEP6_PETITIONS_GRANTED, arms: ["F5" as S6PinArmId] })).toThrow(new RangeError("F5 is not a step-6 arm"));
   });
 
-  it("POCKET_1_S6_PINS is null, measured nowhere and stripping nothing, while pocket-1.s6 is unrecorded and its petitions are out", () => {
+  it("POCKET_1_S6_PINS is null, measured nowhere and stripping nothing, while pocket-1.s6 is unrecorded (its petitions in since the lift, P21 aside)", () => {
     expect(POCKET_1_S6_PINS).toBeNull();
     expect(POCKET_1_S6_PINS_MEASURED_AT).toBeNull();
     expect(POCKET_1_S6_PIN_STRIP).toEqual([]);
     expect(S6_PIN_ARM_IDS).toEqual(["H0", "H1", "H2", "H3", "H4", "H5", "H6", "H7", "H8", "H9", "H10", "H11", "H12", "H13", "H14", "H15", "H2L", "H0M", "HB0", "HB2L"]);
     expect(S6_PIN_ARM_IDS.every((id) => (STEP6_ARM_IDS as readonly string[]).includes(id))).toBe(true);
-    // The tie: the pins are filled only after the lift, which records the digest and sets the flags together.
+    // The tie: the pins are filled only after the bundle-record commit records the digest; the lift set
+    // the flags (P9 to P12 and P20 true, P21 false) and recorded nothing.
     expect(POCKET_1_S6_DIGEST).toBeUndefined();
-    expect(Object.values(step6PetitionsUnder({})).every((v) => v === false)).toBe(true);
-    expect(step6PetitionsOut()).toEqual(["P9", "P10", "P11", "P12", "P20"]);
+    expect(step6PetitionsUnder({})).toEqual({ P9: true, P10: true, P11: true, P12: true, P20: true, P21: false });
+    expect(step6PetitionsOut()).toEqual([]);
+    expect(step6PetitionsOut("UNSEEN_IF_UNREGISTERED")).toEqual(["P21"]);
     expect(POCKET_1_S6_PINS === null).toBe(POCKET_1_S6_DIGEST === undefined);
   });
 

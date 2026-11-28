@@ -31,7 +31,7 @@
  * 6's facts (`readsStep6Facts`: every `legacy` and s1 to s5a play) `readS6Play` returns `undefined`,
  * so a reader that asks it reads every earlier stream as before.
  */
-import type { MatchEventEnvelope, ThrowawayCause } from "@ff/contracts";
+import type { CheckKind, MatchEventEnvelope, ThrowawayCause } from "@ff/contracts";
 import type { Tunables } from "@ff/engine";
 import { readsStep6Facts, rulesOnPlayStart } from "./rules.js";
 
@@ -43,13 +43,10 @@ export function isDeadlinePickLabel(rngLabel: string): boolean {
 }
 
 /** P9's throwaway cause: the throwaway after an escape, out of the pocket (the deadline pick's). */
-export const OUT_OF_POCKET = "OUT_OF_POCKET";
+export const OUT_OF_POCKET = "OUT_OF_POCKET" as const satisfies ThrowawayCause;
 
-/** The causes a step-6 stream can carry: today's two and P9's (calibration's stand-in until the lift). */
-export type ThrowawayCauseS6 = ThrowawayCause | typeof OUT_OF_POCKET;
-
-/** P12's CHECK kind: the drill's fresh rep (calibration's stand-in until the lift). */
-export const SCRAMBLE_DRILL_KIND = "scramble_drill";
+/** P12's CHECK kind: the drill's fresh rep. */
+export const SCRAMBLE_DRILL_KIND = "scramble_drill" as const satisfies CheckKind;
 
 /** A run's tackle CHECK kinds: the statline's `TACKLE_KINDS` (`engine/src/stats/statline.ts`), restated. */
 export const TACKLE_KINDS: ReadonlySet<string> = new Set(["tackle", "yac_tackle", "break_tackle"]);
@@ -189,7 +186,7 @@ export function readS6Play(events: readonly MatchEventEnvelope[], tunables: Tuna
     switch (event.type) {
       case "CHECK": {
         const c = event.payload;
-        const kind: string = c.checkKind;
+        const kind = c.checkKind;
         if (kind === "pocket_movement" && c.roll !== undefined) {
           if (isDeadlinePickLabel(c.roll.rngLabel)) {
             let choice: S6DeadlinePick["choice"];
@@ -211,19 +208,16 @@ export function readS6Play(events: readonly MatchEventEnvelope[], tunables: Tuna
         return;
       }
       case "QB_DECISION": {
-        const direction = obj(event.payload)?.["direction"];
-        if (typeof direction === "string") directions.push({ tick: t, choice: event.payload.choice, direction });
+        const direction = event.payload.direction;
+        if (direction !== undefined) directions.push({ tick: t, choice: event.payload.choice, direction });
         return;
       }
       case "THROW":
         threw = true;
         return;
-      case "THROWAWAY": {
-        const cause: string = event.payload.cause;
-        const flag = obj(event.payload)?.["outsideTackleBox"];
-        throwaway = { tick: t, cause, outsideTackleBox: typeof flag === "boolean" ? flag : undefined };
+      case "THROWAWAY":
+        throwaway = { tick: t, cause: event.payload.cause, outsideTackleBox: event.payload.outsideTackleBox };
         return;
-      }
       case "QB_PURSUIT":
         pursuitTick ??= t;
         return;
@@ -254,13 +248,12 @@ export function readS6Play(events: readonly MatchEventEnvelope[], tunables: Tuna
     for (const x of restOfTick(r.index)) {
       const e = x.event;
       if (e.type === "RUSH_THREAT" && e.payload.state === "ARRIVED") arrived ??= String(e.payload.rusher);
-      else if (e.type === "CHECK" && (e.payload.checkKind as string) === "arrival_contest" && contestBand === undefined && byBand === "CAUGHT") {
+      else if (e.type === "CHECK" && e.payload.checkKind === "arrival_contest" && contestBand === undefined && byBand === "CAUGHT") {
         contestBand = e.payload.band;
         contestRef = e.payload.roll?.rngLabel;
         catcher = e.payload.actors[0] === undefined ? undefined : String(e.payload.actors[0]);
-      } else if ((e.type as string) === "QB_HIT" && contestRef !== undefined) {
-        const hit = obj((e as { readonly payload?: unknown }).payload);
-        if (hit?.["rollRef"] === contestRef && hit["phase"] === "SHED") shed = true;
+      } else if (e.type === "QB_HIT" && contestRef !== undefined) {
+        if (e.payload.rollRef === contestRef && e.payload.phase === "SHED") shed = true;
       }
     }
     if (byBand === "CAUGHT") catcher ??= arrived;

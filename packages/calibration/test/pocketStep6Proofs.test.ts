@@ -2,13 +2,13 @@
  * ADR-089 step 6: THE STRUCTURAL PROOFS S-11 TO S-20 AS FOLD-TIME CHECKS (step-6 plan §8.2 R-3; §3.2
  * K2, commit (9)), on constructed plays that pass and plays that fail.
  *
- * No step-6 game can be played before the lift (the engine refuses every tree carrying `pocket.outs`
- * while P9 to P12 and P20 are out of contracts), so each proof is held here on plays built in the
- * engine's step-6 shape (`s6Fixtures.ts`, and the plays below where a proof reads more than the
- * readers' fixtures carry), read with a built arm's own tunables (`buildStep6Arm` with its own
- * petitions true, never played). Every option of the owner's three questions is read where a proof
- * turns on it (the spent checklist's five, the scramble start's two, a caught catch's two), so no
- * answer is privileged. Each proof is bound to the arms that carry its part: the side with the part
+ * Each proof is held here on plays built in the engine's step-6 shape (`s6Fixtures.ts`, and the plays
+ * below where a proof reads more than the readers' fixtures carry), so each pass and each failure is
+ * held exactly (a played game carries no failing one), read with a built arm's own tunables
+ * (`buildStep6Arm` with every petition granted, so the unseen answer builds too; never played). The
+ * proofs on played step-6 games are `pocketStep6Smoke.test.ts`'s, which plays since the lift. Every
+ * option of the owner's three questions is read where a proof turns on it (the spent checklist's
+ * five, the scramble start's two, a caught catch's two), so no answer is privileged. Each proof is bound to the arms that carry its part: the side with the part
  * reads its rule, the side without it reads that the stream carries none of its records.
  */
 import type { PlayerState } from "@ff/contracts";
@@ -58,7 +58,7 @@ import {
   type PlaySpec,
 } from "./s6Fixtures.js";
 
-// --- the arms' trees (built with their own petitions true, never played) -------------------------------
+// --- the arms' trees (built with every petition granted, never played) ---------------------------------
 
 const trees = new Map<string, Tunables>();
 /** A step-6 arm's tunables under `options` (the recommended answers unless given). */
@@ -504,7 +504,8 @@ describe("S-20: a clean expiry with his escape spent runs the answer's branch", 
 
   it("D23's throw comes before the pick: a THROW to a man at the expiry bar or more is not the spent case under any branch, one below it is (the smoke's finding)", () => {
     // The smoke's play (H0, flat, g:2024:w1:t:30@t:01 play 81): a clean break-out caught and shed at 2.0 s
-    // spent his escape; at the clean expiry at 2.5 s D23 threw to a man read at 62, before any pick.
+    // spent his escape; at the clean expiry at 2.5 s D23 threw to a man read at 62, before any pick
+    // (MEASURED, fix-1's probe, `logs/s20-probe.log`).
     const d23At = (openness: number | undefined, best = openness): ReadOptions => ({ x5: { cleanExpiries: [{ tick: 3, outcome: "THROW", best, pool: 1, belowBar: openness === undefined || openness >= 30 ? 0 : 1, targetOpenness: openness }] } });
     for (const spentChecklist of SPENT_CHECKLISTS) {
       for (const openness of [30, 62]) {

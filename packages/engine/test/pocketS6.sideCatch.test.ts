@@ -17,7 +17,8 @@
  *    the sack names nobody (no ARRIVED, no contact, no sacker on the statline when nobody arrived
  *    earlier), a live catcher arrives as today, and on the clean bench, where every card rusher
  *    stays blocked, every catch is a sack with no sacker.
- * 5. Mirrored cards (M5): the same stream when no escape's side came from the parity rule.
+ * 5. Mirrored cards (M5): the same stream when no escape's side came from the parity rule, but for
+ *    the sides on its decisions (P11), each mirrored.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -40,7 +41,8 @@ import { PASS_FIXTURES } from "./pocketTunables.js";
 import { frontWithPicture, withPicture } from "./snapFixtures.js";
 import type { Step3FrontOptions } from "./snapFixtures.js";
 import { S5L_TUNABLES, S5S_TUNABLES, S5_TUNABLES, checkOf, onCleanBench } from "./step5Fixtures.js";
-import { OUTS_FILED, outsParts, playS6, withOuts } from "./step6Fixtures.js";
+import { OUTS_FILED, outsParts, playS6, withOuts, withoutStep6 } from "./step6Fixtures.js";
+import type { Step6Play } from "./step6Fixtures.js";
 
 const sideSpy = vi.mocked(breakSide);
 const catchSpy = vi.mocked(sideCatchOf);
@@ -354,7 +356,7 @@ describe("ADR-089 step 6, 2.7: mirrored cards (M5)", () => {
     };
   }
 
-  it("with every card side swapped the stream is the same, unless an escape's side came from the parity rule", () => {
+  it("with every card side swapped the stream is the same but for its mirrored sides, unless an escape's side came from the parity rule", () => {
     let same = 0;
     let parity = 0;
     for (const { name, base, picture } of SHAPES) {
@@ -372,7 +374,10 @@ describe("ADR-089 step 6, 2.7: mirrored cards (M5)", () => {
             parity += 1;
             continue;
           }
-          expect(JSON.stringify(two.events.slice(1)), `${name} ${fixture} ${i}`).toBe(JSON.stringify(one.events.slice(1)));
+          expect(JSON.stringify(withoutStep6(two.events).slice(1)), `${name} ${fixture} ${i}`).toBe(JSON.stringify(withoutStep6(one.events).slice(1)));
+          // The sides on its decisions, each mirrored.
+          const sides = (p: Step6Play) => p.records.flatMap((r) => (r.kind === "direction" ? [r.side] : []));
+          expect(sides(two), `${name} ${fixture} ${i}`).toEqual(sides(one).map((x) => (x === "LEFT" ? "RIGHT" : "LEFT")));
           same += 1;
         }
       }

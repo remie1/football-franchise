@@ -1,26 +1,32 @@
 /**
- * ADR-089 step 6: THE STEP-6 TEST BLOCKS (step-6 plan §1.2), built by hand for the engine's tests.
+ * ADR-089 step 6: THE STEP-6 TEST BLOCKS AND THEIR RECORDS (step-6 plan §1.2), built by hand for the
+ * engine's tests.
  *
  * `OUTS_FILED` is every part on with the recommended answer to each owner question (HOLD,
- * ZERO_GAIN_ONLY, SEEN): the block `pocket-1.s6` will carry. `OUTS_OFF` is every part off (the
- * all-off proof's block, which plays step 5a's outs). `withOuts` adds the key to `pocket` only when
- * given, never as `undefined`, as `withCleanPocket` does. `GRANTED_S6` grants every petition, step
- * 6's included, so a test reaches the parts through `pocketRulesUnder` or `simulatePassPlayWith`
- * (the flags in `sim/pocketRules.ts` stay false); `recorder()` takes the records the stream cannot
- * carry before the lift, `playS6` plays one pass play through the seam with both, and `liftS6` puts
- * the records where the stream will carry them, for the readers' tests (the renderer, the statline).
+ * ZERO_GAIN_ONLY, SEEN), which are the owner's answers: the block `pocket-1.s6` will carry. `OUTS_OFF`
+ * is every part off (the all-off proof's block, which plays step 5a's outs). `withOuts` adds the key
+ * to `pocket` only when given, never as `undefined`, as `withCleanPocket` does. `GRANTED_S6` grants
+ * every petition, step 6's included, P21 among them (the build still withholds it), so a test reaches
+ * every part, the unseen answer too, through `pocketRulesUnder` or `simulatePassPlayWith`.
+ *
+ * P9 to P12 are in contracts, so the outs write their records on the stream: an OUT_OF_POCKET
+ * throwaway (P9), `THROWAWAY.outsideTackleBox` (P10), `QB_DECISION.direction` (P11) and the
+ * `scramble_drill` CHECKs (P12). `playS6` plays one pass play through the seam and reads them back
+ * off the stream (`step6RecordsOf`), each with its place: a whole record's own `seq` and tick, a
+ * field's those of the event carrying it. `withoutStep6` takes them out again, the stream as it stood
+ * before the lift, for the tests that line a play with the outs up against one without them. Before
+ * the lift the same records came from a test-only recorder.
  */
-import type { MatchEvent, MatchEventEnvelope } from "@ff/contracts";
-import type { RunSide } from "@ff/contracts";
-import type { ScrambleDrillPayload, Step6Position, Step6Recorder, ThrowawayRecordS6 } from "../src/events.js";
+import type { MatchEvent, MatchEventEnvelope, RollDetail, RunSide } from "@ff/contracts";
+import type { CheckPayload } from "../src/events.js";
 import { simulatePassPlayWith } from "../src/sim/passPlay.js";
 import type { ContractPetitions } from "../src/sim/pocketRules.js";
-import type { MatchGameState, PlayCalls } from "../src/types.js";
+import type { ContestPosition, MatchGameState, PlayCalls } from "../src/types.js";
 import type { OutsTunables, Tunables } from "../src/tunables.js";
 import { GRANTED } from "./step4Fixtures.js";
 import { S5L_TUNABLES, S5S_TUNABLES, S5_TUNABLES, restampS5 } from "./step5Fixtures.js";
 
-/** Every part on, the recommended answers (the owner has not answered: these are the bundles' defaults, never a record). */
+/** Every part on, the recommended answers, which are the owner's answers (the bundles' defaults until AM-13 files them, never a record). */
 export const OUTS_FILED: OutsTunables = Object.freeze({
   throwawayRule: true,
   scrambleStart: "ZERO_GAIN_ONLY",
@@ -66,83 +72,118 @@ export const S6_TUNABLES: Tunables = withOuts(restampS5(S5_TUNABLES, "fnv1a:7f60
 export const S6S_TUNABLES: Tunables = withOuts(restampS5(S5S_TUNABLES, "fnv1a:7f600002", "pocket-1.s6"), OUTS_FILED);
 export const S6L_TUNABLES: Tunables = withOuts(restampS5(S5L_TUNABLES, "fnv1a:7f600003", "pocket-1.s6"), OUTS_FILED);
 
-/** One record a `Step6Recorder` took, with where it stands. */
-export type Step6Record =
-  | { readonly kind: "outOfPocketThrowaway"; readonly payload: ThrowawayRecordS6; readonly at: Step6Position }
-  | { readonly kind: "outsideTackleBox"; readonly value: boolean; readonly at: Step6Position }
-  | { readonly kind: "direction"; readonly side: RunSide; readonly at: Step6Position }
-  | { readonly kind: "scrambleDrill"; readonly payload: ScrambleDrillPayload; readonly at: Step6Position };
-
-/** A recorder that keeps every record in order. */
-export function recorder(): Step6Recorder & { readonly records: Step6Record[] } {
-  const records: Step6Record[] = [];
-  return {
-    records,
-    outOfPocketThrowaway: (payload, at) => records.push({ kind: "outOfPocketThrowaway", payload, at }),
-    outsideTackleBox: (value, at) => records.push({ kind: "outsideTackleBox", value, at }),
-    direction: (side, at) => records.push({ kind: "direction", side, at }),
-    scrambleDrill: (payload, at) => records.push({ kind: "scrambleDrill", payload, at }),
-  };
+/** Where a step-6 record stands in the stream: its own `seq` and tick (a field: those of the event carrying it). */
+export interface Step6Position {
+  readonly seq: number;
+  readonly tick: number | undefined;
 }
 
-/** The envelope a field record names (`outsideTackleBox`, `direction`): the event at its seq. */
+/** A THROWAWAY's payload. */
+export type ThrowawayPayload = Extract<MatchEvent, { type: "THROWAWAY" }>["payload"];
+
+/** A `scramble_drill` CHECK's payload: it always carries its roll, its target, its band (a contest position) and its `rollRef`. */
+export type DrillPayload = CheckPayload & {
+  readonly roll: RollDetail;
+  readonly target: number;
+  readonly band: ContestPosition;
+  readonly rollRef: string;
+};
+
+const POSITIONS: ReadonlySet<string> = new Set<ContestPosition>(["TRAILING", "EVEN", "IN_FRONT"]);
+const isPosition = (band: string): band is ContestPosition => POSITIONS.has(band);
+
+/**
+ * One step-6 record of a stream, with its place: an OUT_OF_POCKET throwaway (its `outsideTackleBox`
+ * in its payload), the flag on any other throwaway, the side on a decision, a drill CHECK.
+ */
+export type Step6Record =
+  | { readonly kind: "outOfPocketThrowaway"; readonly payload: ThrowawayPayload; readonly at: Step6Position }
+  | { readonly kind: "outsideTackleBox"; readonly value: boolean; readonly at: Step6Position }
+  | { readonly kind: "direction"; readonly side: RunSide; readonly at: Step6Position }
+  | { readonly kind: "scrambleDrill"; readonly payload: DrillPayload; readonly at: Step6Position };
+
+/** Every step-6 record of a stream, in order, with its place. */
+export function step6RecordsOf(events: readonly MatchEventEnvelope[]): Step6Record[] {
+  const out: Step6Record[] = [];
+  for (const { seq, event } of events) {
+    const at: Step6Position = { seq, tick: (event as { readonly tick?: number }).tick };
+    if (event.type === "THROWAWAY") {
+      if (event.payload.cause === "OUT_OF_POCKET") out.push({ kind: "outOfPocketThrowaway", payload: event.payload, at });
+      else if (event.payload.outsideTackleBox !== undefined) out.push({ kind: "outsideTackleBox", value: event.payload.outsideTackleBox, at });
+    } else if (event.type === "QB_DECISION" && event.payload.direction !== undefined) {
+      out.push({ kind: "direction", side: event.payload.direction, at });
+    } else if (event.type === "CHECK" && event.payload.checkKind === "scramble_drill") {
+      const payload = event.payload;
+      const { roll, target, band, rollRef } = payload;
+      if (roll === undefined || target === undefined || band === undefined || !isPosition(band) || rollRef === undefined) {
+        throw new Error(`a scramble_drill CHECK without its roll, target, rollRef or a contest position for its band (${String(band)})`);
+      }
+      out.push({ kind: "scrambleDrill", payload: { ...payload, roll, target, band, rollRef }, at });
+    }
+  }
+  return out;
+}
+
+/** Whether an event is a whole step-6 record: an OUT_OF_POCKET throwaway or a drill CHECK. */
+export function isStep6Event(event: MatchEvent): boolean {
+  return (
+    (event.type === "THROWAWAY" && event.payload.cause === "OUT_OF_POCKET") ||
+    (event.type === "CHECK" && event.payload.checkKind === "scramble_drill")
+  );
+}
+
+/**
+ * The stream as it stood before the lift: the whole step-6 records taken out, the two fields taken off
+ * the events that carry them (`outsideTackleBox` off a THROWAWAY, `direction` off a QB_DECISION), and
+ * the seqs renumbered from the play's first, as the stream numbered them before the lift.
+ */
+export function withoutStep6(events: readonly MatchEventEnvelope[]): MatchEventEnvelope[] {
+  const first = events[0];
+  if (first === undefined) return [];
+  let seq = first.seq;
+  const out: MatchEventEnvelope[] = [];
+  for (const e of events) {
+    if (isStep6Event(e.event)) continue;
+    let event = e.event;
+    if (event.type === "THROWAWAY" && event.payload.outsideTackleBox !== undefined) {
+      const { outsideTackleBox: _flag, ...payload } = event.payload;
+      event = { ...event, payload };
+    } else if (event.type === "QB_DECISION" && event.payload.direction !== undefined) {
+      const { direction: _side, ...payload } = event.payload;
+      event = { ...event, payload };
+    }
+    out.push({ ...e, seq: seq++, event });
+  }
+  return out;
+}
+
+/**
+ * Where a record stood before the lift, in `withoutStep6`'s numbering: a whole record the seq the next
+ * event took (it stood just before that event), a field the seq of the event carrying it. That is the
+ * seq less the whole step-6 records before it, so a play with the outs lines up with one without them.
+ */
+export function beforeLiftSeq(events: readonly MatchEventEnvelope[], seq: number): number {
+  let whole = 0;
+  for (const e of events) {
+    if (e.seq >= seq) break;
+    if (isStep6Event(e.event)) whole += 1;
+  }
+  return seq - whole;
+}
+
+/** The envelope a record names: the event at its seq (a field record's: the event carrying it). */
 export function eventAt(events: readonly MatchEventEnvelope[], at: Step6Position): MatchEventEnvelope | undefined {
   return events.find((e) => e.seq === at.seq);
 }
 
-/** One pass play under step 6's petitions, with the records the stream cannot carry before the lift. */
+/** One pass play under step 6's petitions, with its step-6 records read off its stream. */
 export interface Step6Play {
   readonly events: readonly MatchEventEnvelope[];
   readonly records: readonly Step6Record[];
 }
 
-/** One pass play through the seam (`simulatePassPlayWith`), every petition granted, a recorder handed in. */
+/** One pass play through the seam (`simulatePassPlayWith`), every petition granted, with its records. */
 export function playS6(state: MatchGameState, calls: PlayCalls, seed: string, tunables: Tunables): Step6Play {
-  const r = recorder();
-  const { events } = simulatePassPlayWith(state, calls, seed, tunables, { petitions: GRANTED_S6, step6Recorder: r });
-  return { events, records: r.records };
-}
-
-/**
- * The play's stream as it will stand after the lift, for the readers' tests: each whole record (an
- * OUT_OF_POCKET throwaway, P9; a scramble drill CHECK, P12) put just before the event whose seq it
- * names, in the order taken, with its tick; each field record added at the end of the payload of the
- * event at its seq (`outsideTackleBox` after `rollRef`, P10; `direction` after `tier`, P11); and the
- * seqs renumbered from the play's first. The casts stand in for the contracts types the petitions
- * add. Nothing here is read by the engine.
- */
-export function liftS6(play: Step6Play): MatchEventEnvelope[] {
-  const { events, records } = play;
-  const first = events[0];
-  if (first === undefined) return [];
-  const ids = first.event as { readonly gameId: unknown; readonly playId?: unknown };
-  const before = new Map<number, MatchEvent[]>();
-  const fields = new Map<number, Record<string, unknown>>();
-  const whole = (seq: number, type: "THROWAWAY" | "CHECK", tick: number | undefined, payload: unknown): void => {
-    const event = { type, payload, gameId: ids.gameId, playId: ids.playId, ...(tick === undefined ? {} : { tick }) } as unknown as MatchEvent;
-    before.set(seq, [...(before.get(seq) ?? []), event]);
-  };
-  const field = (seq: number, key: string, value: unknown): void => {
-    fields.set(seq, { ...fields.get(seq), [key]: value });
-  };
-  for (const r of records) {
-    if (r.kind === "outOfPocketThrowaway") whole(r.at.seq, "THROWAWAY", r.at.tick, r.payload);
-    else if (r.kind === "scrambleDrill") whole(r.at.seq, "CHECK", r.at.tick, r.payload);
-    else if (r.kind === "outsideTackleBox") field(r.at.seq, "outsideTackleBox", r.value);
-    else field(r.at.seq, "direction", r.side);
-  }
-  const last = events[events.length - 1] as MatchEventEnvelope;
-  const known = new Set(events.map((e) => e.seq));
-  for (const seq of [...before.keys(), ...fields.keys()]) {
-    if (!known.has(seq)) throw new Error(`a step-6 record at seq ${seq}, past the play's last event (${last.seq})`);
-  }
-  const out: MatchEventEnvelope[] = [];
-  let seq = first.seq;
-  for (const e of events) {
-    for (const event of before.get(e.seq) ?? []) out.push({ seq: seq++, at: e.at, event });
-    const extra = fields.get(e.seq);
-    const event = extra === undefined ? e.event : ({ ...e.event, payload: { ...(e.event.payload as object), ...extra } } as unknown as MatchEvent);
-    out.push({ seq: seq++, at: e.at, event });
-  }
-  return out;
+  const { events } = simulatePassPlayWith(state, calls, seed, tunables, { petitions: GRANTED_S6 });
+  return { events, records: step6RecordsOf(events) };
 }

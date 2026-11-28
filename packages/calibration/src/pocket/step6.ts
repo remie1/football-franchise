@@ -24,9 +24,11 @@
  *        item 4: contracts-guardian's second reading (`guardian-2.md`) ruled P20 needed and P21
  *        needed only for "unseen";
  *     5. `pocket-1.s6` is recorded (`POCKET_1_S6_DIGEST`).
- *    In this build it always refuses: AM-13 waits on the owner's three answers and typed yeses, no
- *    step-6 petition is in contracts, and `pocket-1.s6` is not recorded. The gate reads the package
- *    and plays nothing; no cache is made, no record is written and no clock is read.
+ *    In this build it always refuses: AM-13 waits on the owner's three answers and typed yeses, and
+ *    `pocket-1.s6` is not recorded. P9 to P12 and P20 are in contracts since the step-6 lift, so item
+ *    4 waits on nothing under "seen"; P21 is not, so an "unseen" answer would wait on it too. The
+ *    gate reads the package and plays nothing; no cache is made, no record is written and no clock
+ *    is read.
  *  - **The preflight** (`preflightStep6`), once the gate is open: the filing digests to
  *    `STEP0_FILED_DIGEST`; the amendments file loads whole, its step-3, step-4 and step-5a views
  *    unchanged and its step-6 view pinned; AM-12 maps step 6's guard on the S5 class view with every
@@ -181,9 +183,11 @@ export const STEP6_UNSEEN_PETITION = "P21" as const satisfies Step6Petition;
  * The step-6 petitions not yet in contracts, given the owner's `seen` answer when there is one, in
  * `STEP6_PETITIONS`' order with P21 last. It reads calibration's restated flags (`rules.ts`:
  * `P9_IN_CONTRACTS` to `P12_IN_CONTRACTS`, `P20_IN_CONTRACTS` and `P21_IN_CONTRACTS`, tied to the
- * engine's by a test), through `step6PetitionsUnder`. None is in contracts in this build: each waits
- * on the owner's typed yes and its contracts commit, then the lift, which sets the engine's flags and
- * these together (plan §10.1 items 3 to 6). `petitions` is a test's own set (default: the flags).
+ * engine's by a test), through `step6PetitionsUnder`. P9 to P12 and P20 are in contracts since the
+ * step-6 lift, which set the engine's flags and these together (plan §10.1 items 3 to 6), so this
+ * build returns nothing under "seen" and P21 alone under "unseen": P21 waits on the owner's typed
+ * yes and its contracts commit, then its own lift. `petitions` is a test's own set (default: the
+ * flags).
  */
 export function step6PetitionsOut(seen?: unknown, petitions: Step6Petitions = {}): readonly Step6Petition[] {
   const under = step6PetitionsUnder(petitions);

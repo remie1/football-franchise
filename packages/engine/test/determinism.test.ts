@@ -31,7 +31,7 @@ import {
 import { P6_IN_CONTRACTS, P7_IN_CONTRACTS, P8_IN_CONTRACTS } from "../src/sim/pocketRules.js";
 import { S4S_TUNABLES } from "./step4Fixtures.js";
 import { withPicture } from "./snapFixtures.js";
-import { S6L_TUNABLES, S6S_TUNABLES, S6_TUNABLES, liftS6, playS6 } from "./step6Fixtures.js";
+import { S6L_TUNABLES, S6S_TUNABLES, S6_TUNABLES, playS6 } from "./step6Fixtures.js";
 
 describe("determinism (Charter pillar 5)", () => {
   it("same seed produces a byte-identical event stream and identical new state", () => {
@@ -698,9 +698,9 @@ describe("ADR-089 step 2 — pocket-1.s2 determinism", () => {
 /**
  * ADR-089 step 6 (step-6 plan §2.13): the whole step, every part on with the recommended answers (the
  * s5a shapes restamped `pocket-1.s6` with the bundles' block), played through the engine's seam with
- * step 6's petitions. The same seed gives the same stream and the same records (the facts the stream
- * will carry at the lift), so the same lifted stream; a different seed, or the same seed at another
- * play number, gives another play.
+ * step 6's petitions. The same seed gives the same stream, and so the same step-6 records on it (P9 to
+ * P12 are in contracts); a different seed, or the same seed at another play number, gives another
+ * play. A whole game under the block replays byte for byte through the build's own petitions.
  */
 describe("determinism under the whole of ADR-089 step 6", () => {
   it("same seed, same stream and records; another seed or play number, another play", () => {
@@ -720,7 +720,6 @@ describe("determinism under the whole of ADR-089 step 6", () => {
           const second = playS6(b.state, callsB, `s6-determinism-${i}`, tunables);
           expect(JSON.stringify(second.events)).toBe(JSON.stringify(first.events));
           expect(JSON.stringify(second.records)).toBe(JSON.stringify(first.records));
-          expect(JSON.stringify(liftS6(second))).toBe(JSON.stringify(liftS6(first)));
           const seedDiffers = playS6(b.state, callsB, `s6-determinism-${i}-other`, tunables);
           const numberDiffers = playS6({ ...b.state, playNumber: b.state.playNumber + 1 }, callsB, `s6-determinism-${i}`, tunables);
           if (JSON.stringify(seedDiffers.events) !== JSON.stringify(first.events)) otherSeed += 1;
@@ -733,5 +732,19 @@ describe("determinism under the whole of ADR-089 step 6", () => {
     expect(records).toBeGreaterThan(100);
     expect(otherSeed).toBe(plays);
     expect(otherNumber).toBe(plays);
+  });
+
+  it("a whole game under pocket-1.s6 (shape S, every part on) replays byte for byte, step 6's records on its stream", () => {
+    const a = buildGameFixture({ seed: "s6-game" });
+    const b = buildGameFixture({ seed: "s6-game" });
+    const first = simulateGame(a.state, a.inputs, a.seed, S6S_TUNABLES);
+    const second = simulateGame(b.state, b.inputs, b.seed, S6S_TUNABLES);
+    expect(JSON.stringify(second.events)).toBe(JSON.stringify(first.events));
+    expect(JSON.stringify(second.statlines)).toBe(JSON.stringify(first.statlines));
+    expect(first.events.length).toBeGreaterThan(1000);
+    const drills = first.events.filter(({ event }) => event.type === "CHECK" && event.payload.checkKind === "scramble_drill").length;
+    const sides = first.events.filter(({ event }) => event.type === "QB_DECISION" && event.payload.direction !== undefined).length;
+    expect(drills).toBeGreaterThan(0);
+    expect(sides).toBeGreaterThan(0);
   });
 });

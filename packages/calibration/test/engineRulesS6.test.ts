@@ -1,5 +1,5 @@
 /**
- * ADR-089 step 6: `pocket-1.s6`, BUILT BEHIND ITS PETITIONS AND REFUSED BY NAME UNTIL RECORDED
+ * ADR-089 step 6: `pocket-1.s6`, ITS PETITIONS IN (P21 ASIDE), REFUSED BY NAME UNTIL RECORDED
  * (`src/pocket/rules.ts`, `src/pocket/oneThreatBench.ts`; step-6 plan §1.1, §1.2's calibration
  * bullets, §3.2 K1).
  *
@@ -17,16 +17,19 @@
  *     blocks is a bundle (the block alone, every part off, on shape L).
  *  5. The dials: each refusal the engine makes (`checkOuts`), made here first with the engine's
  *     words, and the engine (played through its barrel) refuses the same hand-stamped tree with them.
- *  6. The gate: `checkStamp` refuses every tree carrying the block while P9 to P12 are out, every
- *     part off included, naming the missing ones; the caught escape as contact while P20 is out; the
- *     unseen answer while P21 is out; with a test's petitions granted it passes. The engine refuses
- *     the same trees through its barrel, and `runOneGame` before any play.
+ *  6. The gate: P9 to P12 and P20 are in contracts since the lift, so `checkStamp` passes every tree
+ *     carrying the block under the seen answer, and a calibration game under the bundle plays and
+ *     writes step 6's records on its stream; a test's own petitions, withheld, shut it: every tree
+ *     carrying the block while any of P9 to P12 is withheld, every part off included, naming the
+ *     missing ones, and the caught escape as contact while P20 is. P21 is out in this build (the
+ *     owner answered "Seen for now"), so the unseen answer is refused by name, here, through the
+ *     engine's barrel with its own words, and in `runOneGame` before any play.
  *  7. The flags: calibration's six (P9 to P12, P20, P21) are the engine's, each declared once as a
- *     literal, all false; the gate's reading of them (`step6PetitionsOut`).
+ *     literal: P9 to P12 and P20 true, P21 false; the gate's reading of them (`step6PetitionsOut`).
  *  8. K9: the deadline pick's run margin is the filed inequality's at urgency 0 alone (1), and the
  *     same inequality at urgency 0 to 3 gives the filed Δ (10).
  *  9. The clean bench: `cleanBenchTunablesS6(parts)` is E9's tree plus the block, stamped
- *     `pocket-1.s6`, refused by `checkStamp` while the petitions are out.
+ *     `pocket-1.s6`, passed by `checkStamp`, and refused when a test withholds the petitions.
  */
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -144,14 +147,20 @@ const OUTS_WORDS =
 /** checkStamp's words while P9 to P12 are out (the missing ones named). */
 const gateWords = (missing: string): string =>
   `the outs block (pocket.outs) is refused before any game until petitions P9, P10, P11 and P12 are in contracts (not yet: ${missing}): ${OUTS_WORDS} (ADR-089 step 6)`;
-/** The engine's words for the same refusal (its `step6Gate`). */
-const engineGateWords = (missing: string): string => `the outs block (pocket.outs) is refused until petitions P9, P10, P11 and P12 are in contracts (not yet: ${missing}): ${OUTS_WORDS}`;
 const P20_WORDS =
   "the caught escape as contact (pocket.outs.caughtAsContact) is refused before any game until petition P20 is in contracts: " +
   "its QB_HIT's contactSeconds is the time the escape caught him, a reading QB_HIT.contactSeconds' doc does not list yet (ADR-089 step 6)";
 const P21_WORDS =
   "pocket.outs.caughtSeen UNSEEN_IF_UNREGISTERED is refused before any game until petition P21 is in contracts: " +
   "QB_HIT.seen is true on every contact before ADR-089 step 7 until its doc allows a catch from a block to be unseen";
+/** The engine's words for the same refusal (its `step6Gate`). */
+const ENGINE_P21_WORDS =
+  "pocket.outs.caughtSeen UNSEEN_IF_UNREGISTERED is refused until petition P21 is in contracts: " +
+  "QB_HIT.seen is true on every contact before ADR-089 step 7 until its doc allows a catch from a block to be unseen";
+/** The four petitions the block waits on, withheld: a test's own set, to see the joint gate refuse. */
+const WITHHELD = { P9: false, P10: false, P11: false, P12: false } as const;
+/** The bundle at the unseen answer, every other option recommended. */
+const unseenBundle = (): Tunables => step6Bundle(outsBlockOf(OUTS_PARTS, { ...RECOMMENDED_OUTS_OPTIONS, seen: "UNSEEN_IF_UNREGISTERED" }));
 
 /** Golden flat game 0 played straight through the engine's barrel, with no calibration check. */
 function playThroughEngine(tunables: Tunables): unknown {
@@ -478,54 +487,72 @@ describe("the block's dials (plan §1.2): refused here first, and by the engine,
   }, 180_000);
 });
 
-describe("the gate (plan §1.2, §10.1; guardian-2.md): refused before any game while the petitions are out", () => {
-  it("checkStamp refuses every tree carrying the block while P9 to P12 are out, every part off included, naming the missing ones", () => {
+describe("the gate (plan §1.2, §10.1; guardian-2.md): open since P9 to P12 and P20 are in contracts, P21 aside", () => {
+  it("checkStamp passes every tree carrying the block under the seen answer; withheld, it refuses every one, every part off included, naming the missing ones", () => {
     for (const t of [step6Bundle(), step6Bundle(outsBlockOf([])), cleanBenchTunablesS6(OUTS_PARTS)]) {
-      expect(() => checkStamp(t, POCKET_1_S6_RULES, "runBatch"), t.engineRules!.overlayDigest).toThrow(EngineRulesError);
-      expect(() => checkStamp(t, POCKET_1_S6_RULES, "runBatch")).toThrow(`runBatch: ${gateWords("P9, P10, P11, P12")}`);
-      expect(step6Refusal(t)).toBe(gateWords("P9, P10, P11, P12"));
+      expect(checkStamp(t, POCKET_1_S6_RULES, "runBatch"), t.engineRules!.overlayDigest).toBe(t);
+      expect(step6Refusal(t)).toBeUndefined();
+      expect(() => checkStamp(t, POCKET_1_S6_RULES, "runBatch", WITHHELD), t.engineRules!.overlayDigest).toThrow(EngineRulesError);
+      expect(() => checkStamp(t, POCKET_1_S6_RULES, "runBatch", WITHHELD)).toThrow(`runBatch: ${gateWords("P9, P10, P11, P12")}`);
+      expect(step6Refusal(t, WITHHELD)).toBe(gateWords("P9, P10, P11, P12"));
     }
     const s6 = step6Bundle();
-    expect(step6Refusal(s6, { P9: true, P10: true })).toBe(gateWords("P11, P12"));
-    expect(step6Refusal(s6, { P9: true, P10: true, P11: true })).toBe(gateWords("P12"));
-    expect(() => checkStamp(s6, POCKET_1_S6_RULES, "w", { P9: true, P11: true, P12: true, P20: true })).toThrow(`w: ${gateWords("P10")}`);
+    expect(step6Refusal(s6, { P11: false, P12: false })).toBe(gateWords("P11, P12"));
+    expect(step6Refusal(s6, { P12: false })).toBe(gateWords("P12"));
+    expect(() => checkStamp(s6, POCKET_1_S6_RULES, "w", { P10: false })).toThrow(`w: ${gateWords("P10")}`);
     // With the four in, P20 gates the caught escape as contact alone; without that part P20 is not read.
-    const four = { P9: true, P10: true, P11: true, P12: true } as const;
-    expect(step6Refusal(s6, four)).toBe(P20_WORDS);
-    expect(() => checkStamp(s6, POCKET_1_S6_RULES, "w", four)).toThrow(`w: ${P20_WORDS}`);
+    expect(step6Refusal(s6, { P20: false })).toBe(P20_WORDS);
+    expect(() => checkStamp(s6, POCKET_1_S6_RULES, "w", { P20: false })).toThrow(`w: ${P20_WORDS}`);
     const noContact = step6Bundle(outsBlockOf(OUTS_PARTS.filter((p) => p !== "caughtAsContact")));
-    expect(step6Refusal(noContact, four)).toBeUndefined();
-    expect(checkStamp(noContact, POCKET_1_S6_RULES, "w", four)).toBe(noContact);
-    // P21 gates the unseen answer alone: SEEN plays with P21 out, UNSEEN does not.
-    const unseen = step6Bundle(outsBlockOf(OUTS_PARTS, { ...RECOMMENDED_OUTS_OPTIONS, seen: "UNSEEN_IF_UNREGISTERED" }));
-    expect(step6Refusal(unseen, { ...STEP6_PETITIONS_GRANTED, P21: false })).toBe(P21_WORDS);
-    expect(() => checkStamp(unseen, POCKET_1_S6_RULES, "w", { ...STEP6_PETITIONS_GRANTED, P21: false })).toThrow(`w: ${P21_WORDS}`);
-    expect(step6Refusal(s6, { ...STEP6_PETITIONS_GRANTED, P21: false })).toBeUndefined();
+    expect(step6Refusal(noContact, { P20: false })).toBeUndefined();
+    expect(checkStamp(noContact, POCKET_1_S6_RULES, "w", { P20: false })).toBe(noContact);
+    // P21 gates the unseen answer alone, and it is out in this build: SEEN plays, UNSEEN is refused by name.
+    const unseen = unseenBundle();
+    expect(step6Refusal(unseen)).toBe(P21_WORDS);
+    expect(() => checkStamp(unseen, POCKET_1_S6_RULES, "w")).toThrow(`w: ${P21_WORDS}`);
+    expect(step6Refusal(s6)).toBeUndefined();
     expect(checkStamp(unseen, POCKET_1_S6_RULES, "w", STEP6_PETITIONS_GRANTED)).toBe(unseen);
-    // Every option builds and passes with every petition granted.
+    // Every option builds and passes with every petition granted, and with the build's flags every
+    // option but the unseen answer passes.
     for (const o of everyOutsOptions()) {
       const t = step6Bundle(outsBlockOf(OUTS_PARTS, o));
       expect(checkStamp(t, POCKET_1_S6_RULES, "w", STEP6_PETITIONS_GRANTED), JSON.stringify(o)).toBe(t);
+      if (o.seen === "UNSEEN_IF_UNREGISTERED") expect(() => checkStamp(t, POCKET_1_S6_RULES, "w"), JSON.stringify(o)).toThrow(`w: ${P21_WORDS}`);
+      else expect(checkStamp(t, POCKET_1_S6_RULES, "w"), JSON.stringify(o)).toBe(t);
     }
     // A tree with no outs block is never read by the gate, under any name.
-    for (const name of ENGINE_RULES) expect(step6Refusal(rulesTunables(name)), name).toBeUndefined();
+    for (const name of ENGINE_RULES) expect(step6Refusal(rulesTunables(name), WITHHELD), name).toBeUndefined();
   });
 
-  it("the engine refuses the same trees through its barrel (its step6Gate words), and runOneGame before any play", () => {
-    for (const t of [step6Bundle(), step6Bundle(outsBlockOf([]))]) {
-      const e = thrown(() => playThroughEngine(t));
-      expect(e.name).toBe("PocketRulesError");
-      expect(e.message).toBe(`@ff/engine: ${engineGateWords("P9, P10, P11, P12")}`);
-    }
+  it("a calibration game under the bundle plays, and its stream carries step 6's records", () => {
+    const index = indexLeague(buildFlatLeague({ teams: 2 }));
+    const [home, away] = index.teamIds();
+    const fixture = buildFixtures(index, { kind: "SYNTHETIC_PAIR", home: home!, away: away!, games: 1, season: 2024 })[0]!;
+    const { observation } = runOneGame({ built: buildFixture(index, fixture), seed: "adr-089:s6-stamp", tendencies: FROZEN_TENDENCIES, fourthDown: FROZEN_FOURTH_DOWN, tunables: step6Bundle() });
+    const events = observation.events.map((e) => e.event);
+    const throwaways = events.flatMap((e) => (e.type === "THROWAWAY" ? [e.payload] : []));
+    expect(throwaways.some((t) => t.cause === "OUT_OF_POCKET" && t.outsideTackleBox === true)).toBe(true);
+    expect(throwaways.some((t) => t.cause !== "OUT_OF_POCKET" && t.outsideTackleBox === false)).toBe(true);
+    // P10's flag is on every throwaway of a play that reads a position, and it equals the cause.
+    for (const t of throwaways) expect(t.outsideTackleBox, t.cause).toBe(t.cause === "OUT_OF_POCKET");
+    expect(events.some((e) => e.type === "QB_DECISION" && e.payload.direction !== undefined)).toBe(true);
+    expect(events.some((e) => e.type === "CHECK" && e.payload.checkKind === "scramble_drill")).toBe(true);
+  }, 60_000);
+
+  it("the engine plays the bundle through its barrel, and refuses the unseen answer with its own words; runOneGame refuses it before any play", () => {
+    expect(() => playThroughEngine(step6Bundle())).not.toThrow();
+    const e = thrown(() => playThroughEngine(unseenBundle()));
+    expect(e.name).toBe("PocketRulesError");
+    expect(e.message).toBe(`@ff/engine: ${ENGINE_P21_WORDS}`);
     const index = indexLeague(buildFlatLeague({ teams: 2 }));
     const [home, away] = index.teamIds();
     const fixture = buildFixtures(index, { kind: "SYNTHETIC_PAIR", home: home!, away: away!, games: 1, season: 2024 })[0]!;
     const game = (tunables: Tunables) => runOneGame({ built: buildFixture(index, fixture), seed: "adr-089:s6-stamp", tendencies: FROZEN_TENDENCIES, fourthDown: FROZEN_FOURTH_DOWN, tunables });
-    expect(() => game(step6Bundle())).toThrow(`runOneGame: ${gateWords("P9, P10, P11, P12")}`);
+    expect(() => game(unseenBundle())).toThrow(`runOneGame: ${P21_WORDS}`);
   }, 60_000);
 });
 
-describe("the flags (plan §1.2; guardian-2.md): calibration's six are the engine's, all false", () => {
+describe("the flags (plan §1.2; guardian-2.md): calibration's six are the engine's, P9 to P12 and P20 true, P21 false", () => {
   const ours: Readonly<Record<(typeof STEP6_PETITION_NAMES)[number], boolean>> = {
     P9: P9_IN_CONTRACTS,
     P10: P10_IN_CONTRACTS,
@@ -534,8 +561,10 @@ describe("the flags (plan §1.2; guardian-2.md): calibration's six are the engin
     P20: P20_IN_CONTRACTS,
     P21: P21_IN_CONTRACTS,
   };
+  /** The build's state: the owner's typed yes put P9 to P12 and P20 in contracts; P21 was never asked ("Seen for now"). */
+  const BUILD: Readonly<Record<(typeof STEP6_PETITION_NAMES)[number], boolean>> = { P9: true, P10: true, P11: true, P12: true, P20: true, P21: false };
 
-  it("each is declared once as a literal, here and in the engine, and they agree (the lift turns all of them true together)", () => {
+  it("each is declared once as a literal, here and in the engine, and they agree (the lift turned P9 to P12 and P20 true together)", () => {
     const engineSource = readFileSync(fileURLToPath(new URL("../../engine/src/sim/pocketRules.ts", import.meta.url)), "utf8");
     const ownSource = readFileSync(fileURLToPath(new URL("../src/pocket/rules.ts", import.meta.url)), "utf8");
     expect([...STEP6_PETITION_NAMES]).toEqual(["P9", "P10", "P11", "P12", "P20", "P21"]);
@@ -545,33 +574,35 @@ describe("the flags (plan §1.2; guardian-2.md): calibration's six are the engin
       expect(declared(ownSource), `calibration declares ${name}_IN_CONTRACTS once, as a literal`).toHaveLength(1);
       expect(ours[name], `calibration's ${name}_IN_CONTRACTS (src/pocket/rules.ts) differs from the engine's (sim/pocketRules.ts)`).toBe(declared(engineSource)[0] === "true");
       expect(String(ours[name])).toBe(declared(ownSource)[0]);
-      // No owner's typed yes yet: none is in contracts, so all are false (the build's state, not a rule).
-      expect(ours[name], name).toBe(false);
+      // The build's state, not a rule: P9 to P12 and P20 in contracts, P21 not.
+      expect(ours[name], name).toBe(BUILD[name]);
     }
   });
 
   it("step6PetitionsUnder reads them (or a test's own set), step6PetitionsIn is the joint gate on P9 to P12", () => {
     expect(step6PetitionsUnder()).toEqual(ours);
-    expect(step6PetitionsUnder({ P12: true })).toEqual({ ...ours, P12: true });
+    expect(step6PetitionsUnder()).toEqual(BUILD);
+    expect(step6PetitionsUnder({ P12: false })).toEqual({ ...ours, P12: false });
+    expect(step6PetitionsUnder({ P21: true })).toEqual(STEP6_PETITIONS_GRANTED);
     expect(step6PetitionsUnder(STEP6_PETITIONS_GRANTED)).toEqual(STEP6_PETITIONS_GRANTED);
     expect(Object.isFrozen(step6PetitionsUnder())).toBe(true);
-    expect(step6PetitionsIn()).toBe(false);
+    expect(step6PetitionsIn()).toBe(true);
+    expect(step6PetitionsIn(WITHHELD)).toBe(false);
     expect(step6PetitionsIn(STEP6_PETITIONS_GRANTED)).toBe(true);
-    expect(step6PetitionsIn({ P9: true, P10: true, P11: true, P12: true })).toBe(true);
-    for (const name of ["P9", "P10", "P11", "P12"] as const) expect(step6PetitionsIn({ ...STEP6_PETITIONS_GRANTED, [name]: false }), name).toBe(false);
+    for (const name of ["P9", "P10", "P11", "P12"] as const) expect(step6PetitionsIn({ [name]: false }), name).toBe(false);
     for (const name of ["P20", "P21"] as const) expect(step6PetitionsIn({ ...STEP6_PETITIONS_GRANTED, [name]: false }), name).toBe(true);
   });
 
-  it("the step-6 gate reads them: every petition it waits on is out in this build, P21 only for the unseen answer", () => {
+  it("the step-6 gate reads them: nothing it waits on is out under the seen answer, P21 under the unseen one", () => {
     expect([...STEP6_PETITIONS]).toEqual(["P9", "P10", "P11", "P12", "P20"]);
     expect(STEP6_UNSEEN_PETITION).toBe("P21");
-    expect(step6PetitionsOut()).toEqual(["P9", "P10", "P11", "P12", "P20"]);
-    expect(step6PetitionsOut("SEEN")).toEqual(["P9", "P10", "P11", "P12", "P20"]);
-    expect(step6PetitionsOut("UNSEEN_IF_UNREGISTERED")).toEqual(["P9", "P10", "P11", "P12", "P20", "P21"]);
+    expect(step6PetitionsOut()).toEqual([]);
+    expect(step6PetitionsOut("SEEN")).toEqual([]);
+    expect(step6PetitionsOut("UNSEEN_IF_UNREGISTERED")).toEqual(["P21"]);
     expect(step6PetitionsOut("UNSEEN_IF_UNREGISTERED", STEP6_PETITIONS_GRANTED)).toEqual([]);
-    expect(step6PetitionsOut(undefined, { P9: true, P10: true, P11: true, P12: true })).toEqual(["P20"]);
-    expect(step6PetitionsOut("UNSEEN_IF_UNREGISTERED", { ...STEP6_PETITIONS_GRANTED, P21: false })).toEqual(["P21"]);
-    expect(step6PetitionsOut("SEEN", { ...STEP6_PETITIONS_GRANTED, P21: false })).toEqual([]);
+    expect(step6PetitionsOut(undefined, { P20: false })).toEqual(["P20"]);
+    expect(step6PetitionsOut("UNSEEN_IF_UNREGISTERED", { ...WITHHELD, P20: false })).toEqual(["P9", "P10", "P11", "P12", "P20", "P21"]);
+    expect(step6PetitionsOut("SEEN", WITHHELD)).toEqual(["P9", "P10", "P11", "P12"]);
   });
 });
 
@@ -631,9 +662,10 @@ describe("step 6's clean bench (plan §3.2 K1, §5.2): E9's tree plus the outs b
     expect(new Set(digests).size).toBe(digests.length);
   });
 
-  it("checkStamp refuses it while the petitions are out, and takes it with a test's petitions granted", () => {
+  it("checkStamp takes it, and refuses it when a test withholds the petitions", () => {
     const all = cleanBenchTunablesS6(OUTS_PARTS);
-    expect(() => checkStamp(all, POCKET_1_S6_RULES, "bench")).toThrow(`bench: ${gateWords("P9, P10, P11, P12")}`);
+    expect(checkStamp(all, POCKET_1_S6_RULES, "bench")).toBe(all);
+    expect(() => checkStamp(all, POCKET_1_S6_RULES, "bench", WITHHELD)).toThrow(`bench: ${gateWords("P9, P10, P11, P12")}`);
     expect(checkStamp(all, POCKET_1_S6_RULES, "bench", STEP6_PETITIONS_GRANTED)).toBe(all);
     expect(() => cleanBenchTunablesS6(["sideCatch"])).toThrow(
       "withOverlay(pocket-1.s6): the side-aware catch (pocket.outs.sideCatch) without escape direction (pocket.outs.direction): it reads the side he breaks to",

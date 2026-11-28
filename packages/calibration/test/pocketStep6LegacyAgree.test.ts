@@ -34,7 +34,7 @@ import { describe, expect, it } from "vitest";
 import { positionsFromSnapshot } from "../src/knownTruth/pocketChannelShares.js";
 import { emptyAccumulator, foldGame } from "../src/metrics/collect.js";
 import { armById } from "../src/pocket/arms.js";
-import { goldenGames } from "../src/pocket/corpus.js";
+import { CORPORA, goldenGames } from "../src/pocket/corpus.js";
 import { GOLDEN_LEAGUES } from "../src/pocket/golden.js";
 import { emptyM3Fold, foldM3Dropback, s4SackCreditOf, sackCreditsOf } from "../src/pocket/m3SackerMix.js";
 import { readsStep4Facts, rulesOnPlayStart } from "../src/pocket/rules.js";
@@ -44,7 +44,8 @@ import { emptyStep6LeagueFolds, finishStep6League, foldStep6Game } from "../src/
 import { STEP1_CALLER } from "../src/pocket/step1.js";
 import { playsOf, readDropback, throwClassOf } from "../src/pocket/throwClass.js";
 
-const GAMES = 50;
+/** The golden games a league (the corpus's own size, `CORPORA.golden.games`). */
+const GAMES = CORPORA.golden.games;
 
 /** The trees played: legacy (no stamp) and F5's `pocket-1.s5a` (step 4's credit). */
 const TREES: readonly { readonly id: string; readonly tunables: Tunables; readonly stamp: string | undefined }[] = [

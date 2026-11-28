@@ -27,10 +27,12 @@
  *    are left out here as every step-3 and later harness leaves them out (`playStep3Arm`'s
  *    `m2 = !s3`); the cross-check's deadline picks are read without the replay.
  *
- * While petitions P9 to P12 are out of contracts no step-6 game can be played (the engine and
- * calibration refuse every tree carrying `pocket.outs`), so the file is skipped; it runs from the lift
- * on. Before the lift it was run in a scratch copy with the gates flipped and the log writing the
- * step-6 records onto the stream (`step6/build/cal-2.md`).
+ * It runs since the lift (P9 to P12 and P20 in contracts), and it is skipped, as the smoke is
+ * (`pocketStep6Smoke.test.ts`), while a petition the step-6 games wait on is out of contracts: the
+ * smoke's list, `step6PetitionsOut` under AM-13's `seen` answer once AM-13 is filed and the
+ * recommended one until then (P21 on an UNSEEN answer). Before the lift it was run in a scratch copy
+ * with the gates flipped and the log writing the step-6 records onto the stream
+ * (`step6/build/cal-2.md`).
  */
 import type { MatchEventEnvelope } from "@ff/contracts";
 import { describe, expect, it } from "vitest";
@@ -41,19 +43,25 @@ import { GOLDEN_LEAGUES } from "../src/pocket/golden.js";
 import { emptyM3Fold, foldM3Dropback, s4SackCreditOf, s6SackCreditOf, sackCreditsOf } from "../src/pocket/m3SackerMix.js";
 import { crossCheckMovement, emptyM6Fold, emptyM6Step4Fold, foldM6Step4Game, playersOfSnapshot } from "../src/pocket/m6Contact.js";
 import { positionsFromSnapshot } from "../src/knownTruth/pocketChannelShares.js";
-import { step6PetitionsIn } from "../src/pocket/rules.js";
+import { RECOMMENDED_OUTS_OPTIONS } from "../src/pocket/rules.js";
 import { emptyS2Folds, forcedActsOf, s2Checks, s2ContextOf, s2PlaysOf, s2Problems } from "../src/pocket/s2Stream.js";
 import { emptyS4Fold, foldS4Game, s4Problems } from "../src/pocket/s4Stream.js";
 import { emptyS5Fold, foldS5Game } from "../src/pocket/s5Stream.js";
 import { emptyS6RowsFold, foldS6RowsGame } from "../src/pocket/s6Rows.js";
 import { escapeBandOutcomeOf, isDeadlinePickLabel, OUT_OF_POCKET, readS6Play } from "../src/pocket/s6Stream.js";
 import { STEP1_CALLER } from "../src/pocket/step1.js";
+import { step6GateState, step6PetitionsOut } from "../src/pocket/step6.js";
 import { playsOf, readDropback } from "../src/pocket/throwClass.js";
 
 const ARMS = ["H0", "H7", "H8", "H12", "HB0"] as const;
 const GAMES = 10;
 
-describe.skipIf(!step6PetitionsIn())("ADR-089 step 6: on played step-6 games the readers agree with the stream and the statline (lifts with P9 to P12)", () => {
+/** The petitions the step-6 games wait on, the smoke's list: under AM-13's `seen` answer once it is filed, else the recommended one. */
+const gate = step6GateState();
+const seen = gate.readings === undefined ? RECOMMENDED_OUTS_OPTIONS.seen : (gate.readings.answers as { readonly seen?: unknown } | undefined)?.seen;
+const waiting = step6PetitionsOut(seen);
+
+describe.skipIf(waiting.length > 0)(`ADR-089 step 6: on played step-6 games the readers agree with the stream and the statline (lifts with P9 to P12 and P20${waiting.length > 0 ? `; skipped while ${waiting.join(", ")} wait` : ""})`, () => {
   for (const id of ARMS) {
     it(
       `${id}: the escape roll, the movement CHECK and the sack, read by every reader, play for play`,

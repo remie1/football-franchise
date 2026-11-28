@@ -28,7 +28,7 @@ import type { Scenario } from "./fixtures.js";
 import { PASS_FIXTURES } from "./pocketTunables.js";
 import { withPicture } from "./snapFixtures.js";
 import { S5L_TUNABLES, S5S_TUNABLES, S5_TUNABLES, checkOf, onCleanBench, rollsOf } from "./step5Fixtures.js";
-import { outsParts, playS6, withOuts } from "./step6Fixtures.js";
+import { beforeLiftSeq, outsParts, playS6, withOuts, withoutStep6 } from "./step6Fixtures.js";
 import type { Step6Play, Step6Record } from "./step6Fixtures.js";
 
 const BY_SIDE = outsParts({ direction: true, drill: true, drillBySide: true });
@@ -201,11 +201,14 @@ describe("ADR-089 step 6, 2.10: the side-aware drill, by break lane (pocket.outs
       expect(side, play.name).toBeDefined();
       if (side === undefined) continue;
       const base = simulatePassPlay(play.state, play.calls, play.seed, play.base).events;
+      // The play without its drill CHECKs lines up with step 5a's, seq for seq, through the escape.
+      const without = withoutStep6(play.bySide.events);
+      const at5a = beforeLiftSeq(play.bySide.events, escape.decision.seq);
       for (const d of drills(play.bySide.records).filter((r) => r.payload.rollRef === escape.label)) {
         const receiver = receiverOf(d.payload.actors);
         const lane = laneOf(play.bySide.events, play.base, receiver);
-        const a = firstStatusAfter(play.bySide.events, escape.decision.seq, receiver);
-        const b = firstStatusAfter(base, escape.decision.seq, receiver);
+        const a = firstStatusAfter(without, at5a, receiver);
+        const b = firstStatusAfter(base, at5a, receiver);
         if (a === undefined || b === undefined || b.openness >= play.base.scramble.maxOpenness) continue;
         const steps = drillStepsOf(side, lane);
         expect(a.openness, `${play.name} ${String(receiver)} ${lane} ${side}`).toBe(Math.min(play.base.scramble.maxOpenness, b.openness + drillGainOf(play.base, d.payload.band, steps)));
@@ -254,8 +257,10 @@ describe("ADR-089 step 6, 2.10: the side-aware drill, by break lane (pocket.outs
         const side = sideAt(records, escape.decision.seq);
         if (side === undefined) throw new Error("an escape he won with no direction");
         const without = simulatePassPlay(state, calls, seed, base).events;
-        const a = firstStatusAfter(events, escape.decision.seq, quick);
-        const b = firstStatusAfter(without, escape.decision.seq, quick);
+        // The play without its drill CHECKs lines up with step 5a's, seq for seq, through the escape.
+        const at5a = beforeLiftSeq(events, escape.decision.seq);
+        const a = firstStatusAfter(withoutStep6(events), at5a, quick);
+        const b = firstStatusAfter(without, at5a, quick);
         if (a === undefined || b === undefined) continue;
         const lane = laneOf(events, base, quick);
         expect(a.openness, `${shape.name} ${i} ${side}`).toBe(Math.min(base.scramble.maxOpenness, b.openness + drillGainOf(base, "TRAILING", drillStepsOf(side, lane))));
@@ -283,12 +288,10 @@ describe("ADR-089 step 6, 2.10: the side-aware drill, by break lane (pocket.outs
           const two = playS6(flipped.state, flippedCalls, seed, withOuts(shape.base, BY_SIDE));
           const escape = firstEscapeWon(one.events);
           if (escape === undefined) continue;
-          // Every die and every record through the SCRAMBLE decision, the lanes aside.
-          const rolls = (p: Step6Play) => [
-            ...rollsOf(p.events).filter((r) => r.seq <= escape.decision.seq).map((r) => [r.roll.rngLabel, r.roll.raw]),
-            ...drills(p.records).filter((d) => d.at.seq <= escape.decision.seq).map((d) => [d.payload.roll.rngLabel, d.payload.roll.raw]),
-          ];
+          // Every die through the SCRAMBLE decision, the drill's CHECKs among them, the lanes aside.
+          const rolls = (p: Step6Play) => rollsOf(p.events).filter((r) => r.seq <= escape.decision.seq).map((r) => [r.roll.rngLabel, r.roll.raw]);
           expect(rolls(two), name).toEqual(rolls(one));
+          expect(drills(two.records).filter((d) => d.at.seq <= escape.decision.seq).length, name).toBe(drills(one.records).filter((d) => d.at.seq <= escape.decision.seq).length);
           const side = sideAt(one.records, escape.decision.seq);
           expect(sideAt(two.records, escape.decision.seq), name).toBe(side);
           if (side === undefined) continue;

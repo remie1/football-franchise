@@ -1,11 +1,11 @@
 /**
  * ADR-089 step 6 (step-6 plan §2.13): THE RENDERER READS THE OUTS (`debug/renderPlay.ts`).
  *
- * Before the lift the stream cannot carry P9 to P12's facts (the OUT_OF_POCKET throwaway, the
- * throwaway's `outsideTackleBox`, the decision's `direction` and the `scramble_drill` CHECK), so these
- * tests render the lifted stream: the play's events with the test recorder's records put where the
- * stream will carry them (`liftS6`, `step6Fixtures.ts`), as `renderContact.test.ts` rendered step 4's
- * facts before P6 and P7 were in contracts. The plays are the full tree (every part on, the
+ * P9 to P12 are in contracts, so the stream carries their facts (the OUT_OF_POCKET throwaway, the
+ * throwaway's `outsideTackleBox`, the decision's `direction` and the `scramble_drill` CHECK) and these
+ * tests render the play's own events. Before the lift they rendered the events with a test
+ * recorder's records put where the stream now carries them, as `renderContact.test.ts` rendered
+ * step 4's facts before P6 and P7 were in contracts. The plays are the full tree (every part on, the
  * recommended answers, `OUTS_FILED`) on the three s5a shapes, every pass fixture and a few that
  * escape often.
  *
@@ -25,8 +25,8 @@
  *    would show none of the cases.
  * 6. Nothing new without the outs: the printout of 312 s5a plays is pinned to its digest MEASURED
  *    with the renderer as at `564e2a3` (before this section's lines; legacy has its own pin in
- *    `renderPlay.test.ts`), and none of the new words is in it. On the lifted stream each RollDetail
- *    is printed at most once (ADR-004, rendered).
+ *    `renderPlay.test.ts`), and none of the new words is in it. On the stream each RollDetail is
+ *    printed at most once (ADR-004, rendered).
  */
 import { describe, expect, it } from "vitest";
 import type { MatchEventEnvelope, RollDetail } from "@ff/contracts";
@@ -41,7 +41,7 @@ import type { Scenario } from "./fixtures.js";
 import { PASS_FIXTURES, buildBullRushScenario } from "./pocketTunables.js";
 import { withPicture } from "./snapFixtures.js";
 import { S5L_TUNABLES, S5S_TUNABLES, S5_TUNABLES, checkOf, tickOfEvent } from "./step5Fixtures.js";
-import { OUTS_FILED, liftS6, outsParts, playS6, withOuts } from "./step6Fixtures.js";
+import { OUTS_FILED, outsParts, playS6, withOuts } from "./step6Fixtures.js";
 
 const SHAPES: readonly { readonly name: string; readonly base: Tunables; readonly picture: boolean }[] = [
   { name: "s5a", base: S5_TUNABLES, picture: true },
@@ -73,14 +73,14 @@ interface Rendered {
   readonly text: string;
 }
 
-/** Each play of the corpus under `block`, lifted and printed. */
+/** Each play of the corpus under `block`, printed. */
 function corpus(block = OUTS_FILED, seeds = 12, tag = "full"): Rendered[] {
   const out: Rendered[] = [];
   for (const { name, base, picture } of SHAPES) {
     for (const [fixture, build] of FIXTURES) {
       for (let i = 0; i < seeds; i++) {
         const { state, calls, names } = build();
-        const events = liftS6(playS6(state, picture ? withPicture(state, calls) : calls, `render-s6-${tag}-${fixture}-${i}`, withOuts(base, block)));
+        const { events } = playS6(state, picture ? withPicture(state, calls) : calls, `render-s6-${tag}-${fixture}-${i}`, withOuts(base, block));
         out.push({ where: `${name} ${fixture} ${i}`, events, text: renderPlay(events, names) });
       }
     }
@@ -96,8 +96,8 @@ const tick = (e: MatchEventEnvelope): string => {
 };
 const isDeadline = (e: MatchEventEnvelope): boolean => checkOf(e)?.checkKind === "pocket_movement" && (checkOf(e)?.roll?.rngLabel ?? "").endsWith(":deadline");
 const payloadOf = (e: MatchEventEnvelope): Record<string, unknown> => e.event.payload as Record<string, unknown>;
-const isDrill = (e: MatchEventEnvelope): boolean => e.event.type === "CHECK" && String(e.event.payload.checkKind) === "scramble_drill";
-const isOutOfPocket = (e: MatchEventEnvelope): boolean => e.event.type === "THROWAWAY" && String(e.event.payload.cause) === "OUT_OF_POCKET";
+const isDrill = (e: MatchEventEnvelope): boolean => e.event.type === "CHECK" && e.event.payload.checkKind === "scramble_drill";
+const isOutOfPocket = (e: MatchEventEnvelope): boolean => e.event.type === "THROWAWAY" && e.event.payload.cause === "OUT_OF_POCKET";
 
 /** The contests right after a CAUGHT_FROM_BEHIND escape roll on its tick, only an ARRIVED between (2.8's stream). */
 function caughtContests(events: readonly MatchEventEnvelope[]): MatchEventEnvelope[] {
@@ -115,7 +115,7 @@ function caughtContests(events: readonly MatchEventEnvelope[]): MatchEventEnvelo
 
 const FULL = corpus();
 
-describe("ADR-089 step 6: the renderer prints the outs from the lifted stream", () => {
+describe("ADR-089 step 6: the renderer prints the outs from the stream", () => {
   it("the drill reps: one row per scramble_drill CHECK, with its roll, target and band, after the pocket movement", () => {
     let drills = 0;
     for (const { where, events, text } of FULL) {
@@ -244,7 +244,7 @@ describe("ADR-089 step 6: the renderer prints the outs from the lifted stream", 
     expect(seen["at, unmarked"]).toBeUndefined();
   });
 
-  it("each RollDetail on the lifted stream is printed at most once (ADR-004, rendered)", () => {
+  it("each RollDetail on the stream is printed at most once (ADR-004, rendered)", () => {
     for (const { where, events, text } of FULL) {
       for (const { event } of events) {
         if (event.type !== "CHECK") continue;

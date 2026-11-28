@@ -59,11 +59,14 @@
  *    the outs block, its base, its clauses, the probes' rating overrides, H0M's mirror, and the other
  *    scramble start on H2L and HB2L; `buildStep6Arm` builds one on F5's tree (`step6Bundle`) or E9's
  *    (`cleanBenchTunablesS6`) under the owner's three answers (the recommended options by default),
- *    stamped `pocket-1.s6`. None is built in this build: each waits on petitions P9 to P12 (and P20
- *    with the caught escape as contact, P21 for its unseen answer), so `checkStamp` refuses its tree
- *    before any game, `armById` refuses it by name (`step6ArmRefusal`), `everyArm()` and the table
- *    hold steps 1 to 4's arms only, and step 6's gate (`step6.ts`) refuses `--step 6` before anything
- *    plays. Only the step-6 harness (K2) will build them, under AM-13's answers, never `armById`.
+ *    stamped `pocket-1.s6`. Each waits on petitions P9 to P12 (and P20 with the caught escape as
+ *    contact, P21 for its unseen answer). P9 to P12 and P20 are in contracts since the step-6 lift, so
+ *    `buildStep6Arm` builds every arm under the "seen" answer; P21 is not, so under the "unseen" one
+ *    `checkStamp` refuses an arm with the caught escape as contact before any game and
+ *    `step6ArmRefusal` names it. `armById` refuses every step-6 id by name (`step6HarnessOnly`),
+ *    `everyArm()` and the table hold steps 1 to 4's arms only, and step 6's gate (`step6.ts`) refuses
+ *    `--step 6` before anything plays. Only the step-6 harness (K2) builds them, under AM-13's
+ *    answers, never `armById`.
  *    Steps 1 to 5's lists, arms and digests are as they were.
  *  - **Step 2's arms** are stamped `pocket-1.s2` with their own overlay digests (O28), whatever their
  *    forcing rule; the re-played bases keep their step-1 stamps and digests. B3 is the design bundle
@@ -1795,9 +1798,11 @@ export function step6ArmPetitions(id: string, options: OutsOptions = RECOMMENDED
 /**
  * Why a step-6 arm cannot be built, or `undefined` when it can (and for any other id): a petition its
  * tree waits on (`step6ArmPetitions`) is not in contracts, so `checkStamp` refuses its outs block
- * before any game (ADR-089 step 6, plan §1.2). Every step-6 arm is defined in this build (plan §5),
- * and every one waits: each petition waits on the owner's typed yes and its contracts commit, then
- * the lift. Even once they are in, nothing plays a step-6 arm before step 6's gate opens
+ * before any game (ADR-089 step 6, plan §1.2). Every step-6 arm is defined in this build (plan §5).
+ * P9 to P12 and P20 are in contracts since the step-6 lift, so with the flags none waits under the
+ * "seen" answer; under the "unseen" one an arm with the caught escape as contact waits on P21, which
+ * waits on the owner's typed yes and its contracts commit, then its lift. Even with every petition
+ * in, nothing plays a step-6 arm before step 6's gate opens
  * (`step6.ts`, plan §10.3), and only the step-6 harness builds one (`buildStep6Arm`), never `armById`.
  * `petitions` is a test's own set and `options` the owner-question options (default: the flags, the
  * recommended options).
@@ -1825,10 +1830,11 @@ export function step6HarnessOnly(id: Step6ArmId): string {
  * block of its parts (F5's tree plus them), a bench arm by `cleanBenchTunablesS6` (E9's tree plus
  * them), each under `options` (the owner's three answers; the recommended options by default), the
  * scramble start swapped for the other on H2L and HB2L; checked by `checkStamp` under `pocket-1.s6`
- * with `petitions`, so with this build's flags every step-6 arm is refused before any game (the
- * refusal names the petitions, `step6ArmRefusal`). Exported as the harness's and the tests' seam: a
- * test builds an arm with its own petitions set true (`STEP6_PETITIONS_GRANTED`), as step 4's tests
- * did before step 4's lift.
+ * with `petitions`, so with this build's flags (P9 to P12 and P20 in contracts since the step-6 lift)
+ * every step-6 arm builds under the "seen" answer, and under the "unseen" one an arm with the caught
+ * escape as contact is refused before any game (the refusal names P21, `step6ArmRefusal`). Exported as
+ * the harness's and the tests' seam: a test builds an arm with its own petitions
+ * (`STEP6_PETITIONS_GRANTED`, P21 among them), or withholds one to see its refusal.
  */
 export function buildStep6Arm(def: Step6ArmDef, options: OutsOptions = RECOMMENDED_OUTS_OPTIONS, petitions: StampPetitions = {}): Step6Arm {
   const refusal = step6ArmRefusal(def.id, petitions, options);
@@ -1862,8 +1868,9 @@ function step6KeyOf(a: Arm): string {
  * Every step-6 arm under `options` and `petitions`, in `STEP6_ARM_DEFS`' order, checked distinct by
  * (rules name, dials, rating overrides, mirror) among themselves and against `others` (O28 as amended
  * at step 5, keyed also by the probes' overrides and H0M's mirror: H13 to H15 and H0M play H0's dials,
- * on patched rosters or mirrored, plan §5.1 and §8.2 R-1). With this build's flags it refuses (every
- * arm waits on P9 to P12); the step-6 harness and the tests build it with the petitions in.
+ * on patched rosters or mirrored, plan §5.1 and §8.2 R-1). With this build's flags it builds every arm
+ * under the "seen" answer and refuses under the "unseen" one (P21 is not in contracts); the step-6
+ * harness builds it under AM-13's answers, and the tests with their own petitions.
  */
 export function step6ArmsWith(options: OutsOptions = RECOMMENDED_OUTS_OPTIONS, petitions: StampPetitions = {}, others: readonly Arm[] = []): ReadonlyMap<Step6ArmId, Step6Arm> {
   const arms = new Map<Step6ArmId, Step6Arm>();
