@@ -29,7 +29,8 @@ import type { Tunables } from "@ff/engine";
 import { NOBODY_OPEN_CLASSES, THROW_CLASSES, type ThrowClass } from "./constructs.js";
 import { emptyDecidingInstantFold, foldDecidingInstantGame, multiChannelShare, type DecidingInstantFold } from "./decidingInstant.js";
 import { emptyM3Fold, foldM3Dropback, m3Summary, type M3Fold } from "./m3SackerMix.js";
-import { dropbacksOf, isAimed, isCleanDropback, severity, throwClassOf, type Dropback } from "./throwClass.js";
+import { OUT_OF_POCKET, readS6Play, type S6Play } from "./s6Stream.js";
+import { dropbacksOf, isAimed, isCleanDropback, playsOf, readDropback, severity, throwClassOf, type Dropback } from "./throwClass.js";
 
 interface ClassCell {
   dropbacks: number;
@@ -65,7 +66,13 @@ export function isLaterRead(d: Dropback, cls: ThrowClass): boolean {
   return first !== undefined && d.throwTarget !== undefined && d.throwTarget !== first.target;
 }
 
-export function foldRowsDropback(fold: RowsFold, d: Dropback, tunables: Tunables, positionOf: (id: string) => string | undefined): void {
+/**
+ * One dropback into the rows. `s6` is the play's step-6 reading (`readS6Play`, on a play stamped
+ * `pocket-1.s6` or later): the sacker mix then credits step 6's two sacks by their own rule (the run's
+ * tackler; the catcher, and a catch that names nobody as the statline credits it), as `m3SackerMix.ts`
+ * does, and every other sack as step 4 does. Without it every sack reads step 0's rule, as before.
+ */
+export function foldRowsDropback(fold: RowsFold, d: Dropback, tunables: Tunables, positionOf: (id: string) => string | undefined, s6?: S6Play): void {
   fold.dropbacks += 1;
   const cls = throwClassOf(d, tunables).cls;
   const cell = fold.byClass[cls];
@@ -83,11 +90,16 @@ export function foldRowsDropback(fold: RowsFold, d: Dropback, tunables: Tunables
       if (isLaterRead(d, cls)) fold.clean.laterReads += 1;
     }
   }
-  foldM3Dropback(fold.m3, d, positionOf);
+  if (s6 === undefined) foldM3Dropback(fold.m3, d, positionOf);
+  else foldM3Dropback(fold.m3, d, positionOf, true, s6);
 }
 
 export function foldRowsGame(fold: RowsFold, events: readonly MatchEventEnvelope[], tunables: Tunables, positions: ReadonlyMap<PlayerId, Position>): void {
-  for (const d of dropbacksOf(events)) foldRowsDropback(fold, d, tunables, (id) => positions.get(id as PlayerId));
+  for (const play of playsOf(events)) {
+    const d = readDropback(play);
+    if (d === undefined) continue;
+    foldRowsDropback(fold, d, tunables, (id) => positions.get(id as PlayerId), readS6Play(play.events, tunables));
+  }
   foldDecidingInstantGame(fold.deciding, events, tunables, positions);
 }
 
@@ -134,9 +146,18 @@ export function rowPocketOf(d: Dropback): RowPocket {
   return worst === 0 ? "CLEAN" : "PRESSURED";
 }
 
-/** A throwaway in the pocket: before any escape (a throwaway on or after the `QB_PURSUIT` tick is out of it). */
+/**
+ * A throwaway in the pocket: before any escape (a throwaway on or after the `QB_PURSUIT` tick is out of
+ * it). ADR-089 step 6 (plan §3.2): P9's OUT_OF_POCKET throwaway (the deadline pick's, after an escape)
+ * is out of the pocket by its cause, and where the stream carries P10's `outsideTackleBox` (every
+ * throwaway that read a position) the flag says which; an absent flag is no position read, and the
+ * escape's tick decides as before.
+ */
 export function isThrowawayInPocket(d: Dropback): boolean {
-  return d.throwawayTick !== undefined && (d.pursuitTick === undefined || d.throwawayTick < d.pursuitTick);
+  if (d.throwawayTick === undefined) return false;
+  if (d.throwawayCause === OUT_OF_POCKET) return false;
+  if (d.throwawayOutsideTackleBox !== undefined) return !d.throwawayOutsideTackleBox;
+  return d.pursuitTick === undefined || d.throwawayTick < d.pursuitTick;
 }
 
 interface PocketRowCell {

@@ -61,6 +61,12 @@
  * with step 3's facts: the replay cannot read a late block, so the step-3 and later harnesses leave
  * it out, `step3.ts`'s `m2 = !s3`.)
  *
+ * **Step 6 (taught, plan §3.2 K2):** a caught escape he sheds (2.8: CAUGHT_SHED by the CHECK band,
+ * `s6Stream.ts`) leaves him in the pocket, so the replay goes on past that roll
+ * (`shedEscapeRollsOf`); the deadline pick (`:deadline`, 2.11) is made after `QB_PURSUIT`, past the
+ * escape roll that ended the replay, so it needs no reading here. Every step-6 stream carries step
+ * 3's facts, so the step-6 harness leaves M2 out as the step-3 and later harnesses do.
+ *
  * **Dice (deviation O14):** S's uniform per rep is drawn on `createRng(<game seed>,
  * "adr-089:m2").fork(<rollRef>)` (U = 1 - next(), in (0, 1]); L's jitter on a tick today's stream
  * never played would be drawn on that fork's `.fork("t<tick>")` (two d100s, `rusher` then
@@ -75,6 +81,7 @@ import type { Tunables } from "@ff/engine";
 import { floorFromArrival } from "../knownTruth/geometryTimeRetirement.js";
 import { reconstructedDepthFor, reconstructedTravelSecondsFor } from "../knownTruth/pocketChannelShares.js";
 import { severityOf } from "../knownTruth/pocketLadder.js";
+import { readS6Play } from "./s6Stream.js";
 import {
   SHAPE_L_PRICED_R,
   SHAPE_L_PROVISIONAL_R,
@@ -258,6 +265,9 @@ export function replayPassPlay(playId: string, events: readonly MatchEventEnvelo
   let jitterChecks = 0;
   let jitterMismatches = 0;
   let jitterSkipped = 0;
+  // ADR-089 step 6 (AM-13 `escapeOutcome`): a caught escape he sheds keeps him in the pocket (2.8), so it
+  // does not end the replay; only a play that reads step 6's facts carries one.
+  const shedRolls = shedEscapeRollsOf(events, tunables);
   let stopped = false;
   // STREAM under the narrower counter (B4): a matchup with a live won-rep threat is left out of the
   // counter, as the engine's `counterExcludes` does (C2-F21). Every other arm rebuilds today's counter.
@@ -351,7 +361,7 @@ export function replayPassPlay(playId: string, events: readonly MatchEventEnvelo
           // His escape roll: he leaves (QB_PURSUIT) or is caught (an ARRIVED dated this tick,
           // `sim/passPlay.ts:1230-1271`). Either way the pocket's replay ends here.
           escapeTick ??= tick;
-          if (escapeEndsPocket(tunables, c.band)) stopped = true;
+          if (escapeEndsPocket(tunables, c.band) && !shedRolls.has(c.roll.rngLabel)) stopped = true;
           break;
         }
         if (c.checkKind === "pass_rush_rep") {
@@ -479,6 +489,15 @@ export function streamTickMargin(tunables: Tunables, tick: number, repMargin: nu
   const R = tunables.passRush.repClock?.fullExpressionSeconds;
   const x = repMargin + jitter;
   return R === undefined ? x : Math.round((Math.min(tick, R) * x) / R) + 0;
+}
+
+/**
+ * ADR-089 step 6 (plan §3.2 K2, 2.8): the escape rolls of one play whose catch he shed (CAUGHT_SHED,
+ * read by the CHECK band with the catch split, `readS6Play`), by roll label. He stays in the pocket
+ * after one, so the replay goes on past it; empty on every play not stamped `pocket-1.s6` or later.
+ */
+export function shedEscapeRollsOf(events: readonly MatchEventEnvelope[], tunables: Tunables): ReadonlySet<string> {
+  return new Set((readS6Play(events, tunables)?.escapes ?? []).filter((e) => e.outcome === "CAUGHT_SHED").map((e) => e.rollRef));
 }
 
 /** Does an escape roll's band end the pocket (he escaped, or was caught)? CONTAINED does not. */

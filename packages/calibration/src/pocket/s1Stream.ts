@@ -76,6 +76,7 @@ import { cleanPocketOf, isCleanPickLabel } from "./cleanPick.js";
 import { centerOfEvents, clockKeyOf, onClockUnder, touchOfCheck, type Touch } from "./freeRunKey.js";
 import { isStampedRules, overlayDigestOf, readsStep3Facts, rulesOnPlayStart, type PlayStartRules } from "./rules.js";
 import { readS2Play, threatPartAt } from "./s2Stream.js";
+import { isDeadlinePickLabel, outsOf } from "./s6Stream.js";
 import { playsOf } from "./throwClass.js";
 
 /** How many failure lines a fold keeps; the count beside them is complete. */
@@ -1002,7 +1003,8 @@ function unshiftedBands(bands: readonly { readonly label: string; readonly minMa
  * whose from-class is FRONT, `fromOfApproach` on his latest published approach; INTERIOR: an
  * INTERIOR-aligned threat); MUG_HEAD_ONLY, every dropback (the picture is drawn on each); BAND_EDGES,
  * a pickup or stunt CHECK whose published band is not the one its margin gets with `BAND_EDGES`'
- * edges put back.
+ * edges put back. CLIMB_FRONT reads the movement gate's picks only: not a clean pick (`:clean`)
+ * under `pocket.cleanPocket`, nor a deadline pick (`:deadline`) under `pocket.outs`.
  */
 function step3Hits(hit: Set<Mechanism>, play: S1Play, tunables: Tunables, mechanisms: readonly Mechanism[]): void {
   const wants = (m: Mechanism): boolean => mechanisms.includes(m);
@@ -1027,8 +1029,10 @@ function step3Hits(hit: Set<Mechanism>, play: S1Play, tunables: Tunables, mechan
     const maxStepUps = tunables.pocketMovement.stepUp.maxPerPlay;
     // Step 5a: under the play's `pocket.cleanPocket` only today's picks (`:movement`) count; a clean
     // pick (`:clean`, `cleanPick.ts`) is not the movement gate's, so the lane rule it reads is not
-    // the one CLIMB_FRONT compares.
+    // the one CLIMB_FRONT compares. Step 6 (plan §3.2 K2): under the arm's `pocket.outs` the deadline
+    // pick (`:deadline`, 2.11, made after QB_PURSUIT between RUN and THROWAWAY) is not the gate's either.
     const block = cleanPocketOf(tunables);
+    const outs = outsOf(tunables);
     const live = new Map<string, { readonly alignment: RushAlignment; readonly approach: unknown }>();
     let stepUps = 0;
     for (const { event } of play.events) {
@@ -1038,7 +1042,13 @@ function step3Hits(hit: Set<Mechanism>, play: S1Play, tunables: Tunables, mechan
         else live.set(String(t.rusher), { alignment: t.alignment, approach: t.approach });
       } else if (event.type === "QB_PURSUIT") live.clear();
       else if (event.type === "QB_DECISION" && event.payload.choice === "STEP_UP") stepUps += 1;
-      else if (event.type === "CHECK" && event.payload.checkKind === "pocket_movement" && stepUps < maxStepUps && (block === undefined || !isCleanPickLabel(event.payload.roll.rngLabel))) {
+      else if (
+        event.type === "CHECK" &&
+        event.payload.checkKind === "pocket_movement" &&
+        stepUps < maxStepUps &&
+        (block === undefined || !isCleanPickLabel(event.payload.roll.rngLabel)) &&
+        (outs === undefined || !isDeadlinePickLabel(event.payload.roll.rngLabel))
+      ) {
         const set = [...live.values()];
         const interior = set.some((x) => x.alignment === "INTERIOR");
         const front = set.some((x) => typeof x.approach === "string" && x.approach !== "BLOCKED" && fromOfApproach(x.approach as Exclude<RushApproach, "BLOCKED">, x.alignment) === "FRONT");

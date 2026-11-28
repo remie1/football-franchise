@@ -6,9 +6,10 @@
  * and both leagues, and compared with the unmirrored runs. Step 0 records:
  *
  *  - **the escape CAUGHT rate:** `scramble` CHECKs whose band sacks him (CAUGHT_FROM_BEHIND), per
- *    escape roll. The escape has no direction on today's stream (P11's `QB_DECISION.direction`
- *    comes at step 7), so the check is mirrored against unmirrored; the escape rate per dropback
- *    is printed beside it;
+ *    escape roll. The escape has no direction on a stream before step 6 (P11's
+ *    `QB_DECISION.direction` is a step-6 petition, ADR:1225, and only a `pocket-1.s6` stream carries
+ *    it), so the check is mirrored against unmirrored; the escape rate per dropback is printed
+ *    beside it;
  *  - **the no-side share:** rush entries on `PLAY_START.defense.rush` that carry no `RunSide`, per
  *    entry, and cards with at least one such entry and with none stated at all, per dropback;
  *  - **how often the looper rule (D16) moves a side:** of the stunts run (a `stunt_communication`
@@ -32,11 +33,22 @@
  * exactly. `m5FreeRunMirror` pairs the games by place and the plays by id, compares every man on
  * the clock in both whose picture mirrors, and counts each tenth that differs; `m5Compare` adds it
  * as `freeRunMirror` only when some game carries it.
+ *
+ * **Step 6's rows** (ADR-089 step 6, plan §3.2, §6.1 `s6.mirror`; H0M against H0). Written only for a
+ * game with a play stamped `pocket-1.s6` or later (`readS6Play`, with the arm's own tunables), so
+ * every earlier M5 stays byte-identical: such a game's `M5Game` carries `s6`, the escape rolls'
+ * catches split by the CHECK band (sacked at the roll, shed) and the escape rolls' directions
+ * (`QB_DECISION.direction`, P11, on the escape's SCRAMBLE and a contained roll's HOLD) by side.
+ * `m5Compare` then adds three rows, each a ratio of per-game sums under O10's noise rule: the catches
+ * sacked at the roll and the catches shed, per escape roll, and the direction row, the share of
+ * escapes with a side that went LEFT on the unmirrored run and RIGHT on the mirrored one (the mirror
+ * swaps every card, so the same escape goes the other way).
  */
 import { createRng, type MatchEventEnvelope } from "@ff/contracts";
 import type { Tunables } from "@ff/engine";
 import { centerOfPlayStart, clockKeyOf, onClockUnder, touchOfCheck, type Touch } from "./freeRunKey.js";
 import { readsStep3Facts, rulesOnPlayStart } from "./rules.js";
+import { readS6Play } from "./s6Stream.js";
 import { dropbacksOf, playsOf } from "./throwClass.js";
 
 export const M5_RNG_LABEL = "adr-089:m5";
@@ -168,6 +180,15 @@ export interface M5Game {
   stuntsMoved: number;
   /** Step 3 only: present on a game with a `pocket-1.s3` play, absent on every other (step 0's M5 is unchanged). */
   freeRun?: FreeRunMirrorPlay[];
+  /** Step 6 only: present on a game with a play stamped `pocket-1.s6` or later, absent on every other. */
+  s6?: M5GameS6;
+}
+
+/** A game's step-6 facts for M5: the catches by the CHECK band, and the escapes' directions by side. */
+export interface M5GameS6 {
+  catchesSacked: number;
+  catchesShed: number;
+  directions: Record<string, number>;
 }
 
 export function emptyM5Game(): M5Game {
@@ -198,6 +219,17 @@ export function m5GameOf(events: readonly MatchEventEnvelope[], tunables: Tunabl
   }
   const freeRun = freeRunMirrorPlaysOf(events, tunables);
   if (freeRun.length > 0) g.freeRun = freeRun;
+  for (const play of playsOf(events)) {
+    const s6 = readS6Play(play.events, tunables);
+    if (s6 === undefined) continue;
+    const f = (g.s6 ??= { catchesSacked: 0, catchesShed: 0, directions: {} });
+    for (const e of s6.escapes) {
+      if (e.outcome === "CAUGHT_SACKED") f.catchesSacked += 1;
+      else if (e.outcome === "CAUGHT_SHED") f.catchesShed += 1;
+    }
+    // Every decision that names a side: the escape's SCRAMBLE and a contained roll's HOLD (2.6).
+    for (const x of s6.directions) f.directions[x.direction] = (f.directions[x.direction] ?? 0) + 1;
+  }
   return g;
 }
 
@@ -321,6 +353,21 @@ export const M5_ROWS = {
 } as const;
 export type M5Row = keyof typeof M5_ROWS;
 
+/**
+ * Step 6's rows (plan §6.1 `s6.mirror`), compared only when some game carries `s6`. The direction row
+ * reads LEFT on the unmirrored run and RIGHT on the mirrored one, so a mirror-true engine gives equal
+ * shares.
+ */
+export const M5_S6_ROWS = {
+  escape_caught_sacked_rate: (g: M5Game): RatioGame => ({ num: g.s6?.catchesSacked ?? 0, den: g.escapes }),
+  escape_caught_shed_rate: (g: M5Game): RatioGame => ({ num: g.s6?.catchesShed ?? 0, den: g.escapes }),
+  escape_direction_share: (g: M5Game, mirrored: boolean): RatioGame => {
+    const d = g.s6?.directions ?? {};
+    return { num: d[mirrored ? "RIGHT" : "LEFT"] ?? 0, den: (d["LEFT"] ?? 0) + (d["RIGHT"] ?? 0) };
+  },
+} as const;
+export type M5S6Row = keyof typeof M5_S6_ROWS;
+
 export interface M5Run {
   readonly league: string;
   readonly set: number;
@@ -329,7 +376,7 @@ export interface M5Run {
 }
 
 function totals(games: readonly M5Game[]): Record<string, unknown> {
-  const sum = (k: keyof Omit<M5Game, "bands" | "freeRun">): number => games.reduce((a, g) => a + g[k], 0);
+  const sum = (k: keyof Omit<M5Game, "bands" | "freeRun" | "s6">): number => games.reduce((a, g) => a + g[k], 0);
   const bands: Record<string, number> = {};
   for (const g of games) for (const [k, v] of Object.entries(g.bands)) bands[k] = (bands[k] ?? 0) + v;
   return {
@@ -359,11 +406,15 @@ export function m5Compare(league: string, runs: readonly M5Run[]): Readonly<Reco
     return r;
   };
   const rows: Record<string, unknown> = {};
-  for (const row of Object.keys(M5_ROWS) as M5Row[]) {
-    const pick = M5_ROWS[row];
+  const s6 = mine.some((r) => r.games.some((g) => g.s6 !== undefined));
+  const picks: [string, (g: M5Game, mirrored: boolean) => RatioGame][] = [
+    ...(Object.keys(M5_ROWS) as M5Row[]).map((row): [string, (g: M5Game, mirrored: boolean) => RatioGame] => [row, (g) => M5_ROWS[row](g)]),
+    ...(s6 ? (Object.keys(M5_S6_ROWS) as M5S6Row[]).map((row): [string, (g: M5Game, mirrored: boolean) => RatioGame] => [row, M5_S6_ROWS[row]]) : []),
+  ];
+  for (const [row, pick] of picks) {
     const perSet = sets.map((set) => {
-      const u = runOf(set, false).games.map(pick);
-      const m = runOf(set, true).games.map(pick);
+      const u = runOf(set, false).games.map((g) => pick(g, false));
+      const m = runOf(set, true).games.map((g) => pick(g, true));
       const seU = clusteredBootstrapSE(u, M5_RNG_LABEL, `${row}/${league}/set${String(set)}/unmirrored`);
       const seM = clusteredBootstrapSE(m, M5_RNG_LABEL, `${row}/${league}/set${String(set)}/mirrored`);
       return { set, unmirrored: ratioOf(u), mirrored: ratioOf(m), seUnmirrored: seU, seMirrored: seM, seDifference: Math.sqrt(seU * seU + seM * seM) };
@@ -380,7 +431,9 @@ export function m5Compare(league: string, runs: readonly M5Run[]): Readonly<Reco
     league,
     rows,
     totals: Object.fromEntries(mine.map((r) => [`set${String(r.set)}/${r.mirrored ? "mirrored" : "unmirrored"}`, totals(r.games)])),
-    escapeDirection: "not on today's stream (QB_DECISION.direction is P11, step 7)",
+    // Kept word for word on every run before step 6 (step 0's M5 and P-7 are byte-identical); an s6
+    // run reads the direction from the stream (P11, a step-6 petition) in the rows above.
+    escapeDirection: s6 ? "read from QB_DECISION.direction (P11): rows escape_direction_share, escape_caught_sacked_rate, escape_caught_shed_rate" : "not on today's stream (QB_DECISION.direction is P11, step 7)",
     // Step 3 only (an s3 stream): the exact free-run mirror row, per set.
     ...(s3 ? { freeRunMirror: Object.fromEntries(sets.map((set) => [`set${String(set)}`, m5FreeRunMirror(runOf(set, false).games, runOf(set, true).games)])) } : {}),
   };

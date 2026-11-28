@@ -29,7 +29,8 @@ import type { GameSummary, StatLine, Tunables } from "@ff/engine";
 import { COVERAGE_MASKS, FRONT_LOOKS, shownRushDiffers } from "@ff/playbook";
 import { approachesOfPlay, LOOPER_FREE_BAND, PICKUP_FREE_BAND } from "../pocket/approach.js";
 import { centerOfPlayStart, clockKeyOf, onClockUnder, touchOfCheck, type ClockKey, type Touch } from "../pocket/freeRunKey.js";
-import { readsStep4Facts, rulesOnPlayStart } from "../pocket/rules.js";
+import { readsStep4Facts, readsStep6Facts, rulesOnPlayStart } from "../pocket/rules.js";
+import { failedScrambleMarkerOf } from "../pocket/s6Stream.js";
 
 /** One simulated game, as it comes back from a worker. */
 export interface SimGameObservation {
@@ -88,7 +89,20 @@ export interface PlayFold {
    * fold. `test/metrics.test.ts` asserts the identity directly.
    */
   throwawaysByCause: Record<string, number>;
+  /**
+   * Every SCRAMBLE run (`RUN_RESOLUTION.carryType` SCRAMBLE): the registered counter `scramble_rate`
+   * reads, kept as registered at step 6 (AM-13 `scrambleCount`), a failed scramble the marker scores
+   * as a sack included.
+   */
   scrambles: number;
+  /**
+   * ADR-089 step 6 (plan §2.12, §6.2), written only once an s6 play is folded: scrambles the marker
+   * (`PLAY_START.scoring.failedScramble` "SACK") scores as sacks (a SCRAMBLE run at 0 yards or less),
+   * which `sacks` and `pressuredSacks` count as the statline does, and the box-score scramble count
+   * beside the registered one (`scrambles` less those).
+   */
+  failedScrambleSacks?: number;
+  boxScoreScrambles?: number;
   /** Dropbacks whose worst POCKET_STATUS was anything other than CLEAN. */
   pressuredDropbacks: number;
   /**
@@ -1030,6 +1044,12 @@ interface PocketPlayState {
   s4: boolean;
   /** A `QB_HIT` (P7) was written on the play. */
   qbHit: boolean;
+  /** ADR-089 step 6: the play's `PLAY_START.rules` reads step 6's facts (`readsStep6Facts`). */
+  s6: boolean;
+  /** ADR-089 step 6 (plan §1.3): `PLAY_START.scoring.failedScramble` is "SACK". */
+  marker: boolean;
+  /** `RUN_RESOLUTION.yards` of the play's SCRAMBLE run, the failed-scramble rule's yards (the statline's). */
+  scrambleYards: number | null;
   lastArrivedRusher: string | null;
   firstPressure: number | null;
   firstForcing: number | null;
@@ -1080,6 +1100,9 @@ function blankPocketPlay(period: number, clockSeconds: number): PocketPlayState 
     hit: false,
     s4: false,
     qbHit: false,
+    s6: false,
+    marker: false,
+    scrambleYards: null,
     lastArrivedRusher: null,
     firstPressure: null,
     firstForcing: null,
@@ -1276,6 +1299,15 @@ function pocketCheckSeen(pk: PocketPlayState, c: CheckPayload, tb: FoldTables): 
 }
 
 /**
+ * ADR-089 step 6 (plan §2.12): a SCRAMBLE run at 0 yards or less on a play with the marker is a sack,
+ * the statline's rule (`stats/statline.ts`), read before every other branch. Never on a play without
+ * the marker, which only `pocket.outs.failedScrambleSack` writes.
+ */
+function failedScrambleSackOf(play: PlayState): boolean {
+  return play.pk.marker && play.scramble && play.pk.scrambleYards !== null && play.pk.scrambleYards <= 0;
+}
+
+/**
  * One play into the pocket rows (ADR-089 step 0, plan §5). Reads only `PlayState`, which the
  * stream filled; called from `flush()` after every existing tally, and writes only `pocket`.
  */
@@ -1286,9 +1318,10 @@ function foldPocketPlay(pf: PocketFold, play: PlayState): void {
   if (!play.isPass) return;
 
   // The same terminal-act chain `flush()` uses for `sacks` and `throwaways`, restated so the two
-  // can never disagree about which dropbacks they are.
+  // can never disagree about which dropbacks they are (a failed scramble the marker scores as a
+  // sack, step 6, included).
   const throwaway = !play.scramble && play.throwaway;
-  const sacked = !play.scramble && !play.throwaway && !play.threw && !play.intercepted;
+  const sacked = failedScrambleSackOf(play) || (!play.scramble && !play.throwaway && !play.threw && !play.intercepted);
   const attempt = play.threw || play.throwaway;
   const releaseTick = play.threw ? play.throwTick : play.throwawayTick;
   const release = attempt ? (k.releaseSeconds ?? releaseTick) : null;
@@ -1654,8 +1687,22 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation, tunables
         p.interceptions++;
         bumpKey(p.intSources, play.intSource ?? "DIRECT");
       }
-      if (play.scramble) p.scrambles++;
-      else if (play.throwaway) {
+      if (play.pk.s6) {
+        p.failedScrambleSacks ??= 0;
+        p.boxScoreScrambles ??= 0;
+      }
+      if (play.scramble) {
+        // The registered counter keeps every scramble (AM-13 `scrambleCount`). ADR-089 step 6: a
+        // failed scramble on a play with the marker is also a sack, as the statline scores it, and
+        // leaves the box-score count.
+        p.scrambles++;
+        if (failedScrambleSackOf(play)) {
+          p.sacks++;
+          if (play.pressured) p.pressuredSacks++;
+          sacked = true;
+          p.failedScrambleSacks = (p.failedScrambleSacks ?? 0) + 1;
+        } else if (play.pk.s6) p.boxScoreScrambles = (p.boxScoreScrambles ?? 0) + 1;
+      } else if (play.throwaway) {
         // Already counted in `passAttempts` above; this is the separate diagnostic population
         // `pocketLadder.ts`'s `throwaway_rate` reads (denominator `dropbacks`, not `passAttempts`).
         p.throwaways++;
@@ -1710,6 +1757,8 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation, tunables
         current.pk = blankPocketPlay(period, rebuiltClock);
         current.pk.center = centerOfPlayStart(event.payload);
         current.pk.s4 = readsStep4Facts(rulesOnPlayStart(event.payload)?.name);
+        current.pk.s6 = readsStep6Facts(rulesOnPlayStart(event.payload)?.name);
+        current.pk.marker = failedScrambleMarkerOf(event.payload);
         tick = 0;
         pocket.clockCheck.snaps++;
         if (start !== null) {
@@ -1859,6 +1908,7 @@ export function foldGame(acc: SimAccumulator, game: SimGameObservation, tunables
             current.scramble = true;
             current.designedRun = false;
             current.pk.released = true;
+            current.pk.scrambleYards = event.payload.yards;
           }
         }
         break;
@@ -2214,6 +2264,14 @@ function mergePocketFold(a: PocketFold, b: PocketFold): PocketFold {
   };
 }
 
+/** A step-6 counter that exists only once an s6 play is folded: summed when either side has it, absent otherwise. */
+function optionalSum<K extends "failedScrambleSacks" | "boxScoreScrambles">(key: K, a: PlayFold, b: PlayFold): Partial<Record<K, number>> {
+  const x = a[key];
+  const y = b[key];
+  if (x === undefined && y === undefined) return {};
+  return { [key]: (x ?? 0) + (y ?? 0) } as Partial<Record<K, number>>;
+}
+
 /**
  * Associative and commutative merge. Worker count must not change a batch's numbers, and the
  * only way to guarantee that is for the merge to be order-independent — which is why the sample
@@ -2231,6 +2289,8 @@ export function mergeAccumulators(a: SimAccumulator, b: SimAccumulator): SimAccu
     throwaways: a.play.throwaways + b.play.throwaways,
     throwawaysByCause: mergeCounters(a.play.throwawaysByCause, b.play.throwawaysByCause),
     scrambles: a.play.scrambles + b.play.scrambles,
+    ...optionalSum("failedScrambleSacks", a.play, b.play),
+    ...optionalSum("boxScoreScrambles", a.play, b.play),
     pressuredDropbacks: a.play.pressuredDropbacks + b.play.pressuredDropbacks,
     pressuredSacks: a.play.pressuredSacks + b.play.pressuredSacks,
     disruptedDropbacks: a.play.disruptedDropbacks + b.play.disruptedDropbacks,

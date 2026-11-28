@@ -39,7 +39,10 @@
  *  - **C-1** (plan §2.4): the stand-in's dropbacks (a sack, or an ARRIVED threat before the release on
  *    a pass attempt, `metrics/collect.ts`'s `rushThreatSeen`) against those with a `QB_HIT` ARRIVAL or
  *    SHED or a sack; the dropbacks V1-42 adds (only THROWING hits); and every dropback where the two
- *    first counts disagree, which the build check requires to be none.
+ *    first counts disagree, which the build check requires to be none. At step 6 a catch he sheds
+ *    (2.8) is a contact with no ARRIVED threat: on a play that reads step 6's facts the stand-in counts
+ *    the catch, as `collect.ts`'s contact flags read a caught escape roll, and the dropbacks only the
+ *    catch adds are counted apart (`s6.standInByCatch`).
  *  - **`s4.qbHitFields`:** `QB_HIT`s missing approach, from or seen. **`s4.sackCredit`:** sacks whose
  *    play holds a RUSHER_SACKS contact (the man the statline credits, `m3SackerMix.ts`); sacks that
  *    hold none and that the engine still makes by today's rule, counted apart and never a failure: a
@@ -61,6 +64,7 @@ import { GUARD_CLASSES } from "./bands.js";
 import type { ThrowClass } from "./constructs.js";
 import { centerOfPlayStart, clockKeyOf, clockOriginOf, onClockUnder, touchOfCheck, type ClockKey, type Touch } from "./freeRunKey.js";
 import { readsStep4Facts, rulesOnPlayStart } from "./rules.js";
+import { readS6Play, type S6Play } from "./s6Stream.js";
 import { attemptWeightedSlope, BIN_MIDPOINTS } from "./selection.js";
 import { playsOf, readDropback, throwClassOf, type Dropback, type PlaySlice } from "./throwClass.js";
 
@@ -151,6 +155,8 @@ export interface S4Play {
   readonly releaseSeconds: number | undefined;
   /** The legacy stand-in: a threat published ARRIVED before the release (`collect.ts`'s `rushThreatSeen`). */
   readonly standInHit: boolean;
+  /** ADR-089 step 6: the play's step-6 facts (`readS6Play`), on a play that reads them only. */
+  readonly s6?: S6Play;
 }
 
 interface ThreatState {
@@ -325,6 +331,13 @@ export function readS4Play(slice: PlaySlice, key: ClockKey): S4Play | undefined 
         : hit === undefined && approach !== undefined
           ? rebuilt
           : undefined;
+    // ADR-089 step 6 (plan §2.8): a caught escape's catch by a man still in his block publishes
+    // approach BLOCKED, with from his card's alignment (EDGE from the SIDE, INTERIOR from the FRONT),
+    // never his old threat's; no earlier stream carries BLOCKED on a hit.
+    if (hit?.approach === "BLOCKED") {
+      const alignment = dropback.start.rush.find((r) => r.rusher === c.rusher)?.alignment;
+      return { ...c, cls, hit, derivedFrom: alignment === undefined ? undefined : alignment === "EDGE" ? "SIDE" : "FRONT" };
+    }
     return { ...c, cls, hit };
   });
   return { playId: slice.playId, rulesName, s4: isS4Rules(rulesName), dropback, contests, hits, releaseSeconds, standInHit };
@@ -336,7 +349,10 @@ export function s4PlaysOf(events: readonly MatchEventEnvelope[], tunables: Tunab
   const out: S4Play[] = [];
   for (const slice of playsOf(events)) {
     const p = readS4Play(slice, key);
-    if (p !== undefined) out.push(p);
+    if (p === undefined) continue;
+    // ADR-089 step 6: a play that reads step 6's facts carries them, read with the arm's tunables (K14).
+    const s6 = readS6Play(slice.events, tunables);
+    out.push(s6 === undefined ? p : { ...p, s6 });
   }
   return out;
 }
@@ -359,6 +375,15 @@ export interface AimedInt {
 }
 
 export interface S4Fold {
+  /**
+   * ADR-089 step 6 only (absent until a play that reads step 6's facts is folded, so every earlier
+   * fold re-folds as before, Q-2g): the catches at the escape roll, sacked at the roll and shed (AM-13
+   * `escapeOutcome`); the label rule's sacks (a catch with no contest and no `QB_HIT`, engine-2's
+   * ruling), counted apart so no contact reader drops or doubles them; the contests at the escape
+   * site (2.8); the failed scrambles the marker scores as sacks (2.12), each also an escape sack; and
+   * C-1's pass attempts the stand-in counts only by a catch he shed (no ARRIVED threat, 2.8).
+   */
+  s6?: { catchesSacked: number; catchesShed: number; labelRuleSacks: number; atEscape: number; failedScrambleSacks: number; standInByCatch: number };
   /** PASS plays read (a non-s4 play is counted and read no further). */
   plays: number;
   /** Of them, plays stamped `pocket-1.s4` or later (`isS4Rules`): the dropbacks every figure below is over. */
@@ -491,9 +516,11 @@ const isSack = (c: ContestAt): boolean => c.band === "RUSHER_SACKS";
 /**
  * The escape roll caught him in the pocket: a `scramble` CHECK whose band the arm's own §8.8 table
  * marks a sack (`CAUGHT_FROM_BEHIND`). The engine writes no `QB_PURSUIT` there (that comes only with
- * a won escape), so the pursuit tick cannot name it.
+ * a won escape), so the pursuit tick cannot name it. At step 6 (AM-13 `escapeOutcome`) a catch he
+ * sheds is no sack (2.8): only a catch that sacked him at the roll is (`s6`, the play's step-6 facts).
  */
-function caughtEscape(d: Dropback, tunables: Tunables): boolean {
+function caughtEscape(d: Dropback, tunables: Tunables, s6?: S6Play): boolean {
+  if (s6 !== undefined) return s6.escapes.some((e) => e.outcome === "CAUGHT_SACKED");
   const sacked = new Set<string>(tunables.scramble.bands.filter((b) => b.sacked).map((b) => b.label));
   return d.checks.some((c) => c.checkKind === "scramble" && c.band !== undefined && sacked.has(c.band));
 }
@@ -573,18 +600,32 @@ export function foldS4Play(fold: S4Fold, play: S4Play, tunables: Tunables): void
   const aimed = d.throwTick !== undefined;
   const hit = passHits.length > 0;
   const sack = d.sacked;
+  if (play.s6 !== undefined) {
+    const f = (fold.s6 ??= { catchesSacked: 0, catchesShed: 0, labelRuleSacks: 0, atEscape: 0, failedScrambleSacks: 0, standInByCatch: 0 });
+    for (const e of play.s6.escapes) {
+      if (e.outcome === "CAUGHT_SACKED") f.catchesSacked += 1;
+      if (e.outcome === "CAUGHT_SHED") f.catchesShed += 1;
+      if (e.labelRuleSack) f.labelRuleSacks += 1;
+      if (e.contestBand !== undefined) f.atEscape += 1;
+    }
+    if (play.s6.failedScrambleSack) f.failedScrambleSacks += 1;
+  }
   if (sack) {
     fold.sacks += 1;
     if (play.contests.some(isSack)) fold.creditedSacks += 1;
     else if (tunables.pocket.contact === undefined) fold.legacySacks += 1;
-    else if (d.pursuitTick !== undefined || caughtEscape(d, tunables)) fold.escapeSacks += 1;
+    else if (d.pursuitTick !== undefined || caughtEscape(d, tunables, play.s6)) fold.escapeSacks += 1;
     else if (!standsArrived(d)) fold.coverageSacks += 1;
     else fold.uncreditedSacks += 1;
   }
   if (sack || (attempt && hit)) fold.hitOrSack += 1;
   if (attempt && hit) fold.hitOnAttempt += 1;
   if (aimed && hit) fold.hitOnAimed += 1;
-  const standIn = sack || (attempt && play.standInHit);
+  // Step 6 (2.8): a catch he sheds is a contact with no ARRIVED threat; the stand-in reads the catch, as
+  // collect's contact flags do (a caught escape roll, which comes before any release), counted apart.
+  const shedCatch = play.s6 !== undefined && play.s6.escapes.some((e) => e.outcome === "CAUGHT_SHED");
+  const standIn = sack || (attempt && (play.standInHit || shedCatch));
+  if (fold.s6 !== undefined && !sack && attempt && shedCatch && !play.standInHit) fold.s6.standInByCatch += 1;
   const arrivalOrShed = sack || (attempt && (phases.has("ARRIVAL") || phases.has("SHED")));
   if (standIn) fold.standIn += 1;
   if (arrivalOrShed) fold.arrivalShedOrSack += 1;
@@ -676,6 +717,22 @@ export function mergeS4Folds(a: S4Fold, b: S4Fold): S4Fold {
     afterShed: addMap(a.afterShed, b.afterShed, addAimed, () => ({ aimed: 0, int: 0 })),
     problemCount: a.problemCount + b.problemCount,
     problems: [...a.problems, ...b.problems].slice(0, S4_PROBLEM_SAMPLE),
+    ...(a.s6 === undefined && b.s6 === undefined
+      ? {}
+      : {
+          s6: (() => {
+            const x = a.s6 ?? { catchesSacked: 0, catchesShed: 0, labelRuleSacks: 0, atEscape: 0, failedScrambleSacks: 0, standInByCatch: 0 };
+            const y = b.s6 ?? { catchesSacked: 0, catchesShed: 0, labelRuleSacks: 0, atEscape: 0, failedScrambleSacks: 0, standInByCatch: 0 };
+            return {
+              catchesSacked: x.catchesSacked + y.catchesSacked,
+              catchesShed: x.catchesShed + y.catchesShed,
+              labelRuleSacks: x.labelRuleSacks + y.labelRuleSacks,
+              atEscape: x.atEscape + y.atEscape,
+              failedScrambleSacks: x.failedScrambleSacks + y.failedScrambleSacks,
+              standInByCatch: x.standInByCatch + y.standInByCatch,
+            };
+          })(),
+        }),
   };
 }
 

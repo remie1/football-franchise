@@ -87,6 +87,7 @@ import { RELEASE_BINS, releaseBinOf } from "../metrics/collect.js";
 import { cleanCountAt, cleanPocketOf, firstReadRouteOf, isCleanPickLabel, restatedFloorSeconds, type FirstReadRoute } from "./cleanPick.js";
 import type { ThrowClass } from "./constructs.js";
 import { registryAttr } from "./freeRun.js";
+import { isDeadlinePickLabel, OUT_OF_POCKET, outsOf, spentRollsBefore, throwawayLegalAt } from "./s6Stream.js";
 import { emptyM2StreamFold, foldM2StreamGame, forcingRuleOf, m2StreamSummary, type M2ForcingRule, type M2StreamFold } from "./m2ForcingSource.js";
 import { playersOfSnapshot } from "./m6Contact.js";
 import { emptyGuardFold, foldGuardGame } from "./step0.js";
@@ -198,8 +199,12 @@ export interface S2Play {
   readonly statuses: readonly StatusTick[];
   /** Every TICK, in order. */
   readonly ticks: readonly { readonly index: number; readonly tick: number }[];
-  /** `pocket_movement` CHECKs; `clean` when the roll label ends `:clean` (step 5a's clean pick, `cleanPick.ts`). */
-  readonly movements: readonly (At & { readonly clean: boolean })[];
+  /**
+   * `pocket_movement` CHECKs; `clean` when the roll label ends `:clean` (step 5a's clean pick,
+   * `cleanPick.ts`); `deadline` (present only when true) when it ends `:deadline` (step 6's deadline
+   * pick, 2.11, made after `QB_PURSUIT`).
+   */
+  readonly movements: readonly (At & { readonly clean: boolean; readonly deadline?: true })[];
   /** `QB_DECISION` STEP_UPs (a forced or a clean climb). */
   readonly stepUps: readonly At[];
   /** The first read's route as run (`PLAY_START`), which step 5a's drop floor reads. */
@@ -239,7 +244,7 @@ export function readS2Play(playId: string, events: readonly MatchEventEnvelope[]
   const live = new Map<string, LiveThreat>();
   const statuses: StatusTick[] = [];
   const ticks: { index: number; tick: number }[] = [];
-  const movements: (At & { clean: boolean })[] = [];
+  const movements: (At & { clean: boolean; deadline?: true })[] = [];
   const stepUps: At[] = [];
   let firstRead: FirstReadRoute | undefined;
   const reads: (At & { kind: ReadKind })[] = [];
@@ -288,7 +293,10 @@ export function readS2Play(playId: string, events: readonly MatchEventEnvelope[]
         return;
       }
       case "CHECK":
-        if (event.payload.checkKind === "pocket_movement") movements.push({ ...at, clean: isCleanPickLabel(event.payload.roll.rngLabel) });
+        if (event.payload.checkKind === "pocket_movement") {
+          const label = event.payload.roll.rngLabel;
+          movements.push({ ...at, clean: isCleanPickLabel(label), ...(isDeadlinePickLabel(label) ? { deadline: true as const } : {}) });
+        }
         return;
       case "QB_READ":
         reads.push({ ...at, kind: readKindOf(event.payload.varianceRoll.rngLabel) });
@@ -413,11 +421,16 @@ const emptyCell = (): ForcedActCell => ({ acts: 0, threatPart: 0, statusPart: 0,
  * (`mustDecide && throwawayAvailable` throws the ball away on the clock), so the count part does
  * not hold either. A CLOCK_EXPIRED is reached only past the gate, with `forced` false and the
  * count part true. A witness that breaks this is a self-check exception: a fold fault on any arm.
+ * Under the arm's `pocket.outs.throwawayRule` (step 6, 2.1) the gate is the real throwaway rule,
+ * read by its restatement (`throwawayLegalAt`) in place of the 2.0 s.
  */
 export interface MustActWitnessFold extends S2CheckFold {
   /** Closing HOLDs read (a pocket HOLD with no `pocket_movement` CHECK on its tick): the rule part must not hold. */
   holds: number;
-  /** Of them, at or past `qb.throwawayEarliestSeconds`: the restated count part must not hold. */
+  /**
+   * Of them, at or past `qb.throwawayEarliestSeconds` (under `pocket.outs.throwawayRule`, on a tick
+   * the real rule's restatement allows): the restated count part must not hold.
+   */
   countHolds: number;
   /** CLOCK_EXPIRED throwaways read: the rule part must not hold on their tick. */
   clockExpired: number;
@@ -429,6 +442,20 @@ export interface MustActWitnessFold extends S2CheckFold {
    * the block holding) and before `QB_PURSUIT`. One that does not is a witness exception.
    */
   cleanPicks?: number;
+  /**
+   * Step 6 only (the arm's tree carries `pocket.outs`; absent on every other fold, so steps 1 to 5a
+   * re-fold as before, Q-2g): closing HOLDs inferred as the escape cap's spent case (2.3): a clean
+   * expiry (CLEAN, the rule part not holding, the count part holding) after a roll that spent his one
+   * escape, under every answer but TODAYS_PATH, where the engine holds with no die and no throwaway.
+   * Counted apart and not held to the count part (engine-2's ruling: K2 infers them from the stream).
+   */
+  spentHolds?: number;
+  /**
+   * Step 6 only, under `pocket.outs.throwawayRule`: in-pocket throwaways (POCKET_DURESS and
+   * CLOCK_EXPIRED) read against the real rule's restatement (`throwawayLegalAt`): each must sit on a
+   * tick the restatement allows, which tests it against the engine's `throwawayLegalInPocket`.
+   */
+  ruleThrowaways?: number;
 }
 
 export interface MustActFold extends S2CheckFold {
@@ -483,14 +510,23 @@ export function closingHoldsOf(play: S2Play): readonly At[] {
  * A play's forced acts, in stream order, each with the tick it fell on. Under the play's
  * `pocket.cleanPocket` (step 5a) a clean pick (`:clean`) is its own act, not a MOVEMENT: the
  * movement gate never opens it (plan §4; `mustActCheck` reads it apart).
+ *
+ * ADR-089 step 6 (plan §3.2 K2; contracts-guardian's cross-cutting note): the deadline pick (a
+ * `:deadline` CHECK, 2.11) and its OUT_OF_POCKET throwaway (P9) are acts after `QB_PURSUIT`, out of
+ * the pocket: neither is a forced act, so both are left out by name. Any other throwaway cause is no
+ * forced act, as before step 6 (step 2's own fixtures carry one).
  */
 export function forcedActsOf(play: S2Play, tunables: Tunables): readonly (At & { readonly kind: ForcedActKind })[] {
   const acts: (At & { kind: ForcedActKind })[] = [];
   const block = cleanPocketOf(tunables);
-  for (const m of play.movements) if (block === undefined || !m.clean) acts.push({ index: m.index, tick: m.tick, afterPursuit: m.afterPursuit, kind: "MOVEMENT" });
+  for (const m of play.movements) {
+    if (m.deadline === true) continue;
+    if (block === undefined || !m.clean) acts.push({ index: m.index, tick: m.tick, afterPursuit: m.afterPursuit, kind: "MOVEMENT" });
+  }
   for (const t of play.throwaways) {
     if (t.cause === "POCKET_DURESS") acts.push({ ...t, kind: "POCKET_DURESS" });
     else if (t.cause === "CLOCK_EXPIRED") acts.push({ ...t, kind: "CLOCK_EXPIRED" });
+    else if (t.cause === OUT_OF_POCKET) continue; // P9: an act after pursuit, out of the pocket, so no forced act
   }
   for (const r of play.reads) if (r.kind === "CHECKDOWN") acts.push({ ...r, kind: "CHECKDOWN_LOOK" });
   const thrown = play.throws[0];
@@ -567,6 +603,11 @@ export function mustActCheck(fold: MustActFold, play: S2Play, ctx: S2Context): v
   const holds = closingHoldsOf(play);
   const block = cleanPocketOf(ctx.tunables);
   if (block !== undefined) w.cleanPicks ??= 0;
+  // Step 6 (plan §3.2 K2): the arm's own outs block (K14), which no s1 to s5a tree carries.
+  const outs = outsOf(ctx.tunables);
+  if (outs !== undefined) w.spentHolds ??= 0;
+  if (outs?.throwawayRule === true) w.ruleThrowaways ??= 0;
+  const floorSeconds = block === undefined ? 0 : restatedFloorSeconds(block, play.firstRead);
   if (acts.length === 0 && holds.length === 0 && play.statuses.length === 0) return;
   const { budget, maxReads, statusAt, at: partsAt } = mustActPartsOf(play, ctx);
   const perRusher = ctx.rule === "PER_RUSHER";
@@ -603,6 +644,10 @@ export function mustActCheck(fold: MustActFold, play: S2Play, ctx: S2Context): v
       w.clockExpired += 1;
       if (rulePart) fail(w, atPlay(play, act.tick), `witness: a CLOCK_EXPIRED on a tick whose rule part holds (${nearOf(s)}, ${ruleText}, status ${s.status}): the engine throws it away on the clock only with forced false, so the fold's rule part or its live set is too generous`);
     }
+    if (outs?.throwawayRule === true && (act.kind === "CLOCK_EXPIRED" || act.kind === "POCKET_DURESS")) {
+      w.ruleThrowaways = (w.ruleThrowaways ?? 0) + 1;
+      if (!throwawayLegalAt(play.dropback, act.tick, floorSeconds)) fail(w, atPlay(play, act.tick), `witness: a ${act.kind} throwaway on a tick the real throwaway rule's restatement does not allow (floor ${String(floorSeconds)} s, no route at its break, or an arrival contest on the tick): the restatement is too narrow`);
+    }
     const ok = GATED.has(act.kind) ? rulePart : rulePart || count;
     if (ok) continue;
     const why = GATED.has(act.kind) ? "the movement gate opened" : countText(reads);
@@ -632,6 +677,7 @@ export function mustActCheck(fold: MustActFold, play: S2Play, ctx: S2Context): v
     }
   }
   const earliest = ctx.tunables.qb.throwawayEarliestSeconds;
+  const cap = outs?.escapeCap;
   for (const h of holds) {
     const s = statusAt.get(h.tick);
     if (s === undefined) {
@@ -641,9 +687,20 @@ export function mustActCheck(fold: MustActFold, play: S2Play, ctx: S2Context): v
     w.holds += 1;
     const { reads, count, rulePart } = partsAt(s, h.tick);
     if (rulePart) fail(w, atPlay(play, h.tick), `witness: a closing HOLD on a tick whose rule part holds (${nearOf(s)}, ${ruleText}, status ${s.status}): the engine holds with no movement check only with forced false, so the fold's rule part or its live set is too generous`);
-    if (h.tick < earliest - TOLERANCE) continue;
+    // Step 6 (2.3): the spent case's hold, inferred: a clean expiry after a roll that spent his escape,
+    // under an answer that holds there (every one but TODAYS_PATH), with the block's break-out on.
+    if (cap !== undefined && cap.whenSpent !== "TODAYS_PATH" && block?.breakOut === true && count && !rulePart && s.status === "CLEAN") {
+      if (spentRollsBefore(play.dropback.checks, h.tick, outs) >= cap.maxPerPlay) {
+        w.spentHolds = (w.spentHolds ?? 0) + 1;
+        continue;
+      }
+    }
+    // Step 6 (2.1): under the real throwaway rule the engine throws it away on the clock only where the
+    // rule allows one; every other tree keeps the 2.0 s gate.
+    if (outs?.throwawayRule === true ? !throwawayLegalAt(play.dropback, h.tick, floorSeconds) : h.tick < earliest - TOLERANCE) continue;
     w.countHolds += 1;
-    if (count) fail(w, atPlay(play, h.tick), `witness: a closing HOLD at or past throwawayEarliestSeconds (${String(earliest)} s) on a tick whose restated count part holds (${countText(reads)}): the engine would have thrown it away on the clock, so the restatement is too generous`);
+    if (count && outs?.throwawayRule === true) fail(w, atPlay(play, h.tick), `witness: a closing HOLD on a tick the real throwaway rule's restatement allows (a route at its break, at or past the floor ${String(floorSeconds)} s, no arrival contest on it) whose restated count part holds (${countText(reads)}): the engine would have thrown it away on the clock, so the restatement is too generous`);
+    else if (count) fail(w, atPlay(play, h.tick), `witness: a closing HOLD at or past throwawayEarliestSeconds (${String(earliest)} s) on a tick whose restated count part holds (${countText(reads)}): the engine would have thrown it away on the clock, so the restatement is too generous`);
   }
 }
 

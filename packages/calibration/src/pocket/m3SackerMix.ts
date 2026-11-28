@@ -25,6 +25,21 @@
  * 3's figures do not move. An s4 sack with no RUSHER_SACKS contest (the motion alone keeps today's
  * automatic sack; an escape run down is today's sack until step 6) falls back to the rule above, as
  * the engine's statline does (`stats/statline.ts`); `s4Stream.ts` counts those apart for `s4.sackCredit`.
+ *
+ * **Step 6** (ADR-089 step 6, plan §2.12, §3.2): on a play stamped `pocket-1.s6` or later
+ * (`readsStep6Facts`), read with the arm's own tunables (`readS6Play`), two sacks are credited by
+ * their own rule before step 4's: a failed scramble the marker scores as a sack goes to the run's
+ * tackler (the defender of the last tackle contest the carrier lost, the statline's tackler); a sack
+ * at the escape roll (the CHECK's CAUGHT, sacked at the roll) goes to the catcher (the caught
+ * contest's rusher, else the man published ARRIVED after the roll). A catch that names nobody (the
+ * blocked catcher under the side-aware catch alone) is credited as the statline credits it
+ * (`contactSacker ?? lastArrivedRusher`): to the last man published ARRIVED on the play, whom a shed
+ * does not reset (engine-2's item 4, pre-existing), counted in `statlineFallbacks`; with no such man,
+ * to nobody, counted in `noSacker`. The mix counts the statline's credit as it is and does not correct
+ * it (the Orchestrator's ruling 4 on engine-3's item 4). Every other s6 sack reads step 4's rule. The
+ * s6 fold also splits the unsplit mix by
+ * pocket (`byPocket`: "in" before any escape, "out" after `QB_PURSUIT`), the sacker-shift rows'
+ * input. Both keys are written only when an s6 play is folded, so earlier folds do not move.
  */
 import type { MatchEventEnvelope, PlayerId, Position } from "@ff/contracts";
 import { fsCacheStore } from "../ingest/cache.js";
@@ -32,7 +47,9 @@ import { openForTuning } from "../ingest/load.js";
 import type { Season } from "../ingest/seasons.js";
 import { depthChartsSource, type DepthChartRow } from "../ingest/sources/depthCharts.js";
 import { pbpSource, type PbpRow } from "../ingest/sources/pbp.js";
-import { readsStep4Facts, rulesOnPlayStart } from "./rules.js";
+import type { Tunables } from "@ff/engine";
+import { readsStep4Facts, readsStep6Facts, rulesOnPlayStart } from "./rules.js";
+import { readS6Play, type S6Play } from "./s6Stream.js";
 import { playsOf, readDropback, type Dropback } from "./throwClass.js";
 
 export type SackerClass = "edge" | "interior" | "offball" | "db" | "other";
@@ -92,6 +109,39 @@ export function s4SackCreditOf(d: Dropback): { readonly last: string; readonly s
   return { last: credited, split: [{ rusher: credited, share: 1 }], first: arrivals[0]?.rusher ?? credited, lastOrigin: own[own.length - 1]?.origin ?? "UNKNOWN" };
 }
 
+/** The origin key a failed scramble's tackler is filed under in `byOrigin` (he has no threat of his own). */
+export const SCRAMBLE_TACKLE_ORIGIN = "SCRAMBLE_TACKLE";
+
+/**
+ * Step 6's credit (plan §2.12, §3.2) for the two sacks it credits by its own rule, as
+ * `sackCreditsOf`'s shape; `null` when the rule credits nobody (a failed scramble with no tackler,
+ * or a catch at the roll that names nobody on a play where no man ARRIVED); `undefined` when neither
+ * rule applies, so step 4's rule reads the sack. A catch that names nobody after a man ARRIVED is the
+ * statline's credit to the last of them (`statlineFallback`), as the statline makes it.
+ */
+export function s6SackCreditOf(
+  d: Dropback,
+  s6: S6Play,
+): { readonly last: string; readonly split: readonly SackCredit[]; readonly first: string; readonly lastOrigin: string; readonly statlineFallback?: true } | null | undefined {
+  if (!d.sacked) return undefined;
+  const arrivals = d.threats.filter((t) => t.state === "ARRIVED");
+  if (d.failedScrambleSack === true) {
+    const tackler = s6.scramble?.tackler;
+    if (tackler === undefined) return null;
+    return { last: tackler, split: [{ rusher: tackler, share: 1 }], first: arrivals[0]?.rusher ?? tackler, lastOrigin: SCRAMBLE_TACKLE_ORIGIN };
+  }
+  const caught = s6.escapes.find((e) => e.outcome === "CAUGHT_SACKED");
+  if (caught === undefined) return undefined;
+  const catcher = caught.catcher;
+  if (catcher === undefined) {
+    const last = arrivals[arrivals.length - 1];
+    if (last === undefined) return null;
+    return { last: last.rusher, split: [{ rusher: last.rusher, share: 1 }], first: arrivals[0]?.rusher ?? last.rusher, lastOrigin: last.origin, statlineFallback: true };
+  }
+  const own = d.threats.filter((t) => t.rusher === catcher);
+  return { last: catcher, split: [{ rusher: catcher, share: 1 }], first: arrivals[0]?.rusher ?? catcher, lastOrigin: own[own.length - 1]?.origin ?? "UNKNOWN" };
+}
+
 export interface M3Fold {
   dropbacks: number;
   sacks: number;
@@ -103,6 +153,12 @@ export interface M3Fold {
   unsplitByPosition: Record<string, number>;
   splitByPosition: Record<string, number>;
   byOrigin: Record<string, number>;
+  /** Step 6 only (an s6 play was folded): sacks its rule credits to nobody. */
+  noSacker?: number;
+  /** Step 6 only: catches that name nobody, credited as the statline credits them (the last man ARRIVED on the play). */
+  statlineFallbacks?: number;
+  /** Step 6 only: the unsplit mix by pocket, "in" (no escape before the sack) and "out" (after `QB_PURSUIT`). */
+  byPocket?: { in: Record<string, number>; out: Record<string, number> };
 }
 
 export function emptyM3Fold(): M3Fold {
@@ -113,12 +169,27 @@ const add = (m: Record<string, number>, k: string, v: number): void => {
   m[k] = (m[k] ?? 0) + v;
 };
 
-/** One dropback into the fold; `s4` (the play is stamped `pocket-1.s4`) credits the man at contact, else the last arrival. */
-export function foldM3Dropback(fold: M3Fold, d: Dropback, positionOf: (id: string) => string | undefined, s4 = false): void {
+/**
+ * One dropback into the fold; `s4` (the play is stamped `pocket-1.s4`) credits the man at contact, else
+ * the last arrival; `s6` (the play's step-6 reading, on a play stamped `pocket-1.s6` or later) credits
+ * step 6's two sacks first.
+ */
+export function foldM3Dropback(fold: M3Fold, d: Dropback, positionOf: (id: string) => string | undefined, s4 = false, s6?: S6Play): void {
   fold.dropbacks += 1;
+  if (s6 !== undefined) {
+    fold.noSacker ??= 0;
+    fold.statlineFallbacks ??= 0;
+    fold.byPocket ??= { in: {}, out: {} };
+  }
   if (!d.sacked) return;
   fold.sacks += 1;
-  const c = (s4 ? s4SackCreditOf(d) : undefined) ?? sackCreditsOf(d);
+  const own = s6 === undefined ? undefined : s6SackCreditOf(d, s6);
+  if (own === null) {
+    fold.noSacker = (fold.noSacker ?? 0) + 1;
+    return;
+  }
+  if (own?.statlineFallback === true) fold.statlineFallbacks = (fold.statlineFallbacks ?? 0) + 1;
+  const c = own ?? (s4 ? s4SackCreditOf(d) : undefined) ?? sackCreditsOf(d);
   if (c === undefined) {
     fold.noArrival += 1;
     return;
@@ -126,6 +197,7 @@ export function foldM3Dropback(fold: M3Fold, d: Dropback, positionOf: (id: strin
   if (c.split.length > 1) fold.multiSame += 1;
   const lastPos = positionOf(c.last);
   add(fold.unsplit, sackerClassOf(lastPos), 1);
+  if (fold.byPocket !== undefined && s6 !== undefined) add(d.pursuitTick === undefined ? fold.byPocket.in : fold.byPocket.out, sackerClassOf(lastPos), 1);
   add(fold.unsplitByPosition, lastPos ?? "unknown", 1);
   add(fold.first, sackerClassOf(positionOf(c.first)), 1);
   add(fold.byOrigin, c.lastOrigin, 1);
@@ -136,14 +208,25 @@ export function foldM3Dropback(fold: M3Fold, d: Dropback, positionOf: (id: strin
   }
 }
 
-/** Every PASS play of a game, each credited by its own stamp (step 4's rule from `pocket-1.s4` on, `readsStep4Facts`; the last arrival otherwise). */
-export function foldM3Game(fold: M3Fold, events: readonly MatchEventEnvelope[], positions: ReadonlyMap<PlayerId, Position>): void {
+/**
+ * Every PASS play of a game, each credited by its own stamp (step 4's rule from `pocket-1.s4` on,
+ * `readsStep4Facts`; the last arrival otherwise; step 6's two sacks first from `pocket-1.s6` on).
+ * An s6 play is read with the arm's own tunables, so a game carrying one without them is refused
+ * rather than read by an earlier step's rule.
+ */
+export function foldM3Game(fold: M3Fold, events: readonly MatchEventEnvelope[], positions: ReadonlyMap<PlayerId, Position>, tunables?: Tunables): void {
   for (const play of playsOf(events)) {
     const d = readDropback(play);
     if (d === undefined) continue;
     const start = play.events.find((e) => e.event.type === "PLAY_START");
-    const s4 = readsStep4Facts(rulesOnPlayStart((start?.event as { readonly payload?: unknown } | undefined)?.payload)?.name);
-    foldM3Dropback(fold, d, (id) => positions.get(id as PlayerId), s4);
+    const name = rulesOnPlayStart((start?.event as { readonly payload?: unknown } | undefined)?.payload)?.name;
+    const s4 = readsStep4Facts(name);
+    let s6: S6Play | undefined;
+    if (readsStep6Facts(name)) {
+      if (tunables === undefined) throw new Error(`foldM3Game: ${d.playId} is stamped ${String(name)}, which is read with the arm's own tunables; none were given`);
+      s6 = readS6Play(play.events, tunables);
+    }
+    foldM3Dropback(fold, d, (id) => positions.get(id as PlayerId), s4, s6);
   }
 }
 
@@ -165,6 +248,9 @@ export function m3Summary(fold: M3Fold): Readonly<Record<string, unknown>> {
     unsplitByPosition: fold.unsplitByPosition,
     byOrigin: fold.byOrigin,
     band: D34_BAND,
+    ...(fold.noSacker === undefined ? {} : { noSacker: fold.noSacker }),
+    ...(fold.statlineFallbacks === undefined ? {} : { statlineFallbacks: fold.statlineFallbacks }),
+    ...(fold.byPocket === undefined ? {} : { byPocketPct: { in: sharesPct(fold.byPocket.in), out: sharesPct(fold.byPocket.out) } }),
   };
 }
 

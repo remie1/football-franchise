@@ -102,6 +102,12 @@ export interface PassStart {
   readonly distance: number;
   readonly ballOn: number;
   readonly clockSeconds: number;
+  /**
+   * ADR-089 step 6 (plan §1.3): `PLAY_START.payload.scoring`, the failed-scramble marker, written only
+   * under `pocket.outs.failedScrambleSack` (after `rules` and before `snap`); absent on every earlier
+   * play, so the key is here only when the stream carries it.
+   */
+  readonly scoring?: { readonly failedScramble: "SACK" };
 }
 
 const obj = (v: unknown): Readonly<Record<string, unknown>> | undefined =>
@@ -165,6 +171,7 @@ export function passStartOf(payload: unknown): PassStart | undefined {
     tagIds.push(id);
     if (t?.["kind"] === "LOOK") lookTagIds.push(id);
   }
+  const marker = obj(p["scoring"])?.["failedScramble"] === "SACK";
   return {
     call: need(str(offense["call"]), "offense.call"),
     readSystem: need(str(offense["readSystem"]), "offense.readSystem"),
@@ -181,6 +188,7 @@ export function passStartOf(payload: unknown): PassStart | undefined {
     distance: need(num(situation["distance"]), "situation.distance"),
     ballOn: need(num(situation["ballOn"]), "situation.ballOn"),
     clockSeconds: need(num(situation["clockSeconds"]), "situation.clockSeconds"),
+    ...(marker ? { scoring: { failedScramble: "SACK" as const } } : {}),
   };
 }
 
@@ -219,6 +227,8 @@ export interface DecisionAt {
   readonly tick: number;
   readonly choice: string;
   readonly target?: string;
+  /** ADR-089 step 6 (P11): the side of an escape, on the decision that carries one (absent otherwise). */
+  readonly direction?: string;
 }
 
 export interface Dropback {
@@ -235,16 +245,36 @@ export interface Dropback {
   readonly throwTarget: string | undefined;
   readonly throwawayTick: number | undefined;
   readonly throwawayCause: string | undefined;
+  /**
+   * ADR-089 step 6 (P10): the throwaway's `outsideTackleBox`, on a play whose rules carry step 6's
+   * throwaway parts (absent otherwise: a reader takes an absent flag as no position read).
+   */
+  readonly throwawayOutsideTackleBox?: boolean;
   /** The tick `QB_PURSUIT` was published (an escape began); undefined if none. */
   readonly pursuitTick: number | undefined;
+  /**
+   * A SCRAMBLE run (RUN_RESOLUTION carryType SCRAMBLE): the registered counter (`scramble_rate`,
+   * `row:scramble_rate_by_pocket`), kept as registered at step 6 (AM-13 `scrambleCount`). The box-score
+   * count beside it leaves out a failed scramble the marker scores as a sack (`boxScoreScrambleOf`).
+   */
   readonly scramble: boolean;
   readonly scrambleYards: number | undefined;
   readonly caught: boolean;
   readonly intercepted: boolean;
   readonly resultYards: number | undefined;
   readonly clockRunoff: number | undefined;
-  /** No throw, no scramble, no throwaway, no interception (`metrics/collect.ts`'s dichotomy). */
+  /**
+   * No throw, no scramble, no throwaway, no interception (`metrics/collect.ts`'s dichotomy); and, from
+   * step 6 (plan §2.12), a failed scramble under the marker (`failedScrambleSack`), which the NFL scores
+   * as a sack (ADR-089:755).
+   */
   readonly sacked: boolean;
+  /**
+   * ADR-089 step 6 (plan §1.3, §2.12): the marker is on the play and its SCRAMBLE run gained 0 yards or
+   * less, so the play is a sack by the rescoring rule (the statline's rule, restated). Present only
+   * when true.
+   */
+  readonly failedScrambleSack?: true;
   /** The last TICK seen. */
   readonly endTick: number;
 }
@@ -263,6 +293,7 @@ export function readDropback(play: PlaySlice): Dropback | undefined {
   let throwTarget: string | undefined;
   let throwawayTick: number | undefined;
   let throwawayCause: string | undefined;
+  let throwawayOutsideTackleBox: boolean | undefined;
   let pursuitTick: number | undefined;
   let scramble = false;
   let scrambleYards: number | undefined;
@@ -313,7 +344,16 @@ export function readDropback(play: PlaySlice): Dropback | undefined {
         reads.push({ tick, target: String(event.payload.target), effective: event.payload.effectiveOpenness });
         break;
       case "QB_DECISION":
-        decisions.push({ tick, choice: event.payload.choice, ...(event.payload.target === undefined ? {} : { target: String(event.payload.target) }) });
+        {
+          // ADR-089 step 6 (P11): the side on a decision that carries one (calibration's stand-in read).
+          const direction = obj(event.payload)?.["direction"];
+          decisions.push({
+            tick,
+            choice: event.payload.choice,
+            ...(event.payload.target === undefined ? {} : { target: String(event.payload.target) }),
+            ...(typeof direction === "string" ? { direction } : {}),
+          });
+        }
         break;
       case "ROUTE_STATUS":
         routes.push({ tick, receiver: String(event.payload.receiver), phase: event.payload.phase, openness: event.payload.openness });
@@ -322,10 +362,14 @@ export function readDropback(play: PlaySlice): Dropback | undefined {
         throwTick = tick;
         throwTarget = String(event.payload.target);
         break;
-      case "THROWAWAY":
+      case "THROWAWAY": {
         throwawayTick = tick;
         throwawayCause = event.payload.cause;
+        // ADR-089 step 6 (P10): read where the stream carries it, absent otherwise.
+        const flag = obj(event.payload)?.["outsideTackleBox"];
+        if (typeof flag === "boolean") throwawayOutsideTackleBox = flag;
         break;
+      }
       case "QB_PURSUIT":
         pursuitTick ??= tick;
         break;
@@ -349,7 +393,9 @@ export function readDropback(play: PlaySlice): Dropback | undefined {
   }
   if (start === undefined) return undefined;
   const intercepted = turnover && !caught && throwTick !== undefined;
-  const sacked = throwTick === undefined && throwawayTick === undefined && !scramble && !intercepted;
+  // ADR-089 step 6 (plan §2.12): the statline's rescoring rule, restated (`engine/src/stats/statline.ts`).
+  const failedScrambleSack = start.scoring !== undefined && scramble && scrambleYards !== undefined && scrambleYards <= 0;
+  const sacked = failedScrambleSack || (throwTick === undefined && throwawayTick === undefined && !scramble && !intercepted);
   return {
     playId: play.playId,
     start,
@@ -363,6 +409,7 @@ export function readDropback(play: PlaySlice): Dropback | undefined {
     throwTarget,
     throwawayTick,
     throwawayCause,
+    ...(throwawayOutsideTackleBox === undefined ? {} : { throwawayOutsideTackleBox }),
     pursuitTick,
     scramble,
     scrambleYards,
@@ -371,8 +418,18 @@ export function readDropback(play: PlaySlice): Dropback | undefined {
     resultYards,
     clockRunoff,
     sacked,
+    ...(failedScrambleSack ? { failedScrambleSack: true as const } : {}),
     endTick: tick,
   };
+}
+
+/**
+ * ADR-089 step 6 (AM-13 `scrambleCount`): the box-score count's scramble, the SCRAMBLE run a box score
+ * counts as a run: every registered scramble but a failed scramble the marker scores as a sack. On
+ * every play without the marker it is the registered `scramble`.
+ */
+export function boxScoreScrambleOf(d: Dropback): boolean {
+  return d.scramble && d.failedScrambleSack !== true;
 }
 
 /** Every PASS play of a game, in order. */

@@ -40,10 +40,11 @@ import type { MatchEventEnvelope, PlayerId, PlayerState, Position } from "@ff/co
 import type { GameSnapshot, Tunables } from "@ff/engine";
 import { approachesOfPlay, LOOPER_FREE_BAND, PICKUP_FREE_BAND, type ThreatApproach } from "./approach.js";
 import { registryAttr } from "./freeRun.js";
-import { cleanPocketOf, isCleanPickLabel } from "./cleanPick.js";
+import { cleanPocketOf, firstReadRouteOf, isCleanPickLabel, restatedFloorSeconds } from "./cleanPick.js";
 import { ARM_TODAY, replayPassPlay, type ArmTick } from "./m2ForcingSource.js";
 import { playsOf, readDropback, type Dropback } from "./throwClass.js";
-import { readsStep4Facts, rulesOnPlayStart } from "./rules.js";
+import { readsStep4Facts, readsStep6Facts, rulesOnPlayStart } from "./rules.js";
+import { escapeRollSpendsS6, isDeadlinePickLabel, outsOf, throwawayAvailableAt } from "./s6Stream.js";
 
 export type PocketResponse = "STAND_IN" | "STEP_UP" | "ESCAPE" | "THROWAWAY";
 type AppealKey = keyof Tunables["pocketMovement"]["appeal"];
@@ -100,6 +101,8 @@ export interface PoolFacts {
   readonly threatAlignments: readonly string[];
   readonly stepUpsUsed: number;
   readonly throwawayAvailable: boolean;
+  /** ADR-089 step 6 (plan §2.3): false filters ESCAPE (his one escape is spent under the cap); left out, today's. */
+  readonly escapeAvailable?: boolean;
 }
 
 /** `rankResponses` (`resolve/pocketMovement.ts:127-160`), restated. */
@@ -112,6 +115,7 @@ export function rankedResponsesOf(tunables: Tunables, f: PoolFacts): { readonly 
     const response = RESPONSE_OF[key];
     if (response === "STEP_UP" && !canClimb) continue;
     if (response === "THROWAWAY" && !f.throwawayAvailable) continue;
+    if (response === "ESCAPE" && f.escapeAvailable === false) continue;
     let appeal = appealOf(tunables, t.appeal[key], f.ratingOf, urgency);
     if (response === "ESCAPE" && !canClimb) appeal += t.appeal.escape.noClimbLaneBonus;
     scored.push({ response, appeal });
@@ -272,6 +276,12 @@ export interface M6Fold {
    * skips. Their pool is MOVE and ESCAPE only at urgency 0, not today's pick the restatement prices.
    */
   cleanPicks?: number;
+  /**
+   * Step 6 only (the arm's tree carries `pocket.outs`; absent on every other fold): deadline picks read
+   * (a `pocket_movement` CHECK labeled `:deadline`, 2.11), counted apart and not cross-checked: the pick
+   * is made after QB_PURSUIT between RUN and THROWAWAY, not today's pocket pick.
+   */
+  deadlinePicks?: number;
 }
 
 export function emptyM6Fold(): M6Fold {
@@ -373,16 +383,27 @@ export function streamResponseAt(d: Dropback, tick: number): PocketResponse | un
  * Cross-check every pocket_movement CHECK of one dropback against the restated pick. Under the play's
  * `pocket.cleanPocket` (step 5a) a clean pick is counted apart (`cleanPicks`) and not cross-checked:
  * it is not today's pick.
+ *
+ * ADR-089 step 6 (plan §3.2 K2), under the arm's `pocket.outs` only (K14): a deadline pick (`:deadline`)
+ * is counted apart (`deadlinePicks`) and not cross-checked; the pick's THROWAWAY reads the real
+ * throwaway rule's restatement (`throwawayAvailableAt`, at or past `floorSeconds`, the play's drop
+ * floor) under `throwawayRule`, the 2.0 s gate otherwise; and under the cap ESCAPE is offered only while
+ * no earlier roll spent his escape. Every other tree reads as before.
  */
-export function crossCheckMovement(fold: M6Fold, d: Dropback, ticks: readonly ArmTick[], players: ReadonlyMap<string, PlayerState>, tunables: Tunables): void {
+export function crossCheckMovement(fold: M6Fold, d: Dropback, ticks: readonly ArmTick[], players: ReadonlyMap<string, PlayerState>, tunables: Tunables, floorSeconds = 0): void {
   const qb = players.get(d.start.quarterback);
   if (qb === undefined) throw new Error(`m6: ${d.playId}: quarterback ${d.start.quarterback} is not on the snapshot`);
   const ratingOf = ratingReader(qb);
   const block = cleanPocketOf(tunables);
-  for (const check of d.checks) {
+  const outs = outsOf(tunables);
+  for (const [at_, check] of d.checks.entries()) {
     if (check.checkKind !== "pocket_movement") continue;
     if (block !== undefined && isCleanPickLabel(check.rngLabel)) {
       fold.cleanPicks = (fold.cleanPicks ?? 0) + 1;
+      continue;
+    }
+    if (outs !== undefined && isDeadlinePickLabel(check.rngLabel)) {
+      fold.deadlinePicks = (fold.deadlinePicks ?? 0) + 1;
       continue;
     }
     fold.movementChecks += 1;
@@ -394,12 +415,15 @@ export function crossCheckMovement(fold: M6Fold, d: Dropback, ticks: readonly Ar
     }
     const live = at.rushers.filter((r) => r.tta !== undefined);
     const stepUpsUsed = d.decisions.filter((x) => x.choice === "STEP_UP" && x.tick < check.tick).length;
+    const cap = outs?.escapeCap;
+    const spent = cap === undefined ? 0 : d.checks.slice(0, at_).filter((c) => c.checkKind === "scramble" && escapeRollSpendsS6(outs, String(c.band))).length;
     const { ranked } = rankedResponsesOf(tunables, {
       ratingOf,
       minTta: at.minTta,
       threatAlignments: live.map((r) => r.alignment),
       stepUpsUsed,
-      throwawayAvailable: check.tick >= tunables.qb.throwawayEarliestSeconds,
+      throwawayAvailable: outs === undefined ? check.tick >= tunables.qb.throwawayEarliestSeconds : throwawayAvailableAt(tunables, d, check.tick, floorSeconds),
+      ...(cap === undefined ? {} : { escapeAvailable: spent < cap.maxPerPlay }),
     });
     const band = movementBandOf(tunables, check.margin);
     const pick = pickOf(ranked, band.takeRank);
@@ -416,7 +440,10 @@ export function crossCheckMovement(fold: M6Fold, d: Dropback, ticks: readonly Ar
 /** Fold one game: the contacts, and the cross-check over TODAY's replay. */
 export function foldM6Game(fold: M6Fold, events: readonly MatchEventEnvelope[], snapshot: GameSnapshot, positions: ReadonlyMap<PlayerId, Position>, tunables: Tunables, gameSeed: string): void {
   const players = playersOfSnapshot(snapshot);
-  if (cleanPocketOf(tunables) !== undefined) fold.cleanPicks ??= 0;
+  const block = cleanPocketOf(tunables);
+  if (block !== undefined) fold.cleanPicks ??= 0;
+  const outs = outsOf(tunables);
+  if (outs !== undefined) fold.deadlinePicks ??= 0;
   for (const play of playsOf(events)) {
     const d = readDropback(play);
     if (d === undefined) continue;
@@ -425,7 +452,10 @@ export function foldM6Game(fold: M6Fold, events: readonly MatchEventEnvelope[], 
     if (!d.checks.some((c) => c.checkKind === "pocket_movement")) continue;
     const r = replayPassPlay(play.playId, play.events, { tunables, positions, gameSeed, arm: ARM_TODAY });
     if (r === undefined) continue;
-    crossCheckMovement(fold, d, r.ticks, players, tunables);
+    // Step 6: the play's drop floor, which the real throwaway rule binds (0 with no block, no first read, or a screen).
+    const start = play.events.find((e) => e.event.type === "PLAY_START");
+    const floorSeconds = outs === undefined || block === undefined ? 0 : restatedFloorSeconds(block, firstReadRouteOf((start?.event as { readonly payload?: unknown } | undefined)?.payload));
+    crossCheckMovement(fold, d, r.ticks, players, tunables, floorSeconds);
   }
 }
 
@@ -465,6 +495,7 @@ export function m6Summary(fold: M6Fold): Readonly<Record<string, unknown>> {
       unreadChecks: fold.unreadChecks,
       examples: fold.mismatchExamples,
       ...(fold.cleanPicks === undefined ? {} : { cleanPicksSkipped: fold.cleanPicks }),
+      ...(fold.deadlinePicks === undefined ? {} : { deadlinePicksSkipped: fold.deadlinePicks }),
     },
   };
 }
@@ -494,25 +525,38 @@ export interface M6Step4Fold {
   throwawayAfterShed: number;
   /** THROWAWAY decisions while some rusher's latest published state is ARRIVED: a contact choice (must be none before step 7). */
   throwawayWithArrived: number;
+  /**
+   * ADR-089 step 6 (plan §2.8, §3.2), written only once an s6 play is folded: contacts at the escape
+   * site, an `arrival_contest` after a `scramble` CHECK on its tick (the caught escape as contact,
+   * 2.8), counted among `contacts` and apart here, so a contact at the roll is never read as one in
+   * the pocket's own clock.
+   */
+  atEscape?: number;
 }
 
 export function emptyM6Step4Fold(): M6Step4Fold {
   return { dropbacks: 0, s4Dropbacks: 0, contacts: 0, fight: 0, byBand: {}, brokenReceiver: 0, throwawayAfterShed: 0, throwawayWithArrived: 0 };
 }
 
-/** One dropback into the step-4 report; `s4` is whether its play is stamped `pocket-1.s4` or later (`readsStep4Facts`). */
-export function foldM6Step4Dropback(fold: M6Step4Fold, d: Dropback, s4: boolean): void {
+/**
+ * One dropback into the step-4 report; `s4` is whether its play is stamped `pocket-1.s4` or later
+ * (`readsStep4Facts`), `s6` whether `pocket-1.s6` or later (`readsStep6Facts`): its contacts at the
+ * escape site are counted apart.
+ */
+export function foldM6Step4Dropback(fold: M6Step4Fold, d: Dropback, s4: boolean, s6 = false): void {
   fold.dropbacks += 1;
   if (!s4) return;
   fold.s4Dropbacks += 1;
-  for (const c of d.checks) {
-    if (c.checkKind !== "arrival_contest") continue;
+  if (s6) fold.atEscape ??= 0;
+  d.checks.forEach((c, at) => {
+    if (c.checkKind !== "arrival_contest") return;
     fold.contacts += 1;
     fold.fight += 1;
     const band = c.band ?? "NONE";
     fold.byBand[band] = (fold.byBand[band] ?? 0) + 1;
     if (brokenReceiverAt(d, c.tick)) fold.brokenReceiver += 1;
-  }
+    if (s6 && d.checks.slice(0, at).some((x) => x.checkKind === "scramble" && x.tick === c.tick)) fold.atEscape = (fold.atEscape ?? 0) + 1;
+  });
   for (const x of d.decisions) {
     if (x.choice !== "THROWAWAY") continue;
     if (d.checks.some((c) => c.checkKind === "arrival_contest" && c.tick === x.tick && c.band === "QB_SHEDS")) fold.throwawayAfterShed += 1;
@@ -529,7 +573,8 @@ export function foldM6Step4Game(fold: M6Step4Fold, events: readonly MatchEventEn
     const d = readDropback(play);
     if (d === undefined) continue;
     const start = play.events.find((e) => e.event.type === "PLAY_START");
-    foldM6Step4Dropback(fold, d, readsStep4Facts(rulesOnPlayStart((start?.event as { readonly payload?: unknown } | undefined)?.payload)?.name));
+    const name = rulesOnPlayStart((start?.event as { readonly payload?: unknown } | undefined)?.payload)?.name;
+    foldM6Step4Dropback(fold, d, readsStep4Facts(name), readsStep6Facts(name));
   }
 }
 
@@ -544,6 +589,7 @@ export function m6Step4Summary(fold: M6Step4Fold): Readonly<Record<string, unkno
     brokenReceiverPctOfContacts: pct(fold.brokenReceiver, fold.contacts),
     throwawayAfterShed: fold.throwawayAfterShed,
     throwawayWithArrived: fold.throwawayWithArrived,
+    ...(fold.atEscape === undefined ? {} : { contactsAtEscape: fold.atEscape }),
     reading: "reported only: every contact is FIGHT until step 7 (no contact choice, so no throwaway while a man stands ARRIVED); a throwaway after a shed is the move branch; the broken-receiver share is the bound step 7's THROWAWAY could reach",
   };
 }

@@ -56,6 +56,7 @@ import { fromOfApproach } from "./approach.js";
 import { cleanPocketOf, isCleanPickLabel, isScreenRoute, restatedFloorSeconds } from "./cleanPick.js";
 import { BROKEN_PHASES } from "./m6Contact.js";
 import { cleanMoveTicksOf, mustActPartsOf, readS2Play, s2ContextOf, type LiveThreat, type ReadKind, type S2Context, type S2Play } from "./s2Stream.js";
+import { escapeRollsBefore, escapesSpentBefore, outsOf, readS6Play, S6_ESCAPE_OUTCOMES, type S6EscapeOutcome, type S6Play } from "./s6Stream.js";
 import { playsOf, throwBarFor, type Dropback } from "./throwClass.js";
 
 const TOLERANCE = 1e-9;
@@ -139,6 +140,12 @@ export interface S5Escape {
    * (his previous etaTick minus the escape's tick). Undefined when nobody was named (a coverage sack).
    */
   readonly caughtBy?: { readonly rusher: string; readonly etaJump: number };
+  /**
+   * ADR-089 step 6 only (AM-13 `escapeOutcome`; absent on every earlier play): the outcome read from the
+   * roll's band with a catch split (`outcome` is then the band's: CAUGHT for either catch), step 5a's
+   * event reading beside it, and the catcher by `s6Stream.ts`'s rule (a blocked man's included).
+   */
+  readonly s6?: { readonly outcome: S6EscapeOutcome; readonly eventOutcome: EscapeOutcome; readonly catcher: string | undefined; readonly labelRuleSack: boolean };
 }
 
 export interface S5Bump {
@@ -223,8 +230,14 @@ export function pastBreakAt(d: Dropback, receiver: string, tick: number): boolea
   return phase !== undefined && BROKEN_PHASES.includes(phase);
 }
 
-/** One PASS play's step-5a facts, read with the arm's own tunables (K14). */
-export function readS5Dropback(play: S2Play, readOrder: readonly string[], ctx: S2Context): S5Dropback {
+/**
+ * One PASS play's step-5a facts, read with the arm's own tunables (K14). `s6` is the play's step-6
+ * facts (`readS6Play`), given on a play that reads them: then ESCAPE is offered at a clean pick only
+ * while the cap leaves his escape (2.3, the engine's `escapeLeft`, and the spent case's second escape),
+ * an escape's outcome is its band's with a catch split (AM-13 `escapeOutcome`), and a failed scramble
+ * the marker scores as a sack is no coverage sack. Without it every reading is step 5a's.
+ */
+export function readS5Dropback(play: S2Play, readOrder: readonly string[], ctx: S2Context, s6?: S6Play): S5Dropback {
   const d = play.dropback;
   const tunables = ctx.tunables;
   const block = cleanPocketOf(tunables);
@@ -234,7 +247,7 @@ export function readS5Dropback(play: S2Play, readOrder: readonly string[], ctx: 
   const { maxReads, statusAt, at } = mustActPartsOf(play, ctx);
   const pursuitIndex = play.pursuit?.index;
   const inPocket = (index: number): boolean => pursuitIndex === undefined || index < pursuitIndex;
-  const sackTick = d.sacked ? d.endTick : undefined;
+  const sackTick = d.sacked && d.failedScrambleSack !== true ? d.endTick : undefined;
   const scrambleChecks = d.checks.filter((c) => c.checkKind === "scramble");
   const cleanChecks = d.checks.filter((c) => c.checkKind === "pocket_movement" && isCleanPickLabel(c.rngLabel));
 
@@ -257,14 +270,17 @@ export function readS5Dropback(play: S2Play, readOrder: readonly string[], ctx: 
     ) {
       offered.push("MOVE");
     }
-    if (block?.breakOut === true) offered.push("ESCAPE");
+    if (block?.breakOut === true && escapeOfferedAt(ctx.tunables, s6, m.index, offered.includes("MOVE"))) offered.push("ESCAPE");
     picks.push({ tick: m.tick, band: check?.band, option: move ? "MOVE" : escape ? "ESCAPE" : "UNKNOWN", offered, todayUrgency: todayUrgencyOf(tunables, status?.minTta) });
   }
   const escapes: S5Escape[] = [];
   for (const c of scrambleChecks) {
     if (play.pursuit !== undefined && c.tick > play.pursuit.tick + TOLERANCE) continue;
     const clean = cleanChecks.some((p) => same(p.tick, c.tick));
-    const outcome: EscapeOutcome = play.pursuit !== undefined && same(play.pursuit.tick, c.tick) ? "ESCAPED" : sackTick !== undefined && same(sackTick, c.tick) ? "CAUGHT" : "CONTAINED";
+    const roll = s6?.escapes.find((e) => e.rollRef === c.rngLabel);
+    const eventOutcome: EscapeOutcome = play.pursuit !== undefined && same(play.pursuit.tick, c.tick) ? "ESCAPED" : sackTick !== undefined && same(sackTick, c.tick) ? "CAUGHT" : "CONTAINED";
+    // Step 6 (AM-13 `escapeOutcome`): the band's outcome, which a shed does not turn into CONTAINED.
+    const outcome: EscapeOutcome = roll === undefined ? eventOutcome : roll.outcome === "CAUGHT_SACKED" || roll.outcome === "CAUGHT_SHED" ? "CAUGHT" : roll.outcome;
     let caughtBy: S5Escape["caughtBy"];
     if (outcome === "CAUGHT") {
       const i = d.threats.findIndex((t) => t.state === "ARRIVED" && same(t.tick, c.tick));
@@ -274,7 +290,13 @@ export function readS5Dropback(play: S2Play, readOrder: readonly string[], ctx: 
         caughtBy = { rusher: arrived.rusher, etaJump: before === undefined ? 0 : before.etaTick - arrived.etaTick };
       }
     }
-    escapes.push({ tick: c.tick, clean, outcome, ...(caughtBy === undefined ? {} : { caughtBy }) });
+    escapes.push({
+      tick: c.tick,
+      clean,
+      outcome,
+      ...(caughtBy === undefined ? {} : { caughtBy }),
+      ...(roll === undefined ? {} : { s6: { outcome: roll.outcome, eventOutcome, catcher: roll.catcher, labelRuleSack: roll.labelRuleSack } }),
+    });
   }
 
   // The clean expiries.
@@ -365,14 +387,27 @@ export function readS5Dropback(play: S2Play, readOrder: readonly string[], ctx: 
   };
 }
 
-/** Every PASS play of a game, read for step 5a. */
+/**
+ * ADR-089 step 6 (plan §2.3): whether a clean pick at event `index` offers ESCAPE under the arm's cap:
+ * while no earlier roll spent his one escape (`escapeLeft`), or, in the spent case (no MOVE offered),
+ * under SECOND_ESCAPE while the play has drawn no more rolls than the cap's one (`spentBranch`). With
+ * no cap, or no step-6 facts, it is offered as at 5a.
+ */
+export function escapeOfferedAt(tunables: Tunables, s6: S6Play | undefined, index: number, moveOffered: boolean): boolean {
+  const cap = outsOf(tunables)?.escapeCap;
+  if (cap === undefined || s6 === undefined) return true;
+  if (escapesSpentBefore(s6, index) < cap.maxPerPlay) return true;
+  return !moveOffered && cap.whenSpent === "SECOND_ESCAPE" && escapeRollsBefore(s6, index) <= cap.maxPerPlay;
+}
+
+/** Every PASS play of a game, read for step 5a (and, on a play that reads them, with step 6's facts). */
 export function s5DropbacksOf(events: readonly MatchEventEnvelope[], ctx: S2Context): readonly S5Dropback[] {
   const out: S5Dropback[] = [];
   for (const slice of playsOf(events)) {
     const play = readS2Play(slice.playId, slice.events);
     if (play === undefined) continue;
     const start = slice.events.find((e) => e.event.type === "PLAY_START");
-    out.push(readS5Dropback(play, readOrderOf(start?.event.payload), ctx));
+    out.push(readS5Dropback(play, readOrderOf(start?.event.payload), ctx, readS6Play(slice.events, ctx.tunables)));
   }
   return out;
 }
@@ -418,6 +453,20 @@ export interface S5Fold {
   };
   floorWaits: { holds: number; floorBound: number; dropbacks: number };
   coverageSacks: { n: number; sacks: number; sumTick: number };
+  /**
+   * ADR-089 step 6 only (absent until a step-6 escape is folded, so every earlier fold re-folds as
+   * before, Q-2g): the escape rolls by step 6's outcome (the band's, a catch split into sacked at the
+   * roll and shed; AM-13 `escapeOutcome`), clean and forced, with step 5a's event reading beside, the
+   * label rule's sacks, and the catches by whether a catcher was named.
+   */
+  s6Escapes?: {
+    clean: Record<S6EscapeOutcome, number>;
+    forced: Record<S6EscapeOutcome, number>;
+    eventReading: { clean: Record<EscapeOutcome, number>; forced: Record<EscapeOutcome, number> };
+    labelRuleSacks: number;
+    catchesNamed: number;
+    catchesUnnamed: number;
+  };
   byCall: Record<string, { readSystem: string; dropbacks: number; cleanExpiryDropbacks: number }>;
 }
 
@@ -489,6 +538,23 @@ export function foldS5Dropback(fold: S5Fold, x: S5Dropback): void {
   for (const e of x.escapes) {
     fold.escapes.attempts += 1;
     (e.clean ? fold.escapes.clean : fold.escapes.forced)[e.outcome] += 1;
+    if (e.s6 !== undefined) {
+      const f = (fold.s6Escapes ??= {
+        clean: zeros(S6_ESCAPE_OUTCOMES),
+        forced: zeros(S6_ESCAPE_OUTCOMES),
+        eventReading: { clean: zeros(ESCAPE_OUTCOMES), forced: zeros(ESCAPE_OUTCOMES) },
+        labelRuleSacks: 0,
+        catchesNamed: 0,
+        catchesUnnamed: 0,
+      });
+      (e.clean ? f.clean : f.forced)[e.s6.outcome] += 1;
+      (e.clean ? f.eventReading.clean : f.eventReading.forced)[e.s6.eventOutcome] += 1;
+      if (e.s6.labelRuleSack) f.labelRuleSacks += 1;
+      if (e.outcome === "CAUGHT") {
+        if (e.s6.catcher === undefined) f.catchesUnnamed += 1;
+        else f.catchesNamed += 1;
+      }
+    }
     if (e.clean && e.caughtBy !== undefined) {
       const c = fold.escapes.cleanCaughtNamed;
       c.n += 1;
